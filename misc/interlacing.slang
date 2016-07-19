@@ -44,7 +44,7 @@ void main()
    float y = 0.0;
 
    // assume anything with a vertical resolution greater than 400 lines is interlaced
-   if (global.SourceSize.w > 400.0)
+   if (global.SourceSize.y > 400.0)
    {y = global.SourceSize.y * vTexCoord.y + (global.FrameCount * enable_480i) + top_field_first;}
    else
    {y = 2.0 * global.SourceSize.y * vTexCoord.y + top_field_first;}
