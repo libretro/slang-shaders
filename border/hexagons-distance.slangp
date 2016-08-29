@@ -1,0 +1,14 @@
+shaders = 1
+
+shader0 = shaders/hexagons-distance.slang
+filter_linear0 = false
+scale_type0 = viewport
+scale0 = 1.0
+alias0 = "HEXAGONS"
+framecount_mod0 = 10000.0
+
+textures = "iChannel0"
+iChannel0 = textures/tex11.png
+iChannel0_linear = true
+iChannel0_wrap_mode = repeat
+iChannel0_mipmap = true

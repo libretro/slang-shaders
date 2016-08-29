@@ -8,7 +8,9 @@ scale_x0 = "2.000000"
 scale_type_y0 = "source"
 scale_y0 = "2.000000"
 
-shader1 = shader-files/gb-pass-5.slang
+shader1 = "shader-files/gb-pass-5.slang"
+filter_linear1 = "true"
+wrap_mode1 = "clamp_to_border"
 
 parameters = "SCALE;OUT_X;OUT_Y"
 SCALE = "1.0"

@@ -1,0 +1,30 @@
+
+shaders = "4"
+
+shader0 = ../shaders/color/nds-color.slang
+filter_linear0 = "false"
+wrap_mode0 = "clamp_to_border"
+
+shader1 = ../shaders/lcd-cgwg/lcd-grid.slang
+scale_type_x0 = "source"
+scale_x0 = "3.000000"
+scale_type_y0 = "source"
+scale_y0 = "3.000000"
+
+
+shader2 = shader-files/image-adjustment.slang
+wrap_mode2 = "clamp_to_border"
+
+shader3 = shader-files/gb-pass-5.slang
+wrap_mode3 = "clamp_to_border"
+
+parameters = "SCALE;OUT_X;OUT_Y"
+SCALE = "1.0"
+OUT_X = "4800.0"
+OUT_Y = "2400.0"
+
+textures = "BORDER"
+BORDER = "resources/dsi-border-square-4x-90.png"
+BORDER_linear = "true"
+BORDER_wrap_mode = "clamp_to_border"
+BORDER_mipmap = "false"

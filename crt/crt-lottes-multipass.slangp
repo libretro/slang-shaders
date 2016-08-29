@@ -1,0 +1,55 @@
+shaders = 10
+
+shader0 = shaders/crt-lottes-multipass/linearize.slang
+float_framebuffer0 = true
+alias0 = "REFERENCE"
+
+shader1 = shaders/crt-lottes-multipass/horz3minus1.slang
+float_framebuffer1 = true
+scale_type1 = source
+filter_linear1 = true
+alias1 = horz3minus1
+
+shader2 = shaders/crt-lottes-multipass/horz3plus1.slang
+float_framebuffer2 = true
+scale_type2 = source
+filter_linear2 = true
+alias2 = horz3plus1
+
+shader3 = shaders/crt-lottes-multipass/horz5minus2.slang
+float_framebuffer3 = true
+scale_type3 = source
+filter_linear3 = true
+alias3 = horz5minus2
+
+shader4 = shaders/crt-lottes-multipass/horz5.slang
+float_framebuffer4 = true
+scale_type4 = source
+filter_linear4 = true
+alias4 = horz5
+
+shader5 = shaders/crt-lottes-multipass/horz5plus2.slang
+float_framebuffer5 = true
+scale_type5 = source
+filter_linear5 = true
+alias5 = horz5plus2
+
+shader6 = shaders/crt-lottes-multipass/horz7minus1.slang
+float_framebuffer6 = true
+scale_type6 = source
+filter_linear6 = true
+alias6 = horz7minus1
+
+shader7 = shaders/crt-lottes-multipass/horz7.slang
+float_framebuffer7 = true
+scale_type7 = source
+filter_linear7 = true
+alias7 = horz7
+
+shader8 = shaders/crt-lottes-multipass/horz7plus1.slang
+float_framebuffer8 = true
+scale_type8 = source
+filter_linear8 = true
+alias8 = horz7plus1
+
+shader9 = shaders/crt-lottes-multipass/crt-lottes-multipass.slang
