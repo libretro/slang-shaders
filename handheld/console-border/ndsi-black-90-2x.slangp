@@ -1,5 +1,5 @@
 
-shaders = "3"
+shaders = "4"
 
 shader0 = ../shaders/color/nds-color.slang
 filter_linear0 = "false"
@@ -11,12 +11,13 @@ scale_x0 = "3.000000"
 scale_type_y0 = "source"
 scale_y0 = "3.000000"
 
-
-
-shader2 = shader-files/gb-pass-5.slang
+shader2 = shader-files/image-adjustment.slang
 wrap_mode2 = "clamp_to_border"
 
-parameters = 
+shader3 = shader-files/gb-pass-5.slang
+wrap_mode3 = "clamp_to_border"
+
+parameters = "SCALE;OUT_X;OUT_Y"
 SCALE = "1.0"
 OUT_X = "3200.0"
 OUT_Y = "1600.0"
