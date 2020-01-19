@@ -30,17 +30,17 @@ scale_type3 = source
 scale3 = 1.0
 alias3 = WhitePointPass
 
-shader4 = ../stock.glsl
+shader4 = ../stock.slang
 filter_linear4 = false
 scale_type4 = source
 scale4 = 1.0
 
-shader5 = ../stock.glsl
+shader5 = ../stock.slang
 filter_linear5 = false
 scale_type5 = source
 scale5 = 1.0
 
-shader6 = ../stock.glsl
+shader6 = ../stock.slang
 filter_linear6 = false
 scale_type6 = source
 scale6 = 1.0
