@@ -1,6 +1,6 @@
 shaders = 12
 
-shader0 = ../stock.glsl
+shader0 = ../stock.slang
 filter_linear0 = false
 scale_type_x0 = source
 scale_type_y0 = absolute
