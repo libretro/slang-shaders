@@ -1,7 +1,7 @@
 #version 450
 
 /*
-	Anamorphic v1 Shader 2020
+	Anamorphic v1.1b Shader 2020
 	by Nerboruto 
 	
 	Permission is hereby granted, free of charge, to any person obtaining a copy of	this
@@ -58,7 +58,7 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-float Anamorphic(float CoordX)
+float AnamorphX(float CoordX)
 {
 	float k=params.extraCorrection;
 	float RX = length(CoordX);
@@ -66,12 +66,22 @@ float Anamorphic(float CoordX)
 	return (1.0-FACX)/(1.0-FACX*RX);
 }
 
+float AnamorphE(float CoordE)
+{
+	float RB = length(CoordE);
+	float FACB = -radians(17);
+	if (RB < 0.99) return 1.0;
+	return (1.0-FACB)/(1.006-FACB*RB);
+}
+
 void main()
 {
 	float cu=params.upcrop;
 	float cd=params.downcrop;
 	vec2 RCoord = vTexCoord * 2.0 - 1.0;
-	RCoord.x *= Anamorphic(RCoord.x);
+	RCoord.x *=1.006;
+	RCoord.x *= AnamorphE(RCoord.x);
+	RCoord.x *= AnamorphX(RCoord.x);
 	RCoord = RCoord * 0.5 + 0.5;
 	RCoord.y = (RCoord.y+cu)/(1.0+cu+cd);
 	vec3 res = texture(Source, RCoord).rgb;
