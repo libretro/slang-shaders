@@ -33,9 +33,9 @@ layout(push_constant) uniform Push
 	float downcrop;
 } params;
 
-#pragma parameter extraCorrection "extra correction factor (cause extra distorsion)" 0.0 -5.0 5.0 0.1
-#pragma parameter upcrop "vertical Up cropping tweaks" 0.00 0.00 0.20 0.005
-#pragma parameter downcrop "vertical Down cropping tweaks" 0.00 0.00 0.20 0.005
+#pragma parameter extraCorrection "extra correction factor (cause extra distorsion - game dependent)" 0.0 -5.0 5.0 0.1
+#pragma parameter upcrop "vertical Up cropping tweaks" 0.00 0.00 0.20 0.0025
+#pragma parameter downcrop "vertical Down cropping tweaks" 0.00 0.00 0.20 0.0025
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -61,17 +61,18 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 float AnamorphX(float CoordX)
 {
 	float k=params.extraCorrection;
+	if (k<-4.9) return 1.0;
 	float RX = length(CoordX);
-	float FACX = -radians(k+5.55-RX);
+	float FACX = -radians(k+5.0);
 	return (1.0-FACX)/(1.0-FACX*RX);
 }
 
 float AnamorphE(float CoordE)
 {
 	float RB = length(CoordE);
-	float FACB = -radians(17);
-	if (RB < 0.99) return 1.0;
-	return (1.0-FACB)/(1.006-FACB*RB);
+	float FACB = -radians(40);
+	if (RB < 0.9975) return 1.0;
+	return (1.0-FACB)/(1.005-FACB*RB);
 }
 
 void main()
@@ -79,7 +80,7 @@ void main()
 	float cu=params.upcrop;
 	float cd=params.downcrop;
 	vec2 RCoord = vTexCoord * 2.0 - 1.0;
-	RCoord.x *=1.006;
+	RCoord.x *=1.0078125;
 	RCoord.x *= AnamorphE(RCoord.x);
 	RCoord.x *= AnamorphX(RCoord.x);
 	RCoord = RCoord * 0.5 + 0.5;
