@@ -28,14 +28,18 @@ layout(push_constant) uniform Push
 	vec4 SourceSize;
 	vec4 OriginalSize;
 	vec4 OutputSize;
-	float extraCorrection;
-	float upcrop;
-	float downcrop;
+	float exc;
+	float upc;
+	float dwc;
+	float exp;
+	float vuc;
 } params;
 
-#pragma parameter extraCorrection "extra correction factor (cause extra distorsion - game dependent)" 0.0 -5.0 5.0 0.1
-#pragma parameter upcrop "vertical Up cropping tweaks" 0.00 0.00 0.20 0.0025
-#pragma parameter downcrop "vertical Down cropping tweaks" 0.00 0.00 0.20 0.0025
+#pragma parameter exc "extra correction factor (cause extra distorsion game dependent)" 0.0 -5.0 5.0 0.1
+#pragma parameter upc "vertical Up cropping tweaks" 0.00 0.00 0.20 0.0025
+#pragma parameter dwc "vertical Down cropping tweaks" 0.00 0.00 0.20 0.0025
+#pragma parameter exp "extra 2.5 pixel orizontal tweaks" 1.0 0.0 1.0 1.0
+#pragma parameter vuc "vertical resize tweaks" 0.0 0.0 5.0 1.0
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -60,31 +64,39 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 float AnamorphX(float CoordX)
 {
-	float k=params.extraCorrection;
-	if (k<-4.9) return 1.0;
-	float RX = length(CoordX);
-	float FACX = -radians(k+5.0);
-	return (1.0-FACX)/(1.0-FACX*RX);
+	float rx = length(CoordX);
+	float fx = -radians(params.exc+5.0);
+	return (1.0-fx)/(1.0-fx*rx);
 }
 
-float AnamorphE(float CoordE)
+float AnamorphY(float CoordY)
 {
-	float RB = length(CoordE);
-	float FACB = -radians(40);
-	if (RB < 0.9975) return 1.0;
-	return (1.0-FACB)/(1.005-FACB*RB);
+	float ry = CoordY;
+	float fy = -radians(params.vuc*0.5);
+	if (ry > 0.0) return 1.0;
+	return (1.0-fy)/(1.00-fy*ry);
+}
+
+float AnamorphB(float CoordB)
+{
+	float rb = length(CoordB);
+	float fb = -radians(40);
+	if (rb < 0.9975) return 1.0;
+	return (1.0-fb)/(1.005-fb*rb);
 }
 
 void main()
 {
-	float cu=params.upcrop;
-	float cd=params.downcrop;
 	vec2 RCoord = vTexCoord * 2.0 - 1.0;
+	if (params.exp == 1.0)
+	{
 	RCoord.x *=1.0078125;
-	RCoord.x *= AnamorphE(RCoord.x);
+	RCoord.x *= AnamorphB(RCoord.x);
+	}
 	RCoord.x *= AnamorphX(RCoord.x);
+	RCoord.y *= AnamorphY(RCoord.y);
 	RCoord = RCoord * 0.5 + 0.5;
-	RCoord.y = (RCoord.y+cu)/(1.0+cu+cd);
+	RCoord.y = (RCoord.y+params.upc)/(1.0+params.upc+params.dwc);
 	vec3 res = texture(Source, RCoord).rgb;
     FragColor = vec4(res,0.0);
 }
