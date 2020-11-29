@@ -34,7 +34,7 @@ layout(push_constant) uniform Push
 	float exp;
 	float vuc;
 	float vbc;
-} params;
+	} params;
 
 #pragma parameter exc "orizontal correction hack (games where players stay at center)" 0.0 -10.0 10.0 0.5
 #pragma parameter exp "orizontal 3pix border hack (for 2d games +1.5 extra correction)" 1.0 0.0 1.0 1.0
@@ -83,9 +83,9 @@ float AnamorphYU(float CoordY)
 float AnamorphYB(float CoordY)
 {
 	float ryb = CoordY;
-	float fyb = radians(params.vbc*0.5);
+	float fyb = radians(params.vbc);
 	if (ryb < 0.0) return 1.0;
-	return (1.0-fyb)/(1.00-fyb*ryb);
+	return (1.0-fyb)/(1.0-fyb*ryb);
 }
 
 float AnamorphB(float CoordB)
@@ -108,7 +108,7 @@ void main()
 	RCoord.y *= AnamorphYU(RCoord.y);
 	RCoord.y *= AnamorphYB(RCoord.y);
 	RCoord = RCoord * 0.5 + 0.5;
-	RCoord.y = (RCoord.y+((params.upc+params.vuc)*0.01))/(1.0+((params.upc+params.btc+params.vuc)*0.01));
+	RCoord.y = (RCoord.y+(params.upc+params.vuc)*0.01)/(1.0+(params.upc+params.btc+params.vuc)*0.01);
 	vec3 res = texture(Source, RCoord).rgb;
     FragColor = vec4(res,0.0);
 }
