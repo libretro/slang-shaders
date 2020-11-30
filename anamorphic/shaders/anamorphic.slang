@@ -34,14 +34,14 @@ layout(push_constant) uniform Push
 	float exp;
 	float vuc;
 	float vbc;
-	} params;
+} params;
 
 #pragma parameter exc "orizontal correction hack (games where players stay at center)" 0.0 -10.0 10.0 0.5
 #pragma parameter exp "orizontal 3pix border hack (for 2d games +1.5 extra correction)" 1.0 0.0 1.0 1.0
 #pragma parameter upc "Upper  vertical Crop" 0.0 -0.5 10.0 0.5
 #pragma parameter btc "Bottom vertical Crop" 0.0 -0.5 10.0 0.5
-#pragma parameter vuc "vertical Upper  resize hack use" 0.0 0.0 10.0 0.5
-#pragma parameter vbc "vertical Bottom resize hack (use with caution)" 0.0 0.0 10.0 0.5
+#pragma parameter vuc "vertical Upper  resize hack" 0.0 0.0 10.0 0.5
+#pragma parameter vbc "vertical Bottom resize hack" 1.0 0.5 1.0 0.05
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -74,6 +74,7 @@ float AnamorphX(float CoordX)
 
 float AnamorphYU(float CoordY)
 {
+	if (params.vuc == 0.0) return 1.0;
 	float ryu = CoordY;
 	float fyu = -radians(params.vuc*0.5);
 	if (ryu > 0.0) return 1.0;
@@ -82,10 +83,11 @@ float AnamorphYU(float CoordY)
 
 float AnamorphYB(float CoordY)
 {
+	if (params.vbc == 1.0) return 1.0;
 	float ryb = CoordY;
-	float fyb = radians(params.vbc);
-	if (ryb < 0.0) return 1.0;
-	return (1.0-fyb)/(1.0-fyb*ryb);
+	float fyb = radians(6);
+	if (ryb < params.vbc) return 1.0;
+	return (1.0-fyb)/((1.0-(1.0-params.vbc)*0.1)-fyb*ryb);
 }
 
 float AnamorphB(float CoordB)
