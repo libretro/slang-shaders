@@ -20,7 +20,6 @@
 	HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
 	CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
 	OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 */
 
 layout(push_constant) uniform Push
@@ -33,15 +32,15 @@ layout(push_constant) uniform Push
 	float btc;
 	float exp;
 	float vuc;
-	float vbc;
+	float vab;
 } params;
 
 #pragma parameter exc "orizontal correction hack (games where players stay at center)" 0.0 -10.0 10.0 0.5
-#pragma parameter exp "orizontal 3pix border hack (for 2d games +1.5 extra correction)" 1.0 0.0 1.0 1.0
+#pragma parameter exp "border hack (hack for 2d games extra correction prepass)" 1.0 0.0 1.0 1.0
+#pragma parameter vuc "vertical Upper resize hack (most important first pass)" 0.0 0.0 10.0 0.5
+#pragma parameter vab "vertical alf resize hack (second pass 90-85 optimal)" 1.0 0.5 1.0 0.05
 #pragma parameter upc "Upper  vertical Crop" 0.0 -0.5 10.0 0.5
 #pragma parameter btc "Bottom vertical Crop" 0.0 -0.5 10.0 0.5
-#pragma parameter vuc "vertical Upper  resize hack" 0.0 0.0 10.0 0.5
-#pragma parameter vbc "vertical Bottom resize hack" 1.0 0.5 1.0 0.05
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -63,7 +62,7 @@ void main()
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-
+//orizontal
 float AnamorphX(float CoordX)
 {
 	if (params.exc == 0.0) return 1.0;
@@ -71,25 +70,33 @@ float AnamorphX(float CoordX)
 	float fx = -radians(params.exc);
 	return (1.0-fx)/(1.0-fx*rx);
 }
-
+//vertical prepass
+float AnamorphYP(float CoordY)
+{
+	float ryp = length(CoordY);
+	float fyp = radians(6);
+	if (ryp < 0.925) return 1.0;
+	return (1.0-fyp)/((1.0-(1.0-0.925)*0.1)-fyp*ryp);
+}
+//Upper vertical
 float AnamorphYU(float CoordY)
 {
 	if (params.vuc == 0.0) return 1.0;
 	float ryu = CoordY;
 	float fyu = -radians(params.vuc*0.5);
 	if (ryu > 0.0) return 1.0;
-	return (1.0-fyu)/(1.00-fyu*ryu);
+	return (1.0-fyu)/(1.0-fyu*ryu);
 }
-
-float AnamorphYB(float CoordY)
+//alf vertical
+float AnamorphAB(float CoordY)
 {
-	if (params.vbc == 1.0) return 1.0;
-	float ryb = CoordY;
-	float fyb = radians(6);
-	if (ryb < params.vbc) return 1.0;
-	return (1.0-fyb)/((1.0-(1.0-params.vbc)*0.1)-fyb*ryb);
+	if (params.vab == 1.0) return 1.0;
+	float rab = length(CoordY);
+	float fab = radians(6);
+	if (rab < params.vab) return 1.0;
+	return (1.0-fab)/((1.0-(1.0-params.vab)*0.1)-fab*rab);
 }
-
+//orizontal border
 float AnamorphB(float CoordB)
 {
 	float rb = length(CoordB);
@@ -105,10 +112,12 @@ void main()
 	{
 	RCoord.x *=1.0105;
 	RCoord.x *= AnamorphB(RCoord.x);
+	RCoord.y *= AnamorphYP(RCoord.y);
+	RCoord.y *=0.9925;
 	}
 	RCoord.x *= AnamorphX(RCoord.x);
 	RCoord.y *= AnamorphYU(RCoord.y);
-	RCoord.y *= AnamorphYB(RCoord.y);
+	RCoord.y *= AnamorphAB(RCoord.y);
 	RCoord = RCoord * 0.5 + 0.5;
 	RCoord.y = (RCoord.y+(params.upc+params.vuc)*0.01)/(1.0+(params.upc+params.btc+params.vuc)*0.01);
 	vec3 res = texture(Source, RCoord).rgb;
