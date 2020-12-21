@@ -20,6 +20,7 @@
 	HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
 	CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
 	OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 */
 
 layout(push_constant) uniform Push
@@ -35,12 +36,12 @@ layout(push_constant) uniform Push
 	float vab;
 } params;
 
-#pragma parameter exc "orizontal correction hack (games where players stay at center)" 0.0 -10.0 10.0 0.5
+#pragma parameter exc "orizontal correction hack (games where players stay at center)" 0.0 -10.0 10.0 0.25
 #pragma parameter exp "border hack (hack for 2d games extra correction prepass)" 1.0 0.0 1.0 1.0
-#pragma parameter vuc "vertical Upper resize hack (most important first pass)" 0.0 0.0 10.0 0.5
-#pragma parameter vab "vertical alf resize hack (second pass 90-85 optimal)" 1.0 0.5 1.0 0.05
-#pragma parameter upc "Upper  vertical Crop" 0.0 -0.5 10.0 0.5
-#pragma parameter btc "Bottom vertical Crop" 0.0 -0.5 10.0 0.5
+#pragma parameter vuc "vertical Upper resize hack (most important first pass)" 0.0 0.0 10.0 0.25
+#pragma parameter vab "vertical Bottom resize hack (90-85 second pass)" 1.0 0.5 1.0 0.01
+#pragma parameter upc "Upper  vertical Crop" 0.0 0.0 10.0 0.25
+#pragma parameter btc "Bottom vertical Crop" 0.0 0.0 10.0 0.25
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -87,11 +88,11 @@ float AnamorphYU(float CoordY)
 	if (ryu > 0.0) return 1.0;
 	return (1.0-fyu)/(1.0-fyu*ryu);
 }
-//alf vertical
+//Bottom vertical
 float AnamorphAB(float CoordY)
 {
 	if (params.vab == 1.0) return 1.0;
-	float rab = length(CoordY);
+	float rab = CoordY;
 	float fab = radians(6);
 	if (rab < params.vab) return 1.0;
 	return (1.0-fab)/((1.0-(1.0-params.vab)*0.1)-fab*rab);
@@ -100,9 +101,9 @@ float AnamorphAB(float CoordY)
 float AnamorphB(float CoordB)
 {
 	float rb = length(CoordB);
-	float fb = -radians(45);
+	float fb = -radians(15);
 	if (rb < 0.99) return 1.0;
-	return (1.0-fb)/(1.0078125-fb*rb);
+	return (1.0-fb)/(1.0060-fb*rb);
 }
 
 void main()
@@ -119,7 +120,7 @@ void main()
 	RCoord.y *= AnamorphYU(RCoord.y);
 	RCoord.y *= AnamorphAB(RCoord.y);
 	RCoord = RCoord * 0.5 + 0.5;
-	RCoord.y = (RCoord.y+(params.upc+params.vuc)*0.01)/(1.0+(params.upc+params.btc+params.vuc)*0.01);
+	RCoord.y = (RCoord.y+(params.upc+(params.vuc*0.95))*0.01)/(1.0+(params.upc+params.btc+(params.vuc*0.95))*0.01);
 	vec3 res = texture(Source, RCoord).rgb;
     FragColor = vec4(res,0.0);
 }
