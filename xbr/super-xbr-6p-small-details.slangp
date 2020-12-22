@@ -41,4 +41,4 @@ filter_linear6 = false
 
 parameters = "MODE;XBR_EDGE_STR"
 MODE = "1.0"
-XBR_EDGE_STR = "2.0"
+XBR_EDGE_STR = "5.0"

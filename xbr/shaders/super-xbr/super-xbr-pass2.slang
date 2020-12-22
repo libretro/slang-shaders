@@ -39,15 +39,18 @@ layout(push_constant) uniform Push
 	float MODE;
 	float XBR_EDGE_SHP;
 	float XBR_TEXTURE_SHP;
+   float XBR_EDGE_STR_P2;
 } params;
 
 #pragma parameter MODE "Mode - Normal, Details, Adaptive" 0.0 0.0 2.0 1.0
+#pragma parameter XBR_EDGE_STR_P2 "Xbr - Edge Strength p2" 5.0 0.0 5.0 0.5
 #pragma parameter XBR_EDGE_SHP "Adaptive Dynamic Edge Sharp" 0.4 0.0 3.0 0.1
 #pragma parameter XBR_TEXTURE_SHP "Adaptive Static Edge Sharp" 1.0 0.0 2.0 0.1
 
 #define MODE params.MODE
 #define XBR_EDGE_SHP params.XBR_EDGE_SHP
 #define XBR_TEXTURE_SHP params.XBR_TEXTURE_SHP
+#define XBR_EDGE_STR_P2 params.XBR_EDGE_STR_P2
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -139,10 +142,10 @@ void main()
 	float wp1, wp2, wp3, wp4, wp5, wp6, weight1, weight2;
 	if (MODE == 1.0)
 	{
-		wp1	=	1.0;
+		wp1	=	0.0;
 		wp2	=	0.0;
 		wp3	=	0.0;
-		wp4	=	0.0;
+		wp4	=	1.0;
 		wp5	=	0.0;
 		wp6	=	0.0;
 
@@ -225,7 +228,7 @@ void main()
 	/* Calc edgeness in horizontal/vertical directions. */
 	float hv_edge = (hv_wd(wp1, wp2, wp3, wp4, wp5, wp6, f, i, e, h, c, i5, b, h5) - hv_wd(wp1, wp2, wp3, wp4, wp5, wp6, e, f, h, i, d, f4, g, i4));
 
-	float limits = XBR_EDGE_STR + 0.000001;
+	float limits = XBR_EDGE_STR_P2 + 0.000001;
 	float edge_strength = smoothstep(0.0, limits, abs(d_edge));
 	
 	vec4 w1, w2;
@@ -260,8 +263,8 @@ void main()
 	vec3 color =  mix(mix(c1, c2, step(0.0, d_edge)), mix(c3, c4, step(0.0, hv_edge)), 1. - edge_strength);
 
 	/* Anti-ringing code. */
-	vec3 min_sample = min4( E, F, H, I ) + (1.-XBR_ANTI_RINGING)*mix((P2-H)*(F-P1), (P0-E)*(I-P3), step(0.0, d_edge));
-	vec3 max_sample = max4( E, F, H, I ) - (1.-XBR_ANTI_RINGING)*mix((P2-H)*(F-P1), (P0-E)*(I-P3), step(0.0, d_edge));
+	vec3 min_sample = min4( E, F, H, I );
+	vec3 max_sample = max4( E, F, H, I );
 	color = clamp(color, min_sample, max_sample);
 	
    FragColor = vec4(color, 1.0);

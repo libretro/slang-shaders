@@ -32,7 +32,7 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float XBR_EDGE_STR;
+	float XBR_EDGE_STR_P0;
 	float XBR_WEIGHT;
 	float XBR_ANTI_RINGING;
 	float MODE;
@@ -40,16 +40,14 @@ layout(push_constant) uniform Push
 	float XBR_TEXTURE_SHP;
 } params;
 
-#pragma parameter XBR_EDGE_STR "Xbr - Edge Strength p0" 0.6 0.0 5.0 0.2
-#pragma parameter XBR_WEIGHT "Xbr - Filter Weight" 1.0 0.00 1.50 0.01
-#pragma parameter XBR_ANTI_RINGING "Xbr - Anti-Ringing Level" 1.0 0.0 1.0 1.0
 #pragma parameter MODE "Mode - Normal, Details, Adaptive" 0.0 0.0 2.0 1.0
+#pragma parameter XBR_EDGE_STR_P0 "Xbr - Edge Strength p0" 5.0 0.0 5.0 0.5
+#pragma parameter XBR_WEIGHT "Xbr - Filter Weight" 1.0 0.00 1.50 0.01
 #pragma parameter XBR_EDGE_SHP "Adaptive Dynamic Edge Sharp" 0.4 0.0 3.0 0.1
 #pragma parameter XBR_TEXTURE_SHP "Adaptive Static Edge Sharp" 1.0 0.0 2.0 0.1
 
-#define XBR_EDGE_STR params.XBR_EDGE_STR
+#define XBR_EDGE_STR_P0 params.XBR_EDGE_STR_P0
 #define XBR_WEIGHT params.XBR_WEIGHT
-#define XBR_ANTI_RINGING params.XBR_ANTI_RINGING
 #define MODE params.MODE
 #define XBR_EDGE_SHP params.XBR_EDGE_SHP
 #define XBR_TEXTURE_SHP params.XBR_TEXTURE_SHP
@@ -144,32 +142,7 @@ void main()
 {
 // settings //
 	float wp1, wp2, wp3, wp4, wp5, wp6, weight1, weight2;
-	if (MODE == 1.0)
-	{
-		wp1	=	1.0;
-		wp2	=	0.0;
-		wp3	=	0.0;
-		wp4	=	1.0;
-		wp5	=	-1.0;
-		wp6	=	0.0;
 
-		weight1	=	(XBR_WEIGHT*1.29633/10.0);
-		weight2	=	(XBR_WEIGHT*1.75068/10.0/2.0);
-	}
-	else if (MODE == 2.0)
-	{
-		wp1	=	1.0;
-		wp2	=	0.0;
-		wp3	=	0.0;
-		wp4	=	2.0;
-		wp5	=	-1.0;
-		wp6	=	0.0;
-
-		weight1	=	(1.29633/10.0);
-		weight2	=	(1.75068/10.0/2.0);
-	}
-	else
-	{
 		wp1	=	2.0;
 		wp2	=	1.0;
 		wp3	=	-1.0;
@@ -179,7 +152,7 @@ void main()
 
 		weight1	=	(XBR_WEIGHT*1.29633/10.0);
 		weight2	=	(XBR_WEIGHT*1.75068/10.0/2.0);
-	}
+
 // end settings //
 
 	vec3 P0 = texture(Source, t1.xy).xyz;
@@ -222,7 +195,7 @@ void main()
 	/* Calc edgeness in horizontal/vertical directions. */
 	float hv_edge = (hv_wd(wp1, wp2, wp3, wp4, wp5, wp6, f, i, e, h, c, i5, b, h5) - hv_wd(wp1, wp2, wp3, wp4, wp5, wp6, e, f, h, i, d, f4, g, i4));
 
-	float limits = XBR_EDGE_STR + 0.000001;
+	float limits = XBR_EDGE_STR_P0 + 0.000001;
 	float edge_strength = smoothstep(0.0, limits, abs(d_edge));
 	
 	vec4 w1, w2;
@@ -238,7 +211,7 @@ void main()
 		w1 = vec4(-wgt1, wgt1+ 0.5, wgt1+ 0.5, -wgt1);
 		w2 = vec4(-wgt2, wgt2+0.25, wgt2+0.25, -wgt2);
 		c3 = mul(w2, mat4x3(P0+2.0*(D+G)+P2, B+2.0*(E+H)+H5, C+2.0*(F+I)+I5, P1+2.0*(F4+I4)+P3))/3.0;
-        c4 = mul(w2, mat4x3(P0+2.0*(C+B)+P1, D+2.0*(F+E)+F4, G+2.0*(I+H)+I4, P2+2.0*(I5+H5)+P3))/3.0;
+      c4 = mul(w2, mat4x3(P0+2.0*(C+B)+P1, D+2.0*(F+E)+F4, G+2.0*(I+H)+I4, P2+2.0*(I5+H5)+P3))/3.0;
 	}
 	else
 	{
@@ -257,8 +230,8 @@ void main()
 	vec3 color =  mix(mix(c1, c2, step(0.0, d_edge)), mix(c3, c4, step(0.0, hv_edge)), 1. - edge_strength);
 
 	/* Anti-ringing code. */
-	vec3 min_sample = min4( E, F, H, I ) + (1.-XBR_ANTI_RINGING)*mix((P2-H)*(F-P1), (P0-E)*(I-P3), step(0.0, d_edge));
-	vec3 max_sample = max4( E, F, H, I ) - (1.-XBR_ANTI_RINGING)*mix((P2-H)*(F-P1), (P0-E)*(I-P3), step(0.0, d_edge));
+	vec3 min_sample = min4( E, F, H, I );
+	vec3 max_sample = max4( E, F, H, I );
 	color = clamp(color, min_sample, max_sample);
 
 	FragColor = vec4(color, 1.0);

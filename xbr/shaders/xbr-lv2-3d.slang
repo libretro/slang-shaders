@@ -39,6 +39,7 @@ layout(push_constant) uniform Push
 	float XBR_LV2_COEFFICIENT;
 	float XBR_RES;
 	float XBR_SCALE;
+	float XBR_TEX;
 } params;
 
 #pragma parameter XBR_Y_WEIGHT "Y Weight" 48.0 0.0 100.0 1.0
@@ -47,6 +48,7 @@ layout(push_constant) uniform Push
 #pragma parameter XBR_LV2_COEFFICIENT "Lv2 Coefficient" 2.0 1.0 3.0 0.1
 #pragma parameter XBR_RES "Internal Res Multiplier" 2.0 1.0 8.0 1.0
 #pragma parameter XBR_SCALE "xBR Scale" 3.0 1.0 5.0 1.0
+#pragma parameter XBR_TEX "Reduce Artifact" 0.25 0.25 0.49 0.01
 
 #define XBR_Y_WEIGHT params.XBR_Y_WEIGHT
 #define XBR_EQ_THRESHOLD params.XBR_EQ_THRESHOLD
@@ -54,6 +56,7 @@ layout(push_constant) uniform Push
 #define XBR_LV2_COEFFICIENT params.XBR_LV2_COEFFICIENT
 #define XBR_RES params.XBR_RES
 #define XBR_SCALE params.XBR_SCALE
+#define XBR_TEX params.XBR_TEX
 
 #define mul(a,b) (b*a)
 #define saturate(c) clamp(c, 0.0, 1.0)
@@ -183,25 +186,25 @@ void main()
 	vec3  F4 = texture(Source, vTexCoord +2.0*dx        ).xyz;
 	vec3  I4 = texture(Source, vTexCoord +2.0*dx     +dy).xyz;
 
-	vec3 F6 = texture(Source,  tex +dx+0.25*dx+0.25*dy).xyz;
-	vec3 F7 = texture(Source,  tex +dx+0.25*dx-0.25*dy).xyz;
-	vec3 F8 = texture(Source,  tex +dx-0.25*dx-0.25*dy).xyz;
-	vec3 F9 = texture(Source,  tex +dx-0.25*dx+0.25*dy).xyz;
+	vec3 F6 = texture(Source,  tex +dx+XBR_TEX*dx+XBR_TEX*dy).xyz;
+	vec3 F7 = texture(Source,  tex +dx+XBR_TEX*dx-XBR_TEX*dy).xyz;
+	vec3 F8 = texture(Source,  tex +dx-XBR_TEX*dx-XBR_TEX*dy).xyz;
+	vec3 F9 = texture(Source,  tex +dx-XBR_TEX*dx+XBR_TEX*dy).xyz;
 
-	vec3 B6 = texture(Source,  tex +0.25*dx+0.25*dy-dy).xyz;
-	vec3 B7 = texture(Source,  tex +0.25*dx-0.25*dy-dy).xyz;
-	vec3 B8 = texture(Source,  tex -0.25*dx-0.25*dy-dy).xyz;
-	vec3 B9 = texture(Source,  tex -0.25*dx+0.25*dy-dy).xyz;
+	vec3 B6 = texture(Source,  tex +XBR_TEX*dx+XBR_TEX*dy-dy).xyz;
+	vec3 B7 = texture(Source,  tex +XBR_TEX*dx-XBR_TEX*dy-dy).xyz;
+	vec3 B8 = texture(Source,  tex -XBR_TEX*dx-XBR_TEX*dy-dy).xyz;
+	vec3 B9 = texture(Source,  tex -XBR_TEX*dx+XBR_TEX*dy-dy).xyz;
 
-	vec3 D6 = texture(Source,  tex -dx+0.25*dx+0.25*dy).xyz;
-	vec3 D7 = texture(Source,  tex -dx+0.25*dx-0.25*dy).xyz;
-	vec3 D8 = texture(Source,  tex -dx-0.25*dx-0.25*dy).xyz;
-	vec3 D9 = texture(Source,  tex -dx-0.25*dx+0.25*dy).xyz;
+	vec3 D6 = texture(Source,  tex -dx+XBR_TEX*dx+XBR_TEX*dy).xyz;
+	vec3 D7 = texture(Source,  tex -dx+XBR_TEX*dx-XBR_TEX*dy).xyz;
+	vec3 D8 = texture(Source,  tex -dx-XBR_TEX*dx-XBR_TEX*dy).xyz;
+	vec3 D9 = texture(Source,  tex -dx-XBR_TEX*dx+XBR_TEX*dy).xyz;
 
-	vec3 H6 = texture(Source,  tex +0.25*dx+0.25*dy+dy).xyz;
-	vec3 H7 = texture(Source,  tex +0.25*dx-0.25*dy+dy).xyz;
-	vec3 H8 = texture(Source,  tex -0.25*dx-0.25*dy+dy).xyz;
-	vec3 H9 = texture(Source,  tex -0.25*dx+0.25*dy+dy).xyz;
+	vec3 H6 = texture(Source,  tex +XBR_TEX*dx+XBR_TEX*dy+dy).xyz;
+	vec3 H7 = texture(Source,  tex +XBR_TEX*dx-XBR_TEX*dy+dy).xyz;
+	vec3 H8 = texture(Source,  tex -XBR_TEX*dx-XBR_TEX*dy+dy).xyz;
+	vec3 H9 = texture(Source,  tex -XBR_TEX*dx+XBR_TEX*dy+dy).xyz;
 	
 	float y_weight = XBR_Y_WEIGHT;
 

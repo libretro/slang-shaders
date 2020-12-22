@@ -1,0 +1,3 @@
+shaders = 1
+
+shaders0 = shaders/side-by-side-simple.slang

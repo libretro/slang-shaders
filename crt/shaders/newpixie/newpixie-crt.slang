@@ -54,12 +54,14 @@ layout(push_constant) uniform Push
 	float use_frame;
 	float curvature;
 	float wiggle_toggle;
+   float scanroll;
 } params;
 
 #pragma parameter use_frame "Use Frame Image" 0.0 0.0 1.0 1.0
 #define use_frame params.use_frame
 #pragma parameter curvature "Curvature" 2.0 0.0001 4.0 0.25
 #pragma parameter wiggle_toggle "Interference" 0.0 0.0 1.0 1.0
+#pragma parameter scanroll "Rolling Scanlines" 1.0 0.0 1.0 1.0
 
 #define gl_FragCoord (vTexCoord.xy * params.OutputSize.xy)
 #define backbuffer accum1
@@ -175,6 +177,8 @@ void main()
     float vig = (0.1 + 1.0*16.0*curved_uv.x*curved_uv.y*(1.0-curved_uv.x)*(1.0-curved_uv.y));
     vig = 1.3*pow(vig,0.5);
     col *= vig;
+    
+    time *= params.scanroll;
 		
     /* Scanlines */
     float scans = clamp( 0.35+0.18*sin(6.0*time-curved_uv.y*resolution.y*1.5), 0.0, 1.0);
@@ -206,7 +210,7 @@ void main()
     /* Frame */
     vec2 fscale = vec2( 0.026, -0.018);//vec2( -0.018, -0.013 );
     uv = vec2(uv.x, 1.-uv.y);
-    vec4 f=texture(frametexture,uv*((1.0)+2.0*fscale)-fscale-vec2(-0.0, 0.005));
+    vec4 f=texture(frametexture,vTexCoord.xy);//*((1.0)+2.0*fscale)-fscale-vec2(-0.0, 0.005));
     f.xyz = mix( f.xyz, vec3(0.5,0.5,0.5), 0.5 );
     float fvig = clamp( -0.00+512.0*uv.x*uv.y*(1.0-uv.x)*(1.0-uv.y), 0.2, 0.8 );
     col = mix( col, mix( max( col, 0.0), pow( abs( f.xyz ), vec3( 1.4 ) ) * fvig, f.w * f.w), vec3( use_frame ) );

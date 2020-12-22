@@ -52,7 +52,7 @@ void main()
    float tick = registers.FrameCount;
 
    // assume anything with a vertical resolution greater than 400 lines is interlaced
-   if (registers.SourceSize.y > 400.0)
+   if (registers.OriginalSize.y > 400.0)
    {y = registers.SourceSize.y * vTexCoord.y + (tick * registers.enable_480i) + registers.top_field_first;}
    else
    {y = 2.000001 * registers.SourceSize.y * vTexCoord.y + registers.top_field_first;}
