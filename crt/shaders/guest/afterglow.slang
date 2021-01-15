@@ -23,24 +23,18 @@
 
 layout(push_constant) uniform Push
 {
-   float SW, AR, PR, AG, PG, AB, PB, sat;
+   float AS, PR, PG, PB, sat;
 } params;
 
-#pragma parameter SW "Afterglow switch ON/OFF" 1.0 0.0 1.0 1.0
-#pragma parameter AR "Afterglow Red (more is more)" 0.07 0.0 1.0 0.01
+#pragma parameter AS "Afterglow Strength" 0.07 0.0 1.0 0.01
 #pragma parameter PR "Persistence Red (more is less)" 0.05 0.0 1.0 0.01
-#pragma parameter AG "Afterglow Green" 0.07 0.0 1.0 0.01
 #pragma parameter PG "Persistence Green"  0.05 0.0 1.0 0.01
-#pragma parameter AB "Afterglow Blue" 0.07 0.0 1.0 0.01
 #pragma parameter PB "Persistence Blue"  0.05 0.0 1.0 0.01
 #pragma parameter sat "Afterglow saturation" 0.10 0.0 1.0 0.01
 
-#define SW params.SW
-#define AR params.AR
+#define AS params.AS
 #define PR params.PR
-#define AG params.AG
 #define PG params.PG
-#define AB params.AB
 #define PB params.PB
 #define sat params.sat
 
@@ -86,7 +80,7 @@ layout(set = 0, binding = 8) uniform sampler2D OriginalHistory6;
 
 vec3 afterglow(float number)
 {
-	return vec3(AR, AG, AB)*exp2(-vec3(PR, PG, PB)*vec3(number*number));
+	return vec3(AS)*exp2(-vec3(PR, PG, PB)*vec3(number*number));
 }
 
 void main()
@@ -107,5 +101,5 @@ void main()
 	float w = 1.0;
 	if ((color.r + color.g + color.b) > 7.0/255.0) w = 0.0;
 	
-	FragColor = vec4(color + SW*w*glow,1.0);
+	FragColor = vec4(color + w*glow,1.0);
 }
