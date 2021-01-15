@@ -3,7 +3,8 @@
 /*
    Hyllian Smart-Blur Shader
   
-   Copyright (C) 2011-2016 Hyllian - sergiogdb@gmail.com
+   Copyright (C) 2011-2020 Hyllian - sergiogdb@gmail.com
+
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
    in the Software without restriction, including without limitation the rights
@@ -27,11 +28,13 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
+	float SB_BLUR_LEVEL;
 	float SB_RED_THRESHOLD;
 	float SB_GREEN_THRESHOLD;
 	float SB_BLUE_THRESHOLD;
 } params;
 
+#pragma parameter SB_BLUR_LEVEL "Smart Blur Level" 0.66 0.00 1.00 0.02
 #pragma parameter SB_RED_THRESHOLD "Smart Blur Red Threshold" 0.2 0.0 0.6 0.01
 #pragma parameter SB_GREEN_THRESHOLD "Smart Blur Green Threshold" 0.2 0.0 0.6 0.01
 #pragma parameter SB_BLUE_THRESHOLD "Smart Blur Blue Threshold" 0.2 0.0 0.6 0.01
@@ -99,8 +102,8 @@ void main()
 
 	if (eq(E,F) && eq(E,H) && eq(E,I) && eq(E,B) && eq(E,C) && eq(E,A) && eq(E,D) && eq(E,G))
 	{
-		sum = (E+A+C+D+F+G+I+B+H)/9.0;
-		E = sum;
+		sum = (A+C+D+F+G+I+B+H)/8.0;
+		E = mix(E, sum, params.SB_BLUR_LEVEL);
 	}
 
 	FragColor = vec4(E, 1.0);
