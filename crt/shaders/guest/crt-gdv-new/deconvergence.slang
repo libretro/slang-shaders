@@ -38,7 +38,6 @@ layout(push_constant) uniform Push
 #pragma parameter cswitch "          Switch Deconvergence Colors" 1.0 -1.0 1.0 2.0
 #define cswitch       params.cswitch    // Switch colors left/right
 
-
 layout(std140, set = 0, binding = 0) uniform UBO
 {
 	mat4 MVP;
@@ -63,6 +62,12 @@ layout(set = 0, binding = 3) uniform sampler2D AvgLumPass;
 
 #define COMPAT_TEXTURE(c,d) texture(c,d)
 
+vec3 plant (vec3 tar, float r)
+{
+	float t = max(max(tar.r,tar.g),tar.b) + 0.00001;
+	return tar * r / t;
+}
+
 void main()
 {
 	
@@ -76,13 +81,13 @@ void main()
 		vec2 dx = vec2(step, 0.0);
 		
 		float shift =  step * abs(deconr);
-		vec3 coords = vec3(shift, -shift, 0.0);
+		vec4 coords = vec4(shift, -shift, 0.0, -0.5*shift);
 
 		vec2 rc = coords.rb;
 		vec2 gc = coords.gb;
 		vec2 bc = coords.rb;
 		
-		if (deconr < -0.05) { rc = coords.rb; gc = coords.zz; bc = coords.gb; }
+		if (deconr < -0.05) { rc = coords.rb; gc = coords.ab; bc = coords.gb; }
 		
 		float TATE = round(COMPAT_TEXTURE(Source, vec2(0.5)).a);
 
@@ -103,17 +108,15 @@ void main()
 		float g3 = COMPAT_TEXTURE(Source, vTexCoord + gc +dx).g;
 		float b3 = COMPAT_TEXTURE(Source, vTexCoord + bc +dx).b;
 
-		vec3 color2 = COMPAT_TEXTURE(Source, vTexCoord - dx).rgb;
-		vec3 color3 = COMPAT_TEXTURE(Source, vTexCoord + dx).rgb;
-		
 		vec3 result1 = vec3(r1,g1,b1);
 		vec3 result2 = vec3(r2,g2,b2);
 		vec3 result3 = vec3(r3,g3,b3);
 		
-		result1 = mix(color , result1, decons);
-		result2 = mix(color2, result2, decons);
-		result3 = mix(color3, result3, decons);
+		result1 = mix(color, result1, decons);
+		result2 = mix(color, result2, decons);
+		result3 = mix(color, result3, decons);
 		result = (result1+result2+result3)/3.0;
+		result = plant(result, 0.5*(max(max(color.r,color.g),color.b)+max(max(result.r,result.g),result.b)));
 	}
 	
 	FragColor = vec4(result, 1.0);
