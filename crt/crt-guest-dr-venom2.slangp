@@ -1,6 +1,6 @@
-shaders = 9
+shaders = 11
 
-shader0 = ..//stock.slang
+shader0 = ../stock.slang
 filter_linear0 = false
 scale_type0 = source
 scale0 = 1.0
@@ -57,14 +57,29 @@ scale_type_y6 = viewport
 scale_y6 = 0.5
 alias6 = GlowPass
 
-shader7 = shaders/guest/crt-gdv-new/crt-guest-dr-venom2.slang
+shader7 = shaders/guest/crt-gdv-new/bloom_horizontal.slang
 filter_linear7 = true
-scale_type7 = viewport
+scale_type_x7 = source
 scale_x7 = 1.0
-scale_y7 = 1.0
+scale_type_y7 = source
+scale_y7 = 1.0 
 
-shader8 = shaders/guest/crt-gdv-new/deconvergence.slang
+shader8 = shaders/guest/crt-gdv-new/bloom_vertical.slang
 filter_linear8 = true
-scale_type8 = viewport
+scale_type_x8 = source
 scale_x8 = 1.0
+scale_type_y8 = source
 scale_y8 = 1.0
+alias8 = BloomPass
+
+shader9 = shaders/guest/crt-gdv-new/crt-guest-dr-venom2.slang
+filter_linear9 = true
+scale_type9 = viewport
+scale_x9 = 1.0
+scale_y9 = 1.0
+
+shader10 = shaders/guest/crt-gdv-new/deconvergence.slang
+filter_linear10 = true
+scale_type10 = viewport
+scale_x10 = 1.0
+scale_y10 = 1.0
