@@ -37,7 +37,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float bloom;	
+	float bloom;
+	float halation;
 	float scans;
 	float scansub;
 	float slotms;
@@ -58,6 +59,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter bloom "          Bloom Strength" 0.0 0.0 2.0 0.05
 #define bloom         global.bloom     // bloom effect
+
+#pragma parameter halation "          Halation Strength" 0.0 0.0 0.5 0.025
+#define halation         global.halation     // halation effect
 
 #pragma parameter gamma_c "          Gamma correct" 1.0 0.50 2.0 0.02
 #define gamma_c   global.gamma_c     // adjust brightness
@@ -214,7 +218,7 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D LinearizePass;
 layout(set = 0, binding = 3) uniform sampler2D AvgLumPass;
 layout(set = 0, binding = 4) uniform sampler2D GlowPass;
-
+layout(set = 0, binding = 5) uniform sampler2D BloomPass;
 
 #define eps 1e-10 
 
@@ -426,7 +430,6 @@ vec3 gc(vec3 c)
 	float mg = pow(mc, 1.0/gamma_c);
 	return c * mg/(mc + eps);  
 }
-
 
 void main()
 {
@@ -731,15 +734,18 @@ if (!interb)
 	color*=bb;
 
 	vec3  Glow = COMPAT_TEXTURE(GlowPass, pos   ).rgb;
+	vec3  Bloom = COMPAT_TEXTURE(BloomPass, pos   ).rgb;
 
-	vec3 Bloom = min(Glow*(orig1+color), max(0.5*(colmx + orig1 - color),0.0));
-	color = color + bloom*Bloom;
+	vec3 Bloom1 = min(Bloom*(orig1+color), max(0.5*(colmx + orig1 - color),0.0));
+	color = color + bloom*Bloom1;
 	
 	color = min(color, mix(one, cmask, mclip));
 	if (!interb) color = declip(color, pow(w3,0.6));
 
 	Glow = mix(Glow, 0.25*color, 0.7*colmx);
 	color = color + 0.5*glow*Glow;
+	
+	color = color + 0.5*(Bloom+Bloom*Bloom)*halation;
 	
 	float gmo = 1.0/gamma_out;
 	if (interb) gmo = gmo / 0.70;
