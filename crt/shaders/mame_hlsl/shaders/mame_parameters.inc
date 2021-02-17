@@ -146,6 +146,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 // float lengthratio;
 // float lengthscale;
 // float beamsmooth;
+   float TATE_toggle;
 } global;
 
 // Effect Toggles and Settings Used In Multiple Passes
@@ -153,6 +154,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 bool NTSCSignal = bool(global.ntscsignal);
 #pragma parameter scanlinetoggle "Scanline Toggle" 1.0 0.0 1.0 1.0
 bool ScanlineToggle = bool(global.scanlinetoggle);
+#pragma parameter TATE_toggle "TATE Mode" 0.0 0.0 1.0 1.0
+bool TATE = bool(global.TATE_toggle);
 //#pragma parameter bloomtoggle "Bloom Enable" 0.0 0.0 1.0 1.0
 //bool BloomToggle = bool(global.bloomtoggle);
 #pragma parameter chromatoggle "Chromaticity Toggle" 0.0 0.0 1.0 1.0

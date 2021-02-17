@@ -1,9 +1,9 @@
 #version 450
 
 /*
-   Smart Smoothing Difference Shader
+   Gaussian blur - vertical pass, dynamic range, resizable
    
-   Copyright (C) 2019 guest(r) - guest.r@gmail.com
+   Copyright (C) 2020 guest(r) - guest.r@gmail.com
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -19,9 +19,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
    
-*/
+*/ 
 
-#pragma name SmoothPass
+#pragma format R16G16B16A16_SFLOAT
 
 layout(push_constant) uniform Push
 {
@@ -29,13 +29,16 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-   float STH;
+	float SIZEVB;
+	float SIGMA_VB;
 } params;
 
-#pragma parameter STH "Smart Smoothing Threshold" 0.7 0.4 1.2 0.05
-#define STH params.STH
-#define SourceSize params.SourceSize
-#define COMPAT_TEXTURE(c,d) texture(c,d)
+
+#pragma parameter SIZEVB "          V. Bloom/Halation Radius" 3.0 1.0 30.0 1.0 
+#define SIZEVB params.SIZEVB
+
+#pragma parameter SIGMA_VB "          Vertical Bloom/Halation Sigma" 0.70 0.5 15.0 0.10
+#define SIGMA_VB params.SIGMA_VB
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -58,25 +61,42 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-float df (vec3 A, vec3 B)
+#define COMPAT_TEXTURE(c,d) texture(c,d)
+
+float invsqrsigma = 1.0/(2.0*SIGMA_VB*SIGMA_VB);
+
+float gaussian(float x)
 {
-	float diff = abs(A-B); float m = max(max(diff.r,diff.g),diff.b);
-	return smoothstep(0.0, 0.99, m);
+	return exp(-x*x*invsqrsigma);
 }
 
 void main()
 {
-	vec2 dx  = vec2(SourceSize.z, 0.0);	
-	vec2 dy  = vec2(0.0, SourceSize.w);	
+	vec4 SourceSize1 = params.SourceSize;
+	SourceSize1.yw = params.OriginalSize.yw;
+	
+	float f = fract(SourceSize1.y * vTexCoord.y);
+	f = 0.5 - f;
+	vec2 tex = floor(SourceSize1.xy * vTexCoord)*SourceSize1.zw + 0.5*SourceSize1.zw;
+	vec3 color = vec3(0.0);
+	vec2 dy  = vec2(0.0, SourceSize1.w);
 
-	vec3 l1 = COMPAT_TEXTURE(Source, vTexCoord.xy -dx).xyz;
-	vec3 ct = COMPAT_TEXTURE(Source, vTexCoord.xy    ).xyz;
-	vec3 r1 = COMPAT_TEXTURE(Source, vTexCoord.xy +dx).xyz;
+	float w;
+	float wsum = 0.0;
+	vec3 pixel;
+	float n = -SIZEVB;
+
+	do
+	{
+		pixel  = COMPAT_TEXTURE(Source, tex + n*dy).rgb;
+		w      = gaussian(n+f);
+		color  = color + w * pixel;
+		wsum   = wsum + w;
+		n = n + 1.0;
+		
+	} while (n <= SIZEVB);
+
+	color = color / wsum;
 	
-	float dl = df(ct, l1);
-	float dr = df(ct, r1);
-	
-	float resx = dl; float resy = dr;
-	
-	FragColor = vec4(resx,resy,1.0,1.0);
+	FragColor = vec4(color, 1.0);
 }

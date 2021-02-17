@@ -1,4 +1,4 @@
 shaders = 1
 
-shader0 = shaders/crt-hyllian.slang
+shader0 = shaders/hyllian/crt-hyllian.slang
 filter_linear0 = false

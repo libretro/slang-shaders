@@ -128,6 +128,7 @@ void main()
 		if (u_shadow_alpha.x > 0.0)
 		{
 			vec2 ShadowCoord = GetShadowCoord(v_texcoord0.xy, BaseCoord.xy);
+         ShadowCoord = (!TATE) ? ShadowCoord.xy : ShadowCoord.yx;
 
 			vec4 ShadowColor = texture(s_shadow, ShadowCoord);
 			vec3 ShadowMaskColor = mix(vec3(1.0, 1.0, 1.0), ShadowColor.rgb, u_shadow_alpha.xxx);

@@ -60,8 +60,10 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 float df (vec3 A, vec3 B)
 {
-	float diff = abs(A-B); float m = max(max(diff.r,diff.g),diff.b);
-	return smoothstep(0.0, 0.99, m);
+	float diff = length(A-B);
+	float luma = clamp(length(0.5*min(A,B) + 0.25*(A+B) + 1e-8), 0.0001, 1.0);
+	float diff1 = diff/luma;
+	return 1.0 - clamp(7.0*(max(1.5*diff,diff1)-STH), 0.0, 1.0);
 }
 
 void main()

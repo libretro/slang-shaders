@@ -1,9 +1,9 @@
 #version 450
 
 /*
-   Smart Smoothing Difference Shader
+   Gaussian blur - horizontal pass, dynamic range, resizable
    
-   Copyright (C) 2019 guest(r) - guest.r@gmail.com
+   Copyright (C) 2020 guest(r) - guest.r@gmail.com
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -19,23 +19,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
    
-*/
+*/ 
 
-#pragma name SmoothPass
+#pragma format R16G16B16A16_SFLOAT
 
 layout(push_constant) uniform Push
 {
-	vec4 SourceSize;
+	vec4 LinearizePassSize;
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-   float STH;
+	float SIZEHB;
+	float SIGMA_HB;
 } params;
 
-#pragma parameter STH "Smart Smoothing Threshold" 0.7 0.4 1.2 0.05
-#define STH params.STH
-#define SourceSize params.SourceSize
-#define COMPAT_TEXTURE(c,d) texture(c,d)
+#pragma parameter SIZEHB "          H. Bloom/Halation Radius" 3.0 1.0 30.0 1.0 
+#define SIZEHB params.SIZEHB
+
+#pragma parameter SIGMA_HB "          Horizontal Bloom/Halation Sigma" 0.70 0.5 15.0 0.10
+#define SIGMA_HB params.SIGMA_HB
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -56,27 +58,42 @@ void main()
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Source;
+layout(set = 0, binding = 2) uniform sampler2D LinearizePass;
 
-float df (vec3 A, vec3 B)
+#define COMPAT_TEXTURE(c,d) texture(c,d)
+
+float invsqrsigma = 1.0/(2.0*SIGMA_HB*SIGMA_HB);
+
+float gaussian(float x)
 {
-	float diff = abs(A-B); float m = max(max(diff.r,diff.g),diff.b);
-	return smoothstep(0.0, 0.99, m);
+	return exp(-x*x*invsqrsigma);
 }
 
 void main()
 {
-	vec2 dx  = vec2(SourceSize.z, 0.0);	
-	vec2 dy  = vec2(0.0, SourceSize.w);	
+	vec4 SourceSize1 = params.OriginalSize;
+	float f = fract(SourceSize1.x * vTexCoord.x);
+	f = 0.5 - f;
+	vec2 tex = floor(SourceSize1.xy * vTexCoord)*SourceSize1.zw + 0.5*SourceSize1.zw;
+	vec3 color = vec3(0.0);
+	vec2 dx  = vec2(SourceSize1.z, 0.0);
 
-	vec3 l1 = COMPAT_TEXTURE(Source, vTexCoord.xy -dx).xyz;
-	vec3 ct = COMPAT_TEXTURE(Source, vTexCoord.xy    ).xyz;
-	vec3 r1 = COMPAT_TEXTURE(Source, vTexCoord.xy +dx).xyz;
+	float w;
+	float wsum = 0.0;
+	vec3 pixel;
+	float n = -SIZEHB;
+
+	do
+	{
+		pixel  = COMPAT_TEXTURE(LinearizePass, tex + n*dx).rgb;
+		w      = gaussian(n+f);
+		color  = color + w * pixel;
+		wsum   = wsum + w;
+		n = n + 1.0;
+		
+	} while (n <= SIZEHB);
+
+	color = color / wsum;
 	
-	float dl = df(ct, l1);
-	float dr = df(ct, r1);
-	
-	float resx = dl; float resy = dr;
-	
-	FragColor = vec4(resx,resy,1.0,1.0);
+	FragColor = vec4(color, 1.0);
 }
