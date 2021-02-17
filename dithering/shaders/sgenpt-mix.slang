@@ -1,7 +1,7 @@
 #version 450
 
 /*
-   SGENPT-MIX - Sega Genesis Pseudo Transparency Mixer Shader - v4
+   SGENPT-MIX - Sega Genesis Pseudo Transparency Mixer Shader - v8b
    
    2011-2020 Hyllian - sergiogdb@gmail.com
 
@@ -32,14 +32,29 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float SGPT_SHARPNESS;
 	float SGPT_BLEND_OPTION;
+	float SGPT_BLEND_LEVEL;
+	float SGPT_ADJUST_VIEW;
+	float SGPT_LINEAR_GAMMA;
 } params;
 
-#pragma parameter SGPT_SHARPNESS "SGENPT-MIX Sharpness" 1.0 0.0 1.0 0.1
-#pragma parameter SGPT_BLEND_OPTION "OFF | Transparency | Checkerboard" 1.0 0.0 2.0 1.0
-#define SGPT_SHARPNESS params.SGPT_SHARPNESS
+#pragma parameter SGPT_BLEND_OPTION "0.OFF | 1.VL | 2.CB | 3.CB-S | 4.Both | 5.Both2 | 6.Both-S" 4.0 0.0 6.0 1.0
+#pragma parameter SGPT_BLEND_LEVEL "SGENPT-MIX Both Blend Level" 1.0 0.0 1.0 0.1
+#pragma parameter SGPT_ADJUST_VIEW "SGENPT-MIX Adjust View" 0.0 0.0 1.0 1.0
+#pragma parameter SGPT_LINEAR_GAMMA "SGENPT-MIX Use Linear Gamma" 1.0 0.0 1.0 1.0
 #define SGPT_BLEND_OPTION params.SGPT_BLEND_OPTION
+#define SGPT_BLEND_LEVEL params.SGPT_BLEND_LEVEL
+#define SGPT_ADJUST_VIEW params.SGPT_ADJUST_VIEW
+#define SGPT_LINEAR_GAMMA params.SGPT_LINEAR_GAMMA
+
+#define GAMMA_EXP		(SGPT_LINEAR_GAMMA+1.0)
+#define GAMMA_IN(color)		pow(color, vec3(GAMMA_EXP, GAMMA_EXP, GAMMA_EXP))
+#define GAMMA_OUT(color)	pow(color, vec3(1.0 / GAMMA_EXP, 1.0 / GAMMA_EXP, 1.0 / GAMMA_EXP))
+
+const vec3 Y = vec3(.2126, .7152, .0722);
+
+vec3 min_s(vec3 central, vec3 adj1, vec3 adj2) {return min(central, max(adj1, adj2));}
+vec3 max_s(vec3 central, vec3 adj1, vec3 adj2) {return max(central, min(adj1, adj2));}
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -69,36 +84,79 @@ void main()
 	vec2 dy = vec2(0.0, 1.0)*params.SourceSize.zw;
 
 	// Reading the texels.
-	vec3 C = texture(Source, vTexCoord    ).xyz;
-	vec3 L = texture(Source, vTexCoord -dx).xyz;
-	vec3 R = texture(Source, vTexCoord +dx).xyz;
-	vec3 U = texture(Source, vTexCoord -dy).xyz;
-	vec3 D = texture(Source, vTexCoord +dy).xyz;
+	vec3 C = GAMMA_IN(texture(Source, vTexCoord    ).xyz);
+	vec3 L = GAMMA_IN(texture(Source, vTexCoord -dx).xyz);
+	vec3 R = GAMMA_IN(texture(Source, vTexCoord +dx).xyz);
+	vec3 U = GAMMA_IN(texture(Source, vTexCoord -dy).xyz);
+	vec3 D = GAMMA_IN(texture(Source, vTexCoord +dy).xyz);
+	vec3 UL = GAMMA_IN(texture(Source, vTexCoord -dx -dy).xyz);
+	vec3 UR = GAMMA_IN(texture(Source, vTexCoord +dx -dy).xyz);
+	vec3 DL = GAMMA_IN(texture(Source, vTexCoord -dx +dy).xyz);
+	vec3 DR = GAMMA_IN(texture(Source, vTexCoord +dx +dy).xyz);
 
 	vec3 color = C;
 
-	if (SGPT_BLEND_OPTION > 0.0)
+	//  Get min/max samples
+	vec3 min_sample = min_s(C, L, R);
+	vec3 max_sample = max_s(C, L, R);
+
+	float diff = dot(max(max(C, L), max(C, R)) - min(min(C, L), min(C, R)), Y);
+
+	if (SGPT_BLEND_OPTION == 1) // Only Vertical Lines
 	{
-		//  Get min/max samples
-		vec3 min_sample = min(C, max(L, R));
-		vec3 max_sample = max(C, min(L, R));
+		min_sample = max_s(min_sample, min_s(C, DL, DR), min_s(C, UL, UR));
+		max_sample = min_s(max_sample, max_s(C, DL, DR), max_s(C, UL, UR));
 
-		color = 0.5*C + 0.25*(L + R);
+		diff *= (1.0 - SGPT_BLEND_LEVEL);
 
-		if (SGPT_BLEND_OPTION > 1.0)
-		{
-			//  Get min/max samples
-			min_sample = max(min_sample, min(C, max(U, D)));
-			max_sample = min(max_sample, max(C, min(U, D)));
+		color = 0.5*( 1.0 + diff )*C + 0.25*( 1.0 - diff )*(L + R);
+	}
+	else if (SGPT_BLEND_OPTION == 2) // Only Checkerboard
+	{
+		min_sample = max(min_sample, min_s(C, U, D));
+		max_sample = min(max_sample, max_s(C, U, D));
 
-			color = 0.5*C + 0.125*(L + R + U + D);
-		}
+		diff *= (1.0 - SGPT_BLEND_LEVEL);
 
-		// Sharpness control
-		vec3 aux = color;
-		color = clamp(color, min_sample, max_sample);
-		color = mix(aux, color, SGPT_SHARPNESS);
+		color = 0.5*( 1.0 + diff )*C + 0.125*( 1.0 - diff )*(L + R + U + D);
+	}
+	else if (SGPT_BLEND_OPTION == 3) // Only Checkerboard - Soft
+	{
+		min_sample = min_s(min_sample, U, D);
+		max_sample = max_s(max_sample, U, D);
+
+		diff *= (1.0 - SGPT_BLEND_LEVEL);
+
+		color = 0.5*( 1.0 + diff )*C + 0.125*( 1.0 - diff )*(L + R + U + D);
+	}
+	else if (SGPT_BLEND_OPTION == 4) // VL-CB
+	{
+		diff *= (1.0 - SGPT_BLEND_LEVEL);
+
+		color = 0.5*( 1.0 + diff )*C + 0.25*( 1.0 - diff )*(L + R);
+	}
+	else if (SGPT_BLEND_OPTION == 5) // VL-CB-2
+	{
+		min_sample = min_s(min_sample, U, D);
+		max_sample = max_s(max_sample, U, D);
+
+		diff *= (1.0 - SGPT_BLEND_LEVEL);
+
+		color = 0.5*( 1.0 + diff )*C + 0.25*( 1.0 - diff )*(L + R);
+	}
+	else if (SGPT_BLEND_OPTION == 6) // VL-CB-Soft
+	{
+		min_sample = min(min_sample, min(min_s(D, DL, DR), min_s(U, UL, UR)));
+		max_sample = max(max_sample, max(max_s(D, DL, DR), max_s(U, UL, UR)));
+
+		diff *= (1.0 - SGPT_BLEND_LEVEL);
+
+		color = 0.5*( 1.0 + diff )*C + 0.25*( 1.0 - diff )*(L + R);
 	}
 
-	FragColor = vec4(color, 1.0);
+	color = clamp(color, min_sample, max_sample);
+
+	color = mix(color, vec3(dot(abs(C-color), vec3(1.0, 1.0, 1.0))), SGPT_ADJUST_VIEW);
+
+	FragColor = vec4(GAMMA_OUT(color), 1.0);
 }

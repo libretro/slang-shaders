@@ -91,7 +91,7 @@ void main()
 
 			float ColorBrightness = 0.299 * BaseColor.r + 0.587 * BaseColor.g + 0.114 * BaseColor.b;
 
-			float ScanCoord = BaseCoord.y;
+			float ScanCoord = (!TATE) ? BaseCoord.y : BaseCoord.x;
          ScanCoord += (global.scanline_crawl > 0.0) ? -1.* u_time.x * params.OutputSize.w * u_jitter_amount.x : 0.0;
 			ScanCoord += u_swap_xy.x > 0.0
 				? u_quad_dims.x <= u_source_dims.x * 2.0

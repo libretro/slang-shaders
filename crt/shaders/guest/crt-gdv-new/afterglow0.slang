@@ -1,9 +1,9 @@
 #version 450
 
 /*
-   Smart Smoothing Difference Shader
+   Phosphor Afterglow Shader pass 0
    
-   Copyright (C) 2019 guest(r) - guest.r@gmail.com
+   Copyright (C) 2020 guest(r) - guest.r@gmail.com
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -21,20 +21,20 @@
    
 */
 
-#pragma name SmoothPass
-
 layout(push_constant) uniform Push
 {
-	vec4 SourceSize;
-	vec4 OriginalSize;
-	vec4 OutputSize;
-	uint FrameCount;
-   float STH;
+   float PR, PG, PB;
 } params;
 
-#pragma parameter STH "Smart Smoothing Threshold" 0.7 0.4 1.2 0.05
-#define STH params.STH
-#define SourceSize params.SourceSize
+#pragma parameter bogus_afterglow "[ AFTERGLOW SETTINGS ]:" 0.0 0.0 1.0 1.0
+#pragma parameter PR "          Persistence Red" 0.14 0.0 0.25 0.01
+#pragma parameter PG "          Persistence Green"  0.14 0.0 0.25 0.01
+#pragma parameter PB "          Persistence Blue"  0.14 0.0 0.25 0.01
+
+#define PR params.PR
+#define PG params.PG
+#define PB params.PB
+
 #define COMPAT_TEXTURE(c,d) texture(c,d)
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -56,27 +56,21 @@ void main()
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Source;
+layout(set = 0, binding = 2) uniform sampler2D OriginalHistory0;
+layout(set = 0, binding = 3) uniform sampler2D AfterglowPassFeedback;
 
-float df (vec3 A, vec3 B)
-{
-	float diff = abs(A-B); float m = max(max(diff.r,diff.g),diff.b);
-	return smoothstep(0.0, 0.99, m);
-}
+#define TEX0 vTexCoord
+
 
 void main()
 {
-	vec2 dx  = vec2(SourceSize.z, 0.0);	
-	vec2 dy  = vec2(0.0, SourceSize.w);	
+	vec3 color  = COMPAT_TEXTURE(OriginalHistory0, TEX0.xy).rgb;
+	vec3 accumulate = COMPAT_TEXTURE(AfterglowPassFeedback, TEX0.xy).rgb;
 
-	vec3 l1 = COMPAT_TEXTURE(Source, vTexCoord.xy -dx).xyz;
-	vec3 ct = COMPAT_TEXTURE(Source, vTexCoord.xy    ).xyz;
-	vec3 r1 = COMPAT_TEXTURE(Source, vTexCoord.xy +dx).xyz;
-	
-	float dl = df(ct, l1);
-	float dr = df(ct, r1);
-	
-	float resx = dl; float resy = dr;
-	
-	FragColor = vec4(resx,resy,1.0,1.0);
+	float w = 1.0;
+	if ((color.r + color.g + color.b < 3.0/255.0)) { w = 0.0; }
+
+	vec3 result = mix( max(mix(color, accumulate, 0.74 + vec3(PR, PG, PB))- 2.0/255.0, 0.0)*(255.0/255.0), color, w);
+
+	FragColor = vec4(result, w);
 }

@@ -1,0 +1,85 @@
+shaders = 11
+
+shader0 = ../stock.slang
+filter_linear0 = false
+scale_type0 = source
+scale0 = 1.0
+alias0 = StockPass
+
+shader1 = shaders/guest/crt-gdv-new/afterglow0.slang
+filter_linear1 = false
+scale_type1 = source
+scale1 = 1.0
+alias1 = AfterglowPass
+
+shader2 = shaders/guest/crt-gdv-new/pre-shaders-afterglow.slang
+filter_linear2 = false
+scale_type2 = source
+scale2 = 1.0
+alias2 = PrePass
+
+textures = "SamplerLUT1;SamplerLUT2;SamplerLUT3;SamplerLUT4"
+SamplerLUT1 = shaders/guest/lut/sony_trinitron1.png
+SamplerLUT1_linear = true 
+SamplerLUT2 = shaders/guest/lut/sony_trinitron2.png
+SamplerLUT2_linear = true 
+SamplerLUT3 = shaders/guest/lut/other1.png
+SamplerLUT3_linear = true
+SamplerLUT4 = shaders/guest/lut/custom_lut.png
+SamplerLUT4_linear = true
+
+shader3 = shaders/guest/crt-gdv-new/avg-lum.slang
+filter_linear3 = true
+scale_type3 = source
+scale3 = 1.0
+mipmap_input3 = true
+alias3 = AvgLumPass
+
+shader4 = shaders/guest/crt-gdv-new/linearize.slang
+filter_linear4 = true
+scale_type4 = source
+scale4 = 1.0
+alias4 = LinearizePass
+float_framebuffer4 = true  # comment this line for max precision
+
+shader5 = shaders/guest/crt-gdv-new/gaussian_horizontal.slang
+filter_linear5 = true
+scale_type_x5 = viewport
+scale_x5 = 0.5
+scale_type_y5 = source
+scale_y5 = 1.0 
+
+shader6 = shaders/guest/crt-gdv-new/gaussian_vertical.slang
+filter_linear6 = true
+scale_type_x6 = viewport
+scale_x6 = 0.5
+scale_type_y6 = viewport
+scale_y6 = 0.5
+alias6 = GlowPass
+
+shader7 = shaders/guest/crt-gdv-new/bloom_horizontal.slang
+filter_linear7 = true
+scale_type_x7 = source
+scale_x7 = 1.0
+scale_type_y7 = source
+scale_y7 = 1.0 
+
+shader8 = shaders/guest/crt-gdv-new/bloom_vertical.slang
+filter_linear8 = true
+scale_type_x8 = source
+scale_x8 = 1.0
+scale_type_y8 = source
+scale_y8 = 1.0
+alias8 = BloomPass
+
+shader9 = shaders/guest/crt-gdv-new/crt-guest-dr-venom2.slang
+filter_linear9 = true
+scale_type9 = viewport
+scale_x9 = 1.0
+scale_y9 = 1.0
+
+shader10 = shaders/guest/crt-gdv-new/deconvergence.slang
+filter_linear10 = true
+scale_type10 = viewport
+scale_x10 = 1.0
+scale_y10 = 1.0
