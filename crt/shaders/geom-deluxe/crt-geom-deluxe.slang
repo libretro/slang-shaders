@@ -15,8 +15,9 @@
 #include "../../../include/subpixel_masks.h"
 
 #define u_tex_size0 global.SourceSize.xy
-#define u_tex_size1 global.internal1Size.xy
+//#define u_tex_size1 global.internal1Size.xy
 #define u_quad_dims global.OutputSize.xy
+#define u_tex_size1 vec2(global.OutputSize.xy * global.SourceSize.zw)
 
 // Comment the next line to disable interpolation in linear gamma (and gain speed).
 #define LINEAR_PROCESSING
@@ -128,17 +129,35 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D blur;
 layout(set = 0, binding = 3) uniform sampler2D internal1;
 // comment these out, as we're using generated masks instead of LUTs
-//layout(set = 0, binding = 4) uniform sampler2D aperture;
-//layout(set = 0, binding = 5) uniform sampler2D slot;
-//layout(set = 0, binding = 6) uniform sampler2D delta;
+layout(set = 0, binding = 4) uniform sampler2D aperture;
+layout(set = 0, binding = 5) uniform sampler2D slot;
+layout(set = 0, binding = 6) uniform sampler2D delta;
+layout(set = 0, binding = 7) uniform sampler2D phosphor;
 
 #define blur_texture blur
 
+vec4 TEX2D(vec2 c)
+{
+	vec2 underscan = step(0.0,c) * step(0.0,vec2(1.0)-c);
+	vec4 col = texture(internal1, c) * vec4(underscan.x*underscan.y);
 #ifdef LINEAR_PROCESSING
-#       define TEX2D(c) pow(texture(internal1, (c)), vec4(CRTgamma))
-#else
-#       define TEX2D(c) texture(internal1, (c))
+       col = pow(col, vec4(CRTgamma.x));
 #endif
+	return col;
+}
+
+vec3 texblur(vec2 c)
+{
+  vec3 col = pow(texture(blur_texture,c).rgb, vec3(CRTgamma.x));
+  // taper the blur texture outside its border with a gaussian
+  float w = blurwidth.x / 320.0;
+  c = min(c, vec2(1.0)-c) * aspect.xy * vec2(1.0/w);
+  vec2 e2c = exp(-c*c);
+  // approximation of erf gives smooth step
+  // (convolution of gaussian with step)
+  c = (step(0.0,c)-vec2(0.5)) * sqrt(vec2(1.0)-e2c) * (vec2(1.0) + vec2(0.1749)*e2c) + vec2(0.5);
+  return col * vec3( c.x * c.y );
+}
 
 float intersect(vec2 xy , vec2 sinangle, vec2 cosangle)
 {
@@ -239,8 +258,14 @@ void main()
     xy = transform(v_texCoord, v_stretch, v_sinangle, v_cosangle);
   else
     xy = (v_texCoord-vec2(0.5))/overscan.xy+vec2(0.5);
-  vec2 xy0 = xy;
   float cval = corner(xy);
+
+  // extract average brightness from the mipmap texture
+  float avgbright = dot(textureLod(internal1,vec2(0.5,0.5), 9.0).rgb,vec3(1.0))/3.0;
+  float rbloom = 1.0 - rasterbloom.x * ( avgbright - 0.5 );
+  // expand the screen when average brightness is higher
+  xy = (xy - vec2(0.5)) * rbloom + vec2(0.5);
+  vec2 xy0 = xy;
 
   // Of all the pixels that are mapped onto the texel we are
   // currently rendering, which pixel are we currently rendering?
@@ -305,20 +330,45 @@ void main()
   vec3 mul_res  = (col * weights + col2 * weights2).rgb;
 
   // halation and corners
-  vec3 blur = pow(texture(blur_texture,xy0).rgb, vec3(CRTgamma.x));
+  vec3 blur = texblur(xy0);
   mul_res = mix(mul_res, blur, halation.x) * vec3(cval);
-  
+  // include factor of rbloom:
+
+  // (probably imperceptible) brightness reduction when raster grows
   // Convert the image gamma for display on our output device.
-  mul_res = pow(mul_res, vec3(1.0 / monitorgamma.x));
+  mul_res = mix(mul_res, blur, halation.x) * vec3(cval*rbloom);
 
   // Shadow mask
   // original code; just makes a giant phosphor here
   // xy = v_texCoord.xy * u_quad_dims.xy / u_tex_size1.xy;
   
   // gl_FragCoord; tied to physical pixel size
-  xy = v_texCoord.xy * global.OutputSize.xy;
+  xy = fract(v_texCoord*u_tex_size1.xy);//global.internal1Size.xy);
 
-  vec3 mask = mask_weights(xy, aperture_strength.x, mask_picker);
+//  if (mask_picker == 1) mask = texture(aperture, xy);
+//  else if (mask_picker == 2) mask = texture(slot, xy);
+//  else if (mask_picker == 3) mask = texture(delta, xy);
+
+  // use subpixel mask code instead of LUTs
+  float alpha;
+  vec4 mask = vec4(mask_weights_alpha(v_texCoord.xy * global.OutputSize.xy, 1., mask_picker, alpha), 1.0);
+  mask.a = alpha;
+
+  // count of total bright pixels is encoded in the mask's alpha channel
+  float nbright = 255.0 - 255.0*mask.a;
+  // fraction of bright pixels in the mask
+  float fbright = nbright / ( u_tex_size1.x * u_tex_size1.y );
+  // average darkening factor of the mask
+  float aperture_average = mix(1.0-aperture_strength.x*(1.0-aperture_brightboost.x), 1.0, fbright);
+  // colour of dark mask pixels
+  vec3 clow = vec3(1.0-aperture_strength.x) * mul_res + vec3(aperture_strength.x*(aperture_brightboost.x)) * mul_res * mul_res;
+  float ifbright = 1.0 / fbright;
+  // colour of bright mask pixels
+  vec3 chi = vec3(ifbright*aperture_average) * mul_res - vec3(ifbright - 1.0) * clow;
+  vec3 cout = mix(clow,chi,mask.rgb); // mask texture selects dark vs bright
+
+  // Convert the image gamma for display on our output device.
+  cout = pow(cout, vec3(1.0 / monitorgamma.x));
   
-  FragColor = vec4(mul_res*mask, col.a);
+  FragColor = vec4(cout, col.a);
 }

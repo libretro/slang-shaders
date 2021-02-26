@@ -1,8 +1,31 @@
 layout(push_constant) uniform Push
 {
-   float phosphor_power, phosphor_amplitude, CRTgamma, width, aspect_x, aspect_y, d, R, angle_x, angle_y,
-      aperture_strength, halation, curvature, cornersize, cornersmooth, overscan_x, overscan_y,
-      monitorgamma, mask_type, SHARPER, scanline_weight, geom_lum, interlace_detect;
+	float phosphor_power;
+	float phosphor_amplitude;
+	float CRTgamma;
+	float width;
+	float aspect_x;
+	float aspect_y;
+	float d;
+	float R;
+	float angle_x;
+	float angle_y;
+	float aperture_strength;
+	float aperture_brightboost;
+	float halation;
+	float curvature;
+	float cornersize;
+	float cornersmooth;
+	float overscan_x;
+	float overscan_y;
+	float monitorgamma;
+	float mask_type;
+	float SHARPER;
+	float scanline_weight;
+	float geom_lum;
+	float interlace_detect;
+	float rasterbloom_smooth;
+	float rasterbloom;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -11,16 +34,19 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-   vec4 FinalViewportSize;
-   vec4 internal1Size;
+    vec4 FinalViewportSize;
+    vec4 internal1Size;
 	mat4 MVP;
 } global;
 
-#pragma parameter mask_type "Mask (aperture, delta, slot)" 1.0 1.0 19.0 1.0
+#pragma parameter mask_type "Mask Pattern" 1.0 1.0 20.0 1.0
 #pragma parameter aperture_strength "Shadow mask strength" 0.4 0.0 1.0 0.05
+#pragma parameter aperture_brightboost "Shadow mask brightness boost" 0.4 0.0 1.0 0.05
 #pragma parameter phosphor_power "Phosphor decay power" 1.2 0.5 3.0 0.05
 #pragma parameter phosphor_amplitude "Phosphor persistence amplitude" 0.04 0.0 0.2 0.01
-#pragma parameter CRTgamma "Gamma of simulated CRT" 2.4 0.7 4.0 0.05 
+#pragma parameter CRTgamma "Gamma of simulated CRT" 2.4 0.7 4.0 0.05
+//#pragma parameter rasterbloom_smooth "Raster bloom temporal smoothing" 0.5 0.0 0.99 0.01
+#pragma parameter rasterbloom "Raster bloom amplitude" 0.1 0.0 1.0 0.01
 #pragma parameter halation "Halation amplitude" 0.1 0.0 0.3 0.01
 #pragma parameter width "Halation blur width" 2.0 0.1 4.0 0.1
 #pragma parameter curvature "Enable Curvature" 1.0 0.0 1.0 1.0
@@ -50,12 +76,16 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define monitorgamma params.monitorgamma
 #define halation params.halation
 #define aperture_strength params.aperture_strength
+#define aperture_brightboost params.aperture_brightboost
 #define geom_lum params.geom_lum
 #define scanline_weight params.scanline_weight
 #define interlace_detect params.interlace_detect
+//#define rasterbloom_smooth params.rasterbloom_smooth
+#define rasterbloom (params.rasterbloom / 10.0)
 vec2 aspect = vec2(params.aspect_x, params.aspect_y);
 vec2 angle = vec2(params.angle_x, params.angle_y);
 vec2 overscan = vec2(params.overscan_x, params.overscan_y);
 int mask_picker = int(params.mask_type);
+vec4 blurwidth = vec4(width);
 
 const float gamma = 2.2;
