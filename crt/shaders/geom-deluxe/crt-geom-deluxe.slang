@@ -340,18 +340,19 @@ void main()
 
   // Shadow mask
   // original code; just makes a giant phosphor here
-  // xy = v_texCoord.xy * u_quad_dims.xy / u_tex_size1.xy;
+   xy = fract(v_texCoord.xy * u_quad_dims.xy / u_tex_size1.xy);
   
   // gl_FragCoord; tied to physical pixel size
-  xy = fract(v_texCoord*u_tex_size1.xy);//global.internal1Size.xy);
+  //xy = fract(v_texCoord*global.internal1Size.xy);
 
+  vec4 mask = vec4(1.0);
 //  if (mask_picker == 1) mask = texture(aperture, xy);
 //  else if (mask_picker == 2) mask = texture(slot, xy);
 //  else if (mask_picker == 3) mask = texture(delta, xy);
 
   // use subpixel mask code instead of LUTs
   float alpha;
-  vec4 mask = vec4(mask_weights_alpha(v_texCoord.xy * global.OutputSize.xy, 1., mask_picker, alpha), 1.0);
+  mask = vec4(mask_weights_alpha(v_texCoord.xy * global.OutputSize.xy, 1., mask_picker, alpha), 1.0);
   mask.a = alpha;
 
   // count of total bright pixels is encoded in the mask's alpha channel
