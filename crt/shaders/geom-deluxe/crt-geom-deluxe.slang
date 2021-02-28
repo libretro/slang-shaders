@@ -126,15 +126,13 @@ layout(location = 4) in vec2 v_one;
 layout(location = 5) in vec2 ilfac;
 layout(location = 6) in vec2 TextureSize;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D blur;
+layout(set = 0, binding = 2) uniform sampler2D blur_texture;
 layout(set = 0, binding = 3) uniform sampler2D internal1;
 // comment these out, as we're using generated masks instead of LUTs
 layout(set = 0, binding = 4) uniform sampler2D aperture;
 layout(set = 0, binding = 5) uniform sampler2D slot;
 layout(set = 0, binding = 6) uniform sampler2D delta;
 layout(set = 0, binding = 7) uniform sampler2D phosphor;
-
-#define blur_texture blur
 
 vec4 TEX2D(vec2 c)
 {
@@ -261,7 +259,7 @@ void main()
   float cval = corner(xy);
 
   // extract average brightness from the mipmap texture
-  float avgbright = dot(textureLod(internal1,vec2(0.5,0.5), 9.0).rgb,vec3(1.0))/3.0;
+  float avgbright = dot(textureLod(blur_texture, vec2(1.,1.), 9.0).rgb,vec3(1.0))/3.0;
   float rbloom = 1.0 - rasterbloom.x * ( avgbright - 0.5 );
   // expand the screen when average brightness is higher
   xy = (xy - vec2(0.5)) * rbloom + vec2(0.5);

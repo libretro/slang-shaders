@@ -12,10 +12,11 @@ alias2 = internal2
 
 shader3 = shaders/geom-deluxe/gaussy.slang
 filter_linear3 = true
-alias3 = blur
+alias3 = blur_texture
 
 shader4 = shaders/geom-deluxe/crt-geom-deluxe.slang
 filter_linear4 = true
+mipmap_input4 = true
 
 textures = "aperture;slot;delta"
 delta = shaders/geom-deluxe/masks/delta_2_4x1_rgb.png
