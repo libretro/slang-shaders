@@ -1,0 +1,11 @@
+shaders = 1
+
+shader0 = shaders/crt-geom-tate.slang
+filter_linear0 = false
+
+CURVATURE = "1.000000"
+cornersize = "0.015500"
+y_tilt = "-0.050000"
+scanline_weight = "0.250000"
+lum = "0.15"
+interlace_detect = "0.0"
