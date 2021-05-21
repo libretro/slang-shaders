@@ -22,6 +22,7 @@ layout(push_constant) uniform Push
 	float CURVATURE;
    float interlace_detect;
    float lum;
+   float invert_aspect;
 } registers;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -34,6 +35,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter monitorgamma "CRTGeom Monitor Gamma" 2.2 0.1 5.0 0.1
 #pragma parameter d "CRTGeom Distance" 1.9 0.1 3.0 0.1
 #pragma parameter CURVATURE "CRTGeom Curvature Toggle" 1.0 0.0 1.0 1.0
+#pragma parameter invert_aspect "CRTGeom Curvature Aspect Inversion" 0.0 0.0 1.0 1.0
 #pragma parameter R "CRTGeom Curvature Radius" 1.8 0.1 10.0 0.1
 #pragma parameter cornersize "CRTGeom Corner Size" 0.010 0.001 1.0 0.005
 #pragma parameter cornersmooth "CRTGeom Corner Smoothness" 800.0 80.0 2000.0 100.0
@@ -90,8 +92,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #endif
 
 // aspect ratio
-vec2 aspect     = vec2(registers.SourceSize.x >= registers.SourceSize.y ? 1.0 : 0.75,
-                        registers.SourceSize.x >= registers.SourceSize.y ? 0.75 : 1.0);
+vec2 aspect     = vec2(registers.invert_aspect > 0.5 ? (0.75, 1.0) : (1.0, 0.75));
 vec2 overscan   = vec2(1.01, 1.01);
 
 #pragma stage vertex
