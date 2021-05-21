@@ -90,7 +90,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #endif
 
 // aspect ratio
-vec2 aspect     = vec2(1.0, 0.75);
+vec2 aspect     = vec2(registers.SourceSize.x >= registers.SourceSize.y ? 1.0 : 0.75,
+                        registers.SourceSize.x >= registers.SourceSize.y ? 0.75 : 1.0);
 vec2 overscan   = vec2(1.01, 1.01);
 
 #pragma stage vertex
