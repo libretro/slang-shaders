@@ -80,7 +80,7 @@ void main()
     float4 output_pixel_num_integer = floor(output_pixel_num);
     //  Get the fragment's position in the pixel quad and do a shared-sample blur:
     float4 quad_vector = get_quad_vector(output_pixel_num_integer);
-    float3 color = tex2Dblur10x10shared(input_texture, vec4(tex_uv.xy, 1.0, 1.0),
+    float3 color = tex2Dblur10x10shared(input_texture, tex_uv,
         blur_dxdy, quad_vector);
     //  Encode and output the blurred image:
     FragColor = encode_output(float4(color, 1.0));
