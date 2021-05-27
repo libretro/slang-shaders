@@ -41,9 +41,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
 //  gamma-management.h needs to know what kind of pipeline we're using and
 //  what pass this is in that pipeline.  This will become obsolete if/when we
 //  can #define things like this in the .cgp preset file.
-//#define GAMMA_ENCODE_EVERY_FBO
+#define GAMMA_ENCODE_EVERY_FBO
 //#define FIRST_PASS
-//#define LAST_PASS
+#define LAST_PASS
 //#define SIMULATE_CRT_ON_LCD
 //#define SIMULATE_GBA_ON_LCD
 //#define SIMULATE_LCD_ON_CRT
