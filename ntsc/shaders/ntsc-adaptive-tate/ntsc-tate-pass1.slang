@@ -10,11 +10,15 @@ layout(std140, set = 0, binding = 0) uniform UBO
    vec4 OriginalSize;
    vec4 SourceSize;
    uint FrameCount;
-   float quality, bw;
+   float quality, bw, custom_artifacting, custom_fringing, custom_saturation, custom_brightness;
 } global;
 
-#pragma parameter quality "Quality (Composite = 0, Svideo = 1)" 0.0 0.0 1.0 1.0
+#pragma parameter quality "Quality (Composite = 0, Svideo = 1, Custom = 2)" 0.0 0.0 2.0 1.0
 #pragma parameter bw "Black and White" 0.0 0.0 1.0 1.0
+#pragma parameter custom_artifacting "Custom Artifacting" 1.0 0.0 2.0 0.05
+#pragma parameter custom_fringing "Custom Fringing" 1.0 0.0 2.0 0.05
+#pragma parameter custom_saturation "Custom Saturation" 1.0 0.0 2.0 0.05
+#pragma parameter custom_brightness "Custom Brightness" 1.0 0.0 2.0 0.05
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -65,11 +69,11 @@ vec3 rgb2yiq(vec3 col)
 void main()
 {
    float CHROMA_MOD_FREQ = (phase < 2.5) ? (4.0 * PI / 15.0) : (PI / 3.0);
-   float ARTIFACTING = 1.0 - global.quality;
-   float FRINGING = 1.0 - global.quality;
-   float SATURATION = 1.0 - global.bw;
+   float ARTIFACTING = global.quality < 1.5 ? 1.0 - global.quality : global.custom_artifacting;
+   float FRINGING = global.quality < 1.5 ? 1.0 - global.quality : global.custom_fringing;
+   float SATURATION = global.quality < 1.5 ? 1.0 - global.bw : global.custom_saturation;
    // prevent some very slight clipping that happens at 1.0
-   const float BRIGHTNESS = 0.95;
+   const float BRIGHTNESS = global.quality < 1.5 ? 0.95 : global.custom_brightness;
    vec3 col = texture(Source, vTexCoord).rgb;
    vec3 yiq = rgb2yiq(col);
 
