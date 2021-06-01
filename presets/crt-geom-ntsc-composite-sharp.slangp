@@ -75,3 +75,4 @@ scanline_weight = "0.25"
 DOTMASK = "0.0"
 lum = "0.15"
 interlace_detect = "0.0"
+quality = 1.0

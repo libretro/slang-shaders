@@ -41,12 +41,12 @@ scale_y1 = 1.0
 # non-mipmapped version and a large mipmapped version.
 # TODO: Test masks in other directories.
 textures = "mask_grille_texture_small;mask_grille_texture_large;mask_slot_texture_small;mask_slot_texture_large;mask_shadow_texture_small;mask_shadow_texture_large"
-mask_grille_texture_small = "shaders/crt-royale/TileableLinearApertureGrille15Wide8And5d5SpacingResizeTo64.png"
-mask_grille_texture_large = "shaders/crt-royale/TileableLinearApertureGrille15Wide8And5d5Spacing.png"
-mask_slot_texture_small = "shaders/crt-royale/TileableLinearSlotMaskTall15Wide9And4d5Horizontal9d14VerticalSpacingResizeTo64.png"
-mask_slot_texture_large = "shaders/crt-royale/TileableLinearSlotMaskTall15Wide9And4d5Horizontal9d14VerticalSpacing.png"
-mask_shadow_texture_small = "shaders/crt-royale/TileableLinearShadowMaskEDPResizeTo64.png"
-mask_shadow_texture_large = "shaders/crt-royale/TileableLinearShadowMaskEDP.png"
+mask_grille_texture_small = "../crt/shaders/crt-royale/TileableLinearApertureGrille15Wide8And5d5SpacingResizeTo64.png"
+mask_grille_texture_large = "../crt/shaders/crt-royale/TileableLinearApertureGrille15Wide8And5d5Spacing.png"
+mask_slot_texture_small = "../crt/shaders/crt-royale/TileableLinearSlotMaskTall15Wide9And4d5Horizontal9d14VerticalSpacingResizeTo64.png"
+mask_slot_texture_large = "../crt/shaders/crt-royale/TileableLinearSlotMaskTall15Wide9And4d5Horizontal9d14VerticalSpacing.png"
+mask_shadow_texture_small = "../crt/shaders/crt-royale/TileableLinearShadowMaskEDPResizeTo64.png"
+mask_shadow_texture_large = "../crt/shaders/crt-royale/TileableLinearShadowMaskEDP.png"
 mask_grille_texture_small_wrap_mode = "repeat"
 mask_grille_texture_large_wrap_mode = "repeat"
 mask_slot_texture_small_wrap_mode = "repeat"
@@ -69,7 +69,7 @@ mask_shadow_texture_large_mipmap = "true"   # Essential for hardware-resized mas
 
 # Pass2: Linearize the input based on CRT gamma and bob interlaced fields.
 # (Bobbing ensures we can immediately blur without getting artifacts.)
-shader2 = "shaders/crt-royale/src/crt-royale-first-pass-linearize-crt-gamma-bob-fields.slang"
+shader2 = "../crt/shaders/crt-royale/src/crt-royale-first-pass-linearize-crt-gamma-bob-fields.slang"
 alias2 = "ORIG_LINEARIZED"
 filter_linear2 = "false"
 scale_type2 = "source"
@@ -82,7 +82,7 @@ srgb_framebuffer2 = "true"
 # it reduces our samples from vertical*horizontal to vertical+horizontal.
 # This has to come right after ORIG_LINEARIZED, because there's no
 # "original_source" scale_type we can use later.
-shader3 = "shaders/crt-royale/src/crt-royale-scanlines-vertical-interlacing.slang"
+shader3 = "../crt/shaders/crt-royale/src/crt-royale-scanlines-vertical-interlacing.slang"
 alias3 = "VERTICAL_SCANLINES"
 filter_linear3 = "true"
 scale_type_x3 = "source"
@@ -104,7 +104,7 @@ srgb_framebuffer3 = "true"
 #     may be a good thing for people who like to crank it up).
 # Note the 4:3 aspect ratio assumes the input has cropped geom_overscan (so it's
 # *intended* for an ~4:3 aspect ratio).
-shader4 = "shaders/crt-royale/src/crt-royale-bloom-approx.slang"
+shader4 = "../crt/shaders/crt-royale/src/crt-royale-bloom-approx.slang"
 alias4 = "BLOOM_APPROX"
 filter_linear4 = "true"
 scale_type4 = "absolute"
@@ -164,7 +164,7 @@ srgb_framebuffer6 = "true"
 #   scale_y7 = 4.0/3.0 * 2.0/(341.33333 / 8.0) = 0.0625
 # IMPORTANT: The scales MUST be calculated in this way.  If you wish to change
 # geom_max_aspect_ratio, update that constant in user-cgp-constants.h!
-shader7 = "shaders/crt-royale/src/crt-royale-mask-resize-vertical.slang"
+shader7 = "../crt/shaders/crt-royale/src/crt-royale-mask-resize-vertical.slang"
 filter_linear7 = "true"
 scale_type_x7 = "absolute"
 scale_x7 = "64"
@@ -174,7 +174,7 @@ scale_y7 = "0.0625" # Safe for >= 341.333 horizontal triads at viewport size
 
 # Pass8: Lanczos-resize the phosphor mask horizontally.  scale_x8 = scale_y7.
 # TODO: Check again if the shaders actually require equal scales.
-shader8 = "shaders/crt-royale/src/crt-royale-mask-resize-horizontal.slang"
+shader8 = "../crt/shaders/crt-royale/src/crt-royale-mask-resize-horizontal.slang"
 alias8 = "MASK_RESIZE"
 filter_linear8 = "false"
 scale_type_x8 = "viewport"
@@ -185,7 +185,7 @@ scale_y8 = "1.0"
 
 # Pass9: Resample (misconverged) scanlines horizontally, apply halation, and
 # apply the phosphor mask.
-shader9 = "shaders/crt-royale/src/crt-royale-scanlines-horizontal-apply-mask.slang"
+shader9 = "../crt/shaders/crt-royale/src/crt-royale-scanlines-horizontal-apply-mask.slang"
 alias9 = "MASKED_SCANLINES"
 filter_linear9 = "true" # This could just as easily be nearest neighbor.
 scale_type9 = "viewport"
@@ -194,7 +194,7 @@ scale9 = "1.0"
 srgb_framebuffer9 = "true"
 
 # Pass 10: Compute a brightpass.  This will require reading the final mask.
-shader10 = "shaders/crt-royale/src/crt-royale-brightpass.slang"
+shader10 = "../crt/shaders/crt-royale/src/crt-royale-brightpass.slang"
 alias10 = "BRIGHTPASS"
 filter_linear10 = "true" # This could just as easily be nearest neighbor.
 scale_type10 = "viewport"
@@ -202,26 +202,26 @@ scale10 = "1.0"
 srgb_framebuffer10 = "true"
 
 # Pass 11: Blur the brightpass vertically
-shader11 = "shaders/crt-royale/src/crt-royale-bloom-vertical.slang"
+shader11 = "../crt/shaders/crt-royale/src/crt-royale-bloom-vertical.slang"
 filter_linear11 = "true" # This could just as easily be nearest neighbor.
 scale_type11 = "source"
 scale11 = "1.0"
 srgb_framebuffer11 = "true"
 
 # Pass 12: Blur the brightpass horizontally and combine it with the dimpass:
-shader12 = "shaders/crt-royale/src/crt-royale-bloom-horizontal-reconstitute.slang"
+shader12 = "../crt/shaders/crt-royale/src/crt-royale-bloom-horizontal-reconstitute.slang"
 filter_linear12 = "true"
 scale_type12 = "source"
 scale12 = "1.0"
 srgb_framebuffer12 = "true"
 
 # Pass 13: Compute curvature/AA:
-shader13 = "shaders/crt-royale/src/crt-royale-geometry-aa-last-pass.slang"
+shader13 = "../crt/shaders/crt-royale/src/crt-royale-geometry-aa-last-pass.slang"
 filter_linear13 = "true"
 scale_type13 = "viewport"
 mipmap_input13 = "true"
 texture_wrap_mode13 = "clamp_to_edge"
 
 parameters = "quality"
-quality = 1.0
+quality = 0.0
 

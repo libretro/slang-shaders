@@ -1,6 +1,6 @@
 shaders = 7
 
-shader0 = ../ntsc/shaders/ntsc-pass1-composite-3phase.slang
+shader0 = ../ntsc/shaders/ntsc-adaptive/ntsc-pass1.slang
 scale_type0 = source
 filter_linear0 = false
 scale_x0 = 4.0
@@ -8,7 +8,7 @@ scale_y0 = 1.0
 frame_count_mod0 = 2
 float_framebuffer0 = true
 
-shader1 = ../ntsc/shaders/ntsc-pass2-3phase.slang
+shader1 = ../ntsc/shaders/ntsc-adaptive/ntsc-pass2.slang
 filter_linear1 = false
 scale_type1 = source
 scale_x1 = 0.5
@@ -49,6 +49,7 @@ filter_linear6 = true
 parameters = "diffusion;PHOSPHOR_SCALE_X"
 diffusion = 0.6
 PHOSPHOR_SCALE_X = 4.0
+quality = 1.0
 
 textures = "shadow;aperture;slot"
 shadow = ../crt/shaders/phosphorlut/luts/shadowmask.png

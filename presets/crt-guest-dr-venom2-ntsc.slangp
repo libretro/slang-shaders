@@ -79,3 +79,6 @@ filter_linear9 = true
 scale_type9 = viewport
 scale_x9 = 1.0
 scale_y9 = 1.0
+
+parameters = "quality"
+quality = 1.0

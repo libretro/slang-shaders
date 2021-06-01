@@ -15,7 +15,7 @@ scale_y1 = 1.0
 filter_linear1 = false
 srgb_framebuffer1 = true
 
-shader2 = shaders/glow/gauss_horiz.slang
+shader2 = ../crt/shaders/glow/gauss_horiz.slang
 filter_linear2 = false
 scale_type_x2 = viewport
 scale_type_y2 = source
@@ -23,28 +23,31 @@ scale_x2 = 1.0
 scale_y2 = 1.0
 srgb_framebuffer2 = true
 
-shader3 = shaders/glow/gauss_vert.slang
+shader3 = ../crt/shaders/glow/gauss_vert.slang
 filter_linear3 = false
 scale_type3 = viewport
 scale3 = 1.0
 srgb_framebuffer3 = true
 alias3 = "CRTPass"
 
-shader4 = shaders/glow/threshold.slang
+shader4 = ../crt/shaders/glow/threshold.slang
 filter_linear4 = false
 srgb_framebuffer4 = true
 
-shader5 = shaders/glow/blur_horiz.slang
+shader5 = ../crt/shaders/glow/blur_horiz.slang
 mipmap_input5 = true
 filter_linear5 = true
 scale_type5 = source
 scale5 = 0.25
 srgb_framebuffer5 = true
 
-shader6 = shaders/glow/blur_vert.slang
+shader6 = ../crt/shaders/glow/blur_vert.slang
 filter_linear6 = true
 srgb_framebuffer6 = true
 
-shader7 = shaders/glow/resolve.slang
+shader7 = ../crt/shaders/glow/resolve.slang
 filter_linear7 = true
+
+parameters = "quality"
+quality = 1.0
 

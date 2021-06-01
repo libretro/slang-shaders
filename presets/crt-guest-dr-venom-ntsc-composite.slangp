@@ -86,3 +86,6 @@ filter_linear11 = true
 scale_type11 = viewport
 scale_x11 = 1.0
 scale_y11 = 1.0
+
+parameters = "quality"
+quality = 1.0

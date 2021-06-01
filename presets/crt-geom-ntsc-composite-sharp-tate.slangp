@@ -76,3 +76,4 @@ DOTMASK = "0.0"
 lum = "0.15"
 interlace_detect = "0.0"
 vertical_scanlines = "1.0"
+quality = 1.0
