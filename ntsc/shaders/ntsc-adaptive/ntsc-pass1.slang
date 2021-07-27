@@ -3,6 +3,7 @@
 // NTSC-Adaptive
 // based on Themaister's NTSC shader
 
+
 layout(std140, set = 0, binding = 0) uniform UBO
 {
    mat4 MVP;
@@ -10,14 +11,17 @@ layout(std140, set = 0, binding = 0) uniform UBO
    vec4 OriginalSize;
    vec4 SourceSize;
    uint FrameCount;
-   float quality, ntsc_sat, cust_fringing, cust_artifacting, ntsc_bright;
+   float quality, ntsc_sat, cust_fringing, cust_artifacting, ntsc_bright, ntsc_scale, ntsc_fields, ntsc_phase;
 } global;
 
-#pragma parameter quality "Presets (Svideo=0 Composite=1 RF=2 Custom=-1)" 0.0 -1.0 2.0 1.0
-#pragma parameter ntsc_sat "Color Saturation" 1.0 0.0 2.0 0.01
-#pragma parameter ntsc_bright "Brightness" 1.0 0.0 1.5 0.01
-#pragma parameter cust_fringing "Custom Fringing Value" 0.0 0.0 5.0 0.1
-#pragma parameter cust_artifacting "Custom Artifacting Value" 0.0 0.0 5.0 0.1
+#pragma parameter quality "NTSC Preset (Svideo=0 Composite=1 RF=2 Custom=-1)" 1.0 -1.0 2.0 1.0
+#pragma parameter ntsc_fields "NTSC Merge Fields" 0.0 0.0 1.0 1.0
+#pragma parameter ntsc_phase "NTSC Phase: Auto | 2 phase | 3 phase" 1.0 1.0 3.0 1.0
+#pragma parameter ntsc_scale "NTSC Resolution Scaling" 1.0 0.20 3.0 0.05
+#pragma parameter ntsc_sat "NTSC Color Saturation" 1.0 0.0 2.0 0.01
+#pragma parameter ntsc_bright "NTSC Brightness" 1.0 0.0 1.5 0.01
+#pragma parameter cust_fringing "NTSC Custom Fringing Value" 0.0 0.0 5.0 0.1
+#pragma parameter cust_artifacting "NTSC Custom Artifacting Value" 0.0 0.0 5.0 0.1
 
 #define PI 3.14159265
 
@@ -32,18 +36,29 @@ layout(location = 4) out float SATURATION;
 layout(location = 5) out float FRINGING;
 layout(location = 6) out float ARTIFACTING;
 layout(location = 7) out float CHROMA_MOD_FREQ;
+layout(location = 8) out float MERGE;
 
 void main()
 {
+	float res = global.ntsc_scale;
+	float OriginalSize = global.OriginalSize.x;
 	gl_Position = global.MVP * Position;
 	vTexCoord = TexCoord;
-	pix_no = TexCoord * global.SourceSize.xy * (global.OutputSize.xy / global.SourceSize.xy);
-	phase = (global.OriginalSize.x > 300.0) ? 2.0 : 3.0;
+	if (res < 1.0) pix_no = TexCoord * global.SourceSize.xy * (res * global.OutputSize.xy / global.SourceSize.xy); else
+                   pix_no = TexCoord * global.SourceSize.xy * (      global.OutputSize.xy / global.SourceSize.xy);
+	phase = (global.ntsc_phase < 1.5) ? ((OriginalSize > 300.0) ? 2.0 : 3.0) : ((global.ntsc_phase > 2.5) ? 3.0 : 2.0);
 	CHROMA_MOD_FREQ = (phase < 2.5) ? (4.0 * PI / 15.0) : (PI / 3.0);
-	ARTIFACTING = (global.quality > -0.5) ? global.quality : global.cust_artifacting;
+	ARTIFACTING = (global.quality > -0.5) ? global.quality * 0.5*(res+1.0) : global.cust_artifacting;
 	FRINGING = (global.quality > -0.5) ? global.quality : global.cust_fringing;
 	SATURATION = global.ntsc_sat;
 	BRIGHTNESS = global.ntsc_bright;
+	
+	res = max(res, 1.0);	
+	pix_no.x = pix_no.x * res;
+
+	MERGE = (int(global.quality) == 2) ? 0.0 : 1.0;
+	MERGE = (int(global.quality) == -1) ? global.ntsc_fields : MERGE;
+	
 }
 
 #pragma stage fragment
@@ -55,6 +70,7 @@ layout(location = 4) in float SATURATION;
 layout(location = 5) in float FRINGING;
 layout(location = 6) in float ARTIFACTING;
 layout(location = 7) in float CHROMA_MOD_FREQ;
+layout(location = 8) in float MERGE;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -81,13 +97,34 @@ vec3 rgb2yiq(vec3 col)
    return col * yiq_mat;
 }
 
+vec3 declip(vec3 c, float b)
+{
+	float m = max(max(c.r,c.g),c.b);
+	if (m > b) c = c*b/m;
+	return c;
+}
+
 void main()
 {
    vec3 col = texture(Source, vTexCoord).rgb;
    vec3 yiq = rgb2yiq(col);
+   vec3 yiq2 = yiq;	
 
-   float chroma_phase = (phase < 2.5) ? PI * (mod(pix_no.y, 2.0) + mod(global.FrameCount, 2.)) : 0.6667 * PI * (mod(pix_no.y, 3.0) + mod(global.FrameCount, 2.));
+   float mod1 = 2.0;
+   float mod2 = 3.0; 
 
+if (MERGE > 0.5)
+{
+   float chroma_phase2 = (phase < 2.5) ? PI * (mod(pix_no.y, mod1) + mod(global.FrameCount+1, 2.)) : 0.6667 * PI * (mod(pix_no.y, mod2) + mod(global.FrameCount+1, 2.));
+   float mod_phase2 = chroma_phase2 + pix_no.x * CHROMA_MOD_FREQ;
+   float i_mod2 = cos(mod_phase2);
+   float q_mod2 = sin(mod_phase2);
+   yiq2.yz *= vec2(i_mod2, q_mod2); // Modulate.
+   yiq2 *= mix_mat; // Cross-talk.
+   yiq2.yz *= vec2(i_mod2, q_mod2); // Demodulate.   
+}
+   
+   float chroma_phase = (phase < 2.5) ? PI * (mod(pix_no.y, mod1) + mod(global.FrameCount, 2.)) : 0.6667 * PI * (mod(pix_no.y, mod2) + mod(global.FrameCount, 2.));
    float mod_phase = chroma_phase + pix_no.x * CHROMA_MOD_FREQ;
 
    float i_mod = cos(mod_phase);
@@ -96,5 +133,8 @@ void main()
    yiq.yz *= vec2(i_mod, q_mod); // Modulate.
    yiq *= mix_mat; // Cross-talk.
    yiq.yz *= vec2(i_mod, q_mod); // Demodulate.
+      
+   yiq = (MERGE < 0.5) ? yiq : 0.5*(yiq+yiq2);
+   
    FragColor = vec4(yiq, 1.0);
 } 
