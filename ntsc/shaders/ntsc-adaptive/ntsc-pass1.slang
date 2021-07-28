@@ -97,13 +97,6 @@ vec3 rgb2yiq(vec3 col)
    return col * yiq_mat;
 }
 
-vec3 declip(vec3 c, float b)
-{
-	float m = max(max(c.r,c.g),c.b);
-	if (m > b) c = c*b/m;
-	return c;
-}
-
 void main()
 {
    vec3 col = texture(Source, vTexCoord).rgb;
