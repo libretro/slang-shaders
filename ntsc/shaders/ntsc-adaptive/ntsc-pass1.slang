@@ -56,7 +56,7 @@ void main()
 	BRIGHTNESS = global.ntsc_bright;	
 	pix_no.x = pix_no.x * res;
 
-	MERGE = (int(global.quality) == 2) ? 0.0 : 1.0;
+	MERGE = (int(global.quality) == 2 || phase < 2.5) ? 0.0 : 1.0;
 	MERGE = (int(global.quality) == -1) ? global.ntsc_fields : MERGE;
 	
 }
