@@ -24,7 +24,7 @@ layout(push_constant) uniform Push
 #pragma parameter SCANLINES_STRENGTH "  Custom [If   BP=0.00] SCANLINES STRENGTH" 0.58 0.0 1.0 0.02
 #pragma parameter COLOR_BOOST "  Custom [If   BP=0.00] COLOR BOOST" 1.25 1.0 2.0 0.05
 #pragma parameter HFILTER_SHARPNESS "  Custom [If HFP=0.00] SHARPNESS" 1.0 0.0 1.0 0.02
-#pragma parameter PHOSPHOR_LAYOUT "PHOSPHOR LAYOUT" 4.0 0.0 19.0 1.0
+#pragma parameter PHOSPHOR_LAYOUT "PHOSPHOR LAYOUT" 4.0 0.0 21.0 1.0
 #pragma parameter MASK_INTENSITY "MASK INTENSITY" 0.5 0.0 1.0 0.1
 #pragma parameter CRT_ANTI_RINGING "ANTI RINGING" 1.0 0.0 1.0 0.1
 #pragma parameter InputGamma "INPUT GAMMA" 2.4 0.0 5.0 0.1

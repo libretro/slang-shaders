@@ -306,6 +306,22 @@ vec3 mask_weights(vec2 coord, float mask_intensity, int phosphor_layout){
       weights = tatemask[w][z];
       return weights;
    }
+   
+   else if(phosphor_layout == 21){
+      // based on MajorPainInTheCactus' HDR slot mask
+      vec3 slot[4][8] = {
+         {red,   green, blue,  black, red,   green, blue,  black},
+         {red,   green, blue,  black, black, black, black, black},
+         {red,   green, blue,  black, red,   green, blue,  black},
+         {black, black, black, black, red,   green, blue,  black}
+      };
+      
+      w = int(floor(mod(coord.y, 4.0)));
+      z = int(floor(mod(coord.x, 8.0)));
+      
+      weights = slot[w][z];
+      return weights;
+   }
 
    else return weights;
 }
@@ -607,6 +623,23 @@ vec3 mask_weights_alpha(vec2 coord, float mask_intensity, int phosphor_layout, o
 
       weights = tatemask[w][z];
       alpha = 18./48.;
+      return weights;
+   }
+   
+   else if(phosphor_layout == 21){
+      // based on MajorPainInTheCactus' HDR slot mask
+      vec3 slot[4][8] = {
+         {red,   green, blue,  black, red,   green, blue,  black},
+         {red,   green, blue,  black, black, black, black, black},
+         {red,   green, blue,  black, red,   green, blue,  black},
+         {black, black, black, black, red,   green, blue,  black}
+      };
+      
+      w = int(floor(mod(coord.y, 4.0)));
+      z = int(floor(mod(coord.x, 8.0)));
+      
+      weights = slot[w][z];
+      alpha = 21./96.;
       return weights;
    }
 
