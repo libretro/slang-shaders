@@ -1,0 +1,82 @@
+/* 
+Sony Megatron Colour Video Monitor
+Author: Major Pain The Cactus
+
+A shader that specifically tries to emulate Sony PVM's with an aperture grille screen but with full brightness. 
+
+The novel thing about this shader is that it transforms the image output by the 'console/arcade/computer' into HDR space first i.e brightens it first and then applies 
+an aperture grille afterwards which is kind of what a CRT would actually do - its kind of a kin to the electron beam (but nothing like it lol). 
+
+My DisplayHDR 600 monitor does seem to get reasonably close to the brightness of my PVM - its not quite there but its close.  I think DisplayHDR 1000 and above will be able to match.
+
+Currently defaults towards a Sony PVM 2730QM a reasonably old mid 1980's 27" 600TVL pro monitor.
+
+To use:
+Please Enable HDR in RetroArch 1.10+
+[UPDATE] This shader supports SDR as well - just enable it in the shader parameters
+
+NOTE: when this shader is envoked the Contrast, Peak Luminance and Paper White Luminance in the HDR menu do nothing instead set those values through the shader parameters 
+
+For this shader set Paper White Luminance to above 700 and Peak Luminance to the peak luminance of your monitor.  
+
+Also try to use a integer scaling - its just better - overscaling is fine/great.
+
+This shader doesn't do any geometry warping or bouncing of light around inside the screen - I think these effects just add unwanted noise, I know people disagree. Please feel free to make you own and add them
+
+Works only with the D3D11/D3D12/Vulkan drivers currently
+
+THIS SHADER DOES NOT SUPPORT WRGB OLED (Due to the sub pixel layout of WRGB - QD-OLED or LCD (and variants thereof screens are fine) - It will work just wont look right
+*/
+
+shaders = "3"
+feedback_pass = "0"
+
+shader0 = "shaders/crt-sony-megatron-source-pass.slang"
+filter_linear0 = "false"
+scale_type0 = "source"
+scale0 = "1.0"
+wrap_mode0 = "clamp_to_border"
+mipmap_input0 = "false"
+alias0 = "SourceSDR"
+
+shader1 = "shaders/crt-sony-megatron-hdr-pass.slang"
+filter_linear1 = "false"
+scale_type1 = "source"
+scale1 = "1.0"
+wrap_mode1 = "clamp_to_border"
+mipmap_input1 = "false"
+alias1 = "SourceHDR"
+
+shader2 = "shaders/crt-sony-megatron.slang"
+filter_linear2 = "false"
+wrap_mode2 = "clamp_to_border"
+mipmap_input2 = "false"
+alias2 = ""
+float_framebuffer2 = "false"
+srgb_framebuffer2 = "false"
+
+hcrt_brightness = "0.150000"
+hcrt_colour_system = "0.000000"
+hcrt_white_temperature = "2800.000000"
+hcrt_expand_gamut = "1.000000"
+hcrt_contrast = "0.000000"
+hcrt_gamma = "0.000000"
+hcrt_red_vertical_convergence = "-0.140000"
+hcrt_green_vertical_convergence = "0.000000"
+hcrt_blue_vertical_convergence = "0.000000"
+hcrt_red_scanline_min = "0.550000"
+hcrt_red_scanline_max = "0.820000"
+hcrt_red_scanline_attack = "0.650000"
+hcrt_green_scanline_min = "0.550000"
+hcrt_green_scanline_max = "0.900000"
+hcrt_green_scanline_attack = "0.130000"
+hcrt_blue_scanline_min = "0.720000"
+hcrt_blue_scanline_max = "1.000000"
+hcrt_blue_scanline_attack = "0.650000"
+hcrt_red_beam_sharpness = "1.750000"
+hcrt_red_beam_attack = "0.7200000"
+hcrt_green_beam_sharpness = "1.600000"
+hcrt_green_beam_attack = "0.800000"
+hcrt_blue_beam_sharpness = "1.900000"
+hcrt_blue_beam_attack = "0.450000"
+

@@ -111,7 +111,7 @@ void main()
   
   TextureSize = global.SourceSize.xy;
   
-  ilfac = vec2(1.0, clamp(floor(global.SourceSize.y/200.0),  1.0, 2.0));
+  ilfac = vec2(1.0, clamp(floor(global.SourceSize.y/(interlace_detect == 1.0 ? 200.0 : 1000.0)),  1.0, 2.0));
 
   // The size of one texel, in texture-coordinates.
   v_one = ilfac / TextureSize.xy;

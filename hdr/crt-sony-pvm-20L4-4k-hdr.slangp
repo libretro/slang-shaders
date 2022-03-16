@@ -1,6 +1,0 @@
-#reference "crt-sony-pvm-4k-hdr.slangp"
-Contrast = "4.500000"
-PaperWhiteNits = "500.000000"
-ScanlineWidth = "0.600000"
-ResolutionPattern = "1.000000"
-Sharpness = "2.500000"
