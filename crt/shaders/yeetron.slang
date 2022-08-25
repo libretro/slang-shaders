@@ -45,9 +45,9 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 void main()
 {
 	float RSDK_PI = 3.14159;
-	vec2 textureSize = params.OriginalSize.xy; // Size of Internal Framebuffer
+	vec2 textureSize = params.SourceSize.xy; // Size of Internal Framebuffer
 	vec2 viewSize = global.FinalViewportSize.xy; // Size of final Viewport
-	vec2 pixelSize = params.SourceSize.xy; // Size of Game resolution;
+	vec2 pixelSize = params.OriginalSize.xy; // Size of Game resolution;
 	
 	vec2 viewPos      = floor((textureSize.xy / pixelSize.xy) * vTexCoord.xy * viewSize.xy) + 0.5;
     float intencityPos  = fract((viewPos.y * 3.0 + viewPos.x) * 0.166667);

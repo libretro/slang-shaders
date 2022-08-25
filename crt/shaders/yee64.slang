@@ -47,9 +47,9 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 void main()
 {
 
-	vec2 textureSize = params.OriginalSize.xy; // Size of Internal Framebuffer
+	vec2 textureSize = params.SourceSize.xy; // Size of Internal Framebuffer
 	vec2 viewSize = global.FinalViewportSize.xy; // Size of final Viewport
-	vec2 pixelSize = params.SourceSize.xy; // Size of Game resolution;
+	vec2 pixelSize = params.OriginalSize.xy; // Size of Game resolution;
 
     vec2 texelPos = (textureSize.xy / pixelSize.xy) * vTexCoord.xy;
     vec4 size     = (pixelSize.xy / textureSize.xy).xyxy * texelPos.xyxy;
