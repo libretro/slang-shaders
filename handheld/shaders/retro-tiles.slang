@@ -32,17 +32,20 @@ layout(push_constant) uniform Push
     uint FrameCount;
     float TILE_SIZE;
     float COLOR_BOOST;
+    float OVERSCAN;
     float InputGamma;
     float OutputGamma;
 } param;
 
-#pragma parameter TILE_SIZE  "Tile Size"       0.5  0.4 0.6 0.01
-#pragma parameter COLOR_BOOST  "Color Boost"   1.0  1.0 2.0 0.05
-#pragma parameter InputGamma   "INPUT GAMMA"   2.2  0.0 3.0 0.1
-#pragma parameter OutputGamma  "OUTPUT GAMMA"  2.2  0.0 3.0 0.1
+#pragma parameter TILE_SIZE  "Tile Size"       0.5  0.4   0.6 0.01
+#pragma parameter COLOR_BOOST  "Color Boost"   1.0  1.0   2.0 0.05
+#pragma parameter OVERSCAN  "Over Scan"        0.0 -3.0   3.0 1.0
+#pragma parameter InputGamma   "INPUT GAMMA"   2.2  0.0   3.0 0.1
+#pragma parameter OutputGamma  "OUTPUT GAMMA"  2.2  0.0   3.0 0.1
 
-#define TILE_SIZE  param.TILE_SIZE
+#define TILE_SIZE    param.TILE_SIZE
 #define COLOR_BOOST  param.COLOR_BOOST
+#define OVERSCAN     param.OVERSCAN
 #define InputGamma   param.InputGamma
 #define OutputGamma  param.OutputGamma
 
@@ -55,15 +58,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
     mat4 MVP;
 } global;
 
-float fade(float size)
-{
-   size = clamp(size, -1.0, 1.0);
-
-   size = 1.0 - pow(size, 3.0);
-
-   return size * size;
-}
-
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
@@ -72,13 +66,32 @@ layout(location = 0) out vec2 vTexCoord;
 void main()
 {
     gl_Position = global.MVP * Position;
-    vTexCoord = TexCoord * 1.0001;
+
+    vec2 box_scale = floor(param.OutputSize.xy / param.SourceSize.xy) + OVERSCAN;
+    box_scale = vec2(min(box_scale.x, box_scale.y));
+
+    vec2 scale = (param.OutputSize.xy / param.SourceSize.xy) / box_scale;
+    vec2 middle = vec2(0.5);
+    vec2 diff = TexCoord * 1.0001 - middle;
+    vTexCoord = middle + diff * scale;
+
 }
+
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
+
+float fade(float size)
+{
+   size = clamp(size, -1.0, 1.0);
+
+   size = 1.0 - size * size * size;
+
+   return size * size;
+}
+
 
 void main()
 {
@@ -103,7 +116,5 @@ void main()
 
     color *= COLOR_BOOST;
 
-    color = GAMMA_OUT(color);
-
-    FragColor = vec4(color, 1.0);
+    FragColor = vec4(GAMMA_OUT(color), 1.0);
 }
