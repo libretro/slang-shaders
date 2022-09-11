@@ -1,0 +1,4 @@
+shaders = 1
+
+shader0 = shaders/retro-tiles.slang
+filter_linear0 = false
