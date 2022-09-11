@@ -40,7 +40,7 @@ layout(push_constant) uniform Push
 #pragma parameter TILE_SIZE  "Tile Size"       0.5  0.4   0.6 0.01
 #pragma parameter COLOR_BOOST  "Color Boost"   1.0  1.0   2.0 0.05
 #pragma parameter OVERSCAN  "Over Scan"        0.0 -3.0   3.0 1.0
-#pragma parameter InputGamma   "INPUT GAMMA"   2.2  0.0   3.0 0.1
+#pragma parameter InputGamma   "INPUT GAMMA"   2.7  0.0   3.0 0.1
 #pragma parameter OutputGamma  "OUTPUT GAMMA"  2.2  0.0   3.0 0.1
 
 #define TILE_SIZE    param.TILE_SIZE
