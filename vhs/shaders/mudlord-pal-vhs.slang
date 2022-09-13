@@ -45,5 +45,80 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-float rand(float p){vec2 s=vec2(p,p);float e=12.9898,r=78.233,t=43758.5,v=dot(s.rg,vec2(e,r)),S=mod(v,3.14);return fract(sin(S)*t);}vec2 crt(vec2 s,float e){return s=(s-.5)*2.,s*=.5,s.r*=1.+pow(abs(s.g)/e,2.),s.g*=1.+pow(abs(s.r)/e,2.),s=s+.5,s;}void main(){vec4 s=vec4(0.);vec2 e=vTexCoord.rg,v=crt(e,2.),r=v;mat3 p=mat3(.299,-.147,.615,.587,-.289,-.515,.114,.436,-.1),b=mat3(1.,1.,1.,0.,-.395,2.032,1.14,-.581,0.);float t=1.;if(params.TVNoise==1.)t-=rand(v.r*params.FrameCount*.1+v.g*params.FrameCount*50.+params.FrameCount)*.5;if(params.PALSignal==1.){vec3 f=vec3(0.);float c=.3,g=-.002;for(int S=10;S>=0;S-=1){float m=float(S)/10.;if(m<0.)m=0.;float a=m*-.05*c+g,i=m*.1*c+g;vec3 l=(vec3(1.)-pow(vec3(m),vec3(.2,1.,1.)))*.2;vec2 o=r+vec2(a,0.),u=r+vec2(i,0.);f+=p*texture(Source,o).rgb*l;f+=p*texture(Source,u).rgb*l;}f.r=f.r*.2+(p*texture(Source,r).rgb).r*.8;s.rgb=b*f*t;}else s.rgb=texture(Source,r).rgb;if(params.phosphors==1.){float S=e.g*params.OutputSize.g*params.OutputSize.g/params.OutputSize.g;vec3 m=mix(vec3(1.,.7,1.),vec3(.7,1.,.7),floor(mod(S,2.)));s.rgb*=m;}if(params.border==1.){vec2 c=-1.+2.*crt(e,2.);float S=(1.-c.r*c.r)*(1.-c.g*c.g),m=clamp(params.frameSharpness*(pow(S,params.frameShape)-params.frameLimit),0.,1.);s.rgb*=m;}FragColor=vec4(s.rgb,1.);}
 
+float rand(float x)
+{
+    vec2 co = vec2(x,x);
+    float a = 12.9898;
+    float b = 78.233;
+    float c = 43758.5453;
+    float dt= dot(co.xy ,vec2(a,b));
+    float sn= mod(dt,3.14);
+    return fract(sin(sn) * c);
+}
+
+void main()
+{
+    vec4 col = vec4(0.0);
+    vec2 q = vTexCoord.xy * TextureSize.xy / InputSize.xy;
+    vec2 uv = q;
+    vec2 uv_q = uv;
+
+    vec2 uv_n = uv_q;
+    mat3 rgbtoyuv = mat3(0.299, -0.147,  0.615, 0.587, -0.289, -0.515, 0.114, 0.436, -0.100);
+	mat3 yuvtorgb = mat3(1.000, 1.000, 1.000, 0.000, -0.395, 2.032, 1.140, -0.581, 0.000);
+    float shade = 1.0;
+
+if(params.TVNoise == 1.0)
+{
+shade -= rand((uv_q.x*params.FrameCount) * 0.1 + (uv_q.y*params.FrameCount) * 50.0 + params.FrameCount) * 0.5;
+}
+
+if(params.PALSignal == 1.0)
+{
+     vec3 yuv = vec3(0.0);
+	float fix = 0.3;
+	float lumadelay = -0.002;
+
+  for (int x = 10; x >= 0; x -= 1)
+  {
+       float xx = float(x) / 10.0;
+       if(xx < 0.0) xx = 0.0 ;
+       float x1 = (xx * -0.05)* fix + lumadelay;
+       float x2 = (xx * 0.1)* fix + lumadelay;
+       vec3 mult = (vec3(1.0) - pow(vec3(xx), vec3(0.2, 1.0, 1.0))) * 0.2;
+        vec2 uv1 = uv_n + vec2(x1,0.0);
+       vec2 uv2 = uv_n + vec2(x2,0.0);
+       yuv += (rgbtoyuv * texture(Source,uv1).rgb) * mult;
+       yuv += (rgbtoyuv * texture(Source,uv2).rgb) * mult;
+
+  }
+  yuv.r = yuv.r * 0.2 + (rgbtoyuv *  texture(Source,uv_n).rgb).r * 0.8;
+    col.rgb = yuvtorgb * yuv * shade;
+}
+else
+{
+ col.rgb = texture(Source,uv_n).rgb;
+}
+    
+
+   
+if(params.phosphors==1.0)
+{
+    float mod_factor = uv.y * params.OutputSize.y * params.OutputSize.y / params.OutputSize.y;
+	vec3 dotMaskWeights = mix(vec3(1.0, 0.7, 1.0),vec3(0.7, 1.0, 0.7),floor(mod(mod_factor, 2.0)));
+    col.rgb*= dotMaskWeights;
+}
+ 
+
+if(params.border ==1.0)
+{
+    vec2 p=-1.0+2.0*crt(uv, 2.0);
+	float f = (1.0- p.x *p.x) * (1.0-p.y *p.y);
+	float frame = clamp(params.frameSharpness * (pow(f, params.frameShape) - params.frameLimit), 0.0, 1.0);
+	col.rgb*=frame;
+}
+
+
+    FragColor = vec4(col.rgb, 1.0);
+}
