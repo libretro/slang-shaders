@@ -34,23 +34,24 @@ layout(push_constant) uniform Push
 	uint FrameCount;
 	float CD_HUD_DETAILS;
 	float CD_ADJUST_VIEW;
+	float UseGamma;
 } params;
 
-#pragma parameter CD_HUD_DETAILS               "    Details Threshold"          1.0  0.0 5.0  1.0
-#pragma parameter CD_ADJUST_VIEW               "    Adjust View"                0.0  0.0 1.0  1.0
+#pragma parameter CD_HUD_DETAILS               "    Details Threshold" 1.0  0.0 5.0  1.0
+#pragma parameter CD_ADJUST_VIEW               "    Adjust View"       0.0  0.0 1.0  1.0
+#pragma parameter UseGamma                     "    Gamma Slider"      1.0  0.0 1.0  0.1
 
-#define CD_HUD_DETAILS             params.CD_HUD_DETAILS
-#define CD_ADJUST_VIEW             params.CD_ADJUST_VIEW
+#define CD_HUD_DETAILS   params.CD_HUD_DETAILS
+#define CD_ADJUST_VIEW   params.CD_ADJUST_VIEW
+#define UseGamma         params.UseGamma
+#define OuputGamma       (UseGamma+1.0)
 
-#define GAMMA_EXP		2.0
-#define GAMMA_IN(color)		pow(color, vec3(GAMMA_EXP, GAMMA_EXP, GAMMA_EXP))
-#define GAMMA_OUT(color)	pow(color, vec3(1.0 / GAMMA_EXP, 1.0 / GAMMA_EXP, 1.0 / GAMMA_EXP))
+#define GAMMA_OUT(color)	pow(color, vec3(1.0 / OuputGamma, 1.0 / OuputGamma, 1.0 / OuputGamma))
+
+#define PATTERN(A)                 step(Delta,A)
 
 const float Delta = 0.000000001;
 const vec3 Y = vec3( 0.299,  0.587,  0.114);
-
-vec3 min_s(vec3 central, vec3 adj1, vec3 adj2) {return min(central, max(adj1, adj2));}
-vec3 max_s(vec3 central, vec3 adj1, vec3 adj2) {return max(central, min(adj1, adj2));}
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -102,13 +103,13 @@ void main()
 //   L  C  R
 //  DL  D DR
 
-	count += step(Delta, L.a);
-	count += step(Delta, R.a);
-	count += step(Delta, U.a);
-	count += step(Delta, D.a);
-	count += step(Delta, UL.a*UR.a*DL.a*DR.a);
+	count += PATTERN(L.a);
+	count += PATTERN(R.a);
+	count += PATTERN(U.a);
+	count += PATTERN(D.a);
+	count += PATTERN(UL.a*UR.a*DL.a*DR.a);
 
-	count2 += (step(Delta, L.a*UL.a*U.a + U.a*UR.a*R.a + R.a*DR.a*D.a + D.a*DL.a*L.a));
+	count2 += PATTERN(L.a*UL.a*U.a + U.a*UR.a*R.a + R.a*DR.a*D.a + D.a*DL.a*L.a);
 
 	if ((count < CD_HUD_DETAILS)  && (count2 < 1.0))
 		color = oriC;

@@ -6,11 +6,13 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float InputGamma;
+	float UseGamma;
 } params;
 
+#pragma parameter UseGamma  "    Gamma Slider"  1.0  0.0 1.0  0.1
 
-#define InputGamma 2.0
+#define UseGamma     params.UseGamma
+#define InputGamma   (UseGamma+1.0)
 
 #define GAMMA_IN(color)     pow(color, vec3(InputGamma, InputGamma, InputGamma))
 

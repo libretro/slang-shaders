@@ -39,11 +39,10 @@ layout(push_constant) uniform Push
 
 #define CD_BLEND_LEVEL             params.CD_BLEND_LEVEL
 
+#define PATTERN(A)                 step(Delta,A)
+
 const float Delta = 0.000000001;
 const vec3 Y = vec3( 0.299,  0.587,  0.114);
-
-vec3 min_s(vec3 central, vec3 adj1, vec3 adj2) {return min(central, max(adj1, adj2));}
-vec3 max_s(vec3 central, vec3 adj1, vec3 adj2) {return max(central, min(adj1, adj2));}
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -101,13 +100,13 @@ void main()
 //   L  C  R
 //  DL  D DR
 
-	count1 += (step(Delta, L.a*D.a*R.a));
-	count1 += (step(Delta, L.a*U.a*R.a));
-	count1 += (step(Delta, L.a*UL.a*R.a*UR.a + L.a*DL.a*R.a*DR.a));
+	count1 += PATTERN(L.a*D.a*R.a);
+	count1 += PATTERN(L.a*U.a*R.a);
+	count1 += PATTERN(L.a*UL.a*R.a*UR.a + L.a*DL.a*R.a*DR.a);
 
-	count2 += (step(Delta, U.a*L.a*D.a));
-	count2 += (step(Delta, U.a*R.a*D.a));
-	count2 += (step(Delta, U.a*UR.a*D.a*DR.a + D.a*DL.a*U.a*UL.a));
+	count2 += PATTERN(U.a*L.a*D.a);
+	count2 += PATTERN(U.a*R.a*D.a);
+	count2 += PATTERN(U.a*UR.a*D.a*DR.a + D.a*DL.a*U.a*UL.a);
 
 	if ((count1 * count2) > 0.0)
 		color = 0.5*(1.0+diff)*oriC + 0.125*(1.0-diff)*(oriL + oriR + oriU + oriD);
