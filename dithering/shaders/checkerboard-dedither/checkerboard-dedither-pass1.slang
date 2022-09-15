@@ -28,17 +28,16 @@
 
 layout(push_constant) uniform Push
 {
-	vec4 SourceSize;
-	vec4 OriginalSize;
-	vec4 OutputSize;
-	uint FrameCount;
-	float CD_BLEND_OPTION;
-	float CD_BLEND_LEVEL;
+    vec4 SourceSize;
+    vec4 OriginalSize;
+    vec4 OutputSize;
+    uint FrameCount;
+    float CD_BLEND_OPTION;
+    float CD_BLEND_LEVEL;
 } params;
 
-#pragma parameter CB-DEDITHER                 "[CHECKERBOARD-DEDITHER PARAMS]" 0.0 0.0 0.0 0.0
-#pragma parameter CD_BLEND_OPTION             "    [ OFF | ON ]"               1.0  0.0 1.0  1.0
-#pragma parameter CD_BLEND_LEVEL              "    Blend Level"                1.0  0.0 1.0  0.1
+#pragma parameter CD_BLEND_OPTION    "CHECKERBOARD-DEDITHER: [ OFF | ON ]" 1.0  0.0 1.0  1.0
+#pragma parameter CD_BLEND_LEVEL     "    Blend Level"                     1.0  0.0 1.0  0.1
 
 #define CD_BLEND_OPTION             params.CD_BLEND_OPTION
 #define CD_BLEND_LEVEL              params.CD_BLEND_LEVEL
@@ -50,7 +49,7 @@ vec3 max_s(vec3 central, vec3 adj1, vec3 adj2) {return max(central, min(adj1, ad
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
-	mat4 MVP;
+    mat4 MVP;
 } global;
 
 
@@ -72,41 +71,37 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
-	vec2 dx = vec2(1.0, 0.0)*params.SourceSize.zw;
-	vec2 dy = vec2(0.0, 1.0)*params.SourceSize.zw;
+    vec2 dx = vec2(1.0, 0.0)*params.SourceSize.zw;
+    vec2 dy = vec2(0.0, 1.0)*params.SourceSize.zw;
 
-	// Reading the texels.
-	vec3 C  = texture(Source, vTexCoord    ).xyz;
-	vec3 L  = texture(Source, vTexCoord -dx).xyz;
-	vec3 R  = texture(Source, vTexCoord +dx).xyz;
-	vec3 U  = texture(Source, vTexCoord -dy).xyz;
-	vec3 D  = texture(Source, vTexCoord +dy).xyz;
-	vec3 UL = texture(Source, vTexCoord -dx -dy).xyz;
-	vec3 UR = texture(Source, vTexCoord +dx -dy).xyz;
-	vec3 DL = texture(Source, vTexCoord -dx +dy).xyz;
-	vec3 DR = texture(Source, vTexCoord +dx +dy).xyz;
+    // Reading the texels.
+    vec3 C  = texture(Source, vTexCoord    ).xyz;
+    vec3 L  = texture(Source, vTexCoord -dx).xyz;
+    vec3 R  = texture(Source, vTexCoord +dx).xyz;
+    vec3 U  = texture(Source, vTexCoord -dy).xyz;
+    vec3 D  = texture(Source, vTexCoord +dy).xyz;
+    vec3 UL = texture(Source, vTexCoord -dx -dy).xyz;
+    vec3 UR = texture(Source, vTexCoord +dx -dy).xyz;
+    vec3 DL = texture(Source, vTexCoord -dx +dy).xyz;
+    vec3 DR = texture(Source, vTexCoord +dx +dy).xyz;
 
-	vec3 color = C;
+    vec3 color = C;
 
-	//  Get min/max samples
-	vec3 min_sample = min_s(C, L, R);
-	vec3 max_sample = max_s(C, L, R);
+    if (CD_BLEND_OPTION == 1)
+    {
+        float diff = dot(max(C, max(L, R)) - min(C, min(L, R)), Y);
 
-	float diff = dot(max(max(C, L), max(C, R)) - min(min(C, L), min(C, R)), Y);
+        diff *= (1.0 - CD_BLEND_LEVEL);
 
-	diff *= (1.0 - CD_BLEND_LEVEL);
+        vec3 min_sample = max(min_s(C, L, R), min_s(C, U, D));
+        vec3 max_sample = min(max_s(C, L, R), max_s(C, U, D));
 
-	if (CD_BLEND_OPTION == 1)
-	{
-		min_sample = max(min_sample, min_s(C, U, D));
-		max_sample = min(max_sample, max_s(C, U, D));
+        color = 0.5*( 1.0 + diff )*C + 0.125*( 1.0 - diff )*(L + R + U + D);
 
-		color = 0.5*( 1.0 + diff )*C + 0.125*( 1.0 - diff )*(L + R + U + D);
-	}
+        color = clamp(color, min_sample, max_sample);
+    }
 
-	color = clamp(color, min_sample, max_sample);
+    float luma_diff = abs(dot(C, Y)-dot(color, Y));
 
-	float luma_diff = abs(dot(C, Y)-dot(color, Y));
-
-	FragColor = vec4(color, luma_diff);
+    FragColor = vec4(color, luma_diff);
 }

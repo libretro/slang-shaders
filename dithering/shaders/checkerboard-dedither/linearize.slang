@@ -6,10 +6,12 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
+	float CD_BLEND_OPTION;
 	float UseGamma;
 } params;
 
-#pragma parameter UseGamma  "    Gamma Slider"  1.0  0.0 1.0  0.1
+#pragma parameter CD_BLEND_OPTION    "CHECKERBOARD-DEDITHER: [ OFF | ON ]" 1.0  0.0 1.0  1.0
+#pragma parameter UseGamma           "    Gamma Slider"                    1.0  0.0 1.0  0.1
 
 #define UseGamma     params.UseGamma
 #define InputGamma   (UseGamma+1.0)
