@@ -1,0 +1,4 @@
+shaders = 1
+
+shader0 = shaders/Advanced_CRT_shader_whkrmrgks0.slang
+filter_linear0 = false

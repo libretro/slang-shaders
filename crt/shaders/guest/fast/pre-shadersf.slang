@@ -3,7 +3,7 @@
 /*
    CRT Advanced color altering
    
-   Copyright (C) 2019-2021 guest(r) and Dr. Venom
+   Copyright (C) 2019-2022 guest(r) and Dr. Venom
    
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -36,12 +36,13 @@ layout(push_constant) uniform Push
    float vigstr;
    float vigdef;
    float sega_fix;
-   float pre_bb;   
+   float pre_bb;
+   float contr;
 } params;
 
 #pragma parameter bogus_color "[ COLOR TWEAKS ]:" 0.0 0.0 1.0 1.0
 
-#pragma parameter TNTC "          LUT Colors: Trin. | invTrin. | Nec Mult. | NTSC" 0.0 0.0 4.0 1.0
+#pragma parameter TNTC "          LUT Colors: Trin.1 | Trin.2 | Nec Mult. | NTSC" 0.0 0.0 4.0 1.0
 #define TNTC params.TNTC
 
 #pragma parameter LS "          LUT Size" 32.0 32.0 64.0 32.0
@@ -52,16 +53,20 @@ layout(push_constant) uniform Push
 #define LUTBR 1.0   // "Fix LUT Brightness" from 0.0 to 1.0
  
 #pragma parameter WP "          Color Temperature %" 0.0 -100.0 100.0 5.0 
+
 #pragma parameter wp_saturation "          Saturation Adjustment" 1.0 0.0 2.0 0.05 
+
 #pragma parameter pre_bb "          Brightness Adjustment" 1.0 0.0 2.0 0.01
+
+#pragma parameter contr "          Contrast Adjustment" 0.0 -1.0 1.0 0.05
 
 #pragma parameter sega_fix "          Sega Brightness Fix" 0.0 0.0 1.0 1.0
 
-#pragma parameter BP "          Raise Black Level" 0.0 0.0 25.0 1.0
+#pragma parameter BP "          Raise Black Level" 0.0 -100.0 25.0 1.0
 
-#pragma parameter vigstr "          Vignette Strength" 0.0 0.0 2.0 0.025
+#pragma parameter vigstr "          Vignette Strength" 0.0 0.0 2.0 0.05
 
-#pragma parameter vigdef "          Vignette Definition" 7.0 0.4 15.0 0.2
+#pragma parameter vigdef "          Vignette Size" 1.0 0.5 3.0 0.10
 
 
 #define WP params.WP
@@ -120,9 +125,9 @@ const mat3 D65_to_D55 = mat3 (
 
 
 const mat3 D65_to_D93 = mat3 (
-           0.3683017655,  0.1899055978,  0.0172641453,
-           0.3555467892,  0.7110935785,  0.1185155964,
-           0.2475020592,  0.0990008237,  1.3035108450);
+           0.3412754080,  0.1759701322,  0.0159972847,
+           0.3646170520,  0.7292341040,  0.1215390173,
+           0.2369894093,  0.0947957637,  1.2481442225);
 
 
 vec3 fix_lut(vec3 lutcolor, vec3 ref)
@@ -134,20 +139,27 @@ vec3 fix_lut(vec3 lutcolor, vec3 ref)
 	return mix(lutcolor, ref, LUTBR);
 }
 
-vec2 ctransform (vec2 inputc)
-{
-	return vec2( inputc.x * sqrt(1.0 - 0.5*inputc.y*inputc.y), inputc.y * sqrt(1.0 - 0.5*inputc.x*inputc.x));
+float vignette(vec2 pos) {
+	vec2 b = vec2(params.vigdef, params.vigdef) *  vec2(1.0, params.OriginalSize.x/params.OriginalSize.y) * 0.125;
+	pos = clamp(pos, 0.0, 1.0);
+	pos = abs(2.0*(pos - 0.5));
+	vec2 res = mix(0.0.xx, 1.0.xx, smoothstep(1.0.xx, 1.0.xx-b, sqrt(pos)));
+	res = pow(res, 0.70.xx);	
+	return max(mix(1.0, sqrt(res.x*res.y), params.vigstr), 0.0);
 }
 
-float vignette (vec2 coords)
+vec3 plant (vec3 tar, float r)
 {
-	vec2 ccoords = ctransform(2.0*(coords-0.5));
-	ccoords = ccoords * ccoords;
-	float vstr = sqrt(ccoords.x+ccoords.y);
-	vstr = pow(vstr, params.vigdef);
-	return max(mix(1.0, 1.0-vstr, params.vigstr), 0.0);
+	float t = max(max(tar.r,tar.g),tar.b) + 0.00001;
+	return tar * r / t;
 }
 
+float contrast(float x)
+{ 
+  float y = 2.0*x-1.0;
+  y = (sin(y*1.57079632679)+1.0)*0.5;
+  return mix(x, y, params.contr);
+}
 
 void main()
 {
@@ -156,8 +168,6 @@ void main()
    float w = float ((imgColor.r + imgColor.g + imgColor.b) < 1.5/255.0);
 
    float bp = w * BP/255.0;
-
-   imgColor.rgb = imgColor.rgb * params.pre_bb;
    
    if (params.sega_fix > 0.5) imgColor.rgb = imgColor.rgb * (255.0 / 239.0);
    
@@ -214,11 +224,13 @@ void main()
 
 	vec3 c = clamp(color, 0.0, 1.0);
 	
-	vec3 scolor1 = normalize(pow(color + 0.000000001, vec3(wp_saturation)))*length(color);
-	float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+	vec3 scolor1 = plant(pow(color, vec3(wp_saturation)), max(max(color.r,color.g),color.b));
+	float luma = dot(color, vec3(0.299, 0.587, 0.114));
 	vec3 scolor2 = mix(vec3(luma), color, wp_saturation);
 	color = (wp_saturation > 1.0) ? scolor1 : scolor2;
-   
+
+	color = plant(color, contrast(max(max(color.r,color.g),color.b)));
+
 	float p = 2.2;
 	
 	color = pow(color, vec3(p)); 
@@ -238,21 +250,24 @@ void main()
 	color = mix(color, comp, m);
 	color = pow(max(color, 0.0), vec3(1.0/p));
 	
-	color = color + bp;
+	if (BP > -0.5) color = color + bp; else
+	{ 
+		color = max(color + BP/255.0, 0.0) / (1.0 + BP/255.0*step(- BP/255.0, max(max(color.r,color.g),color.b)));
+	}
+	
+	color = min(color * params.pre_bb, 1.0);
 
 	vec2 dx = vec2(params.SourceSize.z, 0.0);
-	vec2 x2 = 2.5 *dx;
 	vec2 xx = dx + dx;
-	vec2 x3 = x2 + dx;
 	vec2 pC4 = vTexCoord;
 
-	vec3 ol3 = COMPAT_TEXTURE(OriginalHistory1, pC4 -x2).rgb;
+	vec3 ol3 = COMPAT_TEXTURE(OriginalHistory1, pC4 -xx).rgb;
 	vec3 ol2 = COMPAT_TEXTURE(OriginalHistory1, pC4 -dx).rgb;
 	vec3 ol1 = COMPAT_TEXTURE(OriginalHistory1, pC4    ).rgb;
 	vec3 or1 = COMPAT_TEXTURE(OriginalHistory1, pC4 +dx).rgb;
 	vec3 or2 = COMPAT_TEXTURE(OriginalHistory1, pC4 +xx).rgb;
 
-	vec3 cl3 = COMPAT_TEXTURE(OriginalHistory0, pC4 -x2).rgb;	
+	vec3 cl3 = COMPAT_TEXTURE(OriginalHistory0, pC4 -xx).rgb;	
 	vec3 cl2 = COMPAT_TEXTURE(OriginalHistory0, pC4 -dx).rgb;
 	vec3 cl1 = COMPAT_TEXTURE(OriginalHistory0, pC4    ).rgb;
 	vec3 cr1 = COMPAT_TEXTURE(OriginalHistory0, pC4 +dx).rgb;

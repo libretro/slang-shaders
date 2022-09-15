@@ -1,32 +1,174 @@
 ------------------------------------------------------------------------------------------------------------
-HyperspaceMadness Mega Bezel Shader Readme
+Mega Bezel Shader Readme
 ------------------------------------------------------------------------------------------------------------
 ![Mega Bezel Logo](MegaBezelLogo.png)
 
-Version 1.0.001 2022-06-24 Rev 1
+**Version V1.2.0_2022-09-11**
 ----------------------------------------
 ----------------------------------------
 
-This file is best viewed in a markdown editor/viewer if possible.
+This file is best viewed in a markdown editor/viewer. You can also view it here https://github.com/HyperspaceMadness/Mega_Bezel with correct formatting
 
-Find more conversation about the shader here:
+If you are wondering **"What is this thing?"** here's a little overview sharing our ideas around the project and some of the Mega Bezel features:
+[RetroArch – Introducing the Mega Bezel Reflection Shader – Libretro](https://www.libretro.com/index.php/retroarch-introducing-the-mega-bezel/)
+
+Find more conversation about the shader here on the Libretro forum:
+
 https://forums.libretro.com/t/hsm-mega-bezel-reflection-shader-feedback-and-updates
 
+----------------------------------------
+----------------------------------------
+----------------------------------------
+**!!!IMPORTANT!!! - Please be sure to read the INSTALLATION and RETROARCH SETUP instructions Below**
+----------------------------------------
 
-Github Repo
+----------------------------------------
+----------------------------------------
+----------------------------------------
+**Licensing**
+----------------------------------------
+
+The base Mega_Bezel package and included components licensing are GPLv3
+
+Community Collections/Packs are licensing is independent of this. Please consult each package details.
+
+----------------------------------------
+----------------------------------------
+----------------------------------------
+**Latest Releases**
+----------------------------------------
+
+[Shader Package Approx. 12 MB](https://github.com/HyperspaceMadness/Mega_Bezel/releases)
+
+[Extra Examples Package]( https://github.com/HyperspaceMadness/HSM_Mega_Bezel_Examples/releases)
+
+**Github Repo**
 ----------------------------------------
 https://github.com/HyperspaceMadness/Mega_Bezel
 
-[![Open in Visual Studio Code](https://open.vscode.dev/badges/open-in-vscode.svg)](https://github.com/HyperspaceMadness/Mega_Bezel)
-
-----------------------------------------
-Licensing
+**Intro**
 ----------------------------------------
 
-Licensing of package components which incude licensing are LGPL3
+This shader package is meant for you to experiment with and make your own creations if you like. Try adjusting the shader parameters to change the look, as most things are adjustable for personal taste. The base package is now part of the Libretro repo but there will also be updates coming periodically which may get a pre-release here before they go into the main repo. 
 
 ----------------------------------------
-What does it do?
+----------------------------------------
+---------------------------------------- 
+**Installation - VERY IMPORTANT, PLEASE READ**
+----------------------------------------
+
+***
+**INSTALLING THE BASE MEGA BEZEL PACKAGE**
+* **You MUST use Retroarch Version 1.9.8 or Later** (It will fail to load on earlier versions)
+* **If you want to use the default Mega Bezel included with Retroarch:**
+  * Use **Online Updater -> Update Slang Shaders** to update the shaders, the shaders will be added here `Retroarch/shaders/shaders_slang/bezel/Mega_Bezel`
+* **If you want to install from a zipped release from the link above:**
+  * If the `shaders/shaders_slang/bezel/Mega_Bezel` folder exists delete it
+  * Inside the .zip is a **Mega_Bezel** folder. Copy the Mega_Bezel folder into your `Retroarch/shaders/shaders_slang/bezel` folder (If the bezel folder isn't there you can create it)
+  * The final path to the Mega bezel should be `Retroarch/shaders/shaders_slang/bezel/Mega_Bezel`
+
+***
+**RETROARCH SETUP**
+  * Set video driver to **Vulkan** or GLCore if Vulkan is not available
+  * It will run in **GLCore** but seems faster in **Vulkan**
+  * **D3D IS NOT RECOMMENDED**. If it loads in D3D it has a VERY slow load time
+  * Restart Retroarch after changing the video driver
+* Open the **Settings** Menu and Set:
+  * **User Interface / Show Advanced Settings** to **ON**
+  * **Video / Scaling / Aspect Ratio** to **Full**
+    * This will match your monitor aspect aspect ratio
+  * **Video / Scaling / Integer Scale** to **OFF**
+  * **Video / Output / Video Rotation** to **Normal**
+  * **Core / Allow Rotation** to **OFF** -- **Important for FB Neo**
+  * For **FB Neo**
+    * Turn **vertical mode OFF** in **Quick Menu > Core Options** if it was previously turned on
+  * **Do all of this before loading content**
+* For **FB Neo**
+  * **If your game is vertical** set the Rotate CRT Tube parameter to 1. If it is now upside down set Flip Core Image Vertical and Horizontal to 1 
+
+***
+**LOADING AND SAVING PRESETS**
+  * **Load a preset** in the shaders menu. 
+      * The Mega Bezel shader presets are found in: `Retroarch/shaders/shaders_slang/bezel/Mega_Bezel/Presets`
+  * **IMPORTANT!!** When saving a preset make sure you have the **Simple Presets** feature set to **ON**
+    * This will save a preset with a reference to the preset you loaded plus whatever parameter changes you made
+    * This will keep your presets loading properly when the shader updates in the future
+
+***
+**EDITING PRESETS**
+  * You can then open this Simple Preset file and add other parameter adjustments or set textures as you see fit. E.G. add the following lines to change the background image: 
+    * `BackgroundImage = "MyImage.jpg"`
+    * `BackgroundVertImage = "MyImage.jpg"`
+  * Or change the path indicated on the `#reference` line to point at a different base preset
+
+***
+**INSTALLING ADDITIONAL PRESET/GRAPHIC COLLECTIONS**
+  * Create a folder named `Mega_Bezel_Packs` in the root of the shaders folder, the final path of this should be `Retroarch/shaders/Mega_Bezel_Packs
+  * Place any of the additional collections inside this folder
+  * For example the final path to the examples pack should be `Retroarch/shaders/Mega_Bezel_Packs/HSM_Mega_Bezel_Examples`
+
+----------------------------------------
+----------------------------------------
+----------------------------------------
+**Community Collections / Packs**
+----------------------------------------
+
+@Duimon: Awesome graphics and presets for the different historical consoles & computers:: 
+* [Releases · Duimon/Duimon-Mega-Bezel (github.com)](https://github.com/Duimon/Duimon-Mega-Bezel/releases/)
+* https://forums.libretro.com/t/duimon-reflection-shader-graphics-feedback-and-updates
+
+@TheNamec: Really amazing graphics for the Commodore & Amiga systems and PVMs: 
+  * [Releases · TheNamec/megabezel-commodore-pack (github.com)](https://github.com/TheNamec/megabezel-commodore-pack/releases)
+  * https://forums.libretro.com/t/thenamec-mega-bezel-commodore-pack-announcement
+
+----------------------------------------
+----------------------------------------
+----------------------------------------
+The Mega Bezel is coded and maintained by HyperspaceMadness, but leverages some amazing work from the community.
+HyperspaceMadness@outlook.com
+
+----------------------------------------
+----------------------------------------
+----------------------------------------
+**Acknowledgements**
+----------------------------------------
+***
+**THANKS TO THE SHADER WRITERS!**
+
+The Mega Bezel sits atop the shoulders of giants and uses a number of amazing shaders written by shader writers from the community:
+  * Guest.r (Guest-Advanced crt shader)
+  * EasyMode
+  * CGCW (LCD Grid)
+  * DariusG (GDV Mini)
+  * Dogway (Grade Color Correction)
+  * Hyllian (SGENDPT)
+  * Aliaspider (GTU)
+  * Sp00kyFox (MDAPT & ScaleFX)
+  * Trogglemonkey (Royale 3D Curvature)
+  * Flyguy (Text Shadertoy)
+  * Special thanks to Hunterk for porting a number of these and helping me with his expertise along the way!
+
+
+***
+**THANKS TO THE MEGA BEZEL GRAPHICS ARTISTS PUSHING THE FEATURES DURING DEVELOPMENT**
+
+The Mega Bezel would also not have gotten to this level of sophistication without some intense feedback from graphics experts pushing the features and finding the holes.
+
+  * @Duimon
+  * @TheNamec
+  * @Soqueroeu
+
+***
+**THANKS TO THE GRAPHICS ARTISTS WHO HAVE INSPIRED US**
+
+And of course I probably would never have started this without seeing the great overlays created previously 
+  * @OrionsAngel
+  * @exodus123456
+
+----------------------------------------
+----------------------------------------
+----------------------------------------
+**What does it do?**
 ----------------------------------------
 
   * Adds an auto-generated bezel around the screen with reflection
@@ -36,7 +178,7 @@ What does it do?
   * Layering images to add artwork and visual effects
 
 ----------------------------------------
-How does it work?
+**How does it work?**
 ----------------------------------------
 
   * In general there is a background image which fills the screen, then the scaled down game screen with an automatically generated bezel image is drawn on top. 
@@ -44,40 +186,9 @@ How does it work?
   * Additional Images can be layered on top to augment the look
   * Most things can be changed to your taste with adjustment of the parameters, so try them out!
 
-
 ----------------------------------------
-Installation
 ----------------------------------------
-
-* **You MUST use Retroarch Version 1.9.8 or Later** (It will fail to load on earlier versions)
-* If you have previous versions of the Mega Bezel installed:
-  * Delete the old Mega Bezel stuff from shaders/shaders_slang/bezel
-* Inside the .zip is a bezel folder, copy the bezel folder into your Retroarch/shaders/shaders_slang folder
-  * The final path to the Mega bezel should be `Retroarch/shaders/shaders_slang/bezel/Mega_Bezel`
-* If you are using any community packages (including the examples) place them in:
-  * `Retroarch/shaders/Mega_Bezel_Community_Collections`
-  * E.G. the examples go here `Retroarch/shaders/Mega_Bezel_Community_Collections/HSM-Mega-Bezel-Examples`
-* Set video driver to **Vulcan**
-  * It will run in **GLCore** but seems faster in **Vulcan**
-  * Some users have run it with a very long load time in **D3D11** (Not Recommended)
-  * Restart after changing the video driver
-* Open the **Settings** Menu and Set:
-  * **Video / Scaling / Aspect Ratio** to **Full**
-    * This will match your monitor aspect aspect ratio
-  * **Video / Scaling / Integer Scale** to **OFF**
-  * **Video / Output / Video Rotation** to **Normal**
-  * **User Interface / Show Advanced Settings** to **ON**
-  * **Core / Allow Rotation** to **OFF** -- **Important for FB Neo**
-  * Do this Before loading content 
-* **Load a preset** in the shaders menu, Mega Bezel shader presets are found in:
-  * shaders/shaders_slang/bezel/Mega_Bezel/Presets
-* When you **save a preset** make sure you have the **Simple Presets** feature set to **ON**
-  * This will save a preset with a reference to the preset you loaded plus whatever parameter changes you made
-  * This will keep your presets loading properly when the shader updates in the future
-
-
-----------------------------------------
-Choosing a Preset
+**Choosing a Preset**
 ----------------------------------------
 
   * Presets are named/sorted by performance
@@ -89,10 +200,10 @@ Choosing a Preset
     * MBZ__5__POTATO__GDV-MINI - This has no Dynamic Bezel and no Reflections
 ----------------------------------------
 
-Presets in Mega_Bezel / Presets
+**Presets in Mega_Bezel / Presets**
 ----------------------------------------
 
-- All in the root of the Presets folder use @guest.r's awesome Guest-DrVenom-Advanced CRT shader which is considered the default CRT shader for the Mega Bezel, the only exception to this is the POTATO preset which uses GDV-MINI for performance reasons.
+- All in the root of the Presets folder use @guest.r's awesome Guest-Advanced CRT shader which is considered the default CRT shader for the Mega Bezel, the only exception to this is the POTATO preset which uses GDV-MINI for performance reasons.
 
 |                        |Reflection  |Image Layering |Tube Effects  |Pre-CRT Chain  Preset
 |------------------------|------------|---------------|--------------|---------------
@@ -173,6 +284,8 @@ Presets in Mega_Bezel / Presets
 NTSC Processing is only included in NTSC Presets, and GTU Horizontal blurring isincluded in non-NTSC presets
 
 ----------------------------------------
+----------------------------------------
+----------------------------------------
 **Troubleshooting**
 ----------------------------------------
 ---
@@ -184,16 +297,21 @@ NTSC Processing is only included in NTSC Presets, and GTU Horizontal blurring is
         * Load the shader
         * If the shader loads correctly then the shader is working.
         
-     * When the shader works in imageviewer, but doesn’t work when using a core, it is probably related to the core, or the graphics card being overwhelmed by resource usage with both the core requirements and the shader requirements
-     * If it is the core resolution overwhelming the resources, try a STD preset, or a STD-DREZ preset to reduce the resolution used within the shader chain
+     * If Retroarch crashes this is usually the core resolution overwhelming the graphics card's resources. This more often happens when you are using a SMOOTH-ADV preset. Try a STD, or STD-DREZ preset to reduce the resolution used within the shader chain
+     * When the shader works in imageviewer, but doesn’t work when using a core, it is probably related to the core
      * If you still have difficulties loading the shader with a specific core, try updating the core
      * If you still have difficulties download a new separate version of Retroarch and try it there. Sometimes problems lurk in a random config file which is very hard to track down
  * **To see errors** coming from Retroarch you need to set up your logging settings:
     * **Logging - Logging Verbosity - ON**
       * **Frontend Logging - 0(Debug)**
-      * **Log to File - Off**
+      * **Log to File - ON**
+      * **Restart Retroarch**
+      * **Load your shader**
+      * **Close Retroarch**
+      * These last steps allow you to have a short log for us to look at
+      * If you want to see the errors as they happen you can set Log to File to OFF and an additional console window will open when retroarch opens and show errors here
     
-* These settings will **cause a log window to come up** when you launch, and you should see any Retroarch errors, and shader loading details
+
 ---
 **If the Screen is changing size unexpectedly**
 
@@ -209,6 +327,12 @@ NTSC Processing is only included in NTSC Presets, and GTU Horizontal blurring is
     * Set the Aspect Ratio Type to Explicit (1) This will use the explicit aspect ratio number instead of guessing
     
     * If this solves your issue please consider posting on the thread at the top of this document the issue you had so that we can improve the auto aspect ratio in the future
+
+---
+**If the Screen is shown in a vertical aspect for a horizontal game:**
+
+  * Set The **[ Aspect Ratio ] / Orientation** to **Horizontal**
+
 ---
 **If you see artifacts on the game image like circles or interference patterns**
   * These artifacts which look like round swirls or circles like tree trunk rings are called a Moiré patterns which happen when a high frequency pattern is sampled at a lower frequency - https://en.wikipedia.org/wiki/Moiré_pattern
@@ -222,23 +346,22 @@ NTSC Processing is only included in NTSC Presets, and GTU Horizontal blurring is
     * Use a higher resolution monitor if available
 
 ----------------------------------------
----
-
-Bug Reporting
+----------------------------------------
+----------------------------------------
+**Bug Reporting**
 ----------------------------------------
 
-- **Please post images** of the issue if it is at all visual in nature. This often helps communicate the issue better & quicker, **even if the issue seems simple**.
-- Please make sure to **Use the latest version of the shader** when reporting bugs
-- If you are having any issues with the shader not loading or crashing please include a log (See above for turning on logs)
-- Please include info about your setup
-  - Preset
-  - Core and Internal Res 1x, 2x etc?
-  - GPU
-
+* When reporting a bug, it is VERY IMPORTANT to post images of the issue. This helps communicate the issue better & quicker, even if the issue seems simple.
+*  Please make sure you are using the latest version of the shader
+* Please include info about your setup
+  * Preset, Core, Core Internal Res 1x, 2x etc?, Monitor resolution, GPU
+*  If you are having any issues with the shader not loading or crashing please include a log. See the readme for how to get a log
+  * If loading the shader crashes Retroarch your core internal res is probably too high. Try native resolution or one of the DREZ presets which reduce the resolution in the first pass. 
 
 -----------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------
 ----
-Parameter Descriptions
+**Parameter Descriptions**
 -----------------------------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------------------------
@@ -271,23 +394,15 @@ Parameter Descriptions
 
 -----------------------------------------------------------------------------------------------
 **[ AMBIENT LIGHTING ]:** - Usually used to apply night lighting on all graphics
-- **Opacity**
-  - How much of the ambient lighting darkening effect is applied
-- **Hue**
-  - Shift the hue of the color of the image
-- **Value**
-  - How dark or bright the ambient lighting is
-- **Saturation**
-  - How saturated the night lighting is
-- **Scale Mode**
-  - **VIEW WITH ZOOM** Scale to the full view, but scale with the viewport Zoom
-  - **FULL** Scale the image to the full window
-- **Scale Offset**
-  - Scale the lighting image
-- **Rotate**
-  - Rotate the lighting image
-- **Mirror Horizontal**
-  - Mirror the ambient lighting image
+- **Ambient 1st Image Opacity**
+  - How much of the ambient lighting darkening effect is applied when using the first image
+- **Ambient 2nd Image Opacity**
+  - How much of the ambient lighting darkening effect is applied when using the second image
+* **Which Images to Use** 
+  * **0 - BOTH** - Normal Mode, Use Both Images
+  * **1 - 1 ONLY** - Use the first image for both slots
+  * **2 - 2 ONLY** - Use the second image for both slots
+  * **3 - Swap** - Swap the Images
 
 -----------------------------------------------------------------------------------------------
 **[ VIEWPORT ZOOM ]:** 
@@ -328,7 +443,7 @@ Parameter Descriptions
 **[ CRT SCREEN SCALING GENERAL ]:**
 
 - **Integer Scale Mode**
-  - **0 - Off,** Use Non-Integer Scale
+  - **0 - OFF** Use Non-Integer Scale
   - **1 - ShortAxis Integer Scale On** - for the viewport (monitor) in landscape mode this is the vertical axis, If the screen/tube aspect ratio is vertical then integer scale is used for both horizontal and vertical axes
   - **2 - Integer Scale on both axes**
 
@@ -373,8 +488,8 @@ Parameter Descriptions
 - **Use Image For Automatic Placement (Scale and Y Pos)**
   - When on the placement image is inspected to find where to place and scale the screen image
 - **Auto Place Horizontal (X Pos)**
-  - **0 - OFF** Screen placed in the center 
-  - **1 - ON** Tries to place the screen in the center of the hole in the placement image
+  - 0 - OFF  Screen placed in the center 
+  - 1 - ON Tries to place the screen in the center of the hole in the placement image
 - **Placement Image Mode: TRANSPARENCY : WHITE ON BLACK**
   - What channel of the texture to look at to find the hole in the image, either the transparent part, or a white rectangle on top of a black background
 
@@ -405,8 +520,8 @@ Parameter Descriptions
 **[ CROPPING CORE IMAGE ]:** ---
 Cropping removes parts of the game image at the edges of the screen which were never meant to be seen. Negative values can add more black area at the edges of the screen
 
-- **Crop Mode  -  OFF | CROP BLACK ONLY | CROP ANY**
-  - **0 - Off,** No Cropping applied
+- **Crop Mode**
+  - **0 - OFF** No Cropping applied
   - **1 - Crop Black Only** Only apply the cropping amount within the black areas of the core image
   - **2 - Crop Any** Apply full crop amount
 - **Crop Zoom %** Add Cropping on all sides at once
@@ -417,22 +532,22 @@ Cropping removes parts of the game image at the edges of the screen which were n
 - **Black Threshold for 'CROP BLACK ONLY'** - The brightness threshold of the black area to be cropped
 
 
------------------------------------------------------------------------------------------------
-**[ --- SMOOTHING - SCALEFX - SMOOTH-ADV Presets Only ---- ]:**
-
-**ScaleFX ON** applies a shape smoothing on the core image and creates a higher resolution smoothed image
-  - After you turn this on you must increase **Core Res Sampling**, or **Downsample Blur** in the next section to see a difference
-  - ScaleFX only works well when the it's input is the native res from the core
-  To see the contour smoothing coming from **ScaleFX** either **Core Res Sampling**, or **Downsample Blur** must be increased from their default value.
 
 -----------------------------------------------------------------------------------------------
 **[ SCANLINE DIRECTION ]:**
 
 - **Scanline Direction** - Direction of the scanlines
-  - **0 - Auto** --- Chooses horizontal or vertical scanline direction based on aspect ratio
-  - **1 - Horizontal**
-  - **2 - Vertical**
+  - 0 - Auto --- Chooses horizontal or vertical scanline direction based on aspect ratio
+  - 1 - Horizontal
+  - 2 - Vertical
 
+-----------------------------------------------------------------------------------------------
+**[ DREZ DOWNSAMPLE FILTER - HYLLIAN - DREZ PRESETS ONLY ]:**
+- **DREZ Filter** - Filter to use in the DREZ downsampling pass 
+  - 0 - B-Spline
+  - 1 - Bicubic
+  - 2 - Catmull-Rom
+  - 3 - Bicubic H
 
 -----------------------------------------------------------------------------------------------
 **[ CORE RES SAMPLING ]:**
@@ -531,10 +646,10 @@ Blend parts of the image which flicker on/off repeatedly between frames often us
 **[ MONOCHROME ]:** --- Have the screen act as if it is a monochrome CRT
 
 - **Monochrome Color:** 
-  - **0: OFF**
-  - **1: BLACK & WHITE**
-  - **1: AMBER**
-  - **1: GREEN**
+  - 0: OFF
+  - 1: BLACK & WHITE
+  - 2: AMBER
+  - 3: GREEN
 
 - **Monochrome Gamma** 
 - **Monochrome Hue Offset** 
@@ -578,14 +693,15 @@ Adds a shadow on top of the tube diffuse image and colored gel
 - **Scale Y** - Scales shadow from the top of the tube
 - **Curvature Scale** - How much curvature is applied to the shadow, more curvature has the effect of making it look like the light is higher relative to the tube/bezel
 
-
 -----------------------------------------------------------------------------------------------
-**[ TUBE STATIC REFLECTION IMAGE  ]:**
-- **Use Tube Static Reflection Image - OFF | ON** --- Apply the effect or not
-- **Opacity** --- This is the shine on the tube which imitates reflection from the environment
-- **Ambient Lighting Multiplier** --- How much of the global ambient lighting image to apply, default is 100
-- **Scale** --- Scales the tube reflection image from the center of the tube
+**[ CRT ON TUBE DIFFUSE BLENDING ]:**
 
+How to apply the CRT (Game Image) on top of the tube
+- **CRT On Tube Diffuse Blend Mode** 
+  - 0: OFF - Don't apply the game image
+  - 1: ADD - Apply the game image additively this is the normal behavior
+  - 2: Multiply - Darken the tube diffuse image with the game image 
+- **CRT On Tube Diffuse Blend Amount** - Opacity or how much of the image to apply to the tube
 
 -----------------------------------------------------------------------------------------------
 **[ TUBE COLORED GEL IMAGE ]:**
@@ -601,21 +717,33 @@ Adds a shadow on top of the tube diffuse image and colored gel
 - **Additive Blend Amount** - Image applied as a brightening of the tube area
   - Used to add color to the screen as if it was the gel being diffusely lit from outside the monitor
 - **Normal Blend Amount** - Used for the more opaque parts of a gel image like for the Vectrex
+- **Normal Blend Transparency Threshold** - Adjusts at what transparency of the image the area should be appear fully transparent
+- **Normal Multiply by Tube Diffuse Shading** - Darken the gel with the tube diffuse image, allows you to add shading to the gel image
 - **Normal Blend Brightness** - Brightness for these more opaque parts
-- **Normal Blend Transparency Threshold** - Adjusts at what transparency of the image the area should be fully transparent
 - **Ambient Lighting Multiplier** - How much of the global ambient lighting to apply
+- **Ambient 2nd Image Lighting Multiplier** - How much of the global 2nd ambient lighting to apply
 - **Scale** - Scale the colored gel image
 - **Flip Horizontal** - Flip the colored gel image Horizontally
 - **Flip Vertical** - Flip the colored gel image Vertically
 - **Show CRT on Top of Colored Gel Normal** - Put the CRT image on top of the gel image so it is not color shifted or obscured.
 
+-----------------------------------------------------------------------------------------------
+**[ TUBE STATIC REFLECTION IMAGE  ]:**
+- **Use Tube Static Reflection Image - OFF | ON** --- Apply the effect or not
+- **Opacity** --- This is the shine on the tube which imitates reflection from the environment
+- **Dual Screen Visibility** --- Which screen the static reflection is shown
+  - 0: Both Screens**
+  - 1: Only the First Screen
+  - 2: Only the Second Screen
+- **Ambient Lighting Multiplier** --- How much of the global ambient lighting image to apply, default is 100
+- **Ambient 2nd Image Lighting Multiplier** --- How much of the global 2nd ambient lighting image to apply, default is 0
+- **Scale** --- Scales the tube reflection image from the center of the tube
+- **Shadow Opacity** --- How much of the shadow should appear on the static reflection image
+
 
 -----------------------------------------------------------------------------------------------
 **[ SCREEN BLACK EDGE ]:**
 
-- **Show Black Edge** --- Show the black edge at the edge of the tube
-  - 0: Don't show any black edge
-  - 1: Show the black edge overtop the tube diffuse and gel
 - **Global Corner Radius** --- Global radius of all corners before their own multipliers are applied
 - **Black Edge Corner Radius Scale** --- the roundness of the corner of the screen area
 - **Black Edge Sharpness** --- Blends the edge of the game screen image to black, lower values will fade the edge
@@ -628,14 +756,14 @@ Adds a shadow on top of the tube diffuse image and colored gel
 **[ DUAL SCREEN ]:**
 
 - **Dual Screen Mode**
-  - **0 - OFF** - Single Screen
-  - **1 - VERTICAL** - Split into 2 screens one on the top and one on the bottom
-  - **2 - HORIZONTAL** - Split into 2 screens one on the left and one on the right
+  - 0 - OFF - Single Screen
+  - 1 - VERTICAL - Split into 2 screens one on the top and one on the bottom
+  - 2 - HORIZONTAL - Split into 2 screens one on the left and one on the right
   
 - **Core Image Split Mode**
-  - **0 - AUTO** - Split in the same direction as the dual screen mode
-  - **1 - VERTICAL**
-  - **2 - HORIZONTAL**
+  - 0 - AUTO - Split in the same direction as the dual screen mode
+  - 1 - VERTICAL
+  - 2 - HORIZONTAL
 - **Core Image Split Offset**
   - Adjusts where we split the core image into two
   - This is an offset in pixels from the center
@@ -653,15 +781,11 @@ Adds a shadow on top of the tube diffuse image and colored gel
 - **2nd Screen Aspect Ratio Mode**
   - 0 - Use the same Aspect ratio as the first Screen
   - 1 - PAR (Uses the square pixel aspect of the bottom screen's resolution)
-- **2nd Screen Use Independent Scale**
-  - Don't affect the second screen with the scale of the first
-- **2nd Screen Scale Offset**
-  - Increase or Decrease scale of second screen
-- **2nd Screen Pos X**
-  - Move the second screen Horizontally
-- **2nd Screen Pos Y**
-  - Move the second screen Vertically
-- **2nd Screen Crop Zoom %** 
+- **2nd Screen Use Independent Scale** - Don't affect the second screen with the scale of the first
+- **2nd Screen Scale Offset** - Increase or Decrease scale of second screen
+- **2nd Screen Pos X** - Move the second screen Horizontally
+- **2nd Screen Pos Y** - Move the second screen Vertically
+- **2nd Screen Crop Zoom %** - Crop on all sides at once
 - **2nd Screen Crop Overscan Top**
 - **2nd Screen Crop Overscan Bottom**
 - **2nd Screen Crop Overscan Left**
@@ -677,6 +801,41 @@ Adds a shadow on top of the tube diffuse image and colored gel
   - Shift the reflection left or right
 - **Screen Reflection Pos Y**
   - Shift the reflection up or down
+
+-----------------------------------------------------------------------------------------------
+**[ AMBIENT LIGHTING IMAGE 1 ]:**
+
+- **Hue**
+  - Shift the hue of the color of the image
+- **Saturation**
+  - How saturated the ambient lighting is
+- **Value**
+  - How dark or bright the ambient lighting is
+- **Contrast**
+  - Contrast in the ambient lighting
+- **Scale Aspect**
+  - **MATCH VIEWPORT** - Stretch the width of the image to the full viewport
+  - **USE TEXURE ASPECT** - The base aspect of the image will match the image file aspect
+- **Scale With Zoom**
+  - **OFF** Don't scale the ambient lighting with the viewport Zoom
+  - **ON** Scale with the viewport Zoom
+- **Scale Offset**
+  - Scale the lighting image in both directions
+- **Scale Offset X**
+  - Scale the lighting image in the horizontal direction
+- **Rotate**
+  - Rotate the lighting image
+- **Mirror Horizontal**
+  - Flip the ambient lighting left to right
+- **Position X**
+  - Move the image left and right
+- **Position Y**
+  - Move the image up and down
+
+
+-----------------------------------------------------------------------------------------------
+**[ AMBIENT LIGHTING IMAGE 2 ]:** - Has the same parameters as Ambiend Image 1
+
 
 
 -----------------------------------------------------------------------------------------------
@@ -735,15 +894,39 @@ Adds a shadow on top of the tube diffuse image and colored gel
 - **Outer Edge Position Y**
   - This moves the outer edge of the bezel and the frame up and down
 
-- **Brightness**
-  - Brightness of the bezel, the default is 30 so only 30% brightness
-
-- **Highlight**
-  - The highlight or shininess in the middle of the bezel
+- **Noise**
+  - Noise or speckles in the color, default is 30
 
 - **Opacity of Shadow from Bezel on Tube**
   - How much of a darkness from the bezel onto the illuminated screen
   - Only visible when the black ring around the screen is reduced so that the bezel is almost on top of the screen
+
+
+-----------------------------------------------------------------------------------------------
+**[ BEZEL BRIGHTNESS ]:**
+
+- **Base Brightness**
+  - Brightness of the bezel, the default is 30 so only 30% brightness
+
+- **Top Multiplier**
+  - An adjustment over the base brightness for the top
+
+- **Bottom Multiplier**
+  - An adjustment over the base brightness for the bottom
+
+- **Sides Multiplier**
+  - An adjustment over the base brightness for both sides
+
+- **Left Side Multiplier**
+  - An adjustment over the base brightness for the left side
+
+- **Right Side Multiplier**
+  - An adjustment over the base brightness for the right side
+
+- **Highlight**
+  - The highlight or shininess in the middle of the bezel
+
+
 
 -----------------------------------------------------------------------------------------------
 **[ BEZEL COLOR ]:**
@@ -754,8 +937,6 @@ Adds a shadow on top of the tube diffuse image and colored gel
   - How saturated or strong the color is
 - **Value/Brightness**
   - The brightness of the color, default is 10 which is 10%
-- **Noise**
-  - Noise or speckles in the color, default is 30
 
 -----------------------------------------------------------------------------------------------
 **[ FRAME COLOR ]:**
@@ -768,8 +949,6 @@ Adds a shadow on top of the tube diffuse image and colored gel
   - How saturated or strong the color is
 - **Value/Brightness**
   - The brightness of the color, default is 10 which is 10%
-- **Noise**
-  - Noise or speckles in the color, default is 30
 
 -----------------------------------------------------------------------------------------------
 **[ FRAME GENERAL ]:**
@@ -784,6 +963,8 @@ Adds a shadow on top of the tube diffuse image and colored gel
   - **1 - Normal Blending**
   - **2 - Additive Blending** - Added on as added with a projector
   - **3 - Multiply Blending** - Applied by darkening what is underneath
+- **Noise**
+  - Noise or speckles in the color, default is 30
 - **Inner Edge Thickness**
   - Thickness of the inner edge of the frame
 - **Inner Corner Radius Scale**
@@ -907,6 +1088,7 @@ Adds a shadow on top of the tube diffuse image and colored gel
 
 
 
+-----------------------------------------------------------------------------------------------
 ## **POTATO Presets Only**
 
 -----------------------------------------------------------------------------------------------
@@ -930,6 +1112,7 @@ Adds a shadow on top of the tube diffuse image and colored gel
 
     
 
+-----------------------------------------------------------------------------------------------
 ## **GLASS Presets Only**
 
 -----------------------------------------------------------------------------------------------
@@ -943,9 +1126,9 @@ Adds a shadow on top of the tube diffuse image and colored gel
 
   - **Normal**
 
-  - **Additive** - Adds the image as if it is being projected on top
+  - **Additive** adds the image as if it is being projected on top
 
-  - **Multiply** - Image is applied as if it was a colored plastic film
+  - **Multiply** applies as if it was a colored plastic film
 
 
 -----------------------------------------------------------------------------------------------
@@ -1074,7 +1257,7 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
 - **Zoom FULL Scale Mode**
   - When the layer Inherit Scale is in **FULL** mode this controls if the layer should scale with the global zoom or not, this defaults to ON
 
-- **Scale Aspect (Mode)** 
+- **Scale Aspect**
   - Controls how the texture's aspect reacts to the inherited scale
   - **0 - INHERIT FROM SCALE MODE** --- The texture's aspect will scale as what it follows is scaled
   - **1 - USE TEXURE ASPECT** --- The layer's image stays the same aspect as what it follows is scaled
@@ -1086,6 +1269,9 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
 - **Image Fill Mode**
   - **0 - STRETCH** --- Stretch the image across the whole area
   - **1 - SPLIT HORIZONTAL** --- Splits the image in the center and slide it out until it hits the outer edge
+
+- **Split Mode Preserve Center %** --- Preserves a part of the center of the graphic when split is used
+  - One usage is to have a logo in the center of the bottom of the monitor graphic and reserve space for this
 
 - **Scale** --- *Scales image layer equally in both directions*
 - **Scale X** --- *Scales image layer horizontally*
@@ -1118,6 +1304,8 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
 - **Inherit Scale**
 - **Zoom FULL Scale Mode**
 - **Scale Aspect**
+- **Image Fill Mode**
+- **Split Mode Preserve Center %**
 - **Scale**
 - **Scale X**
 - **Position X**
@@ -1166,6 +1354,8 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
 - **Inherit Scale**
 - **Zoom FULL Scale Mode**
 - **Scale Aspect**
+- **Image Fill Mode**
+- **Split Mode Preserve Center %**
 - **Scale**
 - **Scale X**
 - **Position X**
@@ -1196,6 +1386,8 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
 - **Inherit Scale**
 - **Zoom FULL Scale Mode**
 - **Scale Aspect**
+- **Image Fill Mode**
+- **Split Mode Preserve Center %**
 - **Scale**
 - **Scale X**
 - **Position X**
@@ -1227,6 +1419,8 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
 - **Inherit Scale**
 - **Zoom FULL Scale Mode**
 - **Scale Aspect**
+- **Image Fill Mode**
+- **Split Mode Preserve Center %**
 - **Scale**
 - **Scale X**
 - **Position X**
@@ -1255,10 +1449,12 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
   - **2 - Bezel**
   - **3 - BG**
   - **4 - Device**
-  - **4 - Decal**
+  - **5 - Decal**
 - **Inherit Scale**
 - **Zoom FULL Scale Mode**
 - **Scale Aspect**
+- **Image Fill Mode**
+- **Split Mode Preserve Center %**
 - **Scale**
 - **Scale X**
 - **Position X**
@@ -1289,10 +1485,12 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
   - **2 - Bezel**
   - **3 - BG**
   - **4 - Device**
-  - **4 - Decal**
+  - **5 - Decal**
 - **Inherit Scale**
 - **Zoom FULL Scale Mode**
 - **Scale Aspect**
+- **Image Fill Mode**
+- **Split Mode Preserve Center %**
 - **Scale**
 - **Scale X**
 - **Position X**
@@ -1381,3 +1579,10 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
 - **Solid Black Fade Out Frames**
   - How many frames to fade out
 
+-----------------------------------------------------------------------------------------------
+**[ --- SMOOTHING - SCALEFX ---- ]:**
+
+**ScaleFX ON** applies a shape smoothing on the core image and creates a higher resolution smoothed image
+  - After you turn this on you must increase **Core Res Sampling**, or **Downsample Blur** in the next section to see a difference
+  - ScaleFX only works well when the it's input is the native res from the core
+  To see the contour smoothing coming from **ScaleFX** either **Core Res Sampling**, or **Downsample Blur** must be increased from their default value.

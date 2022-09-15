@@ -1,9 +1,9 @@
-shaders = 39
+shaders = 43
 
-shader0 = ../../shaders/HyperspaceMadness/hsm/hsm-add-params-glass.slang
+shader0 = ../../shaders/base/add-params-glass.slang
 alias0 = "CorePass"
 
-shader1 =  ../../../../stock.slang // ../../shaders/HyperspaceMadness/hsm-guest/g-sharp_resampler.slang
+shader1 =  ../../shaders/base/stock.slang
 filter_linear1 = false
 srgb_framebuffer1 = true
 scale_type1 = source
@@ -11,7 +11,7 @@ scale_x1 = 1
 scale_y1 = 1
 alias1 = "DerezedPass"
 
-shader2 = ../../shaders/HyperspaceMadness/hsm/hsm-add-negative-crop-area.slang
+shader2 = ../../shaders/base/add-negative-crop-area.slang
 filter_linear2 = false
 mipmap_input2 = false
 srgb_framebuffer2 = true
@@ -20,302 +20,312 @@ scale_x2 = 1
 scale_y2 = 1
 alias2 = "NegativeCropAddedPass"
 
-shader3 = ../../shaders/HyperspaceMadness/hsm/hsm-cache-info-screen-scale-params.slang
+shader3 = ../../shaders/base/cache-info-screen-scale-params.slang
 filter_linear3 = false
 scale_type3 = source
 scale3 = 1.0
 alias3 = "InfoCachePass"
 
-shader4 = ../../shaders/HyperspaceMadness/hsm/hsm-text-adv-glass.slang
+shader4 = ../../shaders/base/text-adv-glass.slang
 filter_linear4 = false
 float_framebuffer4 = true
 scale_type4 = source
 scale4 = 1.0
 alias4 = "TextPass"
 
-shader5 = ../../shaders/HyperspaceMadness/hsm/hsm-intro.slang
+shader5 = ../../shaders/base/intro.slang
 filter_linear5 = false
 float_framebuffer5 = true
 scale_type5 = source
 scale5 = 1.0
 alias5 = "IntroPass"
 
-shader6 = ../../../../stock.slang
-alias6 = "PreDeDitheringPass"
+shader6 = ../../shaders/base/linearize.slang
+alias6 = LinearGamma
+
+shader7 = ../../shaders/hyllian/checkerboard-dedither/checkerboard-dedither-pass1.slang
+shader8 = ../../shaders/hyllian/checkerboard-dedither/checkerboard-dedither-pass2.slang
+shader9 = ../../shaders/hyllian/checkerboard-dedither/checkerboard-dedither-pass3.slang
+alias9 = "PreMdaptPass"
 
 // De-Dithering - Mdapt
-shader7 = ../../shaders/HyperspaceMadness/hsm-mdapt/hsm-mdapt-pass0.slang
-shader8 = ../../shaders/HyperspaceMadness/hsm-mdapt/hsm-mdapt-pass1.slang
-shader9 = ../../shaders/HyperspaceMadness/hsm-mdapt/hsm-mdapt-pass2.slang
-shader10 = ../../shaders/HyperspaceMadness/hsm-mdapt/hsm-mdapt-pass3.slang
-shader11 = ../../shaders/HyperspaceMadness/hsm-mdapt/hsm-mdapt-pass4.slang
+shader10 = ../../shaders/mdapt/hsm-mdapt-pass0.slang
+shader11 = ../../shaders/mdapt/hsm-mdapt-pass1.slang
+shader12 = ../../shaders/mdapt/hsm-mdapt-pass2.slang
+shader13 = ../../shaders/mdapt/hsm-mdapt-pass3.slang
+shader14 = ../../shaders/mdapt/hsm-mdapt-pass4.slang
+shader15 = ../../shaders/base/delinearize.slang
 
-shader12 = ../../shaders/HyperspaceMadness/hsm-ps1dither/hsm-PS1-Undither-BoxBlur.slang
+shader16 = ../../shaders/ps1dither/hsm-PS1-Undither-BoxBlur.slang
 
-shader13 = ../../../../stock.slang
-alias13 = "PreCRTPass"
+shader17 = ../../shaders/base/stock.slang
+alias17 = "PreCRTPass"
 
-shader14 = ../../shaders/HyperspaceMadness/hsm-guest/hsm-afterglow0.slang
-filter_linear14 = true
-scale_type14 = source
-scale14 = 1.0
-alias14 = "AfterglowPass"
+shader18 = ../../shaders/guest/hsm-afterglow0.slang
+filter_linear18 = true
+scale_type18 = source
+scale18 = 1.0
+alias18 = "AfterglowPass"
 
-shader15 = ../../shaders/HyperspaceMadness/hsm-guest/hsm-pre-shaders-afterglow.slang
-filter_linear15 = true
-scale_type15 = source
-mipmap_input15 = true
-scale15 = 1.0
+shader19 = ../../shaders/guest/hsm-pre-shaders-afterglow.slang
+filter_linear19 = true
+scale_type19 = source
+mipmap_input19 = true
+scale19 = 1.0
 
 // Color Correction with Dogway's awesome Grade shader
 // Grade is after Afterglow so that brightening the black level does not break the afterglow
-shader16 = ../../shaders/HyperspaceMadness/hsm-dogway/hsm-grade.slang
-filter_linear16 = true
-scale_type16 = source
-scale16 = 1.0
-
-shader17 = ../../../../stock.slang
-alias17 = "PrePass0"
-
-shader18 = ../../shaders/HyperspaceMadness/hsm-guest/ntsc/hsm-ntsc-pass1.slang
-filter_linear18 = false
-float_framebuffer18 = true
-scale_type_x18 = source
-scale_type_y18 = source
-scale_x18 = 4.0
-scale_y18 = 1.0
-frame_count_mod18 = 2
-alias18 = NPass1
-
-shader19 = ../../shaders/HyperspaceMadness/hsm-guest/ntsc/hsm-ntsc-pass2.slang
-float_framebuffer19 = true
-filter_linear19 = true
-scale_type19 = source
-scale_x19 = 0.5
-scale_y19 = 1.0
-
-shader20 = ../../shaders/HyperspaceMadness/hsm-guest/ntsc/hsm-ntsc-pass3.slang
+shader20 = ../../shaders/dogway/hsm-grade.slang
 filter_linear20 = true
 scale_type20 = source
-scale_x20 = 1.0
-scale_y20 = 1.0
+scale20 = 1.0
 
-shader21 =  ../../shaders/HyperspaceMadness/hsm-guest/hsm-custom-fast-sharpen.slang // ../../shaders/HyperspaceMadness/hsm-guest/g-sharp_resampler.slang
-filter_linear21 = true
-scale_type21 = source
-scale_x21 = 1.0
-scale_y21 = 1.0
+shader21 = ../../shaders/base/stock.slang
+alias21 = "PrePass0"
 
-shader22 = ../../../../stock.slang
-filter_linear22 = true
-scale_type22 = source
-scale_x22 = 1.0
+shader22 = ../../shaders/guest/ntsc/hsm-ntsc-pass1.slang
+filter_linear22 = false
+float_framebuffer22 = true
+scale_type_x22 = source
+scale_type_y22 = source
+scale_x22 = 4.0
 scale_y22 = 1.0
-alias22 = "PrePass"
-mipmap_input22 = true
+frame_count_mod22 = 2
+alias22 = NPass1
 
-shader23 = ../../shaders/HyperspaceMadness/hsm-guest/hsm-avg-lum.slang
+shader23 = ../../shaders/guest/ntsc/hsm-ntsc-pass2.slang
+float_framebuffer23 = true
 filter_linear23 = true
 scale_type23 = source
-scale23 = 1.0
-mipmap_input23 = true
-alias23 = "AvgLumPass"
+scale_x23 = 0.5
+scale_y23 = 1.0
 
-// Pass referenced by subsequent blurring passes and crt pass
-shader24 = ../../shaders/HyperspaceMadness/hsm-guest/hsm-interlace-and-linearize.slang
+shader24 = ../../shaders/guest/ntsc/hsm-ntsc-pass3.slang
 filter_linear24 = true
 scale_type24 = source
-scale24 = 1.0
-float_framebuffer24 = true
-alias24 = "LinearizePass"
+scale_x24 = 1.0
+scale_y24 = 1.0
 
-shader25 = ../../shaders/HyperspaceMadness/hsm-guest/hsm-crt-guest-advanced-ntsc-pass1.slang
+shader25 =  ../../shaders/guest/hsm-custom-fast-sharpen.slang
 filter_linear25 = true
-scale_type_x25 = viewport
+scale_type25 = source
 scale_x25 = 1.0
-scale_type_y25 = source
 scale_y25 = 1.0
-float_framebuffer25 = true
-alias25 = Pass1
 
-shader26 = ../../shaders/HyperspaceMadness/hsm-guest/hsm-gaussian_horizontal.slang
+shader26 = ../../shaders/base/stock.slang
 filter_linear26 = true
-scale_type_x26 = absolute
-scale_x26 = 640.0
-scale_type_y26 = source
-scale_y26 = 1.0 
-float_framebuffer26 = true
+scale_type26 = source
+scale_x26 = 1.0
+scale_y26 = 1.0
+alias26 = "PrePass"
+mipmap_input26 = true
 
-shader27 = ../../shaders/HyperspaceMadness/hsm-guest/hsm-gaussian_vertical.slang
+shader27 = ../../shaders/guest/hsm-avg-lum.slang
 filter_linear27 = true
-scale_type_x27 = absolute
-scale_x27 = 640.0
-scale_type_y27 = absolute
-scale_y27 = 480.0
-float_framebuffer27 = true
-alias27 = GlowPass
+scale_type27 = source
+scale27 = 1.0
+mipmap_input27 = true
+alias27 = "AvgLumPass"
 
-shader28 = ../../shaders/HyperspaceMadness/hsm-guest/hsm-bloom_horizontal.slang
+// Pass referenced by subsequent blurring passes and crt pass
+shader28 = ../../shaders/guest/hsm-interlace-and-linearize.slang
 filter_linear28 = true
-scale_type_x28 = absolute
-scale_x28 = 640.0
-scale_type_y28 = absolute
-scale_y28 = 480.0 
+scale_type28 = source
+scale28 = 1.0
 float_framebuffer28 = true
+alias28 = "LinearizePass"
 
-shader29 = ../../shaders/HyperspaceMadness/hsm-guest/hsm-bloom_vertical.slang
+shader29 = ../../shaders/guest/hsm-crt-guest-advanced-ntsc-pass1.slang
 filter_linear29 = true
-scale_type_x29 = absolute
-scale_x29 = 640.0
-scale_type_y29 = absolute
-scale_y29 = 480.0
+scale_type_x29 = viewport
+scale_x29 = 1.0
+scale_type_y29 = source
+scale_y29 = 1.0
 float_framebuffer29 = true
-alias29 = BloomPass 
+alias29 = Pass1
 
-shader30 = ../../shaders/HyperspaceMadness/hsm-guest/hsm-crt-guest-advanced-ntsc-pass2.slang
+shader30 = ../../shaders/guest/hsm-gaussian_horizontal.slang
 filter_linear30 = true
+scale_type_x30 = absolute
+scale_x30 = 640.0
+scale_type_y30 = source
+scale_y30 = 1.0 
 float_framebuffer30 = true
-scale_type30 = viewport
-scale_x30 = 1.0
-scale_y30 = 1.0
 
-shader31 = ../../shaders/HyperspaceMadness/hsm-guest/hsm-deconvergence.slang
+shader31 = ../../shaders/guest/hsm-gaussian_vertical.slang
 filter_linear31 = true
-scale_type31 = viewport
-scale_x31 = 1.0
-scale_y31 = 1.0
+scale_type_x31 = absolute
+scale_x31 = 640.0
+scale_type_y31 = absolute
+scale_y31 = 480.0
+float_framebuffer31 = true
+alias31 = GlowPass
 
-shader32 = ../../shaders/HyperspaceMadness/hsm/hsm-post-crt-prep-glass.slang
-alias32 = "MBZ_PostCRTPass"
+shader32 = ../../shaders/guest/hsm-bloom_horizontal.slang
+filter_linear32 = true
+scale_type_x32 = absolute
+scale_x32 = 640.0
+scale_type_y32 = absolute
+scale_y32 = 480.0 
+float_framebuffer32 = true
+
+shader33 = ../../shaders/guest/hsm-bloom_vertical.slang
+filter_linear33 = true
+scale_type_x33 = absolute
+scale_x33 = 640.0
+scale_type_y33 = absolute
+scale_y33 = 480.0
+float_framebuffer33 = true
+alias33 = BloomPass 
+
+shader34 = ../../shaders/guest/hsm-crt-guest-advanced-ntsc-pass2.slang
+filter_linear34 = true
+float_framebuffer34 = true
+scale_type34 = viewport
+scale_x34 = 1.0
+scale_y34 = 1.0
+
+shader35 = ../../shaders/guest/hsm-deconvergence.slang
+filter_linear35 = true
+scale_type35 = viewport
+scale_x35 = 1.0
+scale_y35 = 1.0
+
+shader36 = ../../shaders/base/post-crt-prep-glass.slang
+alias36 = "MBZ_PostCRTPass"
 
 // Reduce Resolution  ----------------------------------------------------------------
 //      Reduce the resolution to a small static size regardless of final resolution
 //      Allows consistent look and faster at different final resolutions for blur
 //      Mipmap option allows downscaling without artifacts
-shader33 = ../../shaders/HyperspaceMadness/hsm/hsm-linearize-crt.slang
-mipmap_input33 = true
-filter_linear33 = true
-scale_type33 = absolute
-// scale_x33 = 480
-// scale_y33 = 270
-// scale_x33 = 960
-// scale_y33 = 540
-scale_x33 = 800
-scale_y33 = 600
-alias33 = "BR_MirrorLowResPass"
+shader37 = ../../shaders/base/linearize-crt.slang
+mipmap_input37 = true
+filter_linear37 = true
+scale_type37 = absolute
+// scale_x37 = 480
+// scale_y37 = 270
+// scale_x37 = 960
+// scale_y37 = 540
+scale_x37 = 800
+scale_y37 = 600
+alias37 = "BR_MirrorLowResPass"
 
 // Add Blur for the Reflection (Horizontal) ----------------------------------------------------------------
-shader34 = ../../shaders/HyperspaceMadness/hsm/hsm-blur-outside-screen-horiz.slang
-mipmap_input34 = true
-filter_linear34 = true
+shader38 = ../../shaders/base/blur-outside-screen-horiz.slang
+mipmap_input38 = true
+filter_linear38 = true
 
 // Add Blur for the Reflection (Vertical) ----------------------------------------------------------------
-shader35 = ../../shaders/HyperspaceMadness/hsm/hsm-blur-outside-screen-vert.slang
-filter_linear35 = true
-alias35 = "BR_MirrorBlurredPass"
+shader39 = ../../shaders/base/blur-outside-screen-vert.slang
+filter_linear39 = true
+alias39 = "BR_MirrorBlurredPass"
 
 // Reduce resolution ----------------------------------------------------------------
 // Reduced to a very small amount so we can create a blur which will create a glow from the screen
 //      Mipmap option allows smoother downscaling
-shader36 = ../../../../blurs/blur9x9.slang
-mipmap_input36 = true
-filter_linear36 = true
-scale_type36 = absolute
-scale_x36 = 128
-scale_y36 = 128
-alias36 = "BR_MirrorReflectionDiffusedPass"
+shader40 = ../../../../blurs/blur9x9.slang
+mipmap_input40 = true
+filter_linear40 = true
+scale_type40 = absolute
+scale_x40 = 128
+scale_y40 = 128
+alias40 = "BR_MirrorReflectionDiffusedPass"
 
 // Add Diffused glow all around the screen ----------------------------------------------------------------
 //      Blurred so much that it's non directional
 //      Mipmap option allows downscaling without artifacts
-shader37 = ../../../../blurs/blur9x9.slang
-mipmap_input37 = true
-filter_linear37 = true
-scale_type37 = absolute
-scale_x37 = 12
-scale_y37 = 12
-alias37 = "BR_MirrorFullscreenGlowPass"
+shader41 = ../../../../blurs/blur9x9.slang
+mipmap_input41 = true
+filter_linear41 = true
+scale_type41 = absolute
+scale_x41 = 12
+scale_y41 = 12
+alias41 = "BR_MirrorFullscreenGlowPass"
 
 // Bezel Reflection ----------------------------------------------------------------
-shader38 = ../../shaders/HyperspaceMadness/hsm/hsm-reflection-glass.slang
-scale_type38 = viewport
-alias38 = "BR_CRTAndReflectionPass"
+shader42 = ../../shaders/base/reflection-glass.slang
+scale_type42 = viewport
+alias42 = "BR_CRTAndReflectionPass"
 // Define textures to be used by the different passes
-textures = "SamplerLUT1;SamplerLUT2;SamplerLUT3;SamplerLUT4;IntroImage;ScreenPlacementImage;TubeDiffuseImage;TubeColoredGelImage;TubeShadowImage;TubeStaticReflectionImage;BackgroundImage;BackgroundVertImage;ReflectionMaskImage;FrameTextureImage;CabinetGlassImage;DeviceImage;DeviceVertImage;DecalImage;NightLightingImage;LEDImage;TopLayerImage;"
+textures = "SamplerLUT1;SamplerLUT2;SamplerLUT3;SamplerLUT4;IntroImage;ScreenPlacementImage;TubeDiffuseImage;TubeColoredGelImage;TubeShadowImage;TubeStaticReflectionImage;BackgroundImage;BackgroundVertImage;ReflectionMaskImage;FrameTextureImage;CabinetGlassImage;DeviceImage;DeviceVertImage;DecalImage;NightLightingImage;NightLighting2Image;LEDImage;TopLayerImage;"
 
-SamplerLUT1 = ../../shaders/HyperspaceMadness/hsm-guest/lut/trinitron-lut.png
+SamplerLUT1 = ../../shaders/guest/lut/trinitron-lut.png
 SamplerLUT1_linear = true 
-SamplerLUT2 = ../../shaders/HyperspaceMadness/hsm-guest/lut/inv-trinitron-lut.png
+SamplerLUT2 = ../../shaders/guest/lut/inv-trinitron-lut.png
 SamplerLUT2_linear = true 
-SamplerLUT3 = ../../shaders/HyperspaceMadness/hsm-guest/lut/nec-lut.png
+SamplerLUT3 = ../../shaders/guest/lut/nec-lut.png
 SamplerLUT3_linear = true
-SamplerLUT4 = ../../shaders/HyperspaceMadness/hsm-guest/lut/ntsc-lut.png
+SamplerLUT4 = ../../shaders/guest/lut/ntsc-lut.png
 SamplerLUT4_linear = true
 
-IntroImage = ../../shaders/HyperspaceMadness/textures/IntroImage_MegaBezelLogo.png
+IntroImage = ../../shaders/textures/IntroImage_MegaBezelLogo.png
 IntroImage_linear = true
 IntroImage_mipmap = 1
 
-ScreenPlacementImage = ../../shaders/HyperspaceMadness/textures/Placeholder_Transparent_16x16.png
+ScreenPlacementImage = ../../shaders/textures/Placeholder_Transparent_16x16.png
 ScreenPlacementImage_linear = false
 
-TubeStaticReflectionImage = ../../shaders/HyperspaceMadness/textures/TubeGlassOverlayImage_3840x2160.png
+TubeStaticReflectionImage = ../../shaders/textures/TubeGlassOverlayImageCropped_1440x1080.png
 TubeStaticReflectionImage_linear = true
 TubeStaticReflectionImage_mipmap = 1
 
-TubeDiffuseImage = ../../shaders/HyperspaceMadness/textures/Tube_Diffuse_2390x1792.png
+TubeDiffuseImage = ../../shaders/textures/Tube_Diffuse_2390x1792.png
 TubeDiffuseImage_linear = true
 TubeDiffuseImage_mipmap = 1
 
-TubeShadowImage = ../../shaders/HyperspaceMadness/textures/Tube_Shadow_1600x1200.png
+TubeShadowImage = ../../shaders/textures/Tube_Shadow_1600x1200.png
 TubeShadowImage_linear = true
 TubeShadowImage_mipmap = 1
 
-TubeColoredGelImage = ../../shaders/HyperspaceMadness/textures/Colored_Gel_Rainbow.png
+TubeColoredGelImage = ../../shaders/textures/Colored_Gel_Rainbow.png
 TubeColoredGelImage_linear = true
 TubeColoredGelImage_mipmap = 1
 
-ReflectionMaskImage = ../../shaders/HyperspaceMadness/textures/Placeholder_White_16x16.png
+ReflectionMaskImage = ../../shaders/textures/Placeholder_White_16x16.png
 ReflectionMaskImage_linear = true
 ReflectionMaskImage_mipmap = 1
 
-FrameTextureImage = ../../shaders/HyperspaceMadness/textures/FrameTexture_2800x2120.png
+FrameTextureImage = ../../shaders/textures/Placeholder_Transparent_16x16.png
 FrameTextureImage_linear = true
 FrameTextureImage_mipmap = 1
 
-BackgroundImage = ../../shaders/HyperspaceMadness/textures/TopLayerImageGradient_3840x2160.png
+BackgroundImage = ../../shaders/textures/TopLayerImageGradient_3840x2160.png
 BackgroundImage_linear = true
 BackgroundImage_mipmap = 1
 
-BackgroundVertImage = ../../shaders/HyperspaceMadness/textures/TopLayerImageGradient_3840x2160.png
+BackgroundVertImage = ../../shaders/textures/Placeholder_Transparent_16x16.png
 BackgroundVertImage_linear = true
 BackgroundVertImage_mipmap = 1
 
-CabinetGlassImage = ../../shaders/HyperspaceMadness/textures/Placeholder_Transparent_16x16.png
+CabinetGlassImage = ../../shaders/textures/Placeholder_Transparent_16x16.png
 CabinetGlassImage_linear = true
 CabinetGlassImage_mipmap = 1
 
-DeviceImage = ../../shaders/HyperspaceMadness/textures/Placeholder_Transparent_16x16.png
+DeviceImage = ../../shaders/textures/Placeholder_Transparent_16x16.png
 DeviceImage_linear = true
 DeviceImage_mipmap = 1
 
-DeviceVertImage = ../../shaders/HyperspaceMadness/textures/Placeholder_Transparent_16x16.png
+DeviceVertImage = ../../shaders/textures/Placeholder_Transparent_16x16.png
 DeviceVertImage_linear = true
 DeviceVertImage_mipmap = 1
 
-DecalImage = ../../shaders/HyperspaceMadness/textures/Placeholder_Transparent_16x16.png
+DecalImage = ../../shaders/textures/Placeholder_Transparent_16x16.png
 DecalImage_linear = true
 DecalImage_mipmap = 1
 
-NightLightingImage = ../../shaders/HyperspaceMadness/textures/NightLighting_1920x1080.png
+NightLightingImage = ../../shaders/textures/Placeholder_Transparent_16x16.png
 NightLightingImage_linear = true
 NightLightingImage_mipmap = 1
 
-LEDImage = ../../shaders/HyperspaceMadness/textures/Placeholder_Transparent_16x16.png
+NightLighting2Image = ../../shaders/textures/Placeholder_Transparent_16x16.png
+NightLighting2Image_linear = true
+NightLighting2Image_mipmap = 1
+
+LEDImage = ../../shaders/textures/Placeholder_Transparent_16x16.png
 LEDImage_linear = true
 LEDImage_mipmap = 1
 
-TopLayerImage = ../../shaders/HyperspaceMadness/textures/Placeholder_Transparent_16x16.png
+TopLayerImage = ../../shaders/textures/Placeholder_Transparent_16x16.png
 TopLayerImage_linear = true
 TopLayerImage_mipmap = 1
 
@@ -352,7 +362,6 @@ HSM_REFLECT_NOISE_AMOUNT = "100.000000"
 HSM_REFLECT_NOISE_SAMPLES = "4.000000"
 HSM_REFLECT_NOISE_SAMPLE_DISTANCE = "15.0000"
 HSM_REFLECT_NOISE_SAMPLE_DISTANCE = "15.0000"
-HSM_REFLECT_IS_LAST_PASS = "1.000000"
 HSM_BG_BRIGHTNESS = "0.000000"
 HSM_SCREEN_VIGNETTE_STRENGTH = "20.000000"
 HSM_SCREEN_VIGNETTE_POWER = "4.000000"

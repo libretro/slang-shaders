@@ -33,10 +33,10 @@ layout(push_constant) uniform Push
 
 #pragma parameter bogus_bloom "[ BLOOM/HALATION/(GLOW) PASS SETTINGS ]:" 0.0 0.0 1.0 1.0
 
-#pragma parameter SIZEHB "          Horizontal Bloom/Halation/(Glow) Radius" 4.0 1.0 50.0 1.0 
+#pragma parameter SIZEHB "          Horizontal Bloom/Halation/(Glow) Radius" 3.0 1.0 50.0 1.0 
 #define SIZEHB params.SIZEHB
 
-#pragma parameter SIGMA_HB "          Horizontal Bloom/Halation/(Glow) Sigma" 0.70 0.25 15.0 0.05
+#pragma parameter SIGMA_HB "          Horizontal Bloom/Halation/(Glow) Sigma" 0.75 0.25 15.0 0.05
 #define SIGMA_HB params.SIGMA_HB
 
 layout(std140, set = 0, binding = 0) uniform UBO

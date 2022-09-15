@@ -1,0 +1,209 @@
+![Mega_Bezel_Logo|512x256, 75%](upload://6PNkvcMF9Go9Wnk6OJXfYR1opXI.png) 
+
+Mega Bezel is updated to V1.2.0_2022-09-11
+
+Changes:
+  * Split Scaliing
+    * Added Split Preserve Center %
+      * When an image is being split when it is being stretched this preserves the center area
+    * Added Split Repeat Width
+      * When this is 0 there is no repeat
+      * If this is larger than 0 this sets the width of the repeated area
+    * Fixed Split mode scaling when following wider horizontal aspect 
+  * Fixed some corner parameters not forcing update of the graphics cache
+  * Added Brightness parameters for the different sides of the bezel to help create directional lighting
+  * SMOOTH-ADV now uses mask 3 to add some more phosphor-ish texture to the screen
+  
+
+----------------------------------------------------
+--- TODO  ---------------------------------------
+----------------------------------------------------
+
+  * Try Leveraging Fake Scanlines for Gameboy type effect
+
+  * Add .params #reference to with all parameters commented out
+
+  * Bezel shadow on Potato Tube / Game Image
+
+----------------------------------------------------
+--- Examples  --------------------------------------
+----------------------------------------------------
+  * Punch Out - Dual Screen
+
+----------------------------------------------------
+--- Post V1  ---------------------------------------
+----------------------------------------------------
+  * Auto Rotate
+  * Original scaling mode to deal with black final viewport in Parallel RDP in both mupen and Parallel cores.
+  * Compensate for Negative Crop, 
+    * User crop values should be relative to original core image, not core image + negative crop area 
+  * Missing inner Edge static shading?
+  * Guess White/Black Matting?
+  * Auto Shadow for image Layers above screen
+  * Mega Back Light a la philips Hue/Ambient
+  * Night light single glow - Place Glows
+  * Fix Corner Shading
+  * Double Bezel
+  * Swap option for Blurry vs Sharp Tube Reflection
+  * Add NTSC Adaptive Preset?
+  * Add Variations CRT Royale Glass & Advanced
+  * Do some more OrionsAngel Presets with new Mega_Bezel
+  * Add option for core res fake scanlines
+  * Add Rewind Effect?
+  * Black Edges should be driven by bezel not screen? (Right now bezel overlaps the screen with no black line)
+  * When in interlacing mode for vertical opposite mult should do something
+  * Fix bright area of screen showing outside the black line when bezel is hidden
+  Update Docs & add some notes about GDV & Grade
+  * Rotate Dual Screen
+  * Adjust Black adjustment so it affects not just black, Falloff? Tweak Afterglow?
+  * Modulate Range on top of Hue & Value?
+  * Logo Position offset?
+  * LCD behavior when reaching resolution limit
+  * Local vs FullScreen Blur on Corner reflection?
+  * Shadow from Cutout?
+  * Large Slotmask Bitmap Mask
+  * Do Hylian Sync Version
+
+
+
+----------------------------------------------------
+--- Independent Shader Stuff for Main Repo  --------
+----------------------------------------------------
+  * Add Test_Max_Resources to Repo
+  * Make Resolution text shader it's own pass for Repo
+    * Show Original Res, Previous Pass Res, Next Pass Res, Viewport
+    * Move Resolution Debug to be top justified
+
+  * Gameboy
+    * Fix DMG Shader
+    * Fix Low Contrast Issue
+    * Multiple palettes including Custom for Gameboy  
+    * Add Gameboy Palettes https://www.deviantart.com/thewolfbunny/gallery/69987002/game-boy-palettes
+
+  * Independent Bezel Scaling not the same as non-int scale
+    * Why? Maybe only in Portrait Res?
+  * Outer reflection corner radius should be independent when in independent mode
+  * See why very inner edge seems not affected by reflection mask
+  * Startup Animation - Sprite Sheet
+
+  * Frame Shading
+    * Shading on frame interior edge?
+    * Frame Inner edge static lighter line
+    * Frame Interior Edge thickness
+    * Fix shading with rounded outer corner
+    * Frame shadow should follow corner radius
+
+  * Integer Scale Guides?
+  * Reflection fade option to have reflection come to 100% at inner frame boundary so you can have a glass like effect outside the bezel
+  * Per Layer Scaling of Cutout?
+  * Noise Sampling on Tube Highlight
+  * When reflection is off still see inner bezel edge reflection
+  * Guess Resolution for Core Sampling Multiplier?, Set target vertical downsampled resolution, try to get multiple.
+  * Reflection on Control Panel and Speaker Panel
+
+  * Put Torridgristle LUT back in for blue skys?
+
+  * Scanlines
+    * Get GTU to respect scanline direction
+  * Color Management/Correction
+    * Brightness balance the presets so they are consistent, some are currently brighter than others
+  * Add some standard deconvergence which can be used with the rolling scanlines
+  * Reflection on areas outside the frame, e.g. Arcade Speaker Panel and Control Panel
+  * Optimize presets using non-float frame buffers
+  * Independent frame scaling?
+
+
+
+
+Documentation
+  Troubleshooting 
+    New install of retroarch 
+    Turn all overlays off 
+    I have rings, wavy distortions (Moire)
+
+Moire
+  The Waves you are seeing are called a Moire effect, it’s the same effect you see through a screen door sometimes.
+  It is caused by using a crt shader with scanlines and tube curvature and made worse when the resolution is limited. It is a thorny problem , and sometimes hard to get rid of at 1080, it is much less of a problem at 4k.
+  Things which can help/fix the problem
+    Reducing strength of scanlines, 
+    Reducing or curvature or setting it to 0 will definitely fix it.
+    If you keep using curvature using Integer scale in the shader parameters can sometimes help.
+
+    If making own presets reference from crt-Base presets 
+
+Old Megabezel https://github.com/HyperspaceMadness/shaders_slang/tree/adf6dc3c0f09db11ebf4fbcf85098ac8232acfcc
+
+
+
+
+----------------------------------------------------
+--- Retroarch Features -----------------------------
+----------------------------------------------------
+
+  * Append (Prepend) Shader Preset - to add a shader preset to the beginning of the chain
+  * Fix edit shader in UI - Changes are currently lost or need to apply twice
+  * Fix loss of current parameter values when retroarch goes from full screen to window
+  * Fix saving with same name with different capitalization creates self reference
+  * Shaders folder as a path token, e.g. "[shaders]/shaders_slang/" [shaders_dir]?
+  * Hide Parameters
+  * Add Core Provided Aspect as Uniform
+
+  * Stop Reloading Shader multiple times on Save (Keep optional param)
+
+  * Choose Textures in UI
+    * Shader Textures in Sub Menu - Add ability to set texture overrides in retroarch UI
+    * Shader Passes in Sub Menu
+
+  * Dropdowns for indexed parameters?
+  * Multiple references in one file for adding passes and parameter overrides
+  * Edit Multiple References in UI vs Shader Passes, Discreetly change between Simple and Full
+
+  * Onscreen Display of current shader preset
+  * Reload Last Preset
+
+  * Next/Previous Shader does not work well if shader was loaded as Game preset
+    * Sometimes uses different directories, probably related to shader_path in live shader rather than originally loaded preset
+
+  * Pass Scaling Types
+    * Original scaling Type
+    * MaxAbsolute scaling type?
+      * If res is lower don't scale if larger scale to this res, good for PSX Upscaling
+      * Would avoid people crashing with internal resolution multiple
+
+  * Add "Timer" uniform variable vec4(total-count, count-since-shader-load, oscillator[1,0,1,0,1,...], [unknown/undefined])
+    * Unknown could be frames since direction change, good for rewind effect 
+
+  * Replace Text, for shader type, game & core, content directory
+    * core_name
+    * game_name
+    * [shadertype], [gamename], [corename], [contentdirectory]
+    * Check textures and use default if not found
+    
+  * Check for alias used multiple times appears as semantic error now
+  * global.x is semantic error if x not in global
+  * GIF support
+  * Fix <texture>Size, only works for textures in DX11, 12, not Vulkan
+
+  Super Glow HighFX Version?, manage brightness
+
+
+Questions for Survey
+
+
+
+* Old Perf Numbers before Caching
+*  Performance of Base presets at 3840x2160 on Nvidia RTX2060:
+  *  ADVANCED -                      78 FPS  -  No comparable old preset
+  *  GLASS -                        150 FPS  -  Old Glass Preset        128 FPS
+  *  STANDARD -                     135 FPS  -  Old Full Preset         140 FPS
+  *  STANDARD-HD-CORE -             105 FPS
+  *  BASIC-BORDER-WITH-REFLECTION - 175 FPS  -  Old Reflect Only Preset 165 FPS
+  *  BASIC-BORDER -                 295 FPS  -  Old Screen Scale Preset 370 FPS
+  
+*  Performance on HD-CORE E.G. 1920x1080:
+  *  ADVANCED -                     60 FPS 
+  *  ADVANCED-HD-CORE -             70 FPS 
+  *  STANDARD -                     85 FPS 
+  *  STANDARD-HD-CORE -             100 FPS 
+  *  BASIC-BORDER-WITH-REFLECTION - 126 FPS 
+  *  BASIC-BORDER                 - 180 FPS 

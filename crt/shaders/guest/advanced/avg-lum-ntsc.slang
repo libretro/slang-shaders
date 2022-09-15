@@ -75,7 +75,7 @@ float dist(vec3 A, vec3 B)
 void main()
 {
 	float m = max(log2(SourceSize.x), log2(SourceSize.y));
-	m = floor(max(m, 1.0));
+	m = floor(max(m, 1.0))-1.0;
 
 	vec2 dx = vec2(1.0/SourceSize.x, 0.0); 
 	vec2 dy = vec2(0.0, 1.0/SourceSize.y);
@@ -84,14 +84,14 @@ void main()
 	
 	float ltotal = 0.0;
 	
-	ltotal+= length(textureLod(Source, vec2(0.25, 0.25), m).rgb);
-	ltotal+= length(textureLod(Source, vec2(0.25, 0.75), m).rgb);
-	ltotal+= length(textureLod(Source, vec2(0.75, 0.25), m).rgb);
-	ltotal+= length(textureLod(Source, vec2(0.75, 0.75), m).rgb);
+	ltotal+= length(textureLod(Source, vec2(0.3, 0.3), m).rgb);
+	ltotal+= length(textureLod(Source, vec2(0.3, 0.7), m).rgb);
+	ltotal+= length(textureLod(Source, vec2(0.7, 0.3), m).rgb);
+	ltotal+= length(textureLod(Source, vec2(0.7, 0.7), m).rgb);
 	
 	ltotal*=0.25;
 	
-	ltotal = pow(0.577350269 * ltotal, 0.65);
+	ltotal = pow(0.577350269 * ltotal, 0.70);
 	
 	float lhistory = texture(AvgLumPassFeedback, vec2(0.5,0.5)).a;
 

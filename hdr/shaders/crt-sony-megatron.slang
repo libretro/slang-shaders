@@ -23,6 +23,8 @@ Dont use this shader directly - use the hdr\crt-make-model-hdr.slangp where make
 THIS SHADER DOES NOT SUPPORT WRGB OLED (Due to the sub pixel layout of WRGB - RGB QD-OLED or LCD (and variants thereof screens are fine)
 */
 
+#define ENABLE_BLACK_WHITE_MASKS 0
+
 #pragma format A2B10G10R10_UNORM_PACK32
 
 layout(push_constant) uniform Push
@@ -180,194 +182,906 @@ const vec3 kColourMask[3] = { kRedChannel, kGreenChannel, kBlueChannel };
 #define kSlotMask          2
 #define kBlackWhiteMask    3
 
-#define kBGRAxis           2
+#define kBGRAxis           3
 #define kTVLAxis           4
-#define kResolutionAxis    2
+#define kResolutionAxis    3
 
 // APERTURE GRILLE MASKS
 
-#define kMaxApertureGrilleSize       7
+const float kApertureGrilleMaskSize[kResolutionAxis][kTVLAxis] = { 
+   { 4.0f, 2.0f, 1.0f, 1.0f },      // 1080p:   300 TVL, 600 TVL, 800 TVL, 1000 TVL 
+   { 7.0f, 4.0f, 3.0f, 2.0f },      // 4K:      300 TVL, 600 TVL, 800 TVL, 1000 TVL   
+   { 13.0f, 7.0f, 5.0f, 4.0f } };   // 8K:      300 TVL, 600 TVL, 800 TVL, 1000 TVL
 
-#define kMG             { kMagenta, kGreen, kBlack, kBlack, kBlack, kBlack, kBlack }
-#define kGM             { kGreen, kMagenta, kBlack, kBlack, kBlack, kBlack, kBlack }
 
-#define kBGR            { kBlue, kGreen, kRed, kBlack, kBlack, kBlack, kBlack }
-#define kRGB            { kRed, kGreen, kBlue, kBlack, kBlack, kBlack, kBlack }
+// 1080p 
 
-#define kRGBX           { kRed, kGreen, kBlue, kBlack, kBlack, kBlack, kBlack }
-#define kBGRX           { kBlue, kGreen, kRed, kBlack, kBlack, kBlack, kBlack }
+// 300TVL
+#define kMaxApertureGrilleSize       4
 
-#define kRYCBX          { kRed, kYellow, kCyan, kBlue, kBlack, kBlack, kBlack }
-#define kBCYRX          { kBlue, kCyan, kYellow, kRed, kBlack, kBlack, kBlack }
+#define kRGBX           { kRed, kGreen, kBlue, kBlack }
+#define kRBGX           { kRed, kBlue, kGreen, kBlack }
+#define kBGRX           { kBlue, kGreen, kRed, kBlack }
 
-#define kRRGGBBX        { kRed, kRed, kGreen, kGreen, kBlue, kBlue, kBlack }
-#define kBBGGRRX        { kBlue, kBlue, kGreen, kGreen, kRed, kRed, kBlack }
-
-const float kApertureGrilleMaskSize[kResolutionAxis][kTVLAxis] = { { 7.0f, 4.0f, 3.0f, 2.0f }, { 7.0f, 7.0f, 5.0f, 4.0f } }; //4K: 300 TVL, 600 TVL, 800 TVL, 1000 TVL   8K: 300 TVL, 600 TVL, 800 TVL, 1000 TVL
-
-const uint kApertureGrilleMasks[kResolutionAxis][kTVLAxis][kBGRAxis][kMaxApertureGrilleSize] = {
-   { // 4K
-      { kRRGGBBX, kBBGGRRX },      // 300 TVL
-      { kRGBX, kBGRX },            // 600 TVL
-      { kBGR, kRGB },              // 800 TVL
-      { kMG, kGM }                 // 1000 TVL
-   },
-   { // 8K
-      { kRRGGBBX, kBBGGRRX },      // 300 TVL
-      { kRRGGBBX, kBBGGRRX },      // 600 TVL
-      { kRYCBX, kRYCBX },          // 800 TVL
-      { kRGBX, kBGRX }             // 1000 TVL
-   }
+const uint kApertureGrilleMasks1080p300TVL[kBGRAxis][kMaxApertureGrilleSize] = 
+{
+   kRGBX, kRBGX, kBGRX
 };
 
-#undef kXXXX
-#undef kMG
-#undef kGM
-#undef kBGR
-#undef kRGB
-#undef kRGBX
-#undef kBGRX
-#undef kRYCBX
-#undef kBCYRX
-#undef kRRGGBBX
-#undef kBBGGRRX
+#undef kMaxApertureGrilleSize
+
+#undef kRGBX           
+#undef kRBGX           
+#undef kBGRX  
+
+// 600TVL
+#define kMaxApertureGrilleSize       2
+
+#define kMG             { kMagenta, kGreen }
+#define kYB             { kYellow, kBlue }
+#define kGM             { kGreen, kMagenta }
+
+const uint kApertureGrilleMasks1080p600TVL[kBGRAxis][kMaxApertureGrilleSize] = 
+{
+   kMG, kYB, kGM
+};
+
+#undef kMaxApertureGrilleSize
+
+#undef kMG             
+#undef kYB             
+#undef kGM             
+
+// 800TVL
+#define kMaxApertureGrilleSize       1
+
+#define kW              { kWhite }
+
+const uint kApertureGrilleMasks1080p800TVL[kBGRAxis][kMaxApertureGrilleSize] = 
+{
+   kW, kW, kW
+};
+
+// 1000TVL
+const uint kApertureGrilleMasks1080p1000TVL[kBGRAxis][kMaxApertureGrilleSize] = 
+{
+   kW, kW, kW
+};
+
+#undef kMaxApertureGrilleSize   
+
+#undef kW              
+
+
+// 4K 
+
+// 300TVL
+#define kMaxApertureGrilleSize       7
+
+#define kRRGGBBX        { kRed, kRed, kGreen, kGreen, kBlue, kBlue, kBlack }
+#define kRRBBGGX        { kRed, kRed, kBlue, kBlue, kGreen, kGreen, kBlack }
+#define kBBGGRRX        { kBlue, kBlue, kGreen, kGreen, kRed, kRed, kBlack }
+
+const uint kApertureGrilleMasks4K300TVL[kBGRAxis][kMaxApertureGrilleSize] = 
+{ 
+   kRRGGBBX, kRRBBGGX, kBBGGRRX
+};
+
+#undef kMaxApertureGrilleSize 
+
+#undef kRRGGBBX        
+#undef kRRBBGGX       
+#undef kBBGGRRX  
+
+// 600TVL
+#define kMaxApertureGrilleSize       4
+
+#define kRGBX           { kRed, kGreen, kBlue, kBlack }
+#define kRBGX           { kRed, kBlue, kGreen, kBlack }
+#define kBGRX           { kBlue, kGreen, kRed, kBlack }
+
+const uint kApertureGrilleMasks4K600TVL[kBGRAxis][kMaxApertureGrilleSize] = 
+{ 
+   kRGBX, kRBGX, kBGRX 
+};
+
+#undef kMaxApertureGrilleSize 
+
+#undef kRGBX           
+#undef kRBGX           
+#undef kBGRX             
+
+// 800TVL
+#define kMaxApertureGrilleSize       3
+
+#define kRGB            { kRed, kGreen, kBlue }
+#define kGBR            { kGreen, kBlue, kRed }
+#define kBGR            { kBlue, kGreen, kRed }
+
+const uint kApertureGrilleMasks4K800TVL[kBGRAxis][kMaxApertureGrilleSize] = 
+{ 
+   kBGR, kGBR, kRGB 
+};
+
+#undef kMaxApertureGrilleSize 
+
+#undef kRGB            
+#undef kGBR            
+#undef kBGR            
+
+// 1000TVL
+#define kMaxApertureGrilleSize       2
+
+#define kMG             { kMagenta, kGreen }
+#define kYB             { kYellow, kBlue }
+#define kGM             { kGreen, kMagenta }
+
+const uint kApertureGrilleMasks4K1000TVL[kBGRAxis][kMaxApertureGrilleSize] = 
+{ 
+   kMG, kYB, kGM
+};
+
+#undef kMaxApertureGrilleSize  
+
+#undef kMG             
+#undef kYB             
+#undef kGM             
+
+
+// 8K 
+
+// 300 TVL
+#define kMaxApertureGrilleSize       13
+
+#define kRRRRGGGGBBBBX  { kRed, kRed, kRed, kRed, kGreen, kGreen, kGreen, kGreen, kBlue, kBlue, kBlue, kBlue, kBlack }
+#define kRRRRBBBBGGGGX  { kRed, kRed, kRed, kRed, kBlue, kBlue, kBlue, kBlue, kGreen, kGreen, kGreen, kGreen, kBlack }
+#define kBBBBGGGGRRRRX  { kBlue, kBlue, kBlue, kBlue, kGreen, kGreen, kGreen, kGreen, kRed, kRed, kRed, kRed, kBlack }
+
+const uint kApertureGrilleMasks8K300TVL[kBGRAxis][kMaxApertureGrilleSize] = 
+{ 
+   kRRRRGGGGBBBBX, kRRRRBBBBGGGGX, kBBBBGGGGRRRRX
+};
+
+#undef kMaxApertureGrilleSize 
+
+#undef kRRRRGGGGBBBBX  
+#undef kRRRRBBBBGGGGX  
+#undef kBBBBGGGGRRRRX  
+
+// 600 TVL
+#define kMaxApertureGrilleSize       7
+
+#define kRRGGBBX        { kRed, kRed, kGreen, kGreen, kBlue, kBlue, kBlack }
+#define kRRBBGGX        { kRed, kRed, kBlue, kBlue, kGreen, kGreen, kBlack }
+#define kBBGGRRX        { kBlue, kBlue, kGreen, kGreen, kRed, kRed, kBlack }
+
+const uint kApertureGrilleMasks8K600TVL[kBGRAxis][kMaxApertureGrilleSize] = 
+{ 
+   kRRGGBBX, kRRBBGGX, kBBGGRRX 
+};
+
+#undef kMaxApertureGrilleSize 
+
+#undef kRRGGBBX        
+#undef kRRBBGGX       
+#undef kBBGGRRX        
+
+// 800 TVL
+#define kMaxApertureGrilleSize       5
+
+#define kRYCBX          { kRed, kYellow, kCyan, kBlue, kBlack }
+#define kRMCGX          { kRed, kMagenta, kCyan, kGreen, kBlack }
+#define kBCYRX          { kBlue, kCyan, kYellow, kRed, kBlack }
+
+const uint kApertureGrilleMasks8K800TVL[kBGRAxis][kMaxApertureGrilleSize] = 
+{ 
+   kRYCBX, kRMCGX, kRYCBX
+};
+
+#undef kMaxApertureGrilleSize 
+
+#undef kRYCBX          
+#undef kRMCGX          
+#undef kBCYRX          
+
+// 1000 TVL
+#define kMaxApertureGrilleSize       4
+
+#define kRGBX           { kRed, kGreen, kBlue, kBlack }
+#define kRBGX           { kRed, kBlue, kGreen, kBlack }
+#define kBGRX           { kBlue, kGreen, kRed, kBlack }
+
+const uint kApertureGrilleMasks8K1000TVL[kBGRAxis][kMaxApertureGrilleSize] = 
+{ 
+   kRGBX, kRBGX, kBGRX 
+};
+
+#undef kMaxApertureGrilleSize  
+
+#undef kRGBX           
+#undef kRBGX           
+#undef kBGRX            
+
 
 // SHADOW MASKS
+
+const float kShadowMaskSizeX[kResolutionAxis][kTVLAxis] = { { 6.0f, 2.0f, 1.0f, 1.0f }, { 12.0f, 6.0f, 2.0f, 2.0f }, { 12.0f, 12.0f, 6.0f, 6.0f } }; 
+const float kShadowMaskSizeY[kResolutionAxis][kTVLAxis] = { { 4.0f, 2.0f, 1.0f, 1.0f }, {  8.0f, 4.0f, 2.0f, 2.0f }, {  8.0f,  8.0f, 4.0f, 4.0f } }; 
+
+
+// 1080p 
+
+
+#define kXXXX              { kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
+
+// 300 TVL
+#define kMaxShadowMaskSizeX     6
+#define kMaxShadowMaskSizeY     4
+
+#define kGRRBBG            { kGreen, kRed, kRed, kBlue, kBlue, kGreen }
+#define kBBGGRR            { kBlue, kBlue, kGreen, kGreen, kRed, kRed }
+
+#define kBRRGGB            { kBlue, kRed, kRed, kGreen, kGreen, kBlue }
+#define kGGBBRR            { kGreen, kGreen, kBlue, kBlue, kRed, kRed }
+
+#define kGBBRRG            { kGreen, kBlue, kBlue, kRed, kRed, kGreen }
+#define kRRGGBB            { kRed, kRed, kGreen, kGreen, kBlue, kBlue }
+
+#define kGRRBBG_GRRBBG_BBGGRR_BBGGRR  { kGRRBBG, kGRRBBG, kBBGGRR, kBBGGRR }
+#define kBRRGGB_BRRGGB_GGBBRR_GGBBRR  { kBRRGGB, kBRRGGB, kGGBBRR, kGGBBRR }
+#define kGBBRRG_GBBRRG_RRGGBB_RRGGBB  { kGBBRRG, kGBBRRG, kRRGGBB, kRRGGBB }
+
+const uint kShadowMasks1080p300TVL[kBGRAxis][kMaxShadowMaskSizeY][kMaxShadowMaskSizeX]  = 
+{
+   kGRRBBG_GRRBBG_BBGGRR_BBGGRR, kBRRGGB_BRRGGB_GGBBRR_GGBBRR, kGBBRRG_GBBRRG_RRGGBB_RRGGBB        // 300 TVL
+};
+
+#undef kMaxShadowMaskSizeX 
+#undef kMaxShadowMaskSizeY 
+
+#undef kGRRBBG           
+#undef kBBGGRR       
+    
+#undef kBRRGGB            
+#undef kGGBBRR       
+
+#undef kGBBRRG            
+#undef kRRGGBB            
+
+#undef kGRRBBG_GRRBBG_BBGGRR_BBGGRR  
+#undef kBRRGGB_BRRGGB_GGBBRR_GGBBRR  
+#undef kGBBRRG_GBBRRG_RRGGBB_RRGGBB 
+
+
+// 600 TVL
+#define kMaxShadowMaskSizeX     2
+#define kMaxShadowMaskSizeY     2
+
+#define kMG                { kMagenta, kGreen }
+#define kGM                { kGreen, kMagenta }
+
+#define kYB                { kYellow, kBlue }
+#define kBY                { kBlue, kYellow }
+
+#define kMG_GM             { kMG, kGM }
+#define kYB_BY             { kYB, kBY }
+#define kGM_MG             { kGM, kMG }
+
+const uint kShadowMasks1080p600TVL[kBGRAxis][kMaxShadowMaskSizeY][kMaxShadowMaskSizeX]  = 
+{
+   kMG_GM, kYB_BY, kGM_MG                                                                          // 600 TVL
+};
+
+#undef kMaxShadowMaskSizeX 
+#undef kMaxShadowMaskSizeY 
+
+#undef kMG               
+#undef kGM    
+
+#undef kYB                
+#undef kBY           
+
+#undef kMG_GM             
+#undef kYB_BY             
+#undef kGM_MG             
+
+// 800 TVL
+#define kMaxShadowMaskSizeX     1
+#define kMaxShadowMaskSizeY     1
+
+#define kW                 { kWhite }
+#define kW_W               { kW }
+
+const uint kShadowMasks1080p800TVL[kBGRAxis][kMaxShadowMaskSizeY][kMaxShadowMaskSizeX]  = 
+{
+   kW_W, kW_W, kW_W                                                                                // 800 TVL
+};
+
+// 1000 TVL
+const uint kShadowMasks1080p1000TVL[kBGRAxis][kMaxShadowMaskSizeY][kMaxShadowMaskSizeX]  = 
+{
+   kW_W, kW_W, kW_W                                                                                // 1000 TVL
+};
+
+#undef kMaxShadowMaskSizeX 
+#undef kMaxShadowMaskSizeY 
+
+#undef kW       
+#undef kW_W
+
+
+// 4K
+
+// 300 TVL
 
 #define kMaxShadowMaskSizeX     12
 #define kMaxShadowMaskSizeY     8
 
-#define kXXXX              { kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
-
-#define kMG                { kMagenta, kGreen, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
-#define kGM                { kGreen, kMagenta, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
-
-#define kGRRBBG            { kGreen, kRed, kRed, kBlue, kBlue, kGreen, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
-#define kBBGGRR            { kBlue, kBlue, kGreen, kGreen, kRed, kRed, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
-
-#define kGBBRRG            { kGreen, kBlue, kBlue, kRed, kRed, kGreen, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
-#define kRRGGBB            { kRed, kRed, kGreen, kGreen, kBlue, kBlue, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
-
 #define kGGRRRRBBBBGG      { kGreen, kGreen, kRed, kRed, kRed, kRed, kBlue, kBlue, kBlue, kBlue, kGreen, kGreen }
 #define kBBBBGGGGRRRR      { kBlue, kBlue, kBlue, kBlue, kGreen, kGreen, kGreen, kGreen, kRed, kRed, kRed, kRed }
+
+#define kBBRRRRGGGGBB      { kBlue, kBlue, kRed, kRed, kRed, kRed, kGreen, kGreen, kGreen, kGreen, kBlue, kBlue }
+#define kGGGGBBBBRRRR      { kGreen, kGreen, kGreen, kGreen, kBlue, kBlue, kBlue, kBlue, kRed, kRed, kRed, kRed }
 
 #define kGGBBBBRRRRGG      { kGreen, kGreen, kBlue, kBlue, kBlue, kBlue, kRed, kRed, kRed, kRed, kGreen, kGreen }
 #define kRRRRGGGGBBBB      { kRed, kRed, kRed, kRed, kGreen, kGreen, kGreen, kGreen, kBlue, kBlue, kBlue, kBlue }
 
-#define kMG_GM             { kMG, kGM, kXXXX, kXXXX, kXXXX, kXXXX, kXXXX, kXXXX }
-#define kGM_MG             { kGM, kMG, kXXXX, kXXXX, kXXXX, kXXXX, kXXXX, kXXXX }
-
-#define kGRRBBG_GRRBBG_BBGGRR_BBGGRR  { kGRRBBG, kGRRBBG, kBBGGRR, kBBGGRR, kXXXX, kXXXX, kXXXX, kXXXX }
-#define kGBBRRG_GBBRRG_RRGGBB_RRGGBB  { kGBBRRG, kGBBRRG, kRRGGBB, kRRGGBB, kXXXX, kXXXX, kXXXX, kXXXX }
-
 #define kGGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR  { kGGRRRRBBBBGG, kGGRRRRBBBBGG, kGGRRRRBBBBGG, kGGRRRRBBBBGG, kBBBBGGGGRRRR, kBBBBGGGGRRRR, kBBBBGGGGRRRR, kBBBBGGGGRRRR }
+#define kBBRRRRGGGGBB_BBRRRRGGGGBB_BBRRRRGGGGBB_BBRRRRGGGGBB_GGGGBBBBRRRR_GGGGBBBBRRRR_GGGGBBBBRRRR_GGGGBBBBRRRR  { kBBRRRRGGGGBB, kBBRRRRGGGGBB, kBBRRRRGGGGBB, kBBRRRRGGGGBB, kGGGGBBBBRRRR, kGGGGBBBBRRRR, kGGGGBBBBRRRR, kGGGGBBBBRRRR }
 #define kGGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB  { kGGBBBBRRRRGG, kGGBBBBRRRRGG, kGGBBBBRRRRGG, kGGBBBBRRRRGG, kRRRRGGGGBBBB, kRRRRGGGGBBBB, kRRRRGGGGBBBB, kRRRRGGGGBBBB }
 
-const float kShadowMaskSizeX[kResolutionAxis][kTVLAxis] = { { 12.0f, 6.0f, 2.0f, 2.0f }, { 12.0f, 12.0f, 6.0f, 6.0f } }; 
-const float kShadowMaskSizeY[kResolutionAxis][kTVLAxis] = { {  8.0f, 4.0f, 2.0f, 2.0f }, {  8.0f,  8.0f, 4.0f, 4.0f } }; 
-
-const uint kShadowMasks[kResolutionAxis][kTVLAxis][kBGRAxis][kMaxShadowMaskSizeY][kMaxShadowMaskSizeX]  = {
-   { // 4K
-      { kGGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR, 
-        kGGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB },        // 300 TVL
-      { kGRRBBG_GRRBBG_BBGGRR_BBGGRR, kGBBRRG_GBBRRG_RRGGBB_RRGGBB },                                                      // 600 TVL
-      { kMG_GM, kGM_MG },                                                                                                  // 800 TVL
-      { kMG_GM, kGM_MG }                                                                                                   // 1000 TVL
-   },
-   { // 8K
-      { kGGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR, 
-        kGGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB },        // 300 TVL
-      { kGGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR, 
-        kGGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB },        // 600 TVL
-      { kGRRBBG_GRRBBG_BBGGRR_BBGGRR, kGBBRRG_GBBRRG_RRGGBB_RRGGBB },                                                      // 800 TVL
-      { kGRRBBG_GRRBBG_BBGGRR_BBGGRR, kGBBRRG_GBBRRG_RRGGBB_RRGGBB }                                                       // 1000 TVL
-   }
+const uint kShadowMasks4K300TVL[kBGRAxis][kMaxShadowMaskSizeY][kMaxShadowMaskSizeX]  = 
+{
+   kGGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR, 
+   kBBRRRRGGGGBB_BBRRRRGGGGBB_BBRRRRGGGGBB_BBRRRRGGGGBB_GGGGBBBBRRRR_GGGGBBBBRRRR_GGGGBBBBRRRR_GGGGBBBBRRRR,
+   kGGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB                                                                                         
 };
 
-#undef kXXXX
-#undef kMG
-#undef kGM
-#undef kBGR
-#undef kRGB
-#undef kRGBX
-#undef kBGRX
-#undef kRYCBX
-#undef kBCYRX
-#undef kRRGGBBX
-#undef kBBGGRRX
+#undef kMaxShadowMaskSizeX 
+#undef kMaxShadowMaskSizeY 
+
+#undef kGGRRRRBBBBGG      
+#undef kBBBBGGGGRRRR   
+
+#undef kBBRRRRGGGGBB     
+#undef kGGGGBBBBRRRR    
+
+#undef kGGBBBBRRRRGG      
+#undef kRRRRGGGGBBBB      
+
+#undef kGGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR  
+#undef kBBRRRRGGGGBB_BBRRRRGGGGBB_BBRRRRGGGGBB_BBRRRRGGGGBB_GGGGBBBBRRRR_GGGGBBBBRRRR_GGGGBBBBRRRR_GGGGBBBBRRRR  
+#undef kGGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB  
+
+
+// 600 TVL
+
+#define kMaxShadowMaskSizeX     6
+#define kMaxShadowMaskSizeY     4
+
+#define kGRRBBG            { kGreen, kRed, kRed, kBlue, kBlue, kGreen }
+#define kBBGGRR            { kBlue, kBlue, kGreen, kGreen, kRed, kRed }
+
+#define kBRRGGB            { kBlue, kRed, kRed, kGreen, kGreen, kBlue }
+#define kGGBBRR            { kGreen, kGreen, kBlue, kBlue, kRed, kRed }
+
+#define kGBBRRG            { kGreen, kBlue, kBlue, kRed, kRed, kGreen }
+#define kRRGGBB            { kRed, kRed, kGreen, kGreen, kBlue, kBlue }
+
+#define kGRRBBG_GRRBBG_BBGGRR_BBGGRR  { kGRRBBG, kGRRBBG, kBBGGRR, kBBGGRR }
+#define kBRRGGB_BRRGGB_GGBBRR_GGBBRR  { kBRRGGB, kBRRGGB, kGGBBRR, kGGBBRR }
+#define kGBBRRG_GBBRRG_RRGGBB_RRGGBB  { kGBBRRG, kGBBRRG, kRRGGBB, kRRGGBB }
+
+const uint kShadowMasks4K600TVL[kBGRAxis][kMaxShadowMaskSizeY][kMaxShadowMaskSizeX]  = 
+{
+   kGRRBBG_GRRBBG_BBGGRR_BBGGRR, kBRRGGB_BRRGGB_GGBBRR_GGBBRR, kGBBRRG_GBBRRG_RRGGBB_RRGGBB
+};
+
+#undef kGRRBBG_GRRBBG_BBGGRR_BBGGRR  
+#undef kBRRGGB_BRRGGB_GGBBRR_GGBBRR  
+#undef kGBBRRG_GBBRRG_RRGGBB_RRGGBB 
+
+#undef kMaxShadowMaskSizeX 
+#undef kMaxShadowMaskSizeY 
+
+#undef kGRRBBG           
+#undef kBBGGRR    
+
+#undef kBRRGGB            
+#undef kGGBBRR      
+
+#undef kGBBRRG            
+#undef kRRGGBB         
+
+
+// 800 TVL
+
+#define kMaxShadowMaskSizeX     2
+#define kMaxShadowMaskSizeY     2
+
+#define kMG                { kMagenta, kGreen }
+#define kGM                { kGreen, kMagenta }
+
+#define kYB                { kYellow, kBlue }
+#define kBY                { kBlue, kYellow }
+
+#define kMG_GM             { kMG, kGM }
+#define kYB_BY             { kYB, kBY }
+#define kGM_MG             { kGM, kMG }
+
+const uint kShadowMasks4K800TVL[kBGRAxis][kMaxShadowMaskSizeY][kMaxShadowMaskSizeX]  = 
+{
+   kMG_GM, kYB_BY, kGM_MG
+};
+
+// 1000 TVL
+const uint kShadowMasks4K1000TVL[kBGRAxis][kMaxShadowMaskSizeY][kMaxShadowMaskSizeX]  = 
+{
+   kMG_GM, kYB_BY, kGM_MG
+};
+
+#undef kMaxShadowMaskSizeX 
+#undef kMaxShadowMaskSizeY 
+
+#undef kXXXX     
+
+#undef kMG               
+#undef kGM    
+
+#undef kYB                
+#undef kBY         
+
+#undef kMG_GM             
+#undef kYB_BY             
+#undef kGM_MG         
+
+
+// 8K 
+
+// 300 TVL
+#define kMaxShadowMaskSizeX     12
+#define kMaxShadowMaskSizeY     8
+
+#define kGGRRRRBBBBGG      { kGreen, kGreen, kRed, kRed, kRed, kRed, kBlue, kBlue, kBlue, kBlue, kGreen, kGreen }
+#define kBBBBGGGGRRRR      { kBlue, kBlue, kBlue, kBlue, kGreen, kGreen, kGreen, kGreen, kRed, kRed, kRed, kRed }
+
+#define kBBRRRRGGGGBB      { kBlue, kBlue, kRed, kRed, kRed, kRed, kGreen, kGreen, kGreen, kGreen, kBlue, kBlue }
+#define kGGGGBBBBRRRR      { kGreen, kGreen, kGreen, kGreen, kBlue, kBlue, kBlue, kBlue, kRed, kRed, kRed, kRed }
+
+#define kGGBBBBRRRRGG      { kGreen, kGreen, kBlue, kBlue, kBlue, kBlue, kRed, kRed, kRed, kRed, kGreen, kGreen }
+#define kRRRRGGGGBBBB      { kRed, kRed, kRed, kRed, kGreen, kGreen, kGreen, kGreen, kBlue, kBlue, kBlue, kBlue }
+
+#define kGGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR  { kGGRRRRBBBBGG, kGGRRRRBBBBGG, kGGRRRRBBBBGG, kGGRRRRBBBBGG, kBBBBGGGGRRRR, kBBBBGGGGRRRR, kBBBBGGGGRRRR, kBBBBGGGGRRRR }
+#define kBBRRRRGGGGBB_BBRRRRGGGGBB_BBRRRRGGGGBB_BBRRRRGGGGBB_GGGGBBBBRRRR_GGGGBBBBRRRR_GGGGBBBBRRRR_GGGGBBBBRRRR  { kBBRRRRGGGGBB, kBBRRRRGGGGBB, kBBRRRRGGGGBB, kBBRRRRGGGGBB, kGGGGBBBBRRRR, kGGGGBBBBRRRR, kGGGGBBBBRRRR, kGGGGBBBBRRRR }
+#define kGGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB  { kGGBBBBRRRRGG, kGGBBBBRRRRGG, kGGBBBBRRRRGG, kGGBBBBRRRRGG, kRRRRGGGGBBBB, kRRRRGGGGBBBB, kRRRRGGGGBBBB, kRRRRGGGGBBBB }
+
+const uint kShadowMasks8K300TVL[kBGRAxis][kMaxShadowMaskSizeY][kMaxShadowMaskSizeX]  = 
+{
+   kGGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR,
+   kBBRRRRGGGGBB_BBRRRRGGGGBB_BBRRRRGGGGBB_BBRRRRGGGGBB_GGGGBBBBRRRR_GGGGBBBBRRRR_GGGGBBBBRRRR_GGGGBBBBRRRR,
+   kGGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB                    
+};
+
+// 600 TVL
+const uint kShadowMasks8K600TVL[kBGRAxis][kMaxShadowMaskSizeY][kMaxShadowMaskSizeX]  = 
+{
+   kGGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR, 
+   kBBRRRRGGGGBB_BBRRRRGGGGBB_BBRRRRGGGGBB_BBRRRRGGGGBB_GGGGBBBBRRRR_GGGGBBBBRRRR_GGGGBBBBRRRR_GGGGBBBBRRRR,
+   kGGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB
+};
+
+#undef kMaxShadowMaskSizeX 
+#undef kMaxShadowMaskSizeY 
+
+#undef kGGRRRRBBBBGG      
+#undef kBBBBGGGGRRRR      
+
+#undef kBBRRRRGGGGBB     
+#undef kGGGGBBBBRRRR      
+
+#undef kGGBBBBRRRRGG      
+#undef kRRRRGGGGBBBB      
+
+#undef kGGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_GGRRRRBBBBGG_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR_BBBBGGGGRRRR  
+#undef kBBRRRRGGGGBB_BBRRRRGGGGBB_BBRRRRGGGGBB_BBRRRRGGGGBB_GGGGBBBBRRRR_GGGGBBBBRRRR_GGGGBBBBRRRR_GGGGBBBBRRRR  
+#undef kGGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_GGBBBBRRRRGG_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB_RRRRGGGGBBBB  
+
+// 800 TVL
+#define kMaxShadowMaskSizeX     6
+#define kMaxShadowMaskSizeY     4
+
+#define kGRRBBG            { kGreen, kRed, kRed, kBlue, kBlue, kGreen }
+#define kBBGGRR            { kBlue, kBlue, kGreen, kGreen, kRed, kRed }
+
+#define kBRRGGB            { kBlue, kRed, kRed, kGreen, kGreen, kBlue }
+#define kGGBBRR            { kGreen, kGreen, kBlue, kBlue, kRed, kRed }
+
+#define kGBBRRG            { kGreen, kBlue, kBlue, kRed, kRed, kGreen }
+#define kRRGGBB            { kRed, kRed, kGreen, kGreen, kBlue, kBlue }
+
+#define kGRRBBG_GRRBBG_BBGGRR_BBGGRR  { kGRRBBG, kGRRBBG, kBBGGRR, kBBGGRR }
+#define kBRRGGB_BRRGGB_GGBBRR_GGBBRR  { kBRRGGB, kBRRGGB, kGGBBRR, kGGBBRR }
+#define kGBBRRG_GBBRRG_RRGGBB_RRGGBB  { kGBBRRG, kGBBRRG, kRRGGBB, kRRGGBB }
+
+const uint kShadowMasks8K800TVL[kBGRAxis][kMaxShadowMaskSizeY][kMaxShadowMaskSizeX]  = 
+{
+   kGRRBBG_GRRBBG_BBGGRR_BBGGRR, kBRRGGB_BRRGGB_GGBBRR_GGBBRR, kGBBRRG_GBBRRG_RRGGBB_RRGGBB
+};
+
+// 1000 TVL
+const uint kShadowMasks8K1000TVL[kBGRAxis][kMaxShadowMaskSizeY][kMaxShadowMaskSizeX]  = 
+{
+   kGRRBBG_GRRBBG_BBGGRR_BBGGRR, kBRRGGB_BRRGGB_GGBBRR_GGBBRR, kGBBRRG_GBBRRG_RRGGBB_RRGGBB
+};
+
+#undef kMaxShadowMaskSizeX 
+#undef kMaxShadowMaskSizeY 
+
+#undef kGRRBBG           
+#undef kBBGGRR            
+
+#undef kBRRGGB            
+#undef kGGBBRR            
+
+#undef kGBBRRG            
+#undef kRRGGBB         
+
+#undef kGRRBBG_GRRBBG_BBGGRR_BBGGRR  
+#undef kBRRGGB_BRRGGB_GGBBRR_GGBBRR  
+#undef kGBBRRG_GBBRRG_RRGGBB_RRGGBB 
 
 // SLOT MASKS
 
-#define kMaxSlotMaskSize   8
 #define kMaxSlotSizeX      2
-#define kMaxSlotSizeY      6
 
-#define kXXXX     { kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
+const float kSlotMaskSizeX[kResolutionAxis][kTVLAxis] = { { 4.0f, 2.0f, 1.0f, 1.0f }, { 7.0f, 4.0f, 3.0f, 2.0f }, { 7.0f, 7.0f, 5.0f, 4.0f } }; //1080p: 300 TVL, 600 TVL, 800 TVL, 1000 TVL   4K: 300 TVL, 600 TVL, 800 TVL, 1000 TVL   8K: 300 TVL, 600 TVL, 800 TVL, 1000 TVL
+const float kSlotMaskSizeY[kResolutionAxis][kTVLAxis] = { { 4.0f, 4.0f, 1.0f, 1.0f }, { 6.0f, 4.0f, 4.0f, 4.0f }, { 6.0f, 6.0f, 4.0f, 4.0f } }; //1080p: 300 TVL, 600 TVL, 800 TVL, 1000 TVL   4K: 300 TVL, 600 TVL, 800 TVL, 1000 TVL   8K: 300 TVL, 600 TVL, 800 TVL, 1000 TVL
 
-#define kMG       { kMagenta, kGreen, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
-#define kGM       { kGreen, kMagenta, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
 
-#define kBGR      { kBlue, kGreen, kRed, kBlack, kBlack, kBlack, kBlack, kBlack }
-#define kRGB      { kRed, kGreen, kBlue, kBlack, kBlack, kBlack, kBlack, kBlack }
+// 1080p 
 
-#define kRGBX     { kRed, kGreen, kBlue, kBlack, kBlack, kBlack, kBlack, kBlack }
-#define kBGRX     { kBlue, kGreen, kRed, kBlack, kBlack, kBlack, kBlack, kBlack }
 
-#define kRYCBX    { kRed, kYellow, kCyan, kBlue, kBlack, kBlack, kBlack, kBlack }
-#define kBCYRX    { kBlue, kCyan, kYellow, kRed, kBlack, kBlack, kBlack, kBlack }
+// 300 TVL
+#define kMaxSlotMaskSize   4
+#define kMaxSlotSizeY      4
 
-#define kRRGGBBX  { kRed, kRed, kGreen, kGreen, kBlue, kBlue, kBlack, kBlack }
-#define kBBGGRRX  { kBlue, kBlue, kGreen, kGreen, kRed, kRed, kBlack, kBlack }
+#define kXXXX     { kBlack, kBlack, kBlack, kBlack }
 
-#define kMGMG_MGXX_MGMG_XXMG   { { kMG, kMG }, { kMG, kXXXX }, { kMG, kMG }, { kXXXX, kMG }, { kXXXX, kXXXX }, { kXXXX, kXXXX } }
-#define kGMGM_GMXX_GMGM_XXGM   { { kGM, kGM }, { kGM, kXXXX }, { kGM, kGM }, { kXXXX, kGM }, { kXXXX, kXXXX }, { kXXXX, kXXXX } }
+#define kRGBX     { kRed, kGreen, kBlue, kBlack }
+#define kRBGX     { kRed, kBlue, kGreen, kBlack }
+#define kBGRX     { kBlue, kGreen, kRed, kBlack }
 
-#define kBGRBGR_BGRXXX_BGRBGR_XXXBGR   { { kBGR, kBGR }, { kBGR, kXXXX }, { kBGR, kBGR }, { kXXXX, kBGR }, { kXXXX, kXXXX }, { kXXXX, kXXXX } }
-#define kRGBRGB_RGBXXX_RGBRGB_XXXRGB   { { kRGB, kRGB }, { kRGB, kXXXX }, { kRGB, kRGB }, { kXXXX, kRGB }, { kXXXX, kXXXX }, { kXXXX, kXXXX } }
+#define kRGBXRGBX_RGBXXXXX_RGBXRGBX_XXXXRGBX   { { kRGBX, kRGBX }, { kRGBX, kXXXX }, { kRGBX, kRGBX }, { kXXXX, kRGBX } }
+#define kRBGXRBGX_RBGXXXXX_RBGXRBGX_XXXXRBGX   { { kRBGX, kRBGX }, { kRBGX, kXXXX }, { kRBGX, kRBGX }, { kXXXX, kRBGX } }
+#define kBGRXBGRX_BGRXXXXX_BGRXBGRX_XXXXBGRX   { { kBGRX, kBGRX }, { kBGRX, kXXXX }, { kBGRX, kBGRX }, { kXXXX, kBGRX } }
 
-#define kRGBXRGBX_RGBXXXXX_RGBXRGBX_XXXXRGBX   { { kRGBX, kRGBX }, { kRGBX, kXXXX }, { kRGBX, kRGBX }, { kXXXX, kRGBX }, { kXXXX, kXXXX }, { kXXXX, kXXXX } }
-#define kBGRXBGRX_BGRXXXXX_BGRXBGRX_XXXXBGRX   { { kBGRX, kBGRX }, { kBGRX, kXXXX }, { kBGRX, kBGRX }, { kXXXX, kBGRX }, { kXXXX, kXXXX }, { kXXXX, kXXXX } }
-
-#define kRYCBXRYCBX_RYCBXXXXX_RYCBXRYCBX_XXXXRYCBX   { { kRYCBX, kRYCBX }, { kRYCBX, kXXXX }, { kRYCBX, kRYCBX }, { kXXXX, kRYCBX }, { kXXXX, kXXXX }, { kXXXX, kXXXX } }
-#define kBCYRXBCYRX_BCYRXXXXX_BCYRXBCYRX_XXXXBCYRX   { { kBCYRX, kBCYRX }, { kBCYRX, kXXXX }, { kBCYRX, kBCYRX }, { kXXXX, kBCYRX }, { kXXXX, kXXXX }, { kXXXX, kXXXX } }
-
-#define kRRGGBBXRRGGBBX_RRGGBBXRRGGBBX_RRGGBBXXXXX_RRGGBBXRRGGBBX_RRGGBBXRRGGBBX_XXXXRRGGBBX   { { kRRGGBBX, kRRGGBBX }, { kRRGGBBX, kRRGGBBX }, { kRRGGBBX, kXXXX }, { kRRGGBBX, kRRGGBBX }, { kRRGGBBX, kRRGGBBX }, { kXXXX, kRRGGBBX } }
-#define kBBGGRRXBBGGRRX_BBGGRRXBBGGRRX_BBGGRRXXXXX_BBGGRRXBBGGRRX_BBGGRRXBBGGRRX_XXXXBBGGRRX   { { kBBGGRRX, kBBGGRRX }, { kBBGGRRX, kBBGGRRX }, { kBBGGRRX, kXXXX }, { kBBGGRRX, kBBGGRRX }, { kBBGGRRX, kBBGGRRX }, { kXXXX, kBBGGRRX } }
-
-const float kSlotMaskSizeX[kResolutionAxis][kTVLAxis] = { { 7.0f, 4.0f, 3.0f, 2.0f }, { 7.0f, 7.0f, 5.0f, 4.0f } }; //4K: 300 TVL, 600 TVL, 800 TVL, 1000 TVL   8K: 300 TVL, 600 TVL, 800 TVL, 1000 TVL
-const float kSlotMaskSizeY[kResolutionAxis][kTVLAxis] = { { 6.0f, 4.0f, 4.0f, 4.0f }, { 6.0f, 6.0f, 4.0f, 4.0f } }; //4K: 300 TVL, 600 TVL, 800 TVL, 1000 TVL   8K: 300 TVL, 600 TVL, 800 TVL, 1000 TVL
-
-const uint kSlotMasks[kResolutionAxis][kTVLAxis][kBGRAxis][kMaxSlotSizeY][kMaxSlotSizeX][kMaxSlotMaskSize] = {
-   { // 4K
-      { kRRGGBBXRRGGBBX_RRGGBBXRRGGBBX_RRGGBBXXXXX_RRGGBBXRRGGBBX_RRGGBBXRRGGBBX_XXXXRRGGBBX, kBBGGRRXBBGGRRX_BBGGRRXBBGGRRX_BBGGRRXXXXX_BBGGRRXBBGGRRX_BBGGRRXBBGGRRX_XXXXBBGGRRX },   // 300 TVL
-      { kRGBXRGBX_RGBXXXXX_RGBXRGBX_XXXXRGBX, kBGRXBGRX_BGRXXXXX_BGRXBGRX_XXXXBGRX },                                       // 600 TVL
-      { kBGRBGR_BGRXXX_BGRBGR_XXXBGR, kRGBRGB_RGBXXX_RGBRGB_XXXRGB },                                                       // 800 TVL
-      { kMGMG_MGXX_MGMG_XXMG, kGMGM_GMXX_GMGM_XXGM }                                                                        // 1000 TVL
-   },
-   { // 8K
-      { kRRGGBBXRRGGBBX_RRGGBBXRRGGBBX_RRGGBBXXXXX_RRGGBBXRRGGBBX_RRGGBBXRRGGBBX_XXXXRRGGBBX, kBBGGRRXBBGGRRX_BBGGRRXBBGGRRX_BBGGRRXXXXX_BBGGRRXBBGGRRX_BBGGRRXBBGGRRX_XXXXBBGGRRX },   // 300 TVL
-      { kRRGGBBXRRGGBBX_RRGGBBXRRGGBBX_RRGGBBXXXXX_RRGGBBXRRGGBBX_RRGGBBXRRGGBBX_XXXXRRGGBBX, kBBGGRRXBBGGRRX_BBGGRRXBBGGRRX_BBGGRRXXXXX_BBGGRRXBBGGRRX_BBGGRRXBBGGRRX_XXXXBBGGRRX },   // 600 TVL
-      { kRYCBXRYCBX_RYCBXXXXX_RYCBXRYCBX_XXXXRYCBX, kBCYRXBCYRX_BCYRXXXXX_BCYRXBCYRX_XXXXBCYRX },                           // 800 TVL
-      { kRGBXRGBX_RGBXXXXX_RGBXRGBX_XXXXRGBX, kBGRXBGRX_BGRXXXXX_BGRXBGRX_XXXXBGRX }                                        // 1000 TVL
-   }
+const uint kSlotMasks1080p300TVL[kBGRAxis][kMaxSlotSizeY][kMaxSlotSizeX][kMaxSlotMaskSize] = 
+{
+   kRGBXRGBX_RGBXXXXX_RGBXRGBX_XXXXRGBX, kRBGXRBGX_RBGXXXXX_RBGXRBGX_XXXXRBGX, kBGRXBGRX_BGRXXXXX_BGRXBGRX_XXXXBGRX                                                                                       
 };
 
-#undef kXXXX
-#undef kMG
-#undef kGM
-#undef kBGR
-#undef kRGB
-#undef kRGBX
-#undef kBGRX
-#undef kRYCBX
-#undef kBCYRX
-#undef kRRGGBBX
-#undef kBBGGRRX
+#undef kMaxSlotMaskSize  
+#undef kMaxSlotSizeY     
 
+#undef kXXXX
+
+#undef kRGBX     
+#undef kRBGX
+#undef kBGRX     
+
+#undef kRGBXRGBX_RGBXXXXX_RGBXRGBX_XXXXRGBX   
+#undef kRBGXRBGX_RBGXXXXX_RBGXRBGX_XXXXRBGX   
+#undef kBGRXBGRX_BGRXXXXX_BGRXBGRX_XXXXBGRX     
+
+
+// 600 TVL
+#define kMaxSlotMaskSize   2
+#define kMaxSlotSizeY      4
+
+#define kXX     { kBlack, kBlack }
+
+#define kMG       { kMagenta, kGreen }
+#define kYB       { kYellow, kBlue }
+#define kGM       { kGreen, kMagenta }
+
+#define kMGMG_MGXX_MGMG_XXMG   { { kMG, kMG }, { kMG, kXX }, { kMG, kMG }, { kXX, kMG } }
+#define kYBYB_YBXX_YBYB_XXYB   { { kYB, kYB }, { kYB, kXX }, { kYB, kYB }, { kXX, kYB } }
+#define kGMGM_GMXX_GMGM_XXGM   { { kGM, kGM }, { kGM, kXX }, { kGM, kGM }, { kXX, kGM } }
+
+const uint kSlotMasks1080p600TVL[kBGRAxis][kMaxSlotSizeY][kMaxSlotSizeX][kMaxSlotMaskSize] = 
+{
+   kMGMG_MGXX_MGMG_XXMG, kYBYB_YBXX_YBYB_XXYB, kGMGM_GMXX_GMGM_XXGM
+};
+
+#undef kMaxSlotMaskSize  
+#undef kMaxSlotSizeY     
+
+#undef kXX
+
+#undef kMG     
+#undef kYB  
+#undef kGM        
+
+#undef kMGMG_MGXX_MGMG_XXMG  
+#undef kYBYB_YBXX_YBYB_XXYB   
+#undef kGMGM_GMXX_GMGM_XXGM  
+
+
+// 800 TVL
+#define kMaxSlotMaskSize   1
+#define kMaxSlotSizeY      4
+
+#define kX        { kBlack }
+#define kW        { kWhite }
+
+#define kW_W_W_W   { { kW, kW }, { kW, kX }, { kW, kW }, { kX, kW } }
+
+const uint kSlotMasks1080p800TVL[kBGRAxis][kMaxSlotSizeY][kMaxSlotSizeX][kMaxSlotMaskSize] = 
+{
+   kW_W_W_W, kW_W_W_W, kW_W_W_W
+};
+
+// 1000 TVL
+const uint kSlotMasks1080p1000TVL[kBGRAxis][kMaxSlotSizeY][kMaxSlotSizeX][kMaxSlotMaskSize] = 
+{
+   kW_W_W_W, kW_W_W_W, kW_W_W_W 
+};
+
+#undef kMaxSlotMaskSize  
+#undef kMaxSlotSizeY     
+
+#undef kX  
+#undef kW   
+
+#undef kW_W_W_W 
+
+
+// 4K
+
+// 300 TVL
+#define kMaxSlotMaskSize   7
+#define kMaxSlotSizeY      6
+
+#define kXXXX     { kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
+
+#define kRRGGBBX  { kRed, kRed, kGreen, kGreen, kBlue, kBlue, kBlack }
+#define kRRBBGGX  { kRed, kRed, kBlue, kBlue, kGreen, kGreen, kBlack }
+#define kBBGGRRX  { kBlue, kBlue, kGreen, kGreen, kRed, kRed, kBlack }
+
+#define kRRGGBBXRRGGBBX_RRGGBBXRRGGBBX_RRGGBBXXXXX_RRGGBBXRRGGBBX_RRGGBBXRRGGBBX_XXXXRRGGBBX   { { kRRGGBBX, kRRGGBBX }, { kRRGGBBX, kRRGGBBX }, { kRRGGBBX, kXXXX }, { kRRGGBBX, kRRGGBBX }, { kRRGGBBX, kRRGGBBX }, { kXXXX, kRRGGBBX } }
+#define kRRBBGGXRRBBGGX_RRBBGGXRRBBGGX_RRBBGGXXXXX_RRBBGGXRRBBGGX_RRBBGGXRRBBGGX_XXXXRRBBGGX   { { kRRBBGGX, kRRBBGGX }, { kRRBBGGX, kRRBBGGX }, { kRRBBGGX, kXXXX }, { kRRBBGGX, kRRBBGGX }, { kRRBBGGX, kRRBBGGX }, { kXXXX, kRRBBGGX } }
+#define kBBGGRRXBBGGRRX_BBGGRRXBBGGRRX_BBGGRRXXXXX_BBGGRRXBBGGRRX_BBGGRRXBBGGRRX_XXXXBBGGRRX   { { kBBGGRRX, kBBGGRRX }, { kBBGGRRX, kBBGGRRX }, { kBBGGRRX, kXXXX }, { kBBGGRRX, kBBGGRRX }, { kBBGGRRX, kBBGGRRX }, { kXXXX, kBBGGRRX } }
+
+const uint kSlotMasks4K300TVL[kBGRAxis][kMaxSlotSizeY][kMaxSlotSizeX][kMaxSlotMaskSize] = 
+{
+   kRRGGBBXRRGGBBX_RRGGBBXRRGGBBX_RRGGBBXXXXX_RRGGBBXRRGGBBX_RRGGBBXRRGGBBX_XXXXRRGGBBX, kRRBBGGXRRBBGGX_RRBBGGXRRBBGGX_RRBBGGXXXXX_RRBBGGXRRBBGGX_RRBBGGXRRBBGGX_XXXXRRBBGGX, kBBGGRRXBBGGRRX_BBGGRRXBBGGRRX_BBGGRRXXXXX_BBGGRRXBBGGRRX_BBGGRRXBBGGRRX_XXXXBBGGRRX
+};
+
+#undef kMaxSlotMaskSize   
+#undef kMaxSlotSizeY   
+
+#undef kXXXX    
+  
+#undef kRRGGBBX  
+#undef kRRBBGGX  
+#undef kBBGGRRX 
+
+#undef kRRGGBBXRRGGBBX_RRGGBBXRRGGBBX_RRGGBBXXXXX_RRGGBBXRRGGBBX_RRGGBBXRRGGBBX_XXXXRRGGBBX   
+#undef kRRBBGGXRRBBGGX_RRBBGGXRRBBGGX_RRBBGGXXXXX_RRBBGGXRRBBGGX_RRBBGGXRRBBGGX_XXXXRRBBGGX   
+#undef kBBGGRRXBBGGRRX_BBGGRRXBBGGRRX_BBGGRRXXXXX_BBGGRRXBBGGRRX_BBGGRRXBBGGRRX_XXXXBBGGRRX   
+
+
+// 600 TVL
+#define kMaxSlotMaskSize   4
+#define kMaxSlotSizeY      4
+
+#define kXXXX     { kBlack, kBlack, kBlack, kBlack }
+
+#define kRGBX     { kRed, kGreen, kBlue, kBlack }
+#define kRBGX     { kRed, kBlue, kGreen, kBlack }
+#define kBGRX     { kBlue, kGreen, kRed, kBlack }
+
+#define kRGBXRGBX_RGBXXXXX_RGBXRGBX_XXXXRGBX   { { kRGBX, kRGBX }, { kRGBX, kXXXX }, { kRGBX, kRGBX }, { kXXXX, kRGBX } }
+#define kRBGXRBGX_RBGXXXXX_RBGXRBGX_XXXXRBGX   { { kRBGX, kRBGX }, { kRBGX, kXXXX }, { kRBGX, kRBGX }, { kXXXX, kRBGX } }
+#define kBGRXBGRX_BGRXXXXX_BGRXBGRX_XXXXBGRX   { { kBGRX, kBGRX }, { kBGRX, kXXXX }, { kBGRX, kBGRX }, { kXXXX, kBGRX } }
+
+const uint kSlotMasks4K600TVL[kBGRAxis][kMaxSlotSizeY][kMaxSlotSizeX][kMaxSlotMaskSize] = 
+{
+   kRGBXRGBX_RGBXXXXX_RGBXRGBX_XXXXRGBX, kRBGXRBGX_RBGXXXXX_RBGXRBGX_XXXXRBGX, kBGRXBGRX_BGRXXXXX_BGRXBGRX_XXXXBGRX
+};
+
+#undef kMaxSlotMaskSize   
+#undef kMaxSlotSizeY   
+
+#undef kXXXX     
+
+#undef kRGBX     
+#undef kRBGX
+#undef kBGRX
+
+#undef kRGBXRGBX_RGBXXXXX_RGBXRGBX_XXXXRGBX   
+#undef kRBGXRBGX_RBGXXXXX_RBGXRBGX_XXXXRBGX   
+#undef kBGRXBGRX_BGRXXXXX_BGRXBGRX_XXXXBGRX   
+
+
+// 800 TVL
+#define kMaxSlotMaskSize   3
+#define kMaxSlotSizeY      4
+
+#define kXXXX     { kBlack, kBlack, kBlack }
+
+#define kBGR      { kBlue, kGreen, kRed }
+#define kGBR      { kGreen, kBlue, kRed }
+#define kRGB      { kRed, kGreen, kBlue }
+
+#define kBGRBGR_BGRXXX_BGRBGR_XXXBGR   { { kBGR, kBGR }, { kBGR, kXXXX }, { kBGR, kBGR }, { kXXXX, kBGR } }
+#define kGBRGBR_GBRXXX_GBRGBR_XXXGBR   { { kGBR, kGBR }, { kGBR, kXXXX }, { kGBR, kGBR }, { kXXXX, kGBR } }
+#define kRGBRGB_RGBXXX_RGBRGB_XXXRGB   { { kRGB, kRGB }, { kRGB, kXXXX }, { kRGB, kRGB }, { kXXXX, kRGB } }
+
+const uint kSlotMasks4K800TVL[kBGRAxis][kMaxSlotSizeY][kMaxSlotSizeX][kMaxSlotMaskSize] = 
+{
+   kBGRBGR_BGRXXX_BGRBGR_XXXBGR, kGBRGBR_GBRXXX_GBRGBR_XXXGBR, kRGBRGB_RGBXXX_RGBRGB_XXXRGB
+};
+
+#undef kMaxSlotMaskSize   
+#undef kMaxSlotSizeY   
+
+#undef kXXXX     
+
+#undef kBGR    
+#undef kGBR 
+#undef kRGB      
+
+#undef kBGRBGR_BGRXXX_BGRBGR_XXXBGR   
+#undef kGBRGBR_GBRXXX_GBRGBR_XXXGBR   
+#undef kRGBRGB_RGBXXX_RGBRGB_XXXRGB   
+
+
+// 1000 TVL
+#define kMaxSlotMaskSize   2
+#define kMaxSlotSizeY      4
+
+#define kXX     { kBlack, kBlack }
+
+#define kMG       { kMagenta, kGreen }
+#define kYB       { kYellow, kBlue }
+#define kGM       { kGreen, kMagenta }
+
+#define kMGMG_MGXX_MGMG_XXMG   { { kMG, kMG }, { kMG, kXX }, { kMG, kMG }, { kXX, kMG } }
+#define kYBYB_YBXX_YBYB_XXYB   { { kYB, kYB }, { kYB, kXX }, { kYB, kYB }, { kXX, kYB } }
+#define kGMGM_GMXX_GMGM_XXGM   { { kGM, kGM }, { kGM, kXX }, { kGM, kGM }, { kXX, kGM } }
+
+const uint kSlotMasks4K1000TVL[kBGRAxis][kMaxSlotSizeY][kMaxSlotSizeX][kMaxSlotMaskSize] = 
+{
+   kMGMG_MGXX_MGMG_XXMG, kYBYB_YBXX_YBYB_XXYB, kGMGM_GMXX_GMGM_XXGM
+};
+
+#undef kMaxSlotMaskSize   
+#undef kMaxSlotSizeY   
+
+#undef kXX     
+
+#undef kMG     
+#undef kYB  
+#undef kGM        
+
+#undef kMGMG_MGXX_MGMG_XXMG  
+#undef kYBYB_YBXX_YBYB_XXYB   
+#undef kGMGM_GMXX_GMGM_XXGM   
+#undef kBBGGRRXBBGGRRX_BBGGRRXBBGGRRX_BBGGRRXXXXX_BBGGRRXBBGGRRX_BBGGRRXBBGGRRX_XXXXBBGGRRX   
+
+
+// 8K
+
+// 300 TVL
+#define kMaxSlotMaskSize   7
+#define kMaxSlotSizeY      6
+
+#define kXXXX     { kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
+
+#define kRRGGBBX  { kRed, kRed, kGreen, kGreen, kBlue, kBlue, kBlack }
+#define kRRBBGGX  { kRed, kRed, kBlue, kBlue, kGreen, kGreen, kBlack }
+#define kBBGGRRX  { kBlue, kBlue, kGreen, kGreen, kRed, kRed, kBlack }
+
+#define kRRGGBBXRRGGBBX_RRGGBBXRRGGBBX_RRGGBBXXXXX_RRGGBBXRRGGBBX_RRGGBBXRRGGBBX_XXXXRRGGBBX   { { kRRGGBBX, kRRGGBBX }, { kRRGGBBX, kRRGGBBX }, { kRRGGBBX, kXXXX }, { kRRGGBBX, kRRGGBBX }, { kRRGGBBX, kRRGGBBX }, { kXXXX, kRRGGBBX } }
+#define kRRBBGGXRRBBGGX_RRBBGGXRRBBGGX_RRBBGGXXXXX_RRBBGGXRRBBGGX_RRBBGGXRRBBGGX_XXXXRRBBGGX   { { kRRBBGGX, kRRBBGGX }, { kRRBBGGX, kRRBBGGX }, { kRRBBGGX, kXXXX }, { kRRBBGGX, kRRBBGGX }, { kRRBBGGX, kRRBBGGX }, { kXXXX, kRRBBGGX } }
+#define kBBGGRRXBBGGRRX_BBGGRRXBBGGRRX_BBGGRRXXXXX_BBGGRRXBBGGRRX_BBGGRRXBBGGRRX_XXXXBBGGRRX   { { kBBGGRRX, kBBGGRRX }, { kBBGGRRX, kBBGGRRX }, { kBBGGRRX, kXXXX }, { kBBGGRRX, kBBGGRRX }, { kBBGGRRX, kBBGGRRX }, { kXXXX, kBBGGRRX } }
+
+const uint kSlotMasks8K300TVL[kBGRAxis][kMaxSlotSizeY][kMaxSlotSizeX][kMaxSlotMaskSize] = 
+{
+   kRRGGBBXRRGGBBX_RRGGBBXRRGGBBX_RRGGBBXXXXX_RRGGBBXRRGGBBX_RRGGBBXRRGGBBX_XXXXRRGGBBX, kRRBBGGXRRBBGGX_RRBBGGXRRBBGGX_RRBBGGXXXXX_RRBBGGXRRBBGGX_RRBBGGXRRBBGGX_XXXXRRBBGGX, kBBGGRRXBBGGRRX_BBGGRRXBBGGRRX_BBGGRRXXXXX_BBGGRRXBBGGRRX_BBGGRRXBBGGRRX_XXXXBBGGRRX 
+};
+
+// 600 TVL
+const uint kSlotMasks8K600TVL[kBGRAxis][kMaxSlotSizeY][kMaxSlotSizeX][kMaxSlotMaskSize] = 
+{
+   kRRGGBBXRRGGBBX_RRGGBBXRRGGBBX_RRGGBBXXXXX_RRGGBBXRRGGBBX_RRGGBBXRRGGBBX_XXXXRRGGBBX, kRRBBGGXRRBBGGX_RRBBGGXRRBBGGX_RRBBGGXXXXX_RRBBGGXRRBBGGX_RRBBGGXRRBBGGX_XXXXRRBBGGX, kBBGGRRXBBGGRRX_BBGGRRXBBGGRRX_BBGGRRXXXXX_BBGGRRXBBGGRRX_BBGGRRXBBGGRRX_XXXXBBGGRRX 
+};
+
+#undef kMaxSlotMaskSize   
+#undef kMaxSlotSizeY   
+
+#undef kXXXX    
+
+#undef kRRGGBBX  
+#undef kRRBBGGX  
+#undef kBBGGRRX 
+
+#undef kRRGGBBXRRGGBBX_RRGGBBXRRGGBBX_RRGGBBXXXXX_RRGGBBXRRGGBBX_RRGGBBXRRGGBBX_XXXXRRGGBBX   
+#undef kRRBBGGXRRBBGGX_RRBBGGXRRBBGGX_RRBBGGXXXXX_RRBBGGXRRBBGGX_RRBBGGXRRBBGGX_XXXXRRBBGGX   
+#undef kBBGGRRXBBGGRRX_BBGGRRXBBGGRRX_BBGGRRXXXXX_BBGGRRXBBGGRRX_BBGGRRXBBGGRRX_XXXXBBGGRRX   
+
+// 800 TVL
+#define kMaxSlotMaskSize   5
+#define kMaxSlotSizeY      4
+
+#define kXXXX     { kBlack, kBlack, kBlack, kBlack, kBlack }
+
+#define kRYCBX    { kRed, kYellow, kCyan, kBlue, kBlack }
+#define kRMCGX    { kRed, kMagenta, kCyan, kGreen, kBlack }
+#define kBCYRX    { kBlue, kCyan, kYellow, kRed, kBlack }
+
+#define kRYCBXRYCBX_RYCBXXXXX_RYCBXRYCBX_XXXXRYCBX   { { kRYCBX, kRYCBX }, { kRYCBX, kXXXX }, { kRYCBX, kRYCBX }, { kXXXX, kRYCBX } }
+#define kRMCGXRMCGX_RMCGXXXXX_RMCGXRMCGX_XXXXRMCGX   { { kRMCGX, kRMCGX }, { kRMCGX, kXXXX }, { kRMCGX, kRMCGX }, { kXXXX, kRMCGX } }
+#define kBCYRXBCYRX_BCYRXXXXX_BCYRXBCYRX_XXXXBCYRX   { { kBCYRX, kBCYRX }, { kBCYRX, kXXXX }, { kBCYRX, kBCYRX }, { kXXXX, kBCYRX } }
+
+const uint kSlotMasks8K800TVL[kBGRAxis][kMaxSlotSizeY][kMaxSlotSizeX][kMaxSlotMaskSize] = 
+{
+   kRYCBXRYCBX_RYCBXXXXX_RYCBXRYCBX_XXXXRYCBX, kRMCGXRMCGX_RMCGXXXXX_RMCGXRMCGX_XXXXRMCGX, kBCYRXBCYRX_BCYRXXXXX_BCYRXBCYRX_XXXXBCYRX
+};
+
+#undef kMaxSlotMaskSize   
+#undef kMaxSlotSizeY   
+
+#undef kXXXX    
+
+#undef kRYCBX    
+#undef kRMCGX
+#undef kBCYRX    
+
+#undef kRYCBXRYCBX_RYCBXXXXX_RYCBXRYCBX_XXXXRYCBX   
+#undef kRMCGXRMCGX_RMCGXXXXX_RMCGXRMCGX_XXXXRMCGX   
+#undef kBCYRXBCYRX_BCYRXXXXX_BCYRXBCYRX_XXXXBCYRX   
+
+
+// 1000 TVL
+#define kMaxSlotMaskSize   4
+#define kMaxSlotSizeY      4
+
+#define kXXXX     { kBlack, kBlack, kBlack, kBlack }
+
+#define kRGBX     { kRed, kGreen, kBlue, kBlack }
+#define kRBGX     { kRed, kBlue, kGreen, kBlack }
+#define kBGRX     { kBlue, kGreen, kRed, kBlack }
+
+#define kRGBXRGBX_RGBXXXXX_RGBXRGBX_XXXXRGBX   { { kRGBX, kRGBX }, { kRGBX, kXXXX }, { kRGBX, kRGBX }, { kXXXX, kRGBX } }
+#define kRBGXRBGX_RBGXXXXX_RBGXRBGX_XXXXRBGX   { { kRBGX, kRBGX }, { kRBGX, kXXXX }, { kRBGX, kRBGX }, { kXXXX, kRBGX } }
+#define kBGRXBGRX_BGRXXXXX_BGRXBGRX_XXXXBGRX   { { kBGRX, kBGRX }, { kBGRX, kXXXX }, { kBGRX, kBGRX }, { kXXXX, kBGRX } }
+
+const uint kSlotMasks8K1000TVL[kBGRAxis][kMaxSlotSizeY][kMaxSlotSizeX][kMaxSlotMaskSize] = 
+{
+   kRGBXRGBX_RGBXXXXX_RGBXRGBX_XXXXRGBX, kRBGXRBGX_RBGXXXXX_RBGXRBGX_XXXXRBGX, kBGRXBGRX_BGRXXXXX_BGRXBGRX_XXXXBGRX 
+};
+
+#undef kMaxSlotMaskSize   
+#undef kMaxSlotSizeY   
+
+#undef kXXXX     
+
+#undef kRGBX    
+#undef kRBGX  
+#undef kBGRX     
+ 
+#undef kRGBXRGBX_RGBXXXXX_RGBXRGBX_XXXXRGBX   
+#undef kRBGXRBGX_RBGXXXXX_RBGXRBGX_XXXXRBGX   
+#undef kBGRXBGRX_BGRXXXXX_BGRXBGRX_XXXXBGRX   
 
 // BLACK WHITE MASKS
+#if ENABLE_BLACK_WHITE_MASKS
 
 #define kMaxBlackWhiteSize       14
+
+#define kW                 { kWhite, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
 
 #define kWX                { kWhite, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
 #define kWWX               { kWhite, kWhite, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
@@ -376,38 +1090,51 @@ const uint kSlotMasks[kResolutionAxis][kTVLAxis][kBGRAxis][kMaxSlotSizeY][kMaxSl
 #define kWWWWWXX           { kWhite, kWhite, kWhite, kWhite, kWhite, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack, kBlack }
 #define kWWWWWWWWWWWXXX    { kWhite, kWhite, kWhite, kWhite, kWhite, kWhite, kWhite, kWhite, kWhite, kWhite, kWhite, kWhite, kWhite, kWhite /*kBlack, kBlack, kBlack*/ }
 
-const float kBlackWhiteMaskSize[kResolutionAxis][kTVLAxis] = { { 7.0f, 4.0f, 3.0f, 2.0f }, { 14.0f, 7.0f, 5.0f, 4.0f } }; //4K: 300 TVL, 600 TVL, 800 TVL, 1000 TVL   8K: 300 TVL, 600 TVL, 800 TVL, 1000 TVL
+const float kBlackWhiteMaskSize[kResolutionAxis][kTVLAxis] = { { 4.0f, 2.0f, 1.0f, 1.0f }, { 7.0f, 4.0f, 3.0f, 2.0f }, { 14.0f, 7.0f, 5.0f, 4.0f } }; //4K: 300 TVL, 600 TVL, 800 TVL, 1000 TVL   8K: 300 TVL, 600 TVL, 800 TVL, 1000 TVL
 
 const uint kBlackWhiteMasks[kResolutionAxis][kTVLAxis][kBGRAxis][kMaxBlackWhiteSize] = {
+   { // 1080p
+      { kWWXX, kWWXX, kWWXX },                                 // 300 TVL
+      { kWX, kWX, kWX },                                       // 600 TVL
+      { kW, kW, kW },                                          // 800 TVL
+      { kW, kW, kW }                                           // 1000 TVL
+   },
    { // 4K
-      { kWWWWWXX, kWWWWWXX },                   // 300 TVL
-      { kWWXX, kWWXX },                         // 600 TVL
-      { kWWX, kWWX },                           // 800 TVL
-      { kWX, kWX }                              // 1000 TVL
+      { kWWWWWXX, kWWWWWXX, kWWWWWXX },                        // 300 TVL
+      { kWWXX, kWWXX, kWWXX },                                 // 600 TVL
+      { kWWX, kWWX, kWWX },                                    // 800 TVL
+      { kWX, kWX, kWX }                                        // 1000 TVL
    },
    { // 8K
-      { kWWWWWWWWWWWXXX, kWWWWWWWWWWWXXX },     // 300 TVL
-      { kWWWWWXX, kWWWWWXX },                   // 600 TVL
-      { kWWWWX, kWWWWX },                       // 800 TVL
-      { kWWXX, kWWXX }                          // 1000 TVL
+      { kWWWWWWWWWWWXXX, kWWWWWWWWWWWXXX, kWWWWWWWWWWWXXX },   // 300 TVL
+      { kWWWWWXX, kWWWWWXX, kWWWWWXX },                        // 600 TVL
+      { kWWWWX, kWWWWX, kWWWWX },                              // 800 TVL
+      { kWWXX, kWWXX, kWWXX }                                  // 1000 TVL
    }
 };
 
-#undef kXXXX
-#undef kMG
-#undef kGM
-#undef kBGR
-#undef kRGB
-#undef kRGBX
-#undef kBGRX
-#undef kRYCBX
-#undef kBCYRX
-#undef kRRGGBBX
-#undef kBBGGRRX
+#undef kW                
+#undef kWX                
+#undef kWWX               
+#undef kWWXX              
+#undef kWWWWX             
+#undef kWWWWWXX           
+#undef kWWWWWWWWWWWXXX 
+
+#endif // ENABLE_BLACK_WHITE_MASKS
 
 #include "include/scanline_generation.h"
 #include "include/hdr10.h"
 #include "include/gamma_correct.h"
+
+#define k1080p     0
+#define k4K        1
+#define k8K        2
+
+#define k300TVL    0
+#define k600TVL    1
+#define k800TVL    2
+#define k1000TVL   3
 
 void main()
 {
@@ -426,7 +1153,7 @@ void main()
 
    const vec2 current_position      = vTexCoord * output_size;
 
-   uint colour_mask;
+   uint colour_mask = 0;
 
    switch(screen_type)
    {
@@ -434,7 +1161,121 @@ void main()
       {
          uint mask = uint(floor(mod(current_position.x, kApertureGrilleMaskSize[lcd_resolution][crt_resolution])));
 
-         colour_mask = kApertureGrilleMasks[lcd_resolution][crt_resolution][lcd_subpixel_layout][mask];      
+         switch(lcd_resolution)
+         {
+            case k1080p:
+            { 
+               switch(crt_resolution)
+               {
+                  case k300TVL:
+                  { 
+                     colour_mask = kApertureGrilleMasks1080p300TVL[lcd_subpixel_layout][mask];      
+                     
+                     break;
+                  }
+                  case k600TVL:
+                  {
+                     colour_mask = kApertureGrilleMasks1080p600TVL[lcd_subpixel_layout][mask]; 
+
+                     break;
+                  }
+                  case k800TVL:
+                  {
+                     colour_mask = kApertureGrilleMasks1080p800TVL[lcd_subpixel_layout][mask]; 
+
+                     break;
+                  }
+                  case k1000TVL:
+                  {
+                     colour_mask = kApertureGrilleMasks1080p1000TVL[lcd_subpixel_layout][mask]; 
+
+                     break;
+                  }
+                  default:
+                  {
+                     break;
+                  }                 
+               }
+
+               break;
+            }
+            case k4K:
+            {
+               switch(crt_resolution)
+               {
+                  case k300TVL:
+                  { 
+                     colour_mask = kApertureGrilleMasks4K300TVL[lcd_subpixel_layout][mask];      
+                     
+                     break;
+                  }
+                  case k600TVL:
+                  {
+                     colour_mask = kApertureGrilleMasks4K600TVL[lcd_subpixel_layout][mask]; 
+
+                     break;
+                  }
+                  case k800TVL:
+                  {
+                     colour_mask = kApertureGrilleMasks4K800TVL[lcd_subpixel_layout][mask]; 
+
+                     break;
+                  }
+                  case k1000TVL:
+                  {
+                     colour_mask = kApertureGrilleMasks4K1000TVL[lcd_subpixel_layout][mask]; 
+
+                     break;
+                  }
+                  default:
+                  {
+                     break;
+                  }                 
+               }
+
+               break;
+            }
+            case k8K:
+            {
+               switch(crt_resolution)
+               {
+                  case k300TVL:
+                  { 
+                     colour_mask = kApertureGrilleMasks8K300TVL[lcd_subpixel_layout][mask];      
+                     
+                     break;
+                  }
+                  case k600TVL:
+                  {
+                     colour_mask = kApertureGrilleMasks8K600TVL[lcd_subpixel_layout][mask]; 
+
+                     break;
+                  }
+                  case k800TVL:
+                  {
+                     colour_mask = kApertureGrilleMasks8K800TVL[lcd_subpixel_layout][mask]; 
+
+                     break;
+                  }
+                  case k1000TVL:
+                  {
+                     colour_mask = kApertureGrilleMasks8K1000TVL[lcd_subpixel_layout][mask]; 
+
+                     break;
+                  }
+                  default:
+                  {
+                     break;
+                  }                 
+               }
+
+               break;
+            }
+            default:
+            {
+               break;
+            }                 
+         }
 
          break;
       }
@@ -444,7 +1285,121 @@ void main()
 
          uint mask = uint(floor(mod(current_position.x, kShadowMaskSizeX[lcd_resolution][crt_resolution])));
 
-         colour_mask = kShadowMasks[lcd_resolution][crt_resolution][lcd_subpixel_layout][shadow_y][mask];    
+         switch(lcd_resolution)
+         {
+            case k1080p:
+            { 
+               switch(crt_resolution)
+               {
+                  case k300TVL:
+                  { 
+                     colour_mask = kShadowMasks1080p300TVL[lcd_subpixel_layout][shadow_y][mask];      
+                     
+                     break;
+                  }
+                  case k600TVL:
+                  {
+                     colour_mask = kShadowMasks1080p600TVL[lcd_subpixel_layout][shadow_y][mask]; 
+
+                     break;
+                  }
+                  case k800TVL:
+                  {
+                     colour_mask = kShadowMasks1080p800TVL[lcd_subpixel_layout][shadow_y][mask]; 
+
+                     break;
+                  }
+                  case k1000TVL:
+                  {
+                     colour_mask = kShadowMasks1080p1000TVL[lcd_subpixel_layout][shadow_y][mask]; 
+
+                     break;
+                  }
+                  default:
+                  {
+                     break;
+                  }                 
+               }
+
+               break;
+            }
+            case k4K:
+            {
+               switch(crt_resolution)
+               {
+                  case k300TVL:
+                  { 
+                     colour_mask = kShadowMasks4K300TVL[lcd_subpixel_layout][shadow_y][mask];      
+                     
+                     break;
+                  }
+                  case k600TVL:
+                  {
+                     colour_mask = kShadowMasks4K600TVL[lcd_subpixel_layout][shadow_y][mask]; 
+
+                     break;
+                  }
+                  case k800TVL:
+                  {
+                     colour_mask = kShadowMasks4K800TVL[lcd_subpixel_layout][shadow_y][mask]; 
+
+                     break;
+                  }
+                  case k1000TVL:
+                  {
+                     colour_mask = kShadowMasks4K1000TVL[lcd_subpixel_layout][shadow_y][mask]; 
+
+                     break;
+                  }
+                  default:
+                  {
+                     break;
+                  }                 
+               }
+
+               break;
+            }
+            case k8K:
+            {
+               switch(crt_resolution)
+               {
+                  case k300TVL:
+                  { 
+                     colour_mask = kShadowMasks8K300TVL[lcd_subpixel_layout][shadow_y][mask];      
+                     
+                     break;
+                  }
+                  case k600TVL:
+                  {
+                     colour_mask = kShadowMasks8K600TVL[lcd_subpixel_layout][shadow_y][mask]; 
+
+                     break;
+                  }
+                  case k800TVL:
+                  {
+                     colour_mask = kShadowMasks8K800TVL[lcd_subpixel_layout][shadow_y][mask]; 
+
+                     break;
+                  }
+                  case k1000TVL:
+                  {
+                     colour_mask = kShadowMasks8K1000TVL[lcd_subpixel_layout][shadow_y][mask]; 
+
+                     break;
+                  }
+                  default:
+                  {
+                     break;
+                  }                 
+               }
+
+               break;
+            }
+            default:
+            {
+               break;
+            }                 
+         }
 
          break;
       }
@@ -455,18 +1410,154 @@ void main()
 
          uint mask = uint(floor(mod(current_position.x, kSlotMaskSizeX[lcd_resolution][crt_resolution])));
 
-         colour_mask = kSlotMasks[lcd_resolution][crt_resolution][lcd_subpixel_layout][slot_x][slot_y][mask];
+         switch(lcd_resolution)
+         {
+            case k1080p:
+            { 
+               switch(crt_resolution)
+               {
+                  case k300TVL:
+                  { 
+                     colour_mask = kSlotMasks1080p300TVL[lcd_subpixel_layout][slot_x][slot_y][mask];      
+                     
+                     break;
+                  }
+                  case k600TVL:
+                  {
+                     colour_mask = kSlotMasks1080p600TVL[lcd_subpixel_layout][slot_x][slot_y][mask]; 
+
+                     break;
+                  }
+                  case k800TVL:
+                  {
+                     colour_mask = kSlotMasks1080p800TVL[lcd_subpixel_layout][slot_x][slot_y][mask]; 
+
+                     break;
+                  }
+                  case k1000TVL:
+                  {
+                     colour_mask = kSlotMasks1080p1000TVL[lcd_subpixel_layout][slot_x][slot_y][mask]; 
+
+                     break;
+                  }
+                  default:
+                  {
+                     break;
+                  }                 
+               }
+
+               break;
+            }
+            case k4K:
+            {
+               switch(crt_resolution)
+               {
+                  case k300TVL:
+                  { 
+                     colour_mask = kSlotMasks4K300TVL[lcd_subpixel_layout][slot_x][slot_y][mask];      
+                     
+                     break;
+                  }
+                  case k600TVL:
+                  {
+                     colour_mask = kSlotMasks4K600TVL[lcd_subpixel_layout][slot_x][slot_y][mask]; 
+
+                     break;
+                  }
+                  case k800TVL:
+                  {
+                     colour_mask = kSlotMasks4K800TVL[lcd_subpixel_layout][slot_x][slot_y][mask]; 
+
+                     break;
+                  }
+                  case k1000TVL:
+                  {
+                     colour_mask = kSlotMasks4K1000TVL[lcd_subpixel_layout][slot_x][slot_y][mask]; 
+
+                     break;
+                  }
+                  default:
+                  {
+                     break;
+                  }                 
+               }
+
+               break;
+            }
+            case k8K:
+            {
+               switch(crt_resolution)
+               {
+                  case k300TVL:
+                  { 
+                     colour_mask = kSlotMasks8K300TVL[lcd_subpixel_layout][slot_x][slot_y][mask];      
+                     
+                     break;
+                  }
+                  case k600TVL:
+                  {
+                     colour_mask = kSlotMasks8K600TVL[lcd_subpixel_layout][slot_x][slot_y][mask]; 
+
+                     break;
+                  }
+                  case k800TVL:
+                  {
+                     colour_mask = kSlotMasks8K800TVL[lcd_subpixel_layout][slot_x][slot_y][mask]; 
+
+                     break;
+                  }
+                  case k1000TVL:
+                  {
+                     colour_mask = kSlotMasks8K1000TVL[lcd_subpixel_layout][slot_x][slot_y][mask]; 
+
+                     break;
+                  }
+                  default:
+                  {
+                     break;
+                  }                 
+               }
+
+               break;
+            }
+            default:
+            {
+               break;
+            }                 
+         }
 
          break;
       }
+#if ENABLE_BLACK_WHITE_MASKS
       case kBlackWhiteMask:
       {
          uint mask = uint(floor(mod(current_position.x, kBlackWhiteMaskSize[lcd_resolution][crt_resolution])));
 
          colour_mask = kBlackWhiteMasks[lcd_resolution][crt_resolution][lcd_subpixel_layout][mask];      
 
+         switch(lcd_resolution)
+         {
+            case k1080p:
+            { 
+               break;
+            }
+            case k4K:
+            {
+               break;
+            }
+            case k8K:
+            {
+               break;
+            }
+            default:
+            {
+               break;
+            }                 
+         }
+
          break;
       }
+#endif // ENABLE_BLACK_WHITE_MASKS
       default:
       {
          break;

@@ -68,7 +68,7 @@ layout(location = 0) out vec2 vTexCoord;
 void main()
 {
    gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord * 1.000001;
+   vTexCoord = TexCoord * 1.0001;
 }
 
 #pragma stage fragment
@@ -107,7 +107,7 @@ void main()
 		
 	if (inter <= params.OriginalSize.y && interm > 0.5)
 	{
-		intera = 0.5;
+		intera = 0.25;
 		float line_no  = clamp(floor(mod(params.OriginalSize.y*vTexCoord.y, 2.0)), 0.0, 1.0);
 		float frame_no = clamp(floor(mod(float(params.FrameCount),2.0)), 0.0, 1.0);
 		float ii = abs(line_no-frame_no);
@@ -117,9 +117,8 @@ void main()
 			r = clamp(max(m1*ii, (1.0-iscan)*min(m1,m2)), 0.0, 1.0);
 			c = plant( mix(mix(c1,c2, min(mix(m1, 1.0-m2, min(m1,1.0-m1))/(d+0.00001),1.0)), c1, ii), r);
 			if (interm == 3.0) c = (1.0-0.5*iscan)*mix(c2, c1, ii);
-			intera = 0.0;
 		}
-		if (interm == 5.0) { c = mix(c2, c1, 0.5); }
+		if (interm == 5.0) { c = mix(c2, c1, 0.5); intera = 0.45; }
 	}
 	c = pow(c, vec3(gamma_in));
 	

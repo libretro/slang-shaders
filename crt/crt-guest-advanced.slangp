@@ -1,11 +1,11 @@
 shaders = 12
 
-shader0 = ../stock.slang
+shader0 = shaders/guest/advanced/stock.slang
 filter_linear0 = false
 scale_type0 = source
 scale0 = 1.0
 
-shader1 = ../stock.slang
+shader1 = shaders/guest/advanced/stock.slang
 filter_linear1 = false
 scale_type1 = source
 scale1 = 1.0
@@ -84,6 +84,7 @@ alias9 = BloomPass
 
 shader10 = shaders/guest/advanced/crt-guest-advanced.slang
 filter_linear10 = true
+float_framebuffer10 = true
 scale_type10 = viewport
 scale_x10 = 1.0
 scale_y10 = 1.0

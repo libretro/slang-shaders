@@ -29,5 +29,4 @@ DONT USE THIS PRESET DIRECTLY - Use any of the others in this directory
 #reference "../../../MBZ__3__STD__MEGATRON-NTSC.slangp"
 
 hcrt_hdr = "0.000000"
-
-hcrt_gamma_in = "-0.200000"
+hcrt_gamma_in = "2.020000"

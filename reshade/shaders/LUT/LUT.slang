@@ -6,10 +6,7 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float LUT_Size;
 } params;
-
-#pragma parameter LUT_Size "LUT Size" 16.0 1.0 64.0 1.0
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -43,11 +40,12 @@ vec4 mixfix(vec4 a, vec4 b, float c)
 
 void main()
 {
+   vec2 LUT_Size = textureSize(SamplerLUT, 0);
 	vec4 imgColor = texture(Source, vTexCoord.xy);
-	float red = ( imgColor.r * (params.LUT_Size - 1.0) + 0.4999 ) / (params.LUT_Size * params.LUT_Size);
-	float green = ( imgColor.g * (params.LUT_Size - 1.0) + 0.4999 ) / params.LUT_Size;
-	float blue1 = (floor( imgColor.b  * (params.LUT_Size - 1.0) ) / params.LUT_Size) + red;
-	float blue2 = (ceil( imgColor.b  * (params.LUT_Size - 1.0) ) / params.LUT_Size) + red;
+	float red = ( imgColor.r * (LUT_Size.y - 1.0) + 0.4999 ) / (LUT_Size.y * LUT_Size.y);
+	float green = ( imgColor.g * (LUT_Size.y - 1.0) + 0.4999 ) / LUT_Size.y;
+	float blue1 = (floor( imgColor.b  * (LUT_Size.y - 1.0) ) / LUT_Size.y) + red;
+	float blue2 = (ceil( imgColor.b  * (LUT_Size.y - 1.0) ) / LUT_Size.y) + red;
 	float mixer = clamp(max((imgColor.b - blue1) / (blue2 - blue1), 0.0), 0.0, 32.0);
 	vec4 color1 = texture( SamplerLUT, vec2( blue1, green ));
 	vec4 color2 = texture( SamplerLUT, vec2( blue2, green ));

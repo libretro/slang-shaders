@@ -1,6 +1,6 @@
 #reference "../Base_CRT_Presets_DREZ/MBZ__0__SMOOTH-ADV__DREZ-480p__GDV.slangp"
 
-BackgroundImage = ../../shaders/HyperspaceMadness/textures/HSM_Duimon_Super_Famicom_3840x2160.png
+BackgroundImage = ../../shaders/textures/HSM_Duimon_Super_Famicom_3840x2160.png
 
 HSM_FLIP_VIEWPORT_VERTICAL = "1.000000"
 HSM_ASPECT_RATIO_MODE = 2

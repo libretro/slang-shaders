@@ -3,7 +3,7 @@
 /*
    Fast Sharpen Shader (Custom)
    
-   Copyright (C) 2005 - 2019 guest(r) - guest.r@gmail.com
+   Copyright (C) 2005 - 2022 guest(r) - guest.r@gmail.com
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -26,16 +26,16 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float SHARPEN, CONTR, DETAILS;
+	float CSHARPEN, CCONTR, CDETAILS;
 } params;
 
-#pragma parameter SHARPEN  "Sharpen strength"       0.00 0.0 4.00 0.10 
-#pragma parameter CONTR    "Ammount of sharpening"  0.05 0.0 0.25 0.01 
-#pragma parameter DETAILS  "Details sharpened "     1.00 0.0 1.00 0.05 
+#pragma parameter CSHARPEN  "Sharpen strength"       0.00 0.0 5.00 0.10 
+#pragma parameter CCONTR    "Ammount of sharpening"  0.05 0.0 0.25 0.01 
+#pragma parameter CDETAILS  "Details sharpened "     1.00 0.0 1.00 0.05 
 
-#define SHARPEN params.SHARPEN
-#define CONTR params.CONTR
-#define DETAILS params.DETAILS
+#define CSHARPEN params.CSHARPEN
+#define CCONTR params.CCONTR
+#define CDETAILS params.CDETAILS
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -71,13 +71,13 @@ void main()
 	vec3 b11 = 0.5*(c01+c21); 
 	
 	float contrast = max(max(c11.r,c11.g),c11.b);
-	contrast = mix(2.0*CONTR, CONTR, contrast);
+	contrast = mix(2.0*CCONTR, CCONTR, contrast);
 	
 	vec3 mn1 = min(c01,c21); mn1 = min(mn1,c11*(1.0-contrast));
 	vec3 mx1 = max(c01,c21); mx1 = max(mx1,c11*(1.0+contrast));
 	
 	vec3 dif = pow(mx1-mn1+0.0001, vec3(0.75,0.75,0.75));
-	vec3 sharpen = mix(vec3(SHARPEN*DETAILS), vec3(SHARPEN), dif);
+	vec3 sharpen = mix(vec3(CSHARPEN*CDETAILS), vec3(CSHARPEN), dif);
 	
 	c11 = clamp(mix(c11,b11,-sharpen), mn1,mx1);
 	

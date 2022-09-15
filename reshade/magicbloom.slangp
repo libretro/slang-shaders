@@ -95,4 +95,4 @@ scale11 = 1.0
 
 textures = "tMagicBloom_Dirt"
 
-tMagicBloom_Dirt = "./shaders/magicbloom/MagicBloom_dirt.png"
+tMagicBloom_Dirt = "./shaders/magicbloom/MagicBloom_Dirt.png"

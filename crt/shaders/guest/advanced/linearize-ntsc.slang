@@ -72,7 +72,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter prescalex "          Prescale-X Factor (for xBR...pre-shader)" 1.0 1.0 4.0 1.0  // Joint parameter with main pass, values must match
 #define prescalex        params.prescalex     // prescale-x factor
 
-#pragma parameter iscans "          Interlacing (Scanline) Saturation" 0.40 0.0 1.0 0.05
+#pragma parameter iscans "          Interlacing (Scanline) Saturation" 0.25 0.0 1.0 0.05
 #define iscans        params.iscans     // interlace saturation
 
 #pragma stage vertex
@@ -83,13 +83,13 @@ layout(location = 0) out vec2 vTexCoord;
 void main()
 {
    gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord * 1.000001;
+   vTexCoord = TexCoord * 1.0001;
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D PrePass;
+layout(set = 0, binding = 2) uniform sampler2D NtscPass;
 
 #define COMPAT_TEXTURE(c,d) texture(c,d)
 
@@ -109,15 +109,15 @@ vec3 fetch_pixel(vec2 coord)
 	vec2 d2 = dx - dy;
 	
 	float sum = 15.0;
-	vec3 result = 3.0*COMPAT_TEXTURE(PrePass, coord     ).rgb + 
-	              2.0*COMPAT_TEXTURE(PrePass, coord + dx).rgb +
-	              2.0*COMPAT_TEXTURE(PrePass, coord - dx).rgb +
-	              2.0*COMPAT_TEXTURE(PrePass, coord + dy).rgb +
-	              2.0*COMPAT_TEXTURE(PrePass, coord - dy).rgb +
-	              COMPAT_TEXTURE(PrePass, coord + d1).rgb +
-	              COMPAT_TEXTURE(PrePass, coord - d1).rgb +
-	              COMPAT_TEXTURE(PrePass, coord + d2).rgb +
-	              COMPAT_TEXTURE(PrePass, coord - d2).rgb;  
+	vec3 result = 3.0*COMPAT_TEXTURE(NtscPass, coord     ).rgb + 
+	              2.0*COMPAT_TEXTURE(NtscPass, coord + dx).rgb +
+	              2.0*COMPAT_TEXTURE(NtscPass, coord - dx).rgb +
+	              2.0*COMPAT_TEXTURE(NtscPass, coord + dy).rgb +
+	              2.0*COMPAT_TEXTURE(NtscPass, coord - dy).rgb +
+	              COMPAT_TEXTURE(NtscPass, coord + d1).rgb +
+	              COMPAT_TEXTURE(NtscPass, coord - d1).rgb +
+	              COMPAT_TEXTURE(NtscPass, coord + d2).rgb +
+	              COMPAT_TEXTURE(NtscPass, coord - d2).rgb;  
 				  
 	return result/sum;
 }
@@ -125,8 +125,8 @@ vec3 fetch_pixel(vec2 coord)
 
 void main()
 {
-	vec3 c1 = COMPAT_TEXTURE(PrePass, vTexCoord).rgb;
-	vec3 c2 = COMPAT_TEXTURE(PrePass, vTexCoord + vec2(0.0, params.OriginalSize.w)).rgb;
+	vec3 c1 = COMPAT_TEXTURE(NtscPass, vTexCoord).rgb;
+	vec3 c2 = COMPAT_TEXTURE(NtscPass, vTexCoord + vec2(0.0, params.OriginalSize.w)).rgb;
 	
 	if ((downsample_levelx + downsample_levely) > 0.025)
 	{
@@ -152,7 +152,7 @@ void main()
 		
 	if (inter <= params.OriginalSize.y/yres_div && interm > 0.5 && intres != 1.0 && intres != 0.5) 
 	{
-		intera = 0.5;
+		intera = 0.25;
 		float line_no  = clamp(floor(mod(params.OriginalSize.y*vTexCoord.y, 2.0)), 0.0, 1.0);
 		float frame_no = clamp(floor(mod(float(params.FrameCount),2.0)), 0.0, 1.0);
 		float ii = abs(line_no-frame_no);
@@ -163,10 +163,9 @@ void main()
 			r = clamp(max(m1*ii, (1.0-iscan)*min(m1,m2)), 0.0, 1.0);
 			c = plant( mix(mix(c1,c2, min(mix(m1, 1.0-m2, min(m1,1.0-m1))/(d+0.00001),1.0)), c1, ii), r);
 			if (interm == 3.0) c = (1.0-0.5*iscan)*mix(c2, c1, ii);
-			intera = 0.0;
 		}
-		if (interm == 4.0) c = plant(mix(c, c*c, 0.5*iscans), max(max(c.r,c.g),c.b));
-		if (interm == 5.0) { c = mix(c2, c1, 0.5); c = plant(mix(c, c*c, 0.5*iscans), max(max(c.r,c.g),c.b));}
+		if (interm == 4.0) { c = plant(mix(c, c*c, 0.5*iscans), max(max(c.r,c.g),c.b)); intera = 0.45; }
+		if (interm == 5.0) { c = mix(c2, c1, 0.5); c = plant(mix(c, c*c, 0.5*iscans), max(max(c.r,c.g),c.b)); intera = 0.45; }
 	}
 	c = pow(c, vec3(gamma_in));
 	

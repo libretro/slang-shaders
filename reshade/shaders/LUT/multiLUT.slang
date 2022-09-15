@@ -1,7 +1,6 @@
 #version 450
 
 // A version of the LUT shader that loads 2 LUTs.
-// For use with Kurozumi's 64-bit colorspace LUTs.
 
 layout(push_constant) uniform Push
 {
@@ -12,12 +11,7 @@ layout(push_constant) uniform Push
 	float LUT_selector_param;
 } params;
 
-#pragma parameter LUT_selector_param "Color Temp (1=D65, 2=D93)" 1.0 1.0 2.0 1.0
-//#pragma parameter LUT_Size1 "LUT Size 1" 16.0 1.0 64.0 1.0
-//#pragma parameter LUT_Size2 "LUT Size 2" 16.0 1.0 64.0 1.0
-const float LUT_Size1 = 64.0;
-const float LUT_Size2 = 64.0; // hardcode these for Kurozumi's LUTs
-
+#pragma parameter LUT_selector_param "LUT Selector" 1.0 1.0 2.0 1.0
 int LUT_selector = int(params.LUT_selector_param);
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -53,26 +47,24 @@ vec4 mixfix(vec4 a, vec4 b, float c)
 
 void main()
 {
+   float LUT_Size = mix(textureSize(SamplerLUT1, 0).y, textureSize(SamplerLUT2, 0).y, params.LUT_selector_param - 1.0);
 	vec4 imgColor = texture(Source, vTexCoord.xy);
 	vec4 color1, color2 = vec4(0.,0.,0.,0.);
 	float red, green, blue1, blue2, mixer = 0.0;
+	
+	red = ( imgColor.r * (LUT_Size - 1.0) + 0.4999 ) / (LUT_Size * LUT_Size);
+	green = ( imgColor.g * (LUT_Size - 1.0) + 0.4999 ) / LUT_Size;
+	blue1 = (floor( imgColor.b  * (LUT_Size - 1.0) ) / LUT_Size) + red;
+	blue2 = (ceil( imgColor.b  * (LUT_Size - 1.0) ) / LUT_Size) + red;
+	mixer = clamp(max((imgColor.b - blue1) / (blue2 - blue1), 0.0), 0.0, 32.0);
+	
 	if(LUT_selector == 1)
 	{
-		red = ( imgColor.r * (LUT_Size1 - 1.0) + 0.4999 ) / (LUT_Size1 * LUT_Size1);
-		green = ( imgColor.g * (LUT_Size1 - 1.0) + 0.4999 ) / LUT_Size1;
-		blue1 = (floor( imgColor.b  * (LUT_Size1 - 1.0) ) / LUT_Size1) + red;
-		blue2 = (ceil( imgColor.b  * (LUT_Size1 - 1.0) ) / LUT_Size1) + red;
-		mixer = clamp(max((imgColor.b - blue1) / (blue2 - blue1), 0.0), 0.0, 32.0);
-		color1 = texture( SamplerLUT1, vec2( blue1, green ));
-		color2 = texture( SamplerLUT1, vec2( blue2, green ));
+   	color1 = texture( SamplerLUT1, vec2( blue1, green ));
+   	color2 = texture( SamplerLUT1, vec2( blue2, green )); 
 	}
-	if(LUT_selector == 2)
+	else
 	{
-		red = ( imgColor.r * (LUT_Size2 - 1.0) + 0.4999 ) / (LUT_Size2 * LUT_Size2);
-		green = ( imgColor.g * (LUT_Size2 - 1.0) + 0.4999 ) / LUT_Size2;
-		blue1 = (floor( imgColor.b  * (LUT_Size2 - 1.0) ) / LUT_Size2) + red;
-		blue2 = (ceil( imgColor.b  * (LUT_Size2 - 1.0) ) / LUT_Size2) + red;
-		mixer = clamp(max((imgColor.b - blue1) / (blue2 - blue1), 0.0), 0.0, 32.0);
 		color1 = texture( SamplerLUT2, vec2( blue1, green ));
 		color2 = texture( SamplerLUT2, vec2( blue2, green ));
 	}

@@ -4,15 +4,26 @@
 
 layout(push_constant) uniform Push
 {
+	float viewSizeHD;
+	float intensityR;
+	float intensityG;
+	float intensityB;
 	vec4 SourceSize;
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
 } params;
 
+#pragma parameter viewSizeHD "Min Dimming Res" 720.0 0.0 2190.0 1.0
+int viewSizeHD = int(params.viewSizeHD);
+#pragma parameter intensityR "Red Dimming Intensity" 1.2 0.0 2.0 0.1
+#pragma parameter intensityG "Green Dimming Intensity" 0.9 0.0 2.0 0.1
+#pragma parameter intensityB "Blue Dimming Intensity" 0.9 0.0 2.0 0.1
+
 layout(std140, set = 0, binding = 0) uniform UBO
 {
 	mat4 MVP;
+	vec4 FinalViewportSize;
 } global;
 
 #pragma stage vertex
@@ -31,94 +42,53 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-vec4 cmp(vec4 src0, vec4 src1, vec4 src2) {
-	return vec4(
-		src0.x >= 0 ? src1.x : src2.x,
-		src0.y >= 0 ? src1.y : src2.y,
-		src0.z >= 0 ? src1.z : src2.z,
-		src0.w >= 0 ? src1.w : src2.w
-	);
-}
-
 void main()
 {
-	//Declare parameters
-	//pixelSize
-	vec4 c0 = params.SourceSize.xyzw;
-	//textureSize
-	const vec4 c1 = params.SourceSize.xyzw;
-	//viewSize
-	const vec4 c2 = params.OutputSize.xyzw;
-   
-	//Declare constants
-	const vec4 c3 = vec4(1.5, 0.800000012, 1.25, 0.75);
-	const vec4 c4 = vec4(6.28318548, -3.14159274, 0.25, -0.25);
-	const vec4 c5 = vec4(1., 0.5, 720., 3.);
-	const vec4 c6 = vec4(0.166666672, -0.333000004, -0.666000009, 0.899999976);
-	const vec4 c7 = vec4(0.899999976, 1.10000002, 0., 0.);
-	const vec4 c8 = vec4(-0.5, -0.25, 2., 0.5);
+	float RSDK_PI = 3.14159;
+	vec2 textureSize = params.SourceSize.xy; // Size of Internal Framebuffer
+	vec2 viewSize = global.FinalViewportSize.xy; // Size of final Viewport
+	vec2 pixelSize = params.OriginalSize.xy; // Size of Game resolution;
+	
+	vec2 viewPos      = floor((textureSize.xy / pixelSize.xy) * vTexCoord.xy * viewSize.xy) + 0.5;
+    float intencityPos  = fract((viewPos.y * 3.0 + viewPos.x) * 0.166667);
 
-	//Declare registers
-	vec4 r0, r1, r2, r3, r4, r5, r6, r7, r8, r9;
+	vec3 intencity = vec3(params.intensityR, params.intensityG, params.intensityB);
+    vec4 scanlineIntencity = vec4(0.0,0.0,0.0,0.0);
+    if (intencityPos < 0.333)
+        scanlineIntencity.rgb = intencity.xyz;
+    else if (intencityPos < 0.666)
+        scanlineIntencity.rgb = intencity.zxy;
+    else
+        scanlineIntencity.rgb = intencity.yzx;
 
-	//Code starts here
-	vec4 v0 = vTexCoord.xyyy;
-	//dcl_2d s0
-	r0.x = 1.0 / c0.x;
-	r0.y = 1.0 / c0.y;
-	r0.xy = (r0 * c1).xy;
-	r0.xy = (r0 * v0).xy;
-	r0.xy = (r0 * c2).xy;
-	r0.zw = fract(r0.xyxy).zw;
-	r0.xy = (-r0.zwzw + r0).xy;
-	r0.xy = (r0 + c8.wwww).xy;
-	r0.x = r0.y * c5.w + r0.x;
-	r0.x = r0.x * c6.x;
-	r0.x = fract(r0.x);
-	r0.xy = (r0.xxxx + c6.yzzw).xy;
-	r1.yz = (r0.y >= 0 ? c7.xxyw : c7.xyxw).yz;
-	r1.x = c6.w;
-	r0.xyz = (r0.x >= 0 ? r1 : c7.yxxw).xyz;
-	r1.xy = (c1 * v0).xy;
-	r0.w = r1.y * c8.w + c8.w;
-	r0.w = fract(r0.w);
-	r0.w = r0.w * c4.x + c4.y;
-	r2.y = sin(r0.w);
-	r1.zw = (abs(r2).yyyy + c4).zw;
-	r1.z = clamp(r1.z, 0.0, 1.0);
-	r0.w = r1.w >= 0 ? r1.z : c8.w;
-	r2 = fract(r1.xyxy);
-	r1.xy = (r1 + -r2.zwzw).xy;
-	r2 = r2 + c8.xxyy;
-	r1.zw = (r1.xyxy + c8.wwww).zw;
-	r1.zw = (v0.xyxy * -c1.xyxy + r1).zw;
-	r1.w = r1.w + r1.w;
-	r1.z = r1.z * c8.w;
-	r1.z = -abs(r1).z + c3.x;
-	r3.x = max(c3.y, r1.z);
-	r4.x = min(r3.x, c3.z);
-	r1.zw = (-abs(r1).wwww + c3).zw;
-	r1.z = clamp(r1.z, 0.0, 1.0);
-	r1.z = r1.w >= 0 ? r1.z : c8.w;
-	r4.y = r0.w + r1.z;
-	r0.w = r0.w * r4.x;
-	r1.z = r1.z * r4.x;
-	r3.xy = (r4 * c5).xy;
-	r1.w = r3.y * r3.x;
-	r2.z = cmp(r2, r2.xyxy, c8.yyyy).z;
-	r3.xy = max(c8.yyyy, -r2.zwzw).xy;
-	r2.xy = (r2 + r3).xy;
-	r1.xy = (r2 * c8.zzzz + r1).xy;
-	r1.xy = (r1 + c8.wwww).xy;
-	r2.x = 1.0 / c1.x;
-	r2.y = 1.0 / c1.y;
-	r1.xy = (r1 * r2).xy;
-	r2 = texture(Source, r1.xy);
-	r3.x = r0.w * r2.x;
-	r3.yz = (r1.xzww * r2).yz;
-	FragColor.w = r2.w;
-	r0.xyz = (r0 * r3).xyz;
-	r1.z = c5.z;
-	r0.w = r1.z + -c2.y;
-	FragColor.xyz = (r0.w >= 0 ? r3 : r0).xyz;
+    vec2 pixelPos         = vTexCoord.xy * textureSize.xy;
+    vec2 roundedPixelPos  = floor(pixelPos.xy);
+
+    scanlineIntencity.a = clamp(abs(sin(pixelPos.y * RSDK_PI)) + 0.25, 0.5, 1.0);
+    pixelPos.xy         = fract(pixelPos.xy) + -0.5;
+
+    vec2 invTexPos = -vTexCoord.xy * textureSize.xy + (roundedPixelPos + 0.5);
+    
+    vec2 newTexPos = vec2(0.0,0.0);
+    newTexPos.x = clamp(-abs(invTexPos.x * 0.5) + 1.5, 0.8, 1.25);
+    newTexPos.y = clamp(-abs(invTexPos.y * 2.0) + 1.25, 0.5, 1.0);
+
+    vec2 colorMod;
+    colorMod.x = newTexPos.x * newTexPos.y;
+    colorMod.y = newTexPos.x * ((scanlineIntencity.a + newTexPos.y) * 0.5);
+
+    scanlineIntencity.w *= newTexPos.x;
+
+    vec2 texPos   = ((pixelPos.xy + -clamp(pixelPos.xy, -0.25, 0.25)) * 2.0 + roundedPixelPos + 0.5) / textureSize.xy;
+    vec4 texColor = texture(Source, texPos.xy);
+
+    vec3 blendedColor = vec3(0.0,0.0,0.0);
+    blendedColor.x  = scanlineIntencity.a * texColor.x;
+    blendedColor.yz = colorMod.xy * texColor.yz;
+
+    vec4 outColor;
+    outColor.xyz    = viewSize.y >= params.viewSizeHD ? (scanlineIntencity.rgb * blendedColor.rgb) : blendedColor.xyz;
+    outColor.w      = texColor.w;
+	
+	FragColor = outColor.xyzw;
 }

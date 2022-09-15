@@ -27,9 +27,9 @@ layout(push_constant) uniform Push
 } params;
 
 #pragma parameter bogus_afterglow "[ AFTERGLOW SETTINGS ]:" 0.0 0.0 1.0 1.0
-#pragma parameter PR "          Persistence Red" 0.25 0.0 0.50 0.01
-#pragma parameter PG "          Persistence Green"  0.25 0.0 0.50 0.01
-#pragma parameter PB "          Persistence Blue"  0.25 0.0 0.50 0.01
+#pragma parameter PR "          Persistence Red" 0.32 0.0 0.50 0.01
+#pragma parameter PG "          Persistence Green"  0.32 0.0 0.50 0.01
+#pragma parameter PB "          Persistence Blue"  0.32 0.0 0.50 0.01
 
 #define PR params.PR
 #define PG params.PG
@@ -68,9 +68,9 @@ void main()
 	vec3 accumulate = COMPAT_TEXTURE(AfterglowPassFeedback, TEX0.xy).rgb;
 
 	float w = 1.0;
-	if ((color.r + color.g + color.b < 1.5/255.0)) { w = 0.0; }
+	if ((color.r + color.g + color.b < 5.0/255.0)) { w = 0.0; }
 
-	vec3 result = mix( max(mix(color, accumulate, 0.49 + vec3(PR, PG, PB))- 3.0/255.0, 0.0), color, w);
+	vec3 result = mix( max(mix(color, accumulate, 0.49 + vec3(PR, PG, PB))- 2.0/255.0, 0.0), color, w);
 
 	FragColor = vec4(result, w);
 }

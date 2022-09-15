@@ -1,6 +1,3 @@
 #reference "Tube-Effects__Day__ADV.slangp"
 
 HSM_AMBIENT_LIGHTING_OPACITY = 98
-
-HSM_TUBE_DIFFUSE_IMAGE_BRIGHTNESS = 50
-

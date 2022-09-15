@@ -4,15 +4,28 @@
 
 layout(push_constant) uniform Push
 {
+	float viewSizeHD;
+	float brightness;
+	float intensityR;
+	float intensityG;
+	float intensityB;
 	vec4 SourceSize;
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
 } params;
 
+#pragma parameter viewSizeHD "Min Dimming Res" 720.0 0.0 2190.0 1.0
+int viewSizeHD = int(params.viewSizeHD);
+#pragma parameter brightness "CRT Brightness" 1.5 0.0 5.0 0.1
+#pragma parameter intensityR "Red Dimming Intensity" 1.2 0.0 2.0 0.1
+#pragma parameter intensityG "Green Dimming Intensity" 0.9 0.0 2.0 0.1
+#pragma parameter intensityB "Blue Dimming Intensity" 0.9 0.0 2.0 0.1
+
 layout(std140, set = 0, binding = 0) uniform UBO
 {
 	mat4 MVP;
+	vec4 FinalViewportSize;
 } global;
 
 #pragma stage vertex
@@ -22,8 +35,8 @@ layout(location = 0) out vec2 vTexCoord;
 
 void main()
 {
-   gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord;
+	gl_Position = global.MVP * Position;
+	vTexCoord = TexCoord;
 }
 
 #pragma stage fragment
@@ -33,139 +46,59 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
-	//Declare parameters
-	//pixelSize
-	vec4 c0 = params.SourceSize.xyzw;
-	//textureSize
-	const vec4 c1 = params.SourceSize.xyzw;
-	//viewSize
-	const vec4 c2 = params.OutputSize.xyzw;
-	//texDiffuse
 
-	const vec4 c3 = vec4(-1., 0.5, 1.25, 0.);
-	const vec4 c4 = vec4(0.5, -0.5, 1.5, -3.);
-	const vec4 c5 = vec4(-1., 1., -2., 2.);
-	const vec4 c6 = vec4(-3., -8., 720., 0.166666672);
-	const vec4 c7 = vec4(-0.333000004, -0.666000009, 0.899999976, 1.20000005);
-	const vec4 c8 = vec4(1.5, 0.5, 2.5, 0.899999976);
+	vec2 textureSize = params.SourceSize.xy; // Size of Internal Framebuffer
+	vec2 viewSize = global.FinalViewportSize.xy; // Size of final Viewport
+	vec2 pixelSize = params.OriginalSize.xy; // Size of Game resolution;
 
-	//Declare registers
-	vec4 r0, r1, r2, r3, r4, r5, r6, r7, r8, r9;
+    vec2 texelPos = (textureSize.xy / pixelSize.xy) * vTexCoord.xy;
+    vec4 size     = (pixelSize.xy / textureSize.xy).xyxy * texelPos.xyxy;
+    vec2 exp    = size.zw * textureSize.xy + -floor(size.zw * textureSize.xy) + -0.5;
 
-	//Code starts here
-	vec4 v0 = vTexCoord.xyyy;
-	//dcl_2d s0
-	r0.z = c3.w;
-	r1.x = 1.0 / c0.x;
-	r1.y = 1.0 / c0.y;
-	r1.xy = (r1 * c1).xy;
-	r1.xy = (r1 * v0).xy;
-	r2.x = 1.0 / c1.x;
-	r2.y = 1.0 / c1.y;
-	r1.zw = (r2.xyxy * c0.xyxy).zw;
-	r1.zw = (r1 * r1.xyxy).zw;
-	r1.xy = (r1 * c2).xy;
-	r2.zw = (r1 * c1.xyxy).zw;
-	r2.zw = fract(r2).zw;
-	r0.xy = (-r2.zwzw).xy;
-	r3.xy = (r1.zwzw * c1 + r0.xzzw).xy;
-	r4.yz = (r1.xzww * c1.xxyw + r0.xzyw).yz;
-	r3.z = r0.y + r3.y;
-	r5 = r3.xzxz + -c4.zyxy;
-	r3 = r3.xzxz + c8.xyzy;
-	r3 = r2.xyxy * r3;
-	r5 = r2.xyxy * r5;
-	r6 = texture(Source, r5.zw);
-	r5 = texture(Source, r5.xy);
-	r5.xyz = (r5 * c3.zzzz).xyz;
-	r7 = r1.zwzw * c1.xyxy + r0.xyxy;
-	r0.zw = (r1 * c1.xyxy + - r7).zw;
-	r8.x = c3.x;
-	r1.zw = (r1 * c1.xyxy + r8.xxxx).zw;
-	r1.zw = (r0.xyxy + r1).zw;
-	r4.x = r0.x + r4.y;
-	r4 = r4.xzxz + c4.xyxz;
-	r4 = r2.xyxy * r4;
-	r0.xy = (r1.zwzw + c3.yyyy).xy;
-	r0.xy = (r2 * r0).xy;
-	r8 = texture(Source, r0.xy);
-	r8.xyz = (r8 * c3.zzzz).xyz;
-	r0.xy = (r0.zwzw + -c3.yyyy).xy;
-	r9 = -r0.xxxx + c5;
-	r9 = r9 * r9;
-	r9 = r9 * c4.wwww;
-	r0.z = pow(2, r9.x);
-	r6.xyz = (r6 * r0.zzzz).xyz;
-	r6.xyz = (r6 * c3.zzzz).xyz;
-	r0.w = pow(2, r9.z);
-	r5.xyz = (r5 * r0.wwww + r6).xyz;
-	r0.w = r0.z + r0.w;
-	r6 = r7.zwzw + c4.zyxx;
-	r7 = r7 + c4.yzzz;
-	r7 = r2.xyxy * r7;
-	r2 = r2.xyxy * r6;
-	r6 = texture(Source, r2.zw);
-	r2 = texture(Source, r2.xy);
-	r2.xyz = (r2 * c3.zzzz).xyz;
-	r1.zw = (r0.xyxy * r0.xyxy).zw;
-	r0.xy = (-r0.yyyy + c5).xy;
-	r0.xy = (r0 * r0).xy;
-	r0.xy = (r0 * c6.yyyy).xy;
-	r1.zw = (r1 * c6.xyxy).zw;
-	r1.z = pow(2, r1.z);
-	r1.w = pow(2, r1.w);
-	r6.xyz = (r6 * r1.zzzz).xyz;
-	r5.xyz = (r6 * c3.zzzz + r5).xyz;
-	r6 = texture(Source, r3.xy);
-	r3 = texture(Source, r3.zw);
-	r3.xyz = (r3 * c3.zzzz).xyz;
-	r2.w = pow(2, r9.y);
-	r3.w = pow(2, r9.w);
-	r6.xyz = (r6 * r2.wwww).xyz;
-	r5.xyz = (r6 * c3.zzzz + r5).xyz;
-	r3.xyz = (r3 * r3.wwww + r5).xyz;
-	r0.w = r0.w + r1.z;
-	r0.w = r2.w + r0.w;
-	r0.w = r3.w + r0.w;
-	r0.w = 1.0 / r0.w;
-	r3.xyz = (r0.wwww * r3).xyz;
-	r3.xyz = (r1.wwww * r3).xyz;
-	r5 = texture(Source, r4.xy);
-	r4 = texture(Source, r4.zw);
-	r4.xyz = (r1.zzzz * r4).xyz;
-	r4.xyz = (r4 * c3.zzzz).xyz;
-	r5.xyz = (r5 * c3.zzzz).xyz;
-	r5.xyz = (r1.zzzz * r5).xyz;
-	r0.w = r0.z + r1.z;
-	r0.w = r2.w + r0.w;
-	r0.w = 1.0 / r0.w;
-	r5.xyz = (r8 * r0.zzzz + r5).xyz;
-	r2.xyz = (r2 * r2.wwww + r5).xyz;
-	r2.xyz = (r0.wwww * r2).xyz;
-	r0.x = pow(2, r0.x);
-	r0.y = pow(2, r0.y);
-	r2.xyz = (r2 * r0.xxxx + r3).xyz;
-	r3 = texture(Source, r7.xy);
-	r5 = texture(Source, r7.zw);
-	r5.xyz = (r2.wwww * r5).xyz;
-	r3.xyz = (r0.zzzz * r3).xyz;
-	r3.xyz = (r3 * c3.zzzz + r4).xyz;
-	r3.xyz = (r5 * c3.zzzz + r3).xyz;
-	r0.xzw = (r0.wwww * r3.xyyz).xzw;
-	r0.xyz = (r0.xzww * r0.yyyy + r2).xyz;
-	r1.zw = fract(r1.xyxy).zw;
-	r1.xy = (-r1.zwzw + r1).xy;
-	r1.xy = (r1 + c3.yyyy).xy;
-	r0.w = (r1.y * -c4.w + r1.x);
-	r0.w = r0.w * c6.w;
-	r0.w = fract(r0.w);
-	r1.xy = (r0.wwww + c7).xy;
-	r2.yz = (r1.y >= 0 ? c7.xzww : c7.xwzw).yz;
-	r2.x = c8.w;
-	r1.xyz = (r1.x >= 0 ? r2 : c7.wzzw).xyz;
-	r1.xyz = (r0 * r1).xyz;
-	r2.z = c6.z;
-	r0.w = r2.z + -c2.y;
-	FragColor.xyz = (r0.w >= 0 ? r0 : r1).xyz;
-	FragColor.w = -c3.x;
+	vec4 factor  =vec4(0.0,0.0,0.0,0.0);
+	factor.x = pow(2.0, pow(-1.0 - exp.x, 2.0) * (-3.0));
+    factor.y = pow(2.0, pow( 1.0 - exp.x, 2.0) * (-3.0));
+    factor.z = pow(2.0, pow(-2.0 - exp.x, 2.0) * (-3.0));
+    factor.w = pow(2.0, pow( 2.0 - exp.x, 2.0) * (-3.0));
+	float  factor2 = pow(2.0, pow(exp.x, 2.0) * -3.0); // used for the same stuff as 'factor', just doesn't fit in a vec4 :)
+
+	vec3 power = vec3(0.0,0.0,0.0);
+	power.x = pow(2.0, pow(exp.y, 2.0) * -8.0);
+	power.y = pow(2.0, pow(-exp.y + -1.0, 2.0) * -8.0);
+	power.z = pow(2.0, pow(-exp.y + 1.0, 2.0) * -8.0);
+
+	vec2 viewPos      = floor(texelPos.xy * viewSize.xy) + 0.5;
+	float intencityPos  = fract((viewPos.y * 3.0 + viewPos.x) * 0.166667);
+	vec3 intencity = vec3(params.intensityR, params.intensityG, params.intensityB);
+
+	vec4 scanlineIntencity = vec4(0.0,0.0,0.0,0.0);
+	if (intencityPos < 0.333)
+		scanlineIntencity.rgb = intencity.xyz;
+	else if (intencityPos < 0.666)
+		scanlineIntencity.rgb = intencity.zxy;
+	else
+		scanlineIntencity.rgb = intencity.yzx;
+
+	vec3 color1  = texture(Source, (floor(size.zw * textureSize.xy   + vec2( 1, -1))   + 0.5)      / textureSize.xy).rgb * factor.y * params.brightness;
+    vec3 color2  = texture(Source, (floor(size.zw * textureSize.xy   + vec2(-2,  0))   + 0.5)      / textureSize.xy).rgb * factor.z * params.brightness;
+    vec3 color3  = texture(Source, (floor(size.zw * textureSize.xy   + vec2(-1,  0))   + 0.5)      / textureSize.xy).rgb * factor.x * params.brightness;
+    vec3 color4  = texture(Source, (floor(size.zw * textureSize.xy   + vec2( 1,  0))   + 0.5)      / textureSize.xy).rgb * factor.y * params.brightness;
+    vec3 color5  = texture(Source, (floor(size.zw * textureSize.xy   + 0)                + 0.5)      / textureSize.xy).rgb * factor2  * params.brightness;
+    vec3 color6  = texture(Source, (floor(size.zw * textureSize.xy   + vec2(-1,  1))   + 0.5)      / textureSize.xy).rgb * factor.x * params.brightness;
+    vec3 color7  = texture(Source, (floor(size.zw * textureSize.xy   + vec2( 2,  0))   + 0.5)      / textureSize.xy).rgb * factor.w * params.brightness;
+    vec3 color8  = texture(Source, (floor(size.zw * textureSize.xy   + -1)               + 0.5)      / textureSize.xy).rgb * factor.x * params.brightness;
+    vec3 color9  = texture(Source, (floor(size.zw * textureSize.xy   + vec2( 0, -1))   + 0.5)      / textureSize.xy).rgb * factor2  * params.brightness;
+    vec3 color10 = texture(Source, (floor(size.zw * textureSize.xy   + 1)                + 0.5)      / textureSize.xy).rgb * factor.y * params.brightness;
+    vec3 color11 = texture(Source, (floor(size.xy * textureSize.xy   + vec2( 0,  1))   + 0.5)      / textureSize.xy).rgb * factor2  * params.brightness;
+
+	vec3 final = 
+	power.x * (color2 + color3 + color4 + color5 + color7) / (factor.z + factor.x + factor.y + factor2 + factor.w) +
+	power.y * (color1 + color8 + color9)                   / (factor.y + factor.x + factor2)                 +
+	power.z * (color10 + color6 + color11)                 / (factor.y + factor.x + factor2);
+
+	vec4 outColor = vec4(0.0,0.0,0.0,0.0);
+	outColor.xyz = params.viewSizeHD < viewSize.y ? (scanlineIntencity.rgb * final.rgb) : final.rgb;
+	outColor.w = 1.0;
+	
+	FragColor.xyzw = outColor.xyzw;
 }
