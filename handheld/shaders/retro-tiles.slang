@@ -30,6 +30,8 @@ layout(push_constant) uniform Push
     vec4 OriginalSize;
     vec4 OutputSize;
     uint FrameCount;
+    float TILE_FORMAT;
+    float TILE_DEPTH;
     float TILE_SIZE;
     float COLOR_BOOST;
     float OVERSCAN;
@@ -37,12 +39,16 @@ layout(push_constant) uniform Push
     float OutputGamma;
 } param;
 
-#pragma parameter TILE_SIZE  "Tile Size"       0.5  0.4   0.6 0.01
-#pragma parameter COLOR_BOOST  "Color Boost"   1.0  1.0   2.0 0.05
-#pragma parameter OVERSCAN  "Over Scan"        0.0 -3.0   3.0 1.0
-#pragma parameter InputGamma   "INPUT GAMMA"   2.7  0.0   3.0 0.1
-#pragma parameter OutputGamma  "OUTPUT GAMMA"  2.2  0.0   3.0 0.1
+#pragma parameter TILE_FORMAT  "Tile Format [ Normal | Deep]"   0.0  0.0   1.0 1.0
+#pragma parameter TILE_DEPTH   "Tile Depth"                     1.0  0.0   1.0 0.1
+#pragma parameter TILE_SIZE    "Tile Size"                      0.5  0.4   0.6 0.01
+#pragma parameter COLOR_BOOST  "Color Boost"                    1.0  1.0   2.0 0.05
+#pragma parameter OVERSCAN     "Over Scan"                      0.0 -3.0   3.0 1.0
+#pragma parameter InputGamma   "INPUT GAMMA"                    2.4  0.0   4.0 0.1
+#pragma parameter OutputGamma  "OUTPUT GAMMA"                   2.2  0.0   3.0 0.1
 
+#define TILE_FORMAT  param.TILE_FORMAT
+#define TILE_DEPTH   param.TILE_DEPTH
 #define TILE_SIZE    param.TILE_SIZE
 #define COLOR_BOOST  param.COLOR_BOOST
 #define OVERSCAN     param.OVERSCAN
@@ -85,9 +91,9 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 float fade(float size)
 {
-   size = clamp(size, -1.0, 1.0);
+   size = clamp(size, -TILE_DEPTH, 1.0);
 
-   size = 1.0 - size * size * size;
+   size = 1.0 - size * size * size * mix(size * size, 1.0, TILE_FORMAT);
 
    return size * size;
 }
@@ -106,8 +112,8 @@ void main()
     vec3 C = GAMMA_IN(texture(Source, vTexCoord    +g2).xyz);
     vec3 D = GAMMA_IN(texture(Source, vTexCoord +g1+g2).xyz);
 
-    vec2 dx = vec2(pos.x, 1.0 + min(-pos.x, pos.x)) / TILE_SIZE;
-    vec2 dy = vec2(pos.y, 1.0 + min(-pos.y, pos.y)) / TILE_SIZE;
+    vec2 dx = vec2(pos.x, 1.0-pos.x) / TILE_SIZE;
+    vec2 dy = vec2(pos.y, 1.0-pos.y) / TILE_SIZE;
 
     vec2 wx = vec2(fade(dx.x), fade(dx.y));
     vec2 wy = vec2(fade(dy.x), fade(dy.y));
