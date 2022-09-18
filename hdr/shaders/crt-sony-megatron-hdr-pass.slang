@@ -23,7 +23,7 @@ Dont use this shader directly - use the hdr\crt-make-model-hdr.slangp where make
 THIS SHADER DOES NOT SUPPORT WRGB OLED (Due to the sub pixel layout of WRGB - RGB QD-OLED or LCD (and variants thereof screens are fine)
 */
 
-#pragma format A2B10G10R10_UNORM_PACK32
+#pragma format R16G16B16A16_SFLOAT
 
 layout(push_constant) uniform Push
 {

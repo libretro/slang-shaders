@@ -2,7 +2,6 @@
 
 hcrt_crt_screen_type = "2.000000"
 hcrt_paper_white_nits = "200.000000"
-hcrt_expand_gamut = "1.000000"
 hcrt_red_vertical_convergence = "0.200000"
 hcrt_green_vertical_convergence = "0.200000"
 hcrt_blue_vertical_convergence = "-0.230000"

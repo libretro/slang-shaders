@@ -29,8 +29,8 @@
 #pragma parameter hcrt_brightness                    "    Brightness"                                               0.0     -1.0   1.0      0.01
 #pragma parameter hcrt_contrast                      "    Contrast"                                                 0.0     -1.0   1.0      0.01
 #pragma parameter hcrt_saturation                    "    Saturation"                                               0.0     -1.0   1.0      0.01
-#pragma parameter hcrt_gamma_in                      "    Gamma In"                                                 2.22     1.22  3.22     0.01
-#pragma parameter hcrt_gamma_out                     "    Gamma Out"                                                2.4      2.0   2.8      0.005
+#pragma parameter hcrt_gamma_in                      "    Gamma In"                                                 2.4      1.0   5.0      0.01
+#pragma parameter hcrt_gamma_out                     "    Gamma Out"                                                2.4      1.0   5.0      0.01
 #pragma parameter hcrt_pin_phase                     "    Pin Phase"                                                0.00    -0.2   0.2      0.01
 #pragma parameter hcrt_pin_amp                       "    Pin Amp"                                                  0.00    -0.2   0.2      0.01
 #pragma parameter hcrt_space3                        " "                                                            0.0      0.0   0.0001   0.0001
