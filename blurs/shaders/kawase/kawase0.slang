@@ -50,7 +50,7 @@ vec4 reSample(float d, vec2 uv, sampler2D decal)
     return color;
 }
 
-#include "../../include/colorspace-tools.h"
+#include "../../../include/colorspace-tools.h"
 
 void main()
 {
