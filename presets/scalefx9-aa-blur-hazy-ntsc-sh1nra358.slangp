@@ -69,12 +69,12 @@ filter_linear11 = false
 scale_type11 = source
 scale11 = 1.0
 
-shader12 = ../blurs/blur-gauss-h.slang
+shader12 = ../blurs/shaders/blur-gauss-h.slang
 filter_linear12 = true
 scale_type12 = source
 scale12 = 1.0
 
-shader13 = ../blurs/blur-gauss-v.slang
+shader13 = ../blurs/shaders/blur-gauss-v.slang
 filter_linear13 = true
 scale_type13 = source
 scale13 = 1.0

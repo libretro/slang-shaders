@@ -5,13 +5,13 @@ filter_linear0 = false
 scale_type0 = source
 scale0 = 1.0
 
-shader1 = "../blurs/blur9fast-vertical.slang"
+shader1 = "../blurs/shaders/royale/blur9fast-vertical.slang"
 filter_linear1 = "true"
 scale_type1 = "source"
 scale1 = "1.0"
 srgb_framebuffer1 = "true"
 
-shader2 = "../blurs/blur9fast-horizontal.slang"
+shader2 = "../blurs/shaders/royale/blur9fast-horizontal.slang"
 alias2 = "TRAIL_BLUR"
 filter_linear2 = "true"
 scale_type2 = "source"
@@ -23,13 +23,13 @@ shader3 = shaders/glow-trails/glow-trails1.slang
 shader4 = "../anti-aliasing/shaders/advanced-aa.slang"
 alias4 = PASS1
 
-shader5 = "../blurs/blur9fast-vertical.slang"
+shader5 = "../blurs/shaders/royale/blur9fast-vertical.slang"
 filter_linear5 = "true"
 scale_type5 = "source"
 scale5 = "1.0"
 srgb_framebuffer5 = "true"
 
-shader6 = "../blurs/blur9fast-horizontal.slang"
+shader6 = "../blurs/shaders/royale/blur9fast-horizontal.slang"
 filter_linear6 = "true"
 scale_type6 = "source"
 scale6 = "1.0"

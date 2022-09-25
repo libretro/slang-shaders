@@ -21,14 +21,14 @@ scale_type2 = source
 srgb_framebuffer2 = true
 filter_linear2 = false
 
-shader3 = ../blurs/blur5fast-vertical.slang
+shader3 = ../blurs/shaders/royale/blur5fast-vertical.slang
 scale_type3 = source
 scale3 = 1.0
 srgb_framebuffer3 = true
 filter_linear3 = true
 alias3 = blurPassV
 
-shader4 = ../blurs/blur5fast-horizontal.slang
+shader4 = ../blurs/shaders/royale/blur5fast-horizontal.slang
 alias4 = blurPass
 filter_linear4 = true
 scale4 = 1.0

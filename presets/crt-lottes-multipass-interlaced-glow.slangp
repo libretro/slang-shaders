@@ -5,13 +5,13 @@ filter_linear0 = false
 scale_type0 = source
 scale0 = 1.0
 
-shader1 = "../blurs/blur9fast-vertical.slang"
+shader1 = "../blurs/shaders/royale/blur9fast-vertical.slang"
 filter_linear1 = "true"
 scale_type1 = "source"
 scale1 = "1.0"
 srgb_framebuffer1 = "true"
 
-shader2 = "../blurs/blur9fast-horizontal.slang"
+shader2 = "../blurs/shaders/royale/blur9fast-horizontal.slang"
 alias2 = "TRAIL_BLUR"
 filter_linear2 = "true"
 scale_type2 = "source"

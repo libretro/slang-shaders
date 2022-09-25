@@ -165,7 +165,7 @@ alias32 = "BR_MirrorBlurredPass"
 // Reduce resolution ----------------------------------------------------------------
 // Reduced to a very small amount so we can create a blur which will create a glow from the screen
 //      Mipmap option allows smoother downscaling
-shader33 = ../../../../blurs/blur9x9.slang
+shader33 = ../../../../blurs/shaders/royale/blur9x9.slang
 mipmap_input33 = true
 filter_linear33 = true
 scale_type33 = absolute
@@ -176,7 +176,7 @@ alias33 = "BR_MirrorReflectionDiffusedPass"
 // Add Diffused glow all around the screen ----------------------------------------------------------------
 //      Blurred so much that it's non directional
 //      Mipmap option allows downscaling without artifacts
-shader34 = ../../../../blurs/blur9x9.slang
+shader34 = ../../../../blurs/shaders/royale/blur9x9.slang
 mipmap_input34 = true
 filter_linear34 = true
 scale_type34 = absolute

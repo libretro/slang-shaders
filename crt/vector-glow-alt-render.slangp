@@ -3,13 +3,13 @@ shaders = 4
 shader0 = "../misc/shaders/image-adjustment.slang"
 alias0 = PASS1
 
-shader1 = "../blurs/blur11fast-vertical.slang"
+shader1 = "../blurs/shaders/royale/blur11fast-vertical.slang"
 filter_linear1 = "true"
 scale_type1 = "source"
 scale1 = "0.5"
 mipmap1 = "true"
 
-shader2 = "../blurs/blur11fast-horizontal.slang"
+shader2 = "../blurs/shaders/royale/blur11fast-horizontal.slang"
 filter_linear2 = "true"
 scale_type2 = "source"
 scale2 = "0.5"

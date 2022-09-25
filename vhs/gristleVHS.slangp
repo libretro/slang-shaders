@@ -7,7 +7,7 @@ scale_x0 = 333
 frame_count_mod0 = 256
 filter_linear0 = true
 
-shader1 = ../blurs/sunset_gaussian/sunset_horz.slang
+shader1 = ../blurs/shaders/sunset_gaussian/sunset_horz.slang
 scale_type1 = absolute
 scale_x1 = 80
 scale_y1 = 480

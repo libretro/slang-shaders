@@ -343,7 +343,7 @@ get the kind of performance you want.
 I do plan on adding a version that uses the NTSC shader for the first two
 passes, but it will take a bit of work, because there are several NTSC shader
 versions as it is.  It's easy enough to combine the HALATION_BLUR passes into a
-one-pass blur from blurs/blur9x9fast.cg, but I'm not sure yet just how much
+one-pass blur from blurs/shaders/royale/blur9x9fast.cg, but I'm not sure yet just how much
 modification the NTSC shader passes themselves might need for best results.
 
 I originally wanted NTSC support to be included out-of-the-box, but I'd also

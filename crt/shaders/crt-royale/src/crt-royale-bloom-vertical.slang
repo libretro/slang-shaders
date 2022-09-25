@@ -75,7 +75,7 @@ void main()
    tex_uv = TexCoord * 1.0001;
    
 	//  Get the uv sample distance between output pixels.  Calculate dxdy like
-    //  blurs/vertex-shader-blur-fast-vertical.h.
+    //  blurs/shaders/vertex-shader-blur-fast-vertical.h.
     const float2 dxdy_scale = IN.video_size/IN.output_size;
     const float2 dxdy = dxdy_scale/IN.texture_size;
     //  This blur is vertical-only, so zero out the vertical offset:

@@ -1,6 +1,6 @@
 shaders = 1
 
-shader0 = gaussian_blur_filtering/gaussian-sharp.slang
+shader0 = shaders/gaussian_blur_filtering/gaussian-sharp.slang
 filter_linear0 = false
 scale_type_x0 = viewport
 scale_x0 = 1.0
