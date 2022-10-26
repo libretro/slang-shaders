@@ -259,19 +259,15 @@ int[] font = int[](
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out vec2 flipcoord;
 
 void main()
 {
-   vec4 pos = vec4(Position.x, 1.0 - Position.y, Position.z, Position.w);
-   gl_Position = global.MVP * pos;
+   gl_Position = global.MVP * Position;
    vTexCoord = TexCoord;
-   flipcoord = vec2(vTexCoord.x, 1.0 - vTexCoord.y);
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in vec2 flipcoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -337,10 +333,10 @@ vec2 warp(vec2 uv){
 
 void main()
 {
-	vec2 uv = warp(flipcoord);
+	vec2 uv = warp(vTexCoord);
     vec2 p = uv.xy * vec2(300.,225.);//vec2(fragCoord.x, iResolution.y - fragCoord.y) / 2.;
     
-    vec4 t = texture(iChannel0, flipcoord);
+    vec4 t = texture(iChannel0, vTexCoord);
 	float timer = (params.FrameDirection > 0.5) ? float(params.FrameCount) : 0.0;
     
     int acc = 0;
