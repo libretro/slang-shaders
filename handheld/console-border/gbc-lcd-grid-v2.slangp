@@ -4,14 +4,8 @@ shader1 = ../shaders/lcd-cgwg/lcd-grid-v2.slang
 shader2 = ../shaders/color/gbc-color.slang
 shader3 = shader-files/border-auto-scale.slang
 
-scale_type0 = source
-scale0 = 1
-
 scale_type1 = source
 scale1 = 4
-
-scale_type2 = source
-scale2 = 1
 
 filter_linear0 = false
 filter_linear1 = false

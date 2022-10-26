@@ -1,8 +1,6 @@
 shaders = "4"
 
 shader0 = "../../motionblur/shaders/feedback.slang"
-scale_type0 = source
-scale0 = 1.0
 filter_linear0 = false
 
 shader1 = "../shaders/color/gba-color.slang"

@@ -2,8 +2,6 @@ shaders = 4
 
 shader0 = ../../motionblur/shaders/response-time.slang
 filter_linear0 = false
-scale_type0 = source
-scale0 = 1.0
 
 shader1 = ../shaders/mgba/agb001.slang
 filter_linear1 = false
@@ -12,8 +10,6 @@ scale1 = 4.0
 
 shader2 = ../shaders/color/gba-color.slang
 filter_linear2 = false
-scale_type2 = source
-scale2 = 1.0
 
 shader3 = shader-files/border-auto-scale.slang
 filter_linear3 = true

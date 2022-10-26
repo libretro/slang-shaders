@@ -9,6 +9,7 @@ layout(push_constant) uniform Push
 } params;
 
 #pragma parameter border_texture_scale "Border Scale" 4.0 1.0 20.0 0.005
+#pragma parameter bogus_scale_instructions "[SCREEN SIZE]: In previous menu->Change lcd-grid scale->Apply" 0.0 0.0 1.0 1.0
 
 vec2 middle	= vec2(0.5, 0.5);
 vec2 screen_ratio = params.OutputSize.xy * params.SourceSize.zw;
