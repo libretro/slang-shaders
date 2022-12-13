@@ -4,8 +4,12 @@ shader0 = "../shaders/lcd-cgwg/lcd-grid.slang"
 filter_linear0 = "false"
 wrap_mode0 = "clamp_to_border"
 scale_type_x0 = "source"
-scale_x0 = "4.800000"
 scale_type_y0 = "source"
+
+// To increase or decrease screen size:
+// Set scale_y0 to the desired scale value
+// Set scale_x0 to the desired scale value multiplied by 1.2
+scale_x0 = "4.800000"
 scale_y0 = "4.000000"
 
 shader1 = "shader-files/border-auto-scale.slang"
