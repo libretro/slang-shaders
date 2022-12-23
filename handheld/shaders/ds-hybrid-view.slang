@@ -14,7 +14,7 @@
 
 layout(push_constant) uniform Push
 {
-	vec4 OriginalSize;
+	vec4 ds_hybrid_view_refpassSize;
 	vec4 OutputSize;
 	float screen_toggle;
 	float show_both_screens;
@@ -43,9 +43,9 @@ void main()
 {
 	gl_Position = (global.MVP * Position);
 	// screen gap setting increases fb size; modulo at original res to compensate
-	float screen_gap = mod(params.OriginalSize.y, 192.0);
-	ScaledScreenGap = screen_gap * params.OriginalSize.w;
-	HalfScaledScreenGap = (screen_gap * 0.5) * params.OriginalSize.w;
+	float screen_gap = mod(params.ds_hybrid_view_refpassSize.y, 192.0);
+	ScaledScreenGap = screen_gap * params.ds_hybrid_view_refpassSize.w;
+	HalfScaledScreenGap = (screen_gap * 0.5) * params.ds_hybrid_view_refpassSize.w;
 	VerticalAlignmentAdjustment = -0.25 + ((screen_gap * 0.5) * params.OutputSize.w);
 	vTexCoord = TexCoord * 1.00001;
 	vTexCoord *= vec2(1.333, 0.5 - HalfScaledScreenGap);
@@ -57,7 +57,7 @@ layout(location = 1) in float ScaledScreenGap;
 layout(location = 2) in float HalfScaledScreenGap;
 layout(location = 3) in float VerticalAlignmentAdjustment;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Original;
+layout(set = 0, binding = 2) uniform sampler2D ds_hybrid_view_refpass;
 layout(set = 0, binding = 3) uniform sampler2D Source;
 
 vec2 ignoreScreenGap(vec2 coord)
@@ -75,5 +75,5 @@ void main()
 	vec2 bigCoord = vTexCoord + vec2(0., (params.screen_toggle > 0.5) ? 0.5 + HalfScaledScreenGap : 0.);
 	vec2 smallCoord = vTexCoord * vec2(3.) + vec2(-3., VerticalAlignmentAdjustment);
 	FragColor = texture(Source, bigCoord);
-	FragColor += ((params.filter_small > 0.5) ? texture(Source, ignoreScreenGap(smallCoord)) : texture(Original, ignoreScreenGap(smallCoord))) * vec4(showWhichScreens(smallCoord.y));
+	FragColor += ((params.filter_small > 0.5) ? texture(Source, ignoreScreenGap(smallCoord)) : texture(ds_hybrid_view_refpass, ignoreScreenGap(smallCoord))) * vec4(showWhichScreens(smallCoord.y));
 }

@@ -37,11 +37,11 @@ void main()
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D Original;
+layout(set = 0, binding = 3) uniform sampler2D glow_trails_refpass;
 
 void main()
 {
 	vec4 trails = texture(Source, vTexCoord).rgba;
-	vec4 current = pow(texture(Original, vTexCoord).rgba, vec4(2.2));
+	vec4 current = pow(texture(glow_trails_refpass, vTexCoord).rgba, vec4(2.2));
    FragColor = vec4(pow(current + vec4(clamp(trails.r - current.r, 0.0, 1.0) * params.trail_bright), vec4(1.0 / 2.2)));
 }

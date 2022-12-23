@@ -48,11 +48,11 @@ void main()
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Original;
+layout(set = 0, binding = 2) uniform sampler2D maximus_refpass;
 
 void main()
 {
    vec3 BColor = vec3(0.0).rgb;
-   if ((params.bgMode > 1.0) || (params.ledMode == 3.0)) for (float i = 0.02; i <= 1.0; i += 0.02) BColor += texture(Original, vec2(i,vTexCoord.y)).rgb;
+   if ((params.bgMode > 1.0) || (params.ledMode == 3.0)) for (float i = 0.02; i <= 1.0; i += 0.02) BColor += texture(maximus_refpass, vec2(i,vTexCoord.y)).rgb;
    FragColor = vec4(BColor/50, 1.0).rgba;
 }

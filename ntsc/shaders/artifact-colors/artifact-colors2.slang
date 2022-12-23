@@ -52,7 +52,7 @@ void main()
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D Original;
+layout(set = 0, binding = 3) uniform sampler2D artifact_colors_refpass;
 layout(set = 0, binding = 4) uniform sampler2D Pass2;
 layout(set = 0, binding = 5) uniform sampler2D Pass1;
 
@@ -155,7 +155,7 @@ void main()
     	FragColor = vec4(color, 0.);
     
     #elif(VIEW_MODE == RGB)
-   		FragColor = texture(Original, uv / params.SourceSize.xy);
+   		FragColor = texture(artifact_colors_refpass, uv / params.SourceSize.xy);
     
     #elif(VIEW_MODE == LUMA) 
     	FragColor = vec4(luma);

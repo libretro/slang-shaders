@@ -4,7 +4,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 {
    mat4 MVP;
    vec4 OutputSize;
-   vec4 OriginalSize;
+   vec4 xBR_lv1_mp_refpassSize;
    vec4 SourceSize;
 } global;
 
@@ -35,7 +35,7 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec4 t1;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D Original;
+layout(set = 0, binding = 3) uniform sampler2D xBR_lv1_mp_refpass;
 
 mat4x2 sym_vectors  = mat4x2(1,  1,   1, -1,   -1, -1,   -1,  1);
 
@@ -56,8 +56,8 @@ vec2 unpack_info(float i)
 void main()
 {
 //get original texture coordinates relative to the current pass
-   vec2 OriginalCoord = floor(global.OriginalSize.xy * vTexCoord);
-   OriginalCoord = (OriginalCoord + 0.5) * global.OriginalSize.zw;
+   vec2 OriginalCoord = floor(global.xBR_lv1_mp_refpassSize.xy * vTexCoord);
+   OriginalCoord = (OriginalCoord + 0.5) * global.xBR_lv1_mp_refpassSize.zw;
    
    float px, edr; // px = pixel to blend, edr = edge detection rule
 
@@ -67,9 +67,9 @@ void main()
    vec2 g1  = dir*t1.xy;
    vec2 g2  = dir*t1.zw;
 
-   vec3 F   = texture(Original, OriginalCoord +g1).rgb;
-   vec3 H   = texture(Original, OriginalCoord +g2).rgb;
-   vec3 E   = texture(Original, OriginalCoord    ).rgb;
+   vec3 F   = texture(xBR_lv1_mp_refpass, OriginalCoord +g1).rgb;
+   vec3 H   = texture(xBR_lv1_mp_refpass, OriginalCoord +g2).rgb;
+   vec3 E   = texture(xBR_lv1_mp_refpass, OriginalCoord    ).rgb;
 
    vec4 icomp = round(clamp(dir*sym_vectors, vec4(0.0), vec4(1.0))); // choose info component
    float  info  = remapFrom01(dot(texture(Source, vTexCoord), icomp), 255.0f); // retrieve 1st pass info

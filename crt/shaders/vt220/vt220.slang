@@ -52,7 +52,7 @@ void main()
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D Original;
+layout(set = 0, binding = 3) uniform sampler2D vt220_refpass;
 
 #define iTime (float(params.FrameCount) / 60.0)
 const vec3 iMouse = vec3(0.0);
@@ -294,10 +294,10 @@ void main()
    vec2 uvC, uvS, uvE;  
    uvC = getCurves(fragCoord, uvC, uvS, uvE);
    
-   vec3 sample_image = (global.ntsc_toggle > 0.5) ? texture(Source, vec2(uvC.x, 1.0-uvC.y)).rgb : texture(Original, vec2(uvC.x, 1.0-uvC.y)).rgb;
+   vec3 sample_image = (global.ntsc_toggle > 0.5) ? texture(Source, vec2(uvC.x, 1.0-uvC.y)).rgb : texture(vt220_refpass, vec2(uvC.x, 1.0-uvC.y)).rgb;
 
    vec4 image = vec4(sample_image * corner(uvC) * mask_weights(gl_FragCoord.xy, global.mask_strength, mask_picker), 1.0);
    image.rgb = pow(image.rgb, vec3(2.5/2.2)); //CRT-like gamma correction
    image.rgb = scanline(image.rgb, uvC.xy); //apply scanlines
-   FragColor = (global.ntsc_toggle > 0.5) ? bezelGen(Source, fragCoord.xy, image) : bezelGen(Original, fragCoord.xy, image); //apply bezel
+   FragColor = (global.ntsc_toggle > 0.5) ? bezelGen(Source, fragCoord.xy, image) : bezelGen(vt220_refpass, fragCoord.xy, image); //apply bezel
 }

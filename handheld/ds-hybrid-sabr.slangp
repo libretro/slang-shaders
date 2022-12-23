@@ -1,13 +1,16 @@
 # This shader requires 16:9 aspect ratio
 # and integer scaling OFF
 
-shaders = 2
+shaders = 3
 
-shader0 = ../sabr/shaders/sabr-v3.0.slang
-filter_linear0 = false
-scale_type0 = source
-scale0 = 2.0
-alias0 = Ref
+shader0 = ../stock.slang
+alias0 = ds_hybrid_view_refpass
 
-shader1 = shaders/ds-hybrid-view.slang
-filter_linear1 = true
+shader1 = ../sabr/shaders/sabr-v3.0.slang
+filter_linear1 = false
+scale_type1 = source
+scale1 = 2.0
+alias1 = Ref
+
+shader2 = shaders/ds-hybrid-view.slang
+filter_linear2 = true

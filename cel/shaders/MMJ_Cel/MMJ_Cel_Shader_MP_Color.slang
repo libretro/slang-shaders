@@ -56,7 +56,7 @@ void main()
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Original;
+layout(set = 0, binding = 2) uniform sampler2D MMJ_MP_refpass;
 layout(set = 0, binding = 3) uniform sampler2D MMJ_OutlinePass;
 
 vec3 RGB2HSL(vec3 cRGB) 
@@ -143,7 +143,7 @@ vec3 colorAdjust(vec3 cRGB)
 
 void main()
 {
-  vec3 cOriginal = texture(Original, vTexCoord).rgb;
+  vec3 cOriginal = texture(MMJ_MP_refpass, vTexCoord).rgb;
   vec3 cOutline = texture(MMJ_OutlinePass, vTexCoord).rgb;
 	
 	vec3 cNew = cOriginal;

@@ -84,7 +84,7 @@ float get_left_ratio(vec2 center, vec2 origin, vec2 direction, vec2 scale)
 
 layout(push_constant) uniform Push
 {
-	vec4 OriginalSize;
+	vec4 xbrz_fs_refpassSize;
 	vec4 OutputSize;
 } params;
 
@@ -108,13 +108,13 @@ void main()
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D Original;
+layout(set = 0, binding = 3) uniform sampler2D xbrz_fs_refpass;
 
 
 #define eq(a,b)  (a == b)
 #define neq(a,b) (a != b)
 
-#define P(x,y) texture(Original, coord + params.OriginalSize.zw * vec2(x, y)).rgb
+#define P(x,y) texture(xbrz_fs_refpass, coord + params.xbrz_fs_refpassSize.zw * vec2(x, y)).rgb
 
 void main()
 {
@@ -124,9 +124,9 @@ void main()
   //                      D|E|F
   //                      -|H|-
 
-  vec2 scale = params.OutputSize.xy * params.OriginalSize.zw;
-  vec2 pos = fract(vTexCoord * params.OriginalSize.xy) - vec2(0.5, 0.5);
-  vec2 coord = vTexCoord - pos * params.OriginalSize.zw;
+  vec2 scale = params.OutputSize.xy * params.xbrz_fs_refpassSize.zw;
+  vec2 pos = fract(vTexCoord * params.xbrz_fs_refpassSize.xy) - vec2(0.5, 0.5);
+  vec2 coord = vTexCoord - pos * params.xbrz_fs_refpassSize.zw;
 
   vec3 B = P( 0,-1);
   vec3 D = P(-1, 0);

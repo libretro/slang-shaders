@@ -34,7 +34,7 @@ shader5 = ../scalefx/shaders/scalefx-pass4.slang
 filter_linear5 = false
 scale_type5 = source
 scale5 = 3.0
-alias5 = Ref
+alias5 = ds_hybrid_view_refpass
 
 shader6 = shaders/ds-hybrid-view.slang
 filter_linear6 = true

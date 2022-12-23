@@ -1,8 +1,11 @@
-shaders = 2
+shaders = 3
 
-shader0 = "shaders/2xBR-multipass/2xbr-lv1-c-pass0.slang"
-filter_linear0 = false
-scale_type0 = source
+shader0 = ../../stock.slang
+alias0 = xBR_lv1_mp_refpass
 
-shader1 = "shaders/2xBR-multipass/2xbr-lv1-c-pass1.slang"
+shader1 = "shaders/2xBR-multipass/2xbr-lv1-c-pass0.slang"
 filter_linear1 = false
+scale_type1 = source
+
+shader2 = "shaders/2xBR-multipass/2xbr-lv1-c-pass1.slang"
+filter_linear2 = false

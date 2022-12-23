@@ -36,7 +36,7 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D LUT;
-layout(set = 0, binding = 4) uniform sampler2D Original;
+layout(set = 0, binding = 4) uniform sampler2D hqx_refpass;
 
 void main()
 {
@@ -46,10 +46,10 @@ void main()
 	float dx = registers.SourceSize.z;
 	float dy = registers.SourceSize.w;
 
-	vec3 p1 = texture(Original, vTexCoord).rgb;
-	vec3 p2 = texture(Original, vTexCoord + vec2(dx, dy) * quad).rgb;
-	vec3 p3 = texture(Original, vTexCoord + vec2(dx, 0.0) * quad).rgb;
-	vec3 p4 = texture(Original, vTexCoord + vec2(0.0, dy) * quad).rgb;
+	vec3 p1 = texture(hqx_refpass, vTexCoord).rgb;
+	vec3 p2 = texture(hqx_refpass, vTexCoord + vec2(dx, dy) * quad).rgb;
+	vec3 p3 = texture(hqx_refpass, vTexCoord + vec2(dx, 0.0) * quad).rgb;
+	vec3 p4 = texture(hqx_refpass, vTexCoord + vec2(0.0, dy) * quad).rgb;
 	vec3 pixels[4];
 	pixels[0]	=	p1.xyz;
 	pixels[1]	=	p2.xyz;

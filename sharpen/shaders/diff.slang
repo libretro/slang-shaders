@@ -50,7 +50,7 @@ void main()
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D Original;
+layout(set = 0, binding = 3) uniform sampler2D diff_refpass;
 
 const vec3 Y = vec3(.2126, .7152, .0722);
 
@@ -65,7 +65,7 @@ void main()
 	vec2 tex = vTexCoord;
 
 	vec4 c0 = texture(Source, tex);
-	vec4 c1 = texture(Original, tex);
+	vec4 c1 = texture(diff_refpass, tex);
 
 	FragColor = vec4(c0.xyz - c1.xyz, RGBtoYUV(c0.rgb));
 }

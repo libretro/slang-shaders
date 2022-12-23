@@ -125,7 +125,7 @@ void main()
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D Original;
+layout(set = 0, binding = 3) uniform sampler2D super2xbr3d_refpass;
 
 void main()
 {
@@ -164,15 +164,15 @@ void main()
 	g1 *= 2.0;
 	g2 *= 2.0;
 
-	vec3 F6 = texture(Original, tex +g1+0.25*g1+0.25*g2).xyz;
-	vec3 F7 = texture(Original, tex +g1+0.25*g1-0.25*g2).xyz;
-	vec3 F8 = texture(Original, tex +g1-0.25*g1-0.25*g2).xyz;
-	vec3 F9 = texture(Original, tex +g1-0.25*g1+0.25*g2).xyz;
+	vec3 F6 = texture(super2xbr3d_refpass, tex +g1+0.25*g1+0.25*g2).xyz;
+	vec3 F7 = texture(super2xbr3d_refpass, tex +g1+0.25*g1-0.25*g2).xyz;
+	vec3 F8 = texture(super2xbr3d_refpass, tex +g1-0.25*g1-0.25*g2).xyz;
+	vec3 F9 = texture(super2xbr3d_refpass, tex +g1-0.25*g1+0.25*g2).xyz;
 
-	vec3 H6 = texture(Original, tex +0.25*g1+0.25*g2+g2).xyz;
-	vec3 H7 = texture(Original, tex +0.25*g1-0.25*g2+g2).xyz;
-	vec3 H8 = texture(Original, tex -0.25*g1-0.25*g2+g2).xyz;
-	vec3 H9 = texture(Original, tex -0.25*g1+0.25*g2+g2).xyz;
+	vec3 H6 = texture(super2xbr3d_refpass, tex +0.25*g1+0.25*g2+g2).xyz;
+	vec3 H7 = texture(super2xbr3d_refpass, tex +0.25*g1-0.25*g2+g2).xyz;
+	vec3 H8 = texture(super2xbr3d_refpass, tex -0.25*g1-0.25*g2+g2).xyz;
+	vec3 H9 = texture(super2xbr3d_refpass, tex -0.25*g1+0.25*g2+g2).xyz;
 
 	vec4 f0 = reduce4(F6, F7, F8, F9);
 	vec4 h0 = reduce4(H6, H7, H8, H9);

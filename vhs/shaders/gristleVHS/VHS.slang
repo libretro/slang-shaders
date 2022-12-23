@@ -28,7 +28,7 @@ void main()
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D Original;
+layout(set = 0, binding = 3) uniform sampler2D gristleVHS_refpass;
 
 #define RGB_to_YIQ 	mat3x3( 0.299 , 0.595716 , 0.211456 ,	0.587    , -0.274453 , -0.522591 ,		0.114    , -0.321263 , 0.311135 )
 #define YIQ_to_RGB 	mat3x3( 1.0   , 1.0      , 1.0      ,	0.9563   , -0.2721   , -1.1070   ,		0.6210   , -0.6474   , 1.7046   )
@@ -40,7 +40,7 @@ const float rndtable[256] = float[](
 void main()
 {
 	vec3 ChromaPass = texture(Source, vTexCoord - vec2(params.SourceSize.z*0.333,0.0)).xyz * RGB_to_YIQ;
-	vec3 LuminaPass = texture(Original, vTexCoord).xyz * RGB_to_YIQ;
+	vec3 LuminaPass = texture(gristleVHS_refpass, vTexCoord).xyz * RGB_to_YIQ;
 
 	vec3 MergedPass= vec3(LuminaPass.x,ChromaPass.yz) * YIQ_to_RGB;
 

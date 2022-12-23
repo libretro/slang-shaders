@@ -59,7 +59,7 @@ layout(location = 1) in vec2 screen_coord;
 layout(location = 2) in vec2 resize_coord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D Original;
+layout(set = 0, binding = 3) uniform sampler2D maximus_refpass;
 
 void main()
 {
@@ -126,7 +126,7 @@ if (LightsCoordScale.x > -0.05 && LightsCoordScale.x < 1.05 && LightsCoordScale.
 
 if (LightsCoord.x > 0.0  && LightsCoord.x < 1.0 && LightsCoord.y > 0.0  && LightsCoord.y < 1.0) { newLightsCoord = LightsCoordScale; }
 
-vec4 lightSource = texture(Original, newLightsCoord).rgba;
+vec4 lightSource = texture(maximus_refpass, newLightsCoord).rgba;
 
 FragColor = lightSource; //final output
 }

@@ -27,7 +27,7 @@
 layout(push_constant) uniform Push
 {
 	vec4 SourceSize;
-	vec4 OriginalSize;
+	vec4 crt_interlaced_halation_refpassSize;
 	vec4 OutputSize;
 	uint FrameCount;
 } params;
@@ -66,9 +66,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
             #define PI 3.141592653589
 
             #ifdef LINEAR_PROCESSING
-            #       define TEX2D(c) pow(texture(Original, (c)), vec4(CRTgamma))
+            #       define TEX2D(c) pow(texture(crt_interlaced_halation_refpass, (c)), vec4(CRTgamma))
             #else
-            #       define TEX2D(c) texture(Original, (c))
+            #       define TEX2D(c) texture(crt_interlaced_halation_refpass, (c))
             #endif
 
 
@@ -204,10 +204,10 @@ void main()
         #endif
 
                     // The size of one texel, in texture-coordinates.
-                    one = ilfac / params.OriginalSize.xy;
+                    one = ilfac / params.crt_interlaced_halation_refpassSize.xy;
 
                     // Resulting X pixel-coordinate of the pixel we're drawing.
-                    mod_factor = vTexCoord.x * params.OriginalSize.x * params.OutputSize.x / params.OriginalSize.x;
+                    mod_factor = vTexCoord.x * params.crt_interlaced_halation_refpassSize.x * params.OutputSize.x / params.crt_interlaced_halation_refpassSize.x;
 }
 
 #pragma stage fragment
@@ -220,7 +220,7 @@ layout(location = 5) in vec2 sinangle;
 layout(location = 6) in vec2 cosangle;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D Original;
+layout(set = 0, binding = 3) uniform sampler2D crt_interlaced_halation_refpass;
 
 #define mul(a, b) (b * a)
 
