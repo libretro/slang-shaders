@@ -40,6 +40,7 @@ scale_type_x7 = "source"
 scale_x7 = "1.000000"
 scale_type_y7 = "source"
 scale_y7 = "1.000000"
+alias7 = XbrSource
 
 shader8 = "../xbr/shaders/super-xbr/super-xbr-pass0.slang"
 filter_linear8 = "false"
