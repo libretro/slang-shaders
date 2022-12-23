@@ -68,6 +68,7 @@ shader16 = ../../shaders/dedither/dedither-gamma-prep-2-after.slang
 shader17 = ../../shaders/ps1dither/hsm-PS1-Undither-BoxBlur.slang
 
 shader18 = ../../shaders/guest/extras/hsm-sharpsmoother.slang
+alias18 = "DeditherPass"
 
 // GTU TV Processing
 shader19 = ../../shaders/gtu/hsm-gtu-pass1.slang
@@ -101,9 +102,10 @@ scale23 = 1.0
 // Color Correction with Dogway's awesome Grade shader
 // Grade is after Afterglow so that brightening the black level does not break the afterglow
 shader24 = ../../shaders/dogway/hsm-grade.slang
-filter_linear24 = true
+filter_linear24 = false
 scale_type24 = source
 scale24 = 1.0
+alias24 = "ColorCorrectPass"
 
 shader25 =  ../../shaders/guest/hsm-custom-fast-sharpen.slang
 filter_linear25 = true
@@ -170,19 +172,23 @@ alias32 = BloomPass
 
 shader33 = ../../shaders/guest/hsm-crt-guest-advanced.slang
 filter_linear33 = true
-float_framebuffer33 = true
 scale_type33 = viewport
 scale_x33 = 1.0
 scale_y33 = 1.0
+float_framebuffer33 = true
 
 shader34 = ../../shaders/guest/hsm-deconvergence.slang
 filter_linear34 = true
 scale_type34 = viewport
 scale_x34 = 1.0
 scale_y34 = 1.0
+float_framebuffer34 = true
+alias34 = "CRTPass"
 
 shader35 = ../../shaders/base/post-crt-prep-image-layers.slang
-alias35 = "MBZ_PostCRTPass"
+scale_type35 = viewport
+float_framebuffer35 = true
+alias35 = "PostCRTPass"
 
 // Reduce Resolution  ----------------------------------------------------------------
 //      Reduce the resolution to a small static size regardless of final resolution
@@ -198,16 +204,19 @@ scale_type36 = absolute
 // scale_y36 = 540
 scale_x36 = 800
 scale_y36 = 600
+float_framebuffer36 = true
 alias36 = "BR_MirrorLowResPass"
 
 // Add Blur for the Reflection (Horizontal) ----------------------------------------------------------------
 shader37 = ../../shaders/base/blur-outside-screen-horiz.slang
 mipmap_input37 = true
 filter_linear37 = true
+float_framebuffer37 = true
 
 // Add Blur for the Reflection (Vertical) ----------------------------------------------------------------
 shader38 = ../../shaders/base/blur-outside-screen-vert.slang
 filter_linear38 = true
+float_framebuffer38 = true
 alias38 = "BR_MirrorBlurredPass"
 
 // Reduce resolution ----------------------------------------------------------------
@@ -219,6 +228,7 @@ filter_linear39 = true
 scale_type39 = absolute
 scale_x39 = 128
 scale_y39 = 128
+float_framebuffer39 = true
 alias39 = "BR_MirrorReflectionDiffusedPass"
 
 // Add Diffused glow all around the screen ----------------------------------------------------------------
@@ -230,13 +240,13 @@ filter_linear40 = true
 scale_type40 = absolute
 scale_x40 = 12
 scale_y40 = 12
+float_framebuffer40 = true
 alias40 = "BR_MirrorFullscreenGlowPass"
 
 // Bezel Reflection ----------------------------------------------------------------
 shader41 = ../../shaders/base/reflection.slang
 scale_type41 = viewport
-float_framebuffer41 = true
-alias41 = "BR_CRTAndReflectionPass"
+alias41 = "ReflectionPass"
 
 // Bezel Generation & Composite of Image Layers ----------------------------------------------------------------
 

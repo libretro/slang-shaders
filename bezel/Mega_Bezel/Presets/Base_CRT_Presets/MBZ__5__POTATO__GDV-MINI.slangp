@@ -1,4 +1,4 @@
-shaders = 9
+shaders = 14
 
 shader0 = ../../shaders/base/add-params-potato.slang
 alias0 = "CorePass"
@@ -43,20 +43,59 @@ alias5 = "IntroPass"
 // Color Correction with Dogway's awesome Grade shader
 // Grade is after Afterglow so that brightening the black level does not break the afterglow
 shader6 = ../../shaders/dogway/hsm-grade.slang
-filter_linear6 = true
+filter_linear6 = false
 scale_type6 = source
 scale6 = 1.0
+alias6 = "ColorCorrectPass"
 
-shader7 = ../../shaders/guest/hsm-crt-dariusg-gdv-mini-potato.slang
-scale_type7 = viewport
+shader7 =  ../../shaders/guest/hsm-custom-fast-sharpen.slang
+filter_linear7 = true
+scale_type7 = source
 scale_x7 = 1.0
 scale_y7 = 1.0
-filter_linear7 = true
+
+shader8 = ../../shaders/base/stock.slang
+filter_linear8 = true
+scale_type8 = source
+scale_x8 = 1.0
+scale_y8 = 1.0
+alias8 = "PrePass"
+mipmap_input8 = true
+
+shader9 = ../../shaders/guest/hsm-avg-lum.slang
+filter_linear9 = true
+scale_type9 = source
+scale9 = 1.0
+mipmap_input9 = true
+alias9 = "AvgLumPass"
+
+// Pass referenced by subsequent blurring passes and crt pass
+shader10 = ../../shaders/guest/hsm-interlace-and-linearize.slang
+filter_linear10 = true
+scale_type10 = source
+scale10 = 1.0
+float_framebuffer10 = true
+alias10 = "LinearizePass"
+
+shader11 = ../../shaders/base/delinearize.slang
+scale_type11 = source
+float_framebuffer11 = "true"
+
+shader12 = ../../shaders/guest/hsm-crt-dariusg-gdv-mini-potato.slang
+scale_type12 = viewport
+scale_x12 = 1.0
+scale_y12 = 1.0
+filter_linear12 = true
+float_framebuffer12 = "true"
+alias12 = "CRTPass"
 
 g_sat = 0.15
+g_gamma_out = 2.45
 
-shader8 = ../../shaders/base/post-crt-prep-potato.slang
-alias8 = "MBZ_PostCRTPass"
+shader13 = ../../shaders/base/post-crt-prep-potato.slang
+scale_type13 = viewport
+float_framebuffer13 = true
+alias13 = "PostCRTPass"
 // Define textures to be used by the different passes
 textures = "ScreenPlacementImage;BackgroundImage;BackgroundVertImage"
 

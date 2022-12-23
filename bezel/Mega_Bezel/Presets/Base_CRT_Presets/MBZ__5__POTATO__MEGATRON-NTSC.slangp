@@ -1,4 +1,4 @@
-shaders = 22
+shaders = 23
 
 shader0 = ../../shaders/base/add-params-potato.slang
 alias0 = "CorePass"
@@ -58,9 +58,10 @@ scale8 = 1.0
 // Color Correction with Dogway's awesome Grade shader
 // Grade is after Afterglow so that brightening the black level does not break the afterglow
 shader9 = ../../shaders/dogway/hsm-grade.slang
-filter_linear9 = true
+filter_linear9 = false
 scale_type9 = source
 scale9 = 1.0
+alias9 = "ColorCorrectPass"
 
 shader10 = ../../shaders/base/stock.slang
 alias10 = "PrePass0"
@@ -95,22 +96,19 @@ scale_x14 = 1.0
 scale_y14 = 1.0
 
 shader15 = ../../shaders/base/stock.slang
-filter_linear15 = true
-scale_type15 = source
-scale_x15 = 1.0
-scale_y15 = 1.0
+float_framebuffer15 = true
 alias15 = "PrePass"
-mipmap_input15 = true
 
 shader16 = ../../shaders/guest/hsm-avg-lum.slang
 filter_linear16 = true
 scale_type16 = source
 scale16 = 1.0
 mipmap_input16 = true
+float_framebuffer16 = true
 alias16 = "AvgLumPass"
 
 // Pass referenced by subsequent blurring passes and crt pass
-shader17 = ../../shaders/guest/hsm-interlace-and-linearize.slang
+shader17 = ../../shaders/guest/hsm-interlace.slang
 filter_linear17 = true
 scale_type17 = source
 scale17 = 1.0
@@ -141,13 +139,19 @@ shader20 = "../../shaders/megatron/crt-sony-megatron-potato.slang"
 filter_linear20 = "false"
 wrap_mode20 = "clamp_to_border"
 mipmap_input20 = "false"
-alias20 = ""
-float_framebuffer20 = "false"
-srgb_framebuffer20 = "false"
 scale_type20 = "viewport"
+float_framebuffer20 = "true"
+alias20 = "CRTPass"
 
-shader21 = ../../shaders/base/post-crt-prep-potato.slang
-alias21 = "MBZ_PostCRTPass"
+shader21 = ../../shaders/base/post-crt-prep-potato-megatron.slang
+scale_type21 = viewport
+float_framebuffer21 = true
+alias21 = "PostCRTPass"
+
+// Combine Passes ----------------------------------------------------------------
+shader22 = ../../shaders/base/output-hdr.slang
+scale_type22 = viewport
+alias22 = "OutputPass"
 // Define textures to be used by the different passes
 textures = "SamplerLUT1;SamplerLUT2;SamplerLUT3;SamplerLUT4;ScreenPlacementImage;BackgroundImage;BackgroundVertImage"
 
@@ -180,12 +184,11 @@ HSM_ASPECT_RATIO_MODE = 1
 
 // Sony Megatron Color Monitor
 hcrt_hdr = "0.000000"
-hcrt_gamma_in = "2.020000"
 
 HSM_INT_SCALE_MODE = "1.000000"
 HSM_CRT_CURVATURE_SCALE = "0.000000"
-HSM_GLOBAL_GRAPHICS_BRIGHTNESS = "40.000000"
-HSM_REFLECT_GLOBAL_AMOUNT = "300.000000"
+HSM_GLOBAL_GRAPHICS_BRIGHTNESS = "100.000000"
+HSM_REFLECT_GLOBAL_AMOUNT = "40.000000"
 
 // NTSC Parameters
 GAMMA_INPUT = 2.0

@@ -1,31 +1,37 @@
 ![Mega_Bezel_Logo|512x256, 75%](upload://6PNkvcMF9Go9Wnk6OJXfYR1opXI.png) 
 
-Mega Bezel is updated to V1.5.0_2022-10-11
+Mega Bezel is updated to V1.7.0_2022-12-21
 
 Changes:
-  * Updated guest to crt-guest-advanced-2022-10-11-release1 with new halation
-  * Fixed Compilation issues with GLCore
-  * Fix error in Megatron which was preventing it from loading
-  * Fixed problem with NO-REFLECT where you could see the background through where the black edge was supposed to be
+  * POTATO
+    * Fixed Background Masking and Blend Modes
+    * Added Colorize & Brightness
+    * Show Passes Feature
+      * Added switch to enable/disable applying scale and curvature to raw passes
+        * This allows you to compare the passes all with the same curvature or what the pass actually looks like
+      * Moved Show Passes parameters right underneath the AB Compare parameters so they can both easily be used together
 
 ----------------------------------------------------
 --- TODO  ---------------------------------------
 ----------------------------------------------------
 
-  * Fix Blur Noise Samples
-  * Integer Scale Mode X & Y not affecting tube scale
-  * Move Global Variable Update to separate file for compile speed
+  * Adjustable Bezel Curvature per side?
+  * Revisit Tate Mode / Vertical Scanline and Rotate CRT artifacts
+    * Fast Sharpen & Sharp Smoother currently work on x axis, should be relative to scanline direction
+    * Get GTU to respect scanline direction
+    * NTSC is causing blurriness when using FB Neo and Rotate CRT - Test Game Batrider
+      * We need to know what orientation the game is in the first place to do this
+    * When in interlacing mode for vertical opposite mult should do something
+  * Use brightness values of sides to control static corner highlight
+  * Fix Megatron Reflection
+  * Create 4K Royale Preset
 
   * Add .params #reference to with all parameters commented out
-  * Bezel shadow on Potato Tube / Game Image
-  * Get CRT image to composite on top of the BG, so effects can affect the BG
   * We should have a middle pass which has the device behind the CRT tube
 
 ----------------------------------------------------
 --- Examples  --------------------------------------
 ----------------------------------------------------
-  * Punch Out - Dual Screen
-
 Recent Performance 2022-09-18
 Spec RTX-2060, at 4K:
   240p image
@@ -47,37 +53,40 @@ Spec RTX-2060, at 4K:
 --- Post V1  ---------------------------------------
 ----------------------------------------------------
   * Auto Rotate
-  * Original scaling mode to deal with black final viewport in Parallel RDP in both mupen and Parallel cores.
-  * Compensate for Negative Crop, 
-    * User crop values should be relative to original core image, not core image + negative crop area 
-  * Missing inner Edge static shading?
   * Guess White/Black Matting?
   * Auto Shadow for image Layers above screen
   * Mega Back Light a la philips Hue/Ambient
   * Night light single glow - Place Glows
   * Fix Corner Shading
+
   * Double Bezel
   * Swap option for Blurry vs Sharp Tube Reflection
-  * Add NTSC Adaptive Preset?
-  * Add Variations CRT Royale Glass & Advanced
-  * Do some more OrionsAngel Presets with new Mega_Bezel
-  * Add option for core res fake scanlines
+  * Do some OrionsAngel Arcade Presets
   * Add Rewind Effect?
-  * Black Edges should be driven by bezel not screen? (Right now bezel overlaps the screen with no black line)
-  * When in interlacing mode for vertical opposite mult should do something
-  * Fix bright area of screen showing outside the black line when bezel is hidden
-  Update Docs & add some notes about GDV & Grade
   * Rotate Dual Screen
-  * Adjust Black adjustment so it affects not just black, Falloff? Tweak Afterglow?
-  * Modulate Range on top of Hue & Value?
-  * Logo Position offset?
-  * LCD behavior when reaching resolution limit
-  * Local vs FullScreen Blur on Corner reflection?
+  * LCD behavior when reaching resolution limit?
   * Shadow from Cutout?
   * Large Slotmask Bitmap Mask
-  * Do Hylian Sync Version
+  * Hyllian Sync Version?
 
+  * Black frames in Mupen64Plus-Next using parallel RDP, seen in Perfect Dark
+    * Original scaling mode to deal with black final viewport in Parallel RDP in both mupen and Parallel cores.
 
+Scene Dynamic Lighting
+  * Reflection from screen on additional elements
+    * Side Panels, Speaker Panel, Table
+    * Masking of main and additional reflection
+  * Bounce lighting from screen to room back to the scene
+    * Masking behind devices
+  * Sprite sheet for arcade Lighting loop
+  * Sprite sheets for left and right machine attract mode loops
+  * Split Normal vs Additive in layers
+
+  * More Reflection from closer to middle of screen on bezel
+
+  * Additional Screens driven by Sprite Sheets
+
+  * Night Lighting - Modulate Range on top of Hue & Value
 
 ----------------------------------------------------
 --- Independent Shader Stuff for Main Repo  --------
@@ -88,7 +97,7 @@ Spec RTX-2060, at 4K:
     * Move Resolution Debug to be top justified
 
   * Gameboy
-    * Fix DMG Shader
+    * Fix DMG Shader or make new one
     * Fix Low Contrast Issue
     * Multiple palettes including Custom for Gameboy  
     * Add Gameboy Palettes https://www.deviantart.com/thewolfbunny/gallery/69987002/game-boy-palettes
@@ -97,6 +106,7 @@ Spec RTX-2060, at 4K:
     * Why? Maybe only in Portrait Res?
   * Outer reflection corner radius should be independent when in independent mode
   * See why very inner edge seems not affected by reflection mask
+
   * Startup Animation - Sprite Sheet
 
   * Frame Shading
@@ -106,27 +116,8 @@ Spec RTX-2060, at 4K:
     * Fix shading with rounded outer corner
     * Frame shadow should follow corner radius
 
-  * Integer Scale Guides?
-  * Reflection fade option to have reflection come to 100% at inner frame boundary so you can have a glass like effect outside the bezel
-  * Per Layer Scaling of Cutout?
-  * Noise Sampling on Tube Highlight
   * When reflection is off still see inner bezel edge reflection
-  * Guess Resolution for Core Sampling Multiplier?, Set target vertical downsampled resolution, try to get multiple.
-  * Reflection on Control Panel and Speaker Panel
-
   * Put Torridgristle LUT back in for blue skys?
-
-  * Scanlines
-    * Get GTU to respect scanline direction
-  * Color Management/Correction
-    * Brightness balance the presets so they are consistent, some are currently brighter than others
-  * Add some standard deconvergence which can be used with the rolling scanlines
-  * Reflection on areas outside the frame, e.g. Arcade Speaker Panel and Control Panel
-  * Optimize presets using non-float frame buffers
-  * Independent frame scaling?
-
-
-
 
 Documentation
   Troubleshooting 
@@ -153,13 +144,21 @@ Old Megabezel https://github.com/HyperspaceMadness/shaders_slang/tree/adf6dc3c0f
 --- Retroarch Features -----------------------------
 ----------------------------------------------------
 
+  * Add Core Provided Aspect as Uniform
+  * Add Rotation as Uniforms
+  * Replace Text, for shader type, game & core, content directory
+    * core_name
+    * game_name
+    * [shadertype], [gamename], [corename], [contentdirectory]
+    * Check textures and use default if not found
+    
+
   * Append (Prepend) Shader Preset - to add a shader preset to the beginning of the chain
   * Fix edit shader in UI - Changes are currently lost or need to apply twice
   * Fix loss of current parameter values when retroarch goes from full screen to window
   * Fix saving with same name with different capitalization creates self reference
   * Shaders folder as a path token, e.g. "[shaders]/shaders_slang/" [shaders_dir]?
   * Hide Parameters
-  * Add Core Provided Aspect as Uniform
 
   * Stop Reloading Shader multiple times on Save (Keep optional param)
 
@@ -186,22 +185,16 @@ Old Megabezel https://github.com/HyperspaceMadness/shaders_slang/tree/adf6dc3c0f
   * Add "Timer" uniform variable vec4(total-count, count-since-shader-load, oscillator[1,0,1,0,1,...], [unknown/undefined])
     * Unknown could be frames since direction change, good for rewind effect 
 
-  * Replace Text, for shader type, game & core, content directory
-    * core_name
-    * game_name
-    * [shadertype], [gamename], [corename], [contentdirectory]
-    * Check textures and use default if not found
-    
   * Check for alias used multiple times appears as semantic error now
   * global.x is semantic error if x not in global
   * GIF support
-  * Fix <texture>Size, only works for textures in DX11, 12, not Vulkan
-
-  Super Glow HighFX Version?, manage brightness
-
 
 Questions for Survey
 
+What kind of intro would you like as default in the Mega Bezel?
+Snow Only
+Snow + CH 04
+Snow + Mega Bezel Logo
 
 
 * Old Perf Numbers before Caching

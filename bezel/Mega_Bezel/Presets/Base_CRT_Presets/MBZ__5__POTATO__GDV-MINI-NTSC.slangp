@@ -1,4 +1,4 @@
-shaders = 13
+shaders = 18
 
 shader0 = ../../shaders/base/add-params-potato.slang
 alias0 = "CorePass"
@@ -43,9 +43,10 @@ alias5 = "IntroPass"
 // Color Correction with Dogway's awesome Grade shader
 // Grade is after Afterglow so that brightening the black level does not break the afterglow
 shader6 = ../../shaders/dogway/hsm-grade.slang
-filter_linear6 = true
+filter_linear6 = false
 scale_type6 = source
 scale6 = 1.0
+alias6 = "ColorCorrectPass"
 
 shader7 = ../../shaders/base/stock.slang
 alias7 = "PrePass0"
@@ -73,16 +74,54 @@ scale_type10 = source
 scale_x10 = 1.0
 scale_y10 = 1.0
 
-shader11 = ../../shaders/guest/hsm-crt-dariusg-gdv-mini-potato.slang
-scale_type11 = viewport
+shader11 =  ../../shaders/guest/hsm-custom-fast-sharpen.slang
+filter_linear11 = true
+scale_type11 = source
 scale_x11 = 1.0
 scale_y11 = 1.0
-filter_linear11 = true
+
+shader12 = ../../shaders/base/stock.slang
+filter_linear12 = true
+scale_type12 = source
+scale_x12 = 1.0
+scale_y12 = 1.0
+alias12 = "PrePass"
+mipmap_input12 = true
+
+shader13 = ../../shaders/guest/hsm-avg-lum.slang
+filter_linear13 = true
+scale_type13 = source
+scale13 = 1.0
+mipmap_input13 = true
+alias13 = "AvgLumPass"
+
+// Pass referenced by subsequent blurring passes and crt pass
+shader14 = ../../shaders/guest/hsm-interlace-and-linearize.slang
+filter_linear14 = true
+scale_type14 = source
+scale14 = 1.0
+float_framebuffer14 = true
+alias14 = "LinearizePass"
+
+shader15 = ../../shaders/base/delinearize.slang
+scale_type15 = source
+float_framebuffer15 = "true"
+
+shader16 = ../../shaders/guest/hsm-crt-dariusg-gdv-mini-potato.slang
+scale_type16 = viewport
+scale_x16 = 1.0
+scale_y16 = 1.0
+filter_linear16 = true
+float_framebuffer16 = "true"
+alias16 = "CRTPass"
 
 g_sat = 0.15
+g_gamma_out = 2.45
 
-shader12 = ../../shaders/base/post-crt-prep-potato.slang
-alias12 = "MBZ_PostCRTPass"
+shader17 = ../../shaders/base/post-crt-prep-potato.slang
+scale_type17 = viewport
+float_framebuffer17 = true
+alias17 = "PostCRTPass"
 // Define textures to be used by the different passes
 textures = "ScreenPlacementImage;BackgroundImage;BackgroundVertImage"
 

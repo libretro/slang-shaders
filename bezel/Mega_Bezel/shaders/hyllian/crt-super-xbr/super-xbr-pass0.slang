@@ -41,6 +41,7 @@ layout(push_constant) uniform Push
 	float SUPERXBR_ON;
 } params;
 
+#pragma parameter HSM_SUPER_XBR_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter SUPERXBR_TITLE "[ --- SUPER-XBR by HYLLIAN --- ]:" 0 0 0.01 0.01
 #pragma parameter SUPERXBR_ON 		"          Super-XBR ON" 1 0 1 1
 #define SUPERXBR_ON params.SUPERXBR_ON

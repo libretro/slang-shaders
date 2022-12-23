@@ -22,6 +22,7 @@
    
 */
 
+#pragma parameter GDV_BRIGHTNESS_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter bogus_brightness "[ BRIGHTNESS SETTINGS ]:" 0.0 0.0 1.0 1.0
 
 #pragma parameter glow "          Glow Strength -- glow" 0.08 -2.0 2.0 0.01
@@ -39,7 +40,7 @@
 #pragma parameter halation "          Halation Strength -- halation" 0.0 -2.0 2.0 0.025
 #define halation         global.halation     // halation effect
 
-#pragma parameter gamma_c "          Gamma Correct -- gamma_c" 1.0 0.50 2.0 0.02
+#pragma parameter gamma_c "          Gamma Correct -- gamma_c" 1.0 0.50 2.0 0.025
 #define gamma_c   global.gamma_c     // adjust brightness
 
 #pragma parameter brightboost "          Bright Boost Dark Pixels -- brightboost" 1.40 0.25 10.0 0.05
@@ -74,9 +75,10 @@
 // #pragma parameter sborder "          Border Intensity" 0.75 0.25 2.0 0.05
 // #define sborder       global.sborder     // border intensity
 
+#pragma parameter GDV_HUMBAR_LINE							" " 0 0 0.001 0.001
 #pragma parameter gdv_humbar_title "[ HUM BAR ]: " 0.0 0.0 0.1 0.1
 
-#pragma parameter barspeed "          Hum Bar Speed" 50.0 5.0 200.0 1.0
+#pragma parameter barspeed "          Hum Bar Speed" 50.0 3.0 200.0 1.0
 
 #pragma parameter barintensity "          Hum Bar Intensity" 0.0 -1.0 1.0 0.01
 
@@ -97,16 +99,17 @@
 // #pragma parameter overscanY "          Overscan Y original pixels" 0.0 -200.0 200.0 1.0
 // #define overscanY        global.overscanY     // OverscanY pixels
 
-// #pragma parameter prescalex "          Prescale-X Factor (for xBR...pre-shader)" 1.0 1.0 4.0 1.0
-// #define prescalex        global.prescalex     // prescale-x factor
-
+#pragma parameter GDV_CRT_MASK_LINE							" " 0 0 0.001 0.001
 #pragma parameter bogus_masks "[ CRT MASK OPTIONS ]: " 0.0 0.0 1.0 1.0
 
-#pragma parameter shadowMask "CRT Mask: -1:None|0:CGWG|1-4:Lottes|5-12:Trinitrn -- shadowMask" 0.0 -1.0 12.0 1.0
+#pragma parameter shadowMask "CRT Mask: -1:None|0:CGWG|1-4:Lottes|5-12:Trinitrn -- shadowMask" 0.0 -1.0 13.0 1.0
 #define shadowMask   global.shadowMask     // Mask Style
 
 #pragma parameter masksize "          Mask Size - 0:Auto | 2K | 4k -- masksize" 1.0 0.0 4 1.0
 #define masksize     global.masksize     // Mask Size
+
+#pragma parameter masksizeautothreshold "          Mask Size Auto Threshold -- masksizeautothreshold" 2000 100 4000 100
+#define masksizeautothreshold     global.masksizeautothreshold
 
 #pragma parameter maskstr "          Mask Strength (0, 5-12) -- maskstr" 0.3 -0.5 1.0 0.025
 #define maskstr         global.maskstr      // CGWG Mask Strength
@@ -114,13 +117,16 @@
 #pragma parameter mcut "          Mask 5-12 Low Strength -- mcut" 1.10 0.0 2.0 0.05
 #define mcut         global.mcut      // Mask 5-9 cutoff
 
+#pragma parameter maskboost "          CRT Mask Boost" 1.0 1.0 3.0 0.05
+#define maskboost     global.maskboost     // Mask Boost
+
 #pragma parameter maskDark "          Mask 1-4 Lottes maskDark" 0.5 0.0 2.0 0.05
 #define maskDark     global.maskDark     // Dark "Phosphor"
 
 #pragma parameter maskLight "          Mask 1-4 Lottes maskLight" 1.5 0.0 2.0 0.05
 #define maskLight    global.maskLight     // Light "Phosphor"
 
-#pragma parameter mshift "          Mask Shift/Stagger" 0.0 -8.0 8.0 1.0
+#pragma parameter mshift "          Mask Shift/Stagger" 0.0 -8.0 8.0 0.5
 #define mshift     global.mshift     // mask 'line' shift/stagger
 
 #pragma parameter mask_layout "       Mask Layout: RGB or BGR (check LCD panel) -- mask_layout" 0.0 0.0 1.0 1.0
@@ -144,14 +150,18 @@
 #pragma parameter slotms "          Slot Mask Size - Auto | 2K | 4k -- slotms" 1.0 0.0 4.0 1.0
 #define slotms  global.slotms       // Slot Mask Size
 
-#pragma parameter mclip "          Keep Mask effect with clipping -- mclip" 0.50 0.0 1.0 0.05
+#pragma parameter mclip "          Keep Mask effect with clipping -- mclip" 0.0 0.0 1.0 0.05
 #define mclip  global.mclip
+
+#pragma parameter smoothmask "          Smooth Masks in bright scanlines" 0.0 0.0 1.0 1.0
+#define smoothmask  global.smoothmask
 
 // #pragma parameter gamma_out "Gamma out" 2.4 1.0 5.0 0.05
 #define gamma_out    HSM_GAMMA_OUT_CRT     // output gamma
 
 
 
+#pragma parameter GDV_DECONVERGENCE_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter bogus_deconvergence11 "[ HORIZONTAL/VERTICAL DECONVERGENCE ]: " 0.0 0.0 1.0 1.0
 
 #pragma parameter GDV_DECONVERGENCE_ON "          Use Deconvergence" 0 0 1 1
@@ -175,18 +185,24 @@
 
 #pragma parameter decons   "          Strength -- decons" 1 0 3.0 0.10
 
+#pragma parameter dcscalemode   "       Scale Mode -- dcscalemode: SCREEN|OUTPUT|ABSOLUTE|MASK" 0 0 3 1
+
+
+#pragma parameter GDV_NOISE_LINE							" " 0 0 0.001 0.001
 #pragma parameter noise_title "[ NOISE ]: " 0.0 0.0 1.0 1.0
 
 #pragma parameter GDV_NOISE_ON 	"          Noise ON" 0 0 1 1
 
 #pragma parameter addnoised "          Add Noise" 0.2 -1.0 1.0 0.02
 
-#pragma parameter noiseresd "          Noise Resolution" 2.0 1.0 10.0 1.0
+#pragma parameter noiseresd "          Noise Size (AKA Resolution)" 2.0 1.0 10.0 1.0
+
+// HSM Added
+#pragma parameter noiseresd4kmult "          Noise Size Multiplier at 4K" 2 1 4 1
 
 #pragma parameter noisetype "          Noise Type: Colored, Luma" 0.0 0.0 1.0 1.0
 
 // #pragma parameter post_br   "          Post CRT Brightness" 1.0 0.25 5.0 0.01
-
 
 #define COMPAT_TEXTURE(c,d) texture(c,d)
 #define TEX0 vTexCoord
@@ -224,23 +240,31 @@ layout(set = 0, binding = 8) uniform sampler2D InfoCachePass;
 
 #define eps 1e-10 
 
-// Shadow mask (1-4 from PD CRT Lottes shader).
-
-vec3 Mask(vec2 pos, float mx)
+// HSM Added
+float HSM_GetAutoScaledMaskSize(float in_masksize)
 {
-	// HSM Added
-	float final_mask_size = masksize;
+	float final_mask_size = in_masksize;
 
 	// If using automatic Mask Size
 	if (masksize < 0.5)
-		final_mask_size = global.FinalViewportSize.y > 2000 ? 2 : 1;
+		final_mask_size = min(global.FinalViewportSize.x, global.FinalViewportSize.y) > masksizeautothreshold ? 2 : 1;
 	
 	final_mask_size = max(1, floor(((1 - HSM_VIEWPORT_ZOOM_MASK) + HSM_VIEWPORT_ZOOM_MASK * VIEWPORT_SCALE.y) * final_mask_size + 0.2));
 
+	return final_mask_size;
+}
+
+// Shadow mask (1-4 from PD CRT Lottes shader).
+
+vec3 Mask(vec2 pos, float mx, float mb)
+{
+	// HSM Added
+	float final_mask_size = HSM_GetAutoScaledMaskSize(masksize);
 
 /* HSM Removed
 	vec2 pos0 = pos;
 	pos.y = floor(pos.y/masksize);
+	float stagg_lvl = 1.0; if (fract(abs(mshift)) > 0.25 && abs(mshift) > 1.25) stagg_lvl = 2.0;
 	float next_line = float(fract(pos.y*0.5) > 0.25);
 	pos0.x = (mshift > -0.25) ? (pos0.x + next_line * mshift) : (pos0.x + pos.y * mshift);
 	pos = floor(pos0/masksize);
@@ -248,6 +272,7 @@ vec3 Mask(vec2 pos, float mx)
 
 	vec2 pos0 = pos;
 	pos.y = floor(pos.y/final_mask_size);
+	float stagg_lvl = 1.0; if (fract(abs(mshift)) > 0.25 && abs(mshift) > 1.25) stagg_lvl = 2.0;
 	float next_line = float(fract(pos.y*0.5) > 0.25);
 	pos0.x = (mshift > -0.25) ? (pos0.x + next_line * mshift) : (pos0.x + pos.y * mshift);
 	pos = floor(pos0 / final_mask_size);
@@ -259,7 +284,11 @@ vec3 Mask(vec2 pos, float mx)
 
 	vec3 mask = vec3(maskDark, maskDark, maskDark);
 	vec3 one = vec3(1.0);
-	float dark_compensate  = mix(max( clamp( mix (mcut, maskstr, mx),0.0, 1.0) - 0.4, 0.0) + 1.0, 1.0, mx);
+	
+	// brightness correcture masks 5-12
+	float sm = 0.45; if(shadowMask == 8.0 || shadowMask == 11.0 || shadowMask == 13.0) sm = 0.7;
+	float dark_compensate  = mix(max( clamp( mix (mcut, maskstr, mx),0.0, 1.0) - sm, 0.0) + 1.0, 1.0, mx);
+	
 	float mc = 1.0 - max(maskstr, 0.0);	
 	
 	// No mask
@@ -412,18 +441,33 @@ vec3 Mask(vec2 pos, float mx)
 	}     
 
 	// RRGGBBX mask
-	else
+	else if (shadowMask == 12.0)
 	{
 		mask = vec3(0.0);
 		pos.x = floor(mod(pos.x,7.0));
-		if      (pos.x < 1.0)  mask   = 0.0.xxx;
-		else if (pos.x < 3.0)  mask.r = 1.0;
-		else if (pos.x < 5.0)  mask.g = 1.0;	
+		if      (pos.x < 0.5)  mask   = 0.0.xxx;
+		else if (pos.x < 2.5)  mask.r = 1.0;
+		else if (pos.x < 4.5)  mask.g = 1.0;	
 		else                   mask.b = 1.0;
-		mask = clamp(mix( mix(one, mask, mcut), mix(one, mask, maskstr), mx), 0.0, 1.0) * dark_compensate;		
-	}  
- 
-	return mask;
+		mask = clamp(mix( mix(one, mask, mcut), mix(one, mask, maskstr), mx), 0.0, 1.0) * dark_compensate;
+	}
+
+	// 4k mask
+	else
+	{
+		mask = vec3(0.0);
+		pos.x = floor(mod(pos.x,6.0));
+		if      (pos.x < 0.5)  mask   = 0.0.xxx;
+		else if (pos.x < 1.5)  mask.r = 1.0;
+		else if (pos.x < 2.5)  mask.rg = 1.0.xx;
+		else if (pos.x < 3.5)  mask.rgb = 1.0.xxx;
+		else if (pos.x < 4.5)  mask.gb = 1.0.xx;		
+		else                   mask.b = 1.0;
+		mask = clamp(mix( mix(one, mask, mcut), mix(one, mask, maskstr), mx), 0.0, 1.0) * dark_compensate;
+	}
+	
+	float maskmin = min(min(mask.r,mask.g),mask.b);
+	return (mask - maskmin) * (1.0 + (maskboost-1.0)*mb) + maskmin;
 }
 
 float SlotMask(vec2 pos, float m)
@@ -431,13 +475,9 @@ float SlotMask(vec2 pos, float m)
 	if ((slotmask + slotmask1) == 0.0) return 1.0;
 	else
 	{
+
 	// HSM Added
-	float final_mask_size = slotms;
-	// If using automatic Mask Size
-	if (slotms < 0.5)
-		final_mask_size = (global.FinalViewportSize.x + global.FinalViewportSize.y) / 3 > 1900 ? 2 : 1;
-	
-	final_mask_size = max(1, floor(((1 - HSM_VIEWPORT_ZOOM_MASK) + HSM_VIEWPORT_ZOOM_MASK * VIEWPORT_SCALE.y) * final_mask_size + 0.2));
+	float final_mask_size = HSM_GetAutoScaledMaskSize(slotms);
 
 	pos = floor(pos / final_mask_size);
 	// End HSM Added
@@ -512,6 +552,11 @@ vec3 declip(vec3 c, float b)
 	return c;
 }
 
+float igc(float mc)
+{
+	return pow(mc, gamma_c);
+}
+
 // noise function:
 // Dedicated to the public domain.
 // If you want a real license, you may consider this MIT/BSD/CC0/WTFPL-licensed (take your pick).
@@ -533,13 +578,52 @@ vec3 noise(vec3 v){
 
 void fetch_pixel (inout vec3 c, inout vec3 b, vec2 coord, vec2 bcoord)
 {
+	/* HSM REmoved
 		float stepx = OutputSize.z;
 		float stepy = OutputSize.w;
-		
+	*/
+
+		float stepx = 0.5;
+		float stepy = 0.5;
+
+		// HSM Added
+		// Link Deconvergence as a ratio of the viewport height
+		if (global.dcscalemode < 1.5)
+		{
+			// Base deconvergence size based on 1080p
+			stepx = 1.0 / 1080.0 * OutputSize.y / OutputSize.x;
+			stepy = 1.0 / 1080.0;
+		}
+
+		// Link Deconvergence size to screen height
+		if (global.dcscalemode == 0)
+		{
+			stepx *= SCREEN_SCALE_WITH_ZOOM.y / DEFAULT_SCREEN_HEIGHT;
+			stepy *= SCREEN_SCALE_WITH_ZOOM.y / DEFAULT_SCREEN_HEIGHT;
+		}
+
+		// Link Deconvergence size is to final output pixel size
+		if (global.dcscalemode > 1.5)
+		{
+			// Compensate for a landscape viewport in 0-1 space
+			stepx = OutputSize.z;
+			stepy = OutputSize.w;
+
+			// Link the deconvergence to the mask size
+			if (global.dcscalemode == 3.0)
+			{
+				float scaled_mask_size = HSM_GetAutoScaledMaskSize(masksize);
+				stepx *= scaled_mask_size;
+				stepy *= scaled_mask_size;
+			}
+		}
+
 		float ds = global.decons;
 				
 		vec2 dx = vec2(stepx, 0.0);
 		vec2 dy = vec2(0.0, stepy);		
+
+
 		
 		float posx = 2.0*coord.x - 1.0;
 		float posy = 2.0*coord.y - 1.0;
@@ -588,7 +672,6 @@ void fetch_pixel (inout vec3 c, inout vec3 b, vec2 coord, vec2 bcoord)
 
 void main()
 {
-
 	/* HSM Removed
 	vec4 SourceSize = global.OriginalSize * vec4(prescalex, 1.0, 1.0/prescalex, 1.0);
 	*/
@@ -663,27 +746,45 @@ void main()
 	vec2 pos = HSM_GetMirrorWrappedCoord(screen_curved_coord);
 	vec2 pos0 = pos;
 
-	vec3 color0 = COMPAT_TEXTURE(Source,pos1).rgb;
-	float c0 = max(max(color0.r, color0.g),color0.b);
-
 	// color and bloom fetching
 	vec3 color = COMPAT_TEXTURE(Source,pos1).rgb;
 	vec3  Bloom = HSM_GetCroppedTexSample(BloomPass, pos).rgb;
 
-	// HSM Added
-	if (GDV_DECONVERGENCE_ON > 0.5)
-		fetch_pixel(color, Bloom, pos1, pos); // deconvergence
+	/* HSM Removed
+if ((abs(global.deconrr) + abs(global.deconrry) + abs(global.deconrg) + abs(global.deconrgy) + abs(global.deconrb) + abs(global.deconrby)) > 0.2)
+	fetch_pixel(color, Bloom, pos1, pos); // deconvergence
+	*/
 
-	float cm = max(max(color.r,color.g),color.b);
+	// HSM Added
+	if (GDV_DECONVERGENCE_ON > 0.5 && ((abs(global.deconrr) + abs(global.deconrry) + abs(global.deconrg) + abs(global.deconrgy) + abs(global.deconrb) + abs(global.deconrby)) > 0.2))
+		fetch_pixel(color, Bloom, pos1, pos); // deconvergence
+	
+	float cm = igc(max(max(color.r,color.g),color.b));
 	float mx1 = COMPAT_TEXTURE(Source, pos1     ).a;
 	float colmx = max(mx1, cm);
-	float w3 = min((c0 + 0.0005) / (pow(colmx, gamma_in/1.4) + 0.0005), 1.0);
+	float w3 = min((cm + 0.0001) / (colmx + 0.0005), 1.0);
 	
 	vec2 dx = mix(vec2(0.001, 0.0), vec2(0.0, 0.001), TATE);
 	float mx0 = COMPAT_TEXTURE(Source, pos1 - dx).a;
 	float mx2 = COMPAT_TEXTURE(Source, pos1 + dx).a;
-	float mx = max(max(mx0,mx1),max(mx2,cm));
+	float mxg = max(max(mx0,mx1),max(mx2,cm));
+	float mx = pow(mxg, 1.40/gamma_in);
+
+	// mask boost tweak
 	
+	/* HSM Removed
+	dx = mix(vec2(global.OriginalSize.z, 0.0), vec2(0.0, global.OriginalSize.w), TATE) * 0.25;
+	*/
+
+	dx = mix(vec2(1 / CROPPED_ROTATED_SIZE_WITH_RES_MULT.x, 0.0), 
+			 vec2(0.0, 1 / CROPPED_ROTATED_SIZE_WITH_RES_MULT.y),
+			 TATE) * 0.25;
+	dx *=  SCREEN_SCALE.y / DEFAULT_SCREEN_HEIGHT;
+
+	mx0 = COMPAT_TEXTURE(Source, pos1 - dx).a;
+	mx2 = COMPAT_TEXTURE(Source, pos1 + dx).a;
+	float mb = 1.0 - min(abs(mx0-mx2)/(0.5+mx1), 1.0);
+		
 	vec3 one = vec3(1.0);
 	
 	// Apply Mask
@@ -695,33 +796,29 @@ void main()
 	if (notate) maskcoord = maskcoord.yx;
 	
 	float smask = SlotMask(maskcoord, mx);	
-	cmask*= Mask(maskcoord, mx);
-	
+	cmask*= Mask(maskcoord, mx, mb);
+
 	if (mask_layout > 0.5) cmask = cmask.rbg;
 
+	cmask*=smask;
 	vec3 cmask1 = cmask;
-	float smask1 = smask;
 
 	if (mask_bloom > 0.025)
 	{
-		float maxb = max(max(Bloom.r,Bloom.g),Bloom.b);
-		maxb = pow(sqrt(maxb*mix(maxb, colmx, 0.75)),0.325);
-		vec3 mBloom = 0.5*(1.4*Bloom+0.6*maxb) * mix(1.0, 2.0-colmx, (bloom_dist + 0.5));
-		float maskmx = 1.0; if (shadowMask > 0.5 || shadowMask < 4.5) maskmx = maskLight; else if (shadowMask > 6.5 && shadowMask < 10.5) maskmx = 1.0; else maskmx = max(max(cmask.r,cmask.g),cmask.b);
-		cmask = min(cmask + maxb*mBloom*mask_bloom, maskmx);
-		smask = min(smask + maxb*max(max(mBloom.r,mBloom.g),mBloom.b)*mask_bloom, 1.0);
+		float maxbl = max(max(max(Bloom.r,Bloom.g),Bloom.b), mxg);
+		maxbl = maxbl * mix(1.0, 2.0-colmx, bloom_dist);
+		cmask = max(min(cmask + maxbl*mask_bloom, 1.0), cmask);
 	}
 	
 	color = pow(color, vec3(mask_gamma/gamma_in));
 	color = color*cmask;
 	color = min(color,1.0);
-	color = color*smask;
 	color = pow(color, vec3(gamma_in/mask_gamma));
 
-	cmask = min(cmask*smask, 1.0);
-	cmask1 = min(cmask1*smask1, 1.0);
+	cmask = min(cmask, 1.0);
+	cmask1 = min(cmask1, 1.0);
 
-	float bb = mix(brightboost, brightboost1, colmx);
+	float bb = mix(brightboost, brightboost1, mx);
 	if (interb) bb = (abs(intera-0.5)<0.1) ? pow(0.80*bb, 0.65) : pow(bb, 0.70);
 	color*=bb;
 
@@ -738,14 +835,14 @@ void main()
 
 	vec3 Bloom1 = Bloom;
 
+if (abs(bloom) > 0.025)
+{
 	if (bloom < -0.01) Bloom1 = plant(Bloom, maxb);
-
 	Bloom1 = min(Bloom1*(orig1+color), max(0.5*(colmx + orig1 - color),0.001*Bloom1));
 	Bloom1 = 0.5*(Bloom1 + mix(Bloom1, mix(colmx*orig1, Bloom1, 0.5), 1.0-color));
-
 	Bloom1 = Bloom1 * mix(1.0, 2.0-colmx, bloom_dist);
-
 	color = color + abs(bloom) * Bloom1;
+}
 
 	color = min(color, mix(one, cmask1, mclip));
 
@@ -755,10 +852,12 @@ void main()
 		Bloom = mix(0.5*(Bloom + Bloom*Bloom), 0.75*Bloom*Bloom, colmx);	
 		color = color + 2.0*max((2.0*mix(maxb*maxb, maxb, colmx)-0.5*max(max(Ref.r,Ref.g),Ref.b)),0.25)*mix(1.0,w3,0.5*colmx)*mix(one,cmask,0.6)*Bloom*halation; }
 	else
-	if (halation < 0.01) {
+	if (halation < -0.01) {
 		float mbl = max(max(Bloom.r,Bloom.g),Bloom.b);
 		Bloom = plant(Bloom + Ref + orig1 + Bloom*Bloom*Bloom, min(mbl*mbl,0.75));
 		color = color + 2.0*mix(1.0,w3,0.5*colmx)*mix(one,cmask,0.5)*Bloom*(-halation); }
+
+	if (smoothmask > 0.5) { w3 = mix(1.0, w3, smoothstep(0.3, 0.6, mx1)); color = max(min(color/w3, 1.0)*w3, min(color,color*(1.0-w3))); }
 
 	Glow = mix(Glow, 0.25*color, 0.7*colmx);
 	if (glow >= 0.0) color = color + 0.5*Glow*glow; else { cmask*=cmask; cmask*=cmask; color = color + (-glow)*cmask*Glow; }
@@ -768,14 +867,26 @@ void main()
 	*/
 	
 	color = pow(color, vec3(1.0/gamma_out));
-
-	float rc = 0.6*sqrt(max(max(color.r, color.g), color.b))+0.4;
 	
 	
 	if (global.GDV_NOISE_ON > 0.5)
 	{
-		vec3 noise0 = noise(vec3(floor(OutputSize.xy * vTexCoord / global.noiseresd), float(global.FrameCount)));
-		if (global.noisetype < 0.5) color = mix(color, noise0, 0.25*abs(global.addnoised) * rc); 
+		float rc = 0.6*sqrt(max(max(color.r, color.g), color.b))+0.4;
+
+		/* HSM Removed
+		vec3 noise0 = noise(vec3(floor(OutputSize.xy * vTexCoord / global.noiseresd), float(global.FrameCount)));		
+		if (global.noisetype < 0.5) color = mix(color, noise0, 0.25*abs(global.addnoised) * rc);
+		else color = min(color * mix(1.0, 1.5*noise0.x, 0.5*abs(global.addnoised)), 1.0);
+		*/
+
+		// HSM Added
+		float noise_res = global.FinalViewportSize.y > 2000 ? global.noiseresd * global.noiseresd4kmult : global.noiseresd;
+
+		// If we are at 8k multiply this by 2
+		noise_res *= global.noiseresd4kmult > 1 && global.FinalViewportSize.y > 4200 ? 2 : 1;
+
+		vec3 noise0 = noise(vec3(floor(OutputSize.xy * vTexCoord / noise_res), float(global.FrameCount)));		
+		if (global.noisetype < 0.5) color = mix(color, noise0, 0.25*abs(global.addnoised) * rc);
 		else color = min(color * mix(1.0, 1.5*noise0.x, 0.5*abs(global.addnoised)), 1.0);
 	}
 
@@ -786,5 +897,7 @@ void main()
 	// HSM Added
 	float adjusted_bardir = global.bardir < 0 ? TATE : global.bardir;
 	color.rgb *= humbar(mix(pos.y, pos.x, adjusted_bardir));
+
 	FragColor = vec4(color, 1.0);
+	FragColor = HSM_Linearize(FragColor, DEFAULT_SRGB_GAMMA);
 }

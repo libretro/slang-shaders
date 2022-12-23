@@ -1,4 +1,4 @@
-#reference "../Base_CRT_Presets_DREZ/MBZ__0__SMOOTH-ADV__DREZ-480p__GDV.slangp"
+#reference "../Base_CRT_Presets_DREZ/MBZ__0__SMOOTH-ADV__GDV__DREZ-480p.slangp"
 
 BackgroundImage = ../../shaders/textures/HSM_Duimon_Super_Famicom_3840x2160.png
 
@@ -25,4 +25,3 @@ HSM_BZL_COLOR_VALUE = "30.000000"
 HSM_AMBIENT_LIGHTING_OPACITY = "98.000000"
 
 HSM_BG_FILL_MODE = 1
-HSM_BG_SCALE_KEEP_ASPECT = 0

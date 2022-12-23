@@ -3,7 +3,7 @@ Mega Bezel Shader Readme
 ------------------------------------------------------------------------------------------------------------
 ![Mega Bezel Logo](MegaBezelLogo.png)
 
-**Version V1.5.0_2022-10-11**
+**Version V1.7.0_2022-12-21**
 ----------------------------------------
 ----------------------------------------
 
@@ -204,36 +204,40 @@ And of course I probably would never have started this without seeing the great 
 
 - All in the root of the Presets folder use @guest.r's awesome Guest-Advanced CRT shader which is considered the default CRT shader for the Mega Bezel, the only exception to this is the POTATO preset which uses GDV-MINI for performance reasons.
 
-|                        |Reflection  |Image Layering |Tube Effects  |Pre-CRT Chain  Preset
-|------------------------|------------|---------------|--------------|---------------
-| MBZ__0__SMOOTH-ADV     | ✔          | ✔           | ✔             | FULL + ScaleFx UpRes 
-| MBZ__1__ADV            | ✔          | ✔           | ✔             | FULL           
-| MBZ__2__ADV-GLASS      | ✔          |              | ✔             | FULL          
-| MBZ__2__ADV-NO-REFLECT |             | ✔           | ✔             | FULL          
-| MBZ__3__STD            | ✔          | ✔           | ✔             | BASIC    
-| MBZ__3__STD-GLASS      | ✔          |              | ✔             | BASIC    
-| MBZ__4__STD-NO-REFLECT |             | ✔           | ✔             | BASIC    
-| MBZ__5__POTATO         |             | BG ONLY     |                | MINIMAL       
-|
+|Category                |Reflection  |Image Layers |Tube Fx  |Pre-CRT Chain   |Smooth Upscale  
+|------------------------|------------|-------------|---------|----------------|---------------
+| MBZ__0__SMOOTH-ADV     | ✔          | ✔          | ✔       | FULL + ScaleFx | ✔              
+| MBZ__1__ADV            | ✔          | ✔          | ✔       | FULL           |                
+| MBZ__2__ADV-GLASS      | ✔          |            | ✔        | FULL          |                
+| MBZ__2__ADV-NO-REFLECT |            | ✔          | ✔        | FULL          |                
+| MBZ__3__STD            | ✔          | ✔          | ✔       | BASIC          |                
+| MBZ__3__STD-GLASS      | ✔          |            | ✔        | BASIC         |                
+| MBZ__4__STD-NO-REFLECT |            | ✔          | ✔        | BASIC         |                
+| MBZ__5__POTATO         |            | BG ONLY     |          | MINIMAL       |                
+| SCREEN-ONLY            |            |             | ✔       | Category Chain | N/A             
+| SUPER-XBR              |N/A         |N/A          | ✔       | Category Chain + SUPER-XBR  | ✔              
+
 **Descriptions:**
 
   * **Glass** 
     * Presets which show a blurry reflection in the area around the screen
   * **Image Layering**
-    * Layering of multiple images for background, crt housing, LEDs etc
+    * Layering of multiple images for background, CRT housing, LEDs etc
     * Includes the Automatically Generated Bezel & Frame
   * **Tube Effects**
     * Tube Static Reflection Highlight
     * Tube Diffuse Image & Shadow
     * Tube Colored Gel
   * **Basic Pre-CRT shader chain**
-    * Fewest passes, but still Includes Grade
+    * Fewest passes, but still Includes Grade Color Correction
   * **Full Pre-CRT shader chain** 
-    * Includes Grade, MDAPT & GTU
-  * **Full + ScaleFx Upres Pre-CRT shader chain** 
+    * Includes Basic chain + DeDithering & GTU
+  * **Full Pre-CRT shader chain + ScaleFx Upres** 
     * Includes Full Pre-CRT shader chain and ScaleFX
     * Resolution is tripled in the middle of the chain for ScaleFX
     * This requires increased GPU processing
+  * **SCREEN-ONLY**
+    * Includes whatever the Pre-CRT shader chain of the main category but removes the bezel, images and reflection
 
 **Preset Folders in Mega_Bezel / Presets**
 
@@ -271,7 +275,7 @@ And of course I probably would never have started this without seeing the great 
 | Info Cache                             | ✔           | ✔   | ✔   | ✔
 | Resolution Text                        | ✔           | ✔   | ✔   | 
 | Startup Intro                          | ✔           | ✔   | ✔   |
-| De-Dithering                           | ✔           | ✔   |     |
+| De-Dithering                           | ✔           | ✔   |      |
 | Image Sharpening                       | ✔           | ✔   | ✔   |
 | Uprezed Edge Contour Smoothing         | ✔           |     |      |
 | Bandwidth Horizontal Blurring (GTU)    | ✔           | ✔   | ✔   |
@@ -530,7 +534,13 @@ Cropping removes parts of the game image at the edges of the screen which were n
 - **Crop Overscan Right**
 - **Black Threshold for 'CROP BLACK ONLY'** - The brightness threshold of the black area to be cropped
 
-
+-----------------------------------------------------------------------------------------------
+**[ DREZ DOWNSAMPLE FILTER - HYLLIAN - DREZ PRESETS ONLY ]:**
+- **DREZ Filter** - Filter to use in the DREZ downsampling pass 
+  - 0 - B-Spline
+  - 1 - Bicubic
+  - 2 - Catmull-Rom
+  - 3 - Bicubic H
 
 -----------------------------------------------------------------------------------------------
 **[ SCANLINE DIRECTION ]:**
@@ -539,14 +549,10 @@ Cropping removes parts of the game image at the edges of the screen which were n
   - 0 - Auto --- Chooses horizontal or vertical scanline direction based on aspect ratio
   - 1 - Horizontal
   - 2 - Vertical
-
------------------------------------------------------------------------------------------------
-**[ DREZ DOWNSAMPLE FILTER - HYLLIAN - DREZ PRESETS ONLY ]:**
-- **DREZ Filter** - Filter to use in the DREZ downsampling pass 
-  - 0 - B-Spline
-  - 1 - Bicubic
-  - 2 - Catmull-Rom
-  - 3 - Bicubic H
+- **No-Scanline Mode** 
+  - Guest Advanced Only, keeps scanline dynamics withoug the darkness between lines
+  - 0 - OFF
+  - 1 - ON
 
 -----------------------------------------------------------------------------------------------
 **[ CORE RES SAMPLING ]:**
@@ -557,21 +563,34 @@ Cropping removes parts of the game image at the edges of the screen which were n
 - **Scanline Direction Multiplier (X-Prescale for H Scanline)**
   - Adjust the sampling in direction of the scanlines
   - E.G. if the scanlines are horizontal this adjusts sampling along the horizontal axis
+  - 0 uses the upscaling ratio, so for a SMOOTH-ADV preset this ratio would be 300%, If there is no upscaling this ratio is 100%
 - **Scanline Dir Downsample Blur**
   - Add blur along the scanline direction
 - **Opposite Direction Multiplier (Y Downsample for H Scanline)**
   - Adjust the sampling in direction opposite of the scanlines
   - E.G. if the scanlines are horizontal this adjusts sampling along the vertical axis
+  - 0 uses the upscaling ratio, so for a SMOOTH-ADV preset this ratio would be 300%, If there is no upscaling this ratio is 100%
 - **Opposite Dir Downsample Blur**
   - Add blur along the opposite direction of the scanlines
+
+-----------------------------------------------------------------------------------------------
+**[ FAST SHARPEN - GUEST.R ]:**
+
+- **Sharpen Strength**
+- **Amount of Sharpening**
+- **Details Sharpened**
 
 -----------------------------------------------------------------------------------------------
 **[ INTERLACING From Guest.r :) ]:**
 
 - **Interlace and Fake Scanlines Trigger Res**
   - Resolution where the shader should switch into its interlace or high res content mode.
-- **Interlacing Mode: OFF | Normal 1-3 | Interpolation 4-5**
-  * Default is Mode 4 which gives a result with no scanlines
+- **Interlacing Mode**
+  * Default is Mode 4 which gives a result with no scanlines and bilinear blending
+  - **-1 - No Scanlines**
+  - **0 - No Interlacing**
+  - **1-3 - Normal Interlacing Modes**
+  - **4-5 - Interpolation Interlacing Modes**
 - **Interlacing Effect Smoothness**
 - **Interlacing Scanline Effect**
 - **Interlacing (Scanline) Saturation**
@@ -649,7 +668,6 @@ Blend parts of the image which flicker on/off repeatedly between frames often us
   - 1: BLACK & WHITE
   - 2: AMBER
   - 3: GREEN
-
 - **Monochrome Gamma** 
 - **Monochrome Hue Offset** 
 - **Monochrome Saturation** 
@@ -1253,26 +1271,23 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
   - ***Decal Image*** *- Follow the Decal Image Scaling*
   - ***Top Extra Image*** *- Follow the Top Extra Image Scaling*
 
-- **Follow Full also follows Zoom**
+- ***Follow Mode***
+  - *Controls if this layer follows another layer's scaling* 
+  - ***Follow Scale and Pos*** *- Follow Scale and Position, ignore split*
+  - ***Follow Exactly*** *- Match the layer exactly including split*
+
+- ***Follow Full also follows Zoom***
   - When the layer Follow Layer is in **FULL** mode this controls if the layer should scale with the global zoom or not, this defaults to ON
 
-- **Scale Aspect**
-  - Controls how the texture's aspect reacts to the inherited scale
-  - **0 - INHERIT FROM SCALE MODE** --- The texture's aspect will scale as what it follows is scaled
-  - **1 - USE TEXURE ASPECT** --- The layer's image stays the same aspect as what it follows is scaled
+- ***Image Fill Mode***
+  - **0 - USE TEXURE ASPECT** --- Keeps the aspect of the teture
+  - **1 - SPLIT HORIZONTAL** --- Splits the image in the center and slide it out towards the sides to match the required aspect
+  - **2 - STRETCH** --- Stretch the image across the whole area to match the required aspect
 
-  - **Example:** 
-    - If the scale mode was **Tube** and **USE TEXURE ASPECT** was on, regardless of the aspect of the tube the layer's image would stay the aspect ratio of the image. 
-    - If it is set to **INHERIT FROM SCALE MODE** the layer's image will react to the tube's changes in horizontal aspect.* 
-
-- **Image Fill Mode**
-  - **0 - STRETCH** --- Stretch the image across the whole area
-  - **1 - SPLIT HORIZONTAL** --- Splits the image in the center and slide it out until it hits the outer edge
-
-- **Split Mode Preserve Center %** --- Preserves a part of the center of the graphic when split is used
+- ***Split Mode Preserve Center %*** --- Preserves a part of the center of the graphic when split is used
   - One usage is to have a logo in the center of the bottom of the monitor graphic and reserve space for this
 
-- **Split Mode Repeat Width %** --- Width of repeating texture in exposed area 
+- ***Split Mode Repeat Width %*** --- Width of repeating texture in exposed area 
   - When this is 0 repeat is off
 
 - **Scale** --- *Scales image layer equally in both directions*
@@ -1299,13 +1314,15 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
 - **Mask**
 - **Cutout Mask**
 - **Dual Screen Visibility**
+
+**[ BACKGROUND SCALE & FOLLOW ]:**
+
 - **Follow Layer**
   - **0 - FullScreen**
   - **1 - Tube**
   - **2 - Bezel**
 - **Follow Layer**
 - **Follow Full also follows Zoom**
-- **Scale Aspect**
 - **Image Fill Mode**
 - **Split Mode Preserve Center %**
 - **Scale**
@@ -1347,15 +1364,17 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
 - **Mask**
 - **Cutout Mask**
 - **Dual Screen Visibility**
+
+**[ LED SCALE & FOLLOW ]:**
+
 - **Follow Layer**
   - **0 - FullScreen**
   - **1 - Tube**
   - **2 - Bezel**
   - **3 - BG**
   - **4 - Device**
-- **Follow Layer**
+- **Follow Mode**
 - **Follow Full also follows Zoom**
-- **Scale Aspect**
 - **Image Fill Mode**
 - **Split Mode Preserve Center %**
 - **Scale**
@@ -1380,14 +1399,16 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
 - **Mask**
 - **Cutout Mask**
 - **Dual Screen Visibility**
+
+**[ DEVICE SCALE & FOLLOW ]:**
+
 - **Follow Layer**
   - **0 - FullScreen**
   - **1 - Tube**
   - **2 - Bezel**
   - **3 - BG**
-- **Follow Layer**
+- **Follow Mode**
 - **Follow Full also follows Zoom**
-- **Scale Aspect**
 - **Image Fill Mode**
 - **Split Mode Preserve Center %**
 - **Scale**
@@ -1412,15 +1433,17 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
 - **Mask**
 - **Cutout Mask**
 - **Dual Screen Visibility**
+
+**[ DECAL SCALE & FOLLOW ]:**
+
 - **Follow Layer**
   - **0 - FullScreen**
   - **1 - Tube**
   - **2 - Bezel**
   - **3 - BG**
   - **4 - Device**
-- **Follow Layer**
+- **Follow Mode**
 - **Follow Full also follows Zoom**
-- **Scale Aspect**
 - **Image Fill Mode**
 - **Split Mode Preserve Center %**
 - **Scale**
@@ -1430,7 +1453,7 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
 - **Mipmapping Blend Bias**
 
 -----------------------------------------------------------------------------------------------
-**[ CABINET OR CABINET GLASS LAYER ]:**
+**[ CABINET GLASS LAYER ]:**
 
 - **Opacity**
 - **Colorize On**
@@ -1445,6 +1468,9 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
 - **Mask**
 - **Cutout Mask**
 - **Dual Screen Visibility**
+
+**[ CABINET GLASS SCALE & FOLLOW ]:**
+
 - **Follow Layer**
   - **0 - FullScreen**
   - **1 - Tube**
@@ -1452,9 +1478,8 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
   - **3 - BG**
   - **4 - Device**
   - **5 - Decal**
-- **Follow Layer**
+- **Follow Mode**
 - **Follow Full also follows Zoom**
-- **Scale Aspect**
 - **Image Fill Mode**
 - **Split Mode Preserve Center %**
 - **Scale**
@@ -1481,6 +1506,9 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
 - **Mask**
 - **Cutout Mask**
 - **Dual Screen Visibility**
+
+**[ TOP SCALE & FOLLOW ]:**
+
 - **Follow Layer**
   - **0 - FullScreen**
   - **1 - Tube**
@@ -1488,9 +1516,8 @@ Used to cut a rectangular area from the layers, for example cutting out the hole
   - **3 - BG**
   - **4 - Device**
   - **5 - Decal**
-- **Follow Layer**
+- **Follow Mode**
 - **Follow Full also follows Zoom**
-- **Scale Aspect**
 - **Image Fill Mode**
 - **Split Mode Preserve Center %**
 - **Scale**

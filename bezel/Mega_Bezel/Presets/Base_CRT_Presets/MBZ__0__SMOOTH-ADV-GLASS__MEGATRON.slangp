@@ -1,4 +1,4 @@
-shaders = 44
+shaders = 45
 
 shader0 = ../../shaders/base/add-params-glass.slang
 alias0 = "CorePass"
@@ -60,6 +60,7 @@ shader15 = ../../shaders/dedither/dedither-gamma-prep-2-after.slang
 shader16 = ../../shaders/ps1dither/hsm-PS1-Undither-BoxBlur.slang
 
 shader17 = ../../shaders/guest/extras/hsm-sharpsmoother.slang
+alias17 = "DeditherPass"
 
 shader18 = ../../shaders/base/stock.slang
 alias18 = refpass
@@ -124,9 +125,10 @@ scale28 = 1.0
 // Color Correction with Dogway's awesome Grade shader
 // Grade is after Afterglow so that brightening the black level does not break the afterglow
 shader29 = ../../shaders/dogway/hsm-grade.slang
-filter_linear29 = true
+filter_linear29 = false
 scale_type29 = source
 scale29 = 1.0
+alias29 = "ColorCorrectPass"
 
 shader30 =  ../../shaders/guest/hsm-custom-fast-sharpen.slang
 filter_linear30 = true
@@ -135,22 +137,19 @@ scale_x30 = 1.0
 scale_y30 = 1.0
 
 shader31 = ../../shaders/base/stock.slang
-filter_linear31 = true
-scale_type31 = source
-scale_x31 = 1.0
-scale_y31 = 1.0
+float_framebuffer31 = true
 alias31 = "PrePass"
-mipmap_input31 = true
 
 shader32 = ../../shaders/guest/hsm-avg-lum.slang
 filter_linear32 = true
 scale_type32 = source
 scale32 = 1.0
 mipmap_input32 = true
+float_framebuffer32 = true
 alias32 = "AvgLumPass"
 
 // Pass referenced by subsequent blurring passes and crt pass
-shader33 = ../../shaders/guest/hsm-interlace-and-linearize.slang
+shader33 = ../../shaders/guest/hsm-interlace.slang
 filter_linear33 = true
 scale_type33 = source
 scale33 = 1.0
@@ -181,19 +180,20 @@ shader36 = "../../shaders/megatron/crt-sony-megatron.slang"
 filter_linear36 = "false"
 wrap_mode36 = "clamp_to_border"
 mipmap_input36 = "false"
-alias36 = ""
-float_framebuffer36 = "false"
-srgb_framebuffer36 = "false"
 scale_type36 = "viewport"
+float_framebuffer36 = "true"
+alias36 = "CRTPass"
 
 shader37 = ../../shaders/base/post-crt-prep-glass.slang
-alias37 = "MBZ_PostCRTPass"
+scale_type37 = viewport
+float_framebuffer37 = true
+alias37 = "PostCRTPass"
 
 // Reduce Resolution  ----------------------------------------------------------------
 //      Reduce the resolution to a small static size regardless of final resolution
 //      Allows consistent look and faster at different final resolutions for blur
 //      Mipmap option allows downscaling without artifacts
-shader38 = ../../shaders/base/linearize-crt.slang
+shader38 = ../../shaders/base/linearize-crt-hdr.slang
 mipmap_input38 = true
 filter_linear38 = true
 scale_type38 = absolute
@@ -203,16 +203,19 @@ scale_type38 = absolute
 // scale_y38 = 540
 scale_x38 = 800
 scale_y38 = 600
+float_framebuffer38 = true
 alias38 = "BR_MirrorLowResPass"
 
 // Add Blur for the Reflection (Horizontal) ----------------------------------------------------------------
 shader39 = ../../shaders/base/blur-outside-screen-horiz.slang
 mipmap_input39 = true
 filter_linear39 = true
+float_framebuffer39 = true
 
 // Add Blur for the Reflection (Vertical) ----------------------------------------------------------------
 shader40 = ../../shaders/base/blur-outside-screen-vert.slang
 filter_linear40 = true
+float_framebuffer40 = true
 alias40 = "BR_MirrorBlurredPass"
 
 // Reduce resolution ----------------------------------------------------------------
@@ -224,6 +227,7 @@ filter_linear41 = true
 scale_type41 = absolute
 scale_x41 = 128
 scale_y41 = 128
+float_framebuffer41 = true
 alias41 = "BR_MirrorReflectionDiffusedPass"
 
 // Add Diffused glow all around the screen ----------------------------------------------------------------
@@ -235,12 +239,18 @@ filter_linear42 = true
 scale_type42 = absolute
 scale_x42 = 12
 scale_y42 = 12
+float_framebuffer42 = true
 alias42 = "BR_MirrorFullscreenGlowPass"
 
 // Bezel Reflection ----------------------------------------------------------------
-shader43 = ../../shaders/base/reflection-glass.slang
+shader43 = ../../shaders/base/reflection-glass-hdr.slang
 scale_type43 = viewport
-alias43 = "BR_CRTAndReflectionPass"
+alias43 = "ReflectionPass"
+
+// Combine Passes ----------------------------------------------------------------
+shader44 = ../../shaders/base/output-hdr.slang
+scale_type44 = viewport
+alias44 = "OutputPass"
 // Define textures to be used by the different passes
 textures = "SamplerLUT1;SamplerLUT2;SamplerLUT3;SamplerLUT4;IntroImage;ScreenPlacementImage;TubeDiffuseImage;TubeColoredGelImage;TubeShadowImage;TubeStaticReflectionImage;BackgroundImage;BackgroundVertImage;ReflectionMaskImage;FrameTextureImage;CabinetGlassImage;DeviceImage;DeviceVertImage;DeviceLEDImage;DecalImage;NightLightingImage;NightLighting2Image;LEDImage;TopLayerImage;"
 
@@ -368,25 +378,28 @@ HSM_SCREEN_VIGNETTE_IN_REFLECTION = "0.000000"
 
 g_vignette = "0.0"
 
-// SMOOTH-ADV
-HSM_DEDITHER_MODE = 1
-
-HSM_SCALEFX_ON = 1
-
-HSM_CORE_RES_SAMPLING_MULT_SCANLINE_DIR = 300
-HSM_CORE_RES_SAMPLING_MULT_OPPOSITE_DIR = 125
-HSM_DOWNSAMPLE_BLUR_SCANLINE_DIR = 0
-HSM_DOWNSAMPLE_BLUR_OPPOSITE_DIR = 0
-
-ntsc_scale = 0.4
-
-shadowMask = 3
-
 // Sony Megatron Color Monitor
 hcrt_hdr = "0.000000"
-hcrt_gamma_in = "2.020000"
 
 HSM_INT_SCALE_MODE = "1.000000"
 HSM_CRT_CURVATURE_SCALE = "0.000000"
-HSM_GLOBAL_GRAPHICS_BRIGHTNESS = "40.000000"
-HSM_REFLECT_GLOBAL_AMOUNT = "300.000000"
+HSM_GLOBAL_GRAPHICS_BRIGHTNESS = "100.000000"
+HSM_REFLECT_GLOBAL_AMOUNT = "40.000000"
+// SMOOTH-ADV
+HSM_DEDITHER_MODE = "3.000000"
+
+HSM_SCALEFX_ON = 1
+
+HSM_CORE_RES_SAMPLING_MULT_SCANLINE_DIR = 600
+HSM_CORE_RES_SAMPLING_MULT_OPPOSITE_DIR = 100
+HSM_DOWNSAMPLE_BLUR_SCANLINE_DIR = 0
+HSM_DOWNSAMPLE_BLUR_OPPOSITE_DIR = 30
+
+ntsc_scale = 0.4
+
+// Lottes mask, a bit like a slot mask effect
+shadowMask = 1
+mask_bloom = 0.3
+
+// Mask Size is Auto, so it will look the same at 1080p and 4K
+masksize = 0

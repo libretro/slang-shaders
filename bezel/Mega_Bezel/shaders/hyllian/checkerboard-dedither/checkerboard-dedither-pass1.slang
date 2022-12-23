@@ -38,6 +38,7 @@ layout(push_constant) uniform Push
 	float HSM_DEDITHER_MODE;
 } params;
 
+#pragma parameter HSM_DEDITHERING_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter HSM_DEDITHERING_TITLE "[ --- MDAPT & HYLLIAN DE-DITHERING --- ]:" 0 0 0.01 0.01
 
 #pragma parameter HSM_DEDITHER_MODE "Mode: OFF| STRICT | RELAXED | HYLLIAN | HYL + STRIPES | STRIPES"	0 0 5 1

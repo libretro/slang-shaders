@@ -40,7 +40,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	mat4 MVP;
 } global;
 
-#pragma parameter HSM_DREZ_TITLE "[ DREZ DOWNSAMPLE FILTER - HYLLIAN - DREZ PRESETS ONLY ]:" 0 0 0.01 0.01
+#pragma parameter HSM_DREZ_TITLE "[ DREZ DOWNSAMPLE FILTER - HYLLIAN - DREZ PRESETS ONLY ]:" 0 0 0.001 0.001
 
 #pragma parameter C_FILTER_MODE "     DREZ Filter: B-SPLINE | BICUBIC | CATMULL-ROM | BICUBIC H" 0.0 0.0 3.0 1.0
 #define C_FILTER_MODE params.C_FILTER_MODE

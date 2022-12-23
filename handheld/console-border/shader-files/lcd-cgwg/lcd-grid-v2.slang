@@ -95,46 +95,53 @@ float intsmear(float x, float dx, float d, float coeffs[7])
 
 void main()
 {
-    vec2 texelSize = global.SourceSize.zw;
-    /* float2 range = IN.video_size / (IN.output_size * IN.texture_size); */
-    vec2 range = global.SourceSize.zw / screen_scale;
+    if(abs(vTexCoord.x - 0.5) < 0.5 && abs(vTexCoord.y - 0.5) < 0.5)
+    {
+        vec2 texelSize = global.SourceSize.zw;
+        /* float2 range = IN.video_size / (IN.output_size * IN.texture_size); */
+        vec2 range = global.SourceSize.zw / screen_scale;
 
-    vec3 cred   = pow(vec3(params.RSUBPIX_R, params.RSUBPIX_G, params.RSUBPIX_B), vec3(outgamma));
-    vec3 cgreen = pow(vec3(params.GSUBPIX_R, params.GSUBPIX_G, params.GSUBPIX_B), vec3(outgamma));
-    vec3 cblue  = pow(vec3(params.BSUBPIX_R, params.BSUBPIX_G, params.BSUBPIX_B), vec3(outgamma));
+        vec3 cred   = pow(vec3(params.RSUBPIX_R, params.RSUBPIX_G, params.RSUBPIX_B), vec3(outgamma));
+        vec3 cgreen = pow(vec3(params.GSUBPIX_R, params.GSUBPIX_G, params.GSUBPIX_B), vec3(outgamma));
+        vec3 cblue  = pow(vec3(params.BSUBPIX_R, params.BSUBPIX_G, params.BSUBPIX_B), vec3(outgamma));
 
-    ivec2 tli = ivec2(floor(vTexCoord/texelSize-vec2(0.4999)));
+        ivec2 tli = ivec2(floor(vTexCoord/texelSize-vec2(0.4999)));
 
-    vec3 lcol, rcol;
-    float subpix = (vTexCoord.x/texelSize.x - 0.4999 - float(tli.x))*3.0;
-    float rsubpix = range.x/texelSize.x * 3.0;
+        vec3 lcol, rcol;
+        float subpix = (vTexCoord.x/texelSize.x - 0.4999 - float(tli.x))*3.0;
+        float rsubpix = range.x/texelSize.x * 3.0;
 
-    lcol = vec3(intsmear(subpix+1.0, rsubpix, 1.5, coeffs_x),
-                intsmear(subpix    , rsubpix, 1.5, coeffs_x),
-                intsmear(subpix-1.0, rsubpix, 1.5, coeffs_x));
-    rcol = vec3(intsmear(subpix-2.0, rsubpix, 1.5, coeffs_x),
-                intsmear(subpix-3.0, rsubpix, 1.5, coeffs_x),
-                intsmear(subpix-4.0, rsubpix, 1.5, coeffs_x));
+        lcol = vec3(intsmear(subpix+1.0, rsubpix, 1.5, coeffs_x),
+                    intsmear(subpix    , rsubpix, 1.5, coeffs_x),
+                    intsmear(subpix-1.0, rsubpix, 1.5, coeffs_x));
+        rcol = vec3(intsmear(subpix-2.0, rsubpix, 1.5, coeffs_x),
+                    intsmear(subpix-3.0, rsubpix, 1.5, coeffs_x),
+                    intsmear(subpix-4.0, rsubpix, 1.5, coeffs_x));
 
-    if (params.BGR > 0.5) {
-        lcol.rgb = lcol.bgr;
-        rcol.rgb = rcol.bgr;
+        if (params.BGR > 0.5) {
+            lcol.rgb = lcol.bgr;
+            rcol.rgb = rcol.bgr;
+        }
+
+        float tcol, bcol;
+        subpix = vTexCoord.y/texelSize.y - 0.4999 - float(tli.y);
+        rsubpix = range.y/texelSize.y;
+        tcol = intsmear(subpix    ,rsubpix, 0.63, coeffs_y);
+        bcol = intsmear(subpix-1.0,rsubpix, 0.63, coeffs_y);
+
+        vec3 topLeftColor     = fetch_offset(tli, ivec2(0,0)) * lcol * vec3(tcol);
+        vec3 bottomRightColor = fetch_offset(tli, ivec2(1,1)) * rcol * vec3(bcol);
+        vec3 bottomLeftColor  = fetch_offset(tli, ivec2(0,1)) * lcol * vec3(bcol);
+        vec3 topRightColor    = fetch_offset(tli, ivec2(1,0)) * rcol * vec3(tcol);
+
+        vec3 averageColor = topLeftColor + bottomRightColor + bottomLeftColor + topRightColor;
+
+        averageColor = mat3(cred, cgreen, cblue) * averageColor;
+
+        FragColor = vec4(pow(averageColor, vec3(1.0/outgamma)),0.0);
     }
-
-    float tcol, bcol;
-    subpix = vTexCoord.y/texelSize.y - 0.4999 - float(tli.y);
-    rsubpix = range.y/texelSize.y;
-    tcol = intsmear(subpix    ,rsubpix, 0.63, coeffs_y);
-    bcol = intsmear(subpix-1.0,rsubpix, 0.63, coeffs_y);
-
-    vec3 topLeftColor     = fetch_offset(tli, ivec2(0,0)) * lcol * vec3(tcol);
-    vec3 bottomRightColor = fetch_offset(tli, ivec2(1,1)) * rcol * vec3(bcol);
-    vec3 bottomLeftColor  = fetch_offset(tli, ivec2(0,1)) * lcol * vec3(bcol);
-    vec3 topRightColor    = fetch_offset(tli, ivec2(1,0)) * rcol * vec3(tcol);
-
-    vec3 averageColor = topLeftColor + bottomRightColor + bottomLeftColor + topRightColor;
-
-    averageColor = mat3(cred, cgreen, cblue) * averageColor;
-
-    FragColor = vec4(pow(averageColor, vec3(1.0/outgamma)),0.0);
+    else
+    {
+        FragColor = vec4(0.0);
+    }
 }

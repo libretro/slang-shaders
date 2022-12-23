@@ -60,6 +60,7 @@ shader15 = ../../shaders/dedither/dedither-gamma-prep-2-after.slang
 shader16 = ../../shaders/ps1dither/hsm-PS1-Undither-BoxBlur.slang
 
 shader17 = ../../shaders/guest/extras/hsm-sharpsmoother.slang
+alias17 = "DeditherPass"
 
 // GTU TV Processing
 shader18 = ../../shaders/gtu/hsm-gtu-pass1.slang
@@ -93,9 +94,10 @@ scale22 = 1.0
 // Color Correction with Dogway's awesome Grade shader
 // Grade is after Afterglow so that brightening the black level does not break the afterglow
 shader23 = ../../shaders/dogway/hsm-grade.slang
-filter_linear23 = true
+filter_linear23 = false
 scale_type23 = source
 scale23 = 1.0
+alias23 = "ColorCorrectPass"
 
 shader24 =  ../../shaders/guest/hsm-custom-fast-sharpen.slang
 filter_linear24 = true
@@ -141,7 +143,7 @@ scale_x29 = 800.0
 scale_type_y29 = absolute
 scale_y29 = 600.0
 float_framebuffer29 = true
-alias29 = GlowPass
+alias29 = "GlowPass"
 
 shader30 = ../../shaders/guest/hsm-bloom_horizontal.slang
 filter_linear30 = true
@@ -158,23 +160,27 @@ scale_x31 = 1.0
 scale_type_y31 = source
 scale_y31 = 1.0
 float_framebuffer31 = true
-alias31 = BloomPass
+alias31 = "BloomPass"
 
 shader32 = ../../shaders/guest/hsm-crt-guest-advanced-no-reflect.slang
 filter_linear32 = true
-float_framebuffer32 = true
 scale_type32 = viewport
 scale_x32 = 1.0
 scale_y32 = 1.0
+float_framebuffer32 = true
 
 shader33 = ../../shaders/guest/hsm-deconvergence-no-reflect.slang
 filter_linear33 = true
 scale_type33 = viewport
 scale_x33 = 1.0
 scale_y33 = 1.0
+float_framebuffer33 = true
+alias33 = "CRTPass"
 
 shader34 = ../../shaders/base/post-crt-prep-no-reflect.slang
-alias34 = "MBZ_PostCRTPass"
+scale_type34 = viewport
+float_framebuffer34 = true
+alias34 = "PostCRTPass"
 
 // Bezel Generation & Composite of Image Layers ----------------------------------------------------------------
 

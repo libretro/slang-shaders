@@ -16,6 +16,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
    float blendMode;
 } global;
 
+#pragma parameter NTSC_SHARPNESS_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter ntsc_sharpness_title "   [ NTSC SHARPNESS ]:" 0 0 0.01 0.01
 #pragma parameter ntsc_sharp           "          Sharpness (Negative: Adaptive)" 0.0 -10.0 10.0 0.50
 #pragma parameter ntsc_shape           "          Sharpness Shape" 0.75 0.5 1.0 0.05

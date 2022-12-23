@@ -99,13 +99,18 @@ layout(push_constant) uniform Push
 */
 
 
+#pragma parameter DG_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter DG_TITLE                          "[ --- COLOR CORRECTION - GRADE --- ]:" 0 0 0 1
 
 #pragma parameter g_grade_on                       "          Grade ON" 1 0 1 1
+
+#pragma parameter DGGAMMA_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter DG_SIGNAL_GAMMA_TITLE             "[ GAMMA ]:" 0 0 0 1
-#pragma parameter g_gamma_in                        "          Game Embedded Gamma"            2.222 1.80 3.0 0.05
+#pragma parameter g_gamma_in                        "          Game Embedded Gamma"            2.25 1.80 3.0 0.05
+// 2.45 gamma_out is chosen to avoid black splotching in the glass preset
 #pragma parameter g_gamma_out                       "          CRT Electron Gun Gamma"         2.50 1.80 3.0 0.05        
 
+#pragma parameter DG_COLOR_SPACE_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter DG_SIGNAL_COLOR_SPACE_TITLE       "[ SIGNAL & COLOR SPACE ]:" 0 0 0 1
 #pragma parameter g_signal_type                     "          Signal Type (0:RGB 1:Composite)"                         1.0 0.0 1.0 1.0
 // Phosphor was changed from 2 to 1 to look similar to the input by default
@@ -114,53 +119,62 @@ layout(push_constant) uniform Push
 
 #pragma parameter g_hue_degrees                     "          Hue (Composite Only)"                  0.0 -360.0 360.0 1.0
 
+#pragma parameter DG_COLOR_SIGNAL_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter DG_SIGNAL_PROCESS_TITLE           "[ COLOR SIGNAL PROCESS ]:" 0 0 0 1
 #pragma parameter g_I_SHIFT                         "          I/U Shift"            0.0 -0.2 0.2 0.01
 #pragma parameter g_Q_SHIFT                         "          Q/V Shift"            0.0 -0.2 0.2 0.01
 #pragma parameter g_I_MUL                           "          I/U Multiplier"       1.0  0.0 2.0 0.01
 #pragma parameter g_Q_MUL                           "          Q/V Multiplier"       1.0  0.0 2.0 0.01
 
+#pragma parameter DG_BRIGHTNESS_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter DG_BRIGHTNESS_TITLE               "[ BRIGHTNESS & CONTRAST ]:" 0 0 0 1
 #pragma parameter g_lum_fix                         "          Sega Luma Fix"        0.0  0.0 1.0 1.0
 #pragma parameter g_lum                             "          Brightness"           0.0 -0.5 1.0 0.01
 #pragma parameter g_cntrst                          "          Contrast"             0.0 -1.0 1.0 0.05
 #pragma parameter g_mid                             "          Contrast Pivot"       0.5  0.0 1.0 0.01
-#pragma parameter g_lift                            "          Black Level (Adds Scanlines Over Black)"         0.0 -0.5 0.5 0.05
+#pragma parameter g_lift                            "          Black Level (Adds Scanlines Over Black)"         0.0 -0.5 0.5 0.01
 
 // #pragma parameter DG_VIGNETTE_TITLE                 "[ VIGNETTE ]:" 0 0 0 1
 // #pragma parameter g_vignette                        "          Use Vignette"          0.0  0.0 1.0 1.0
 // #pragma parameter g_vstr                            "          Amount (Strength)"     40.0 0.0 98.0 2.0
 // #pragma parameter g_vpower                          "          Corner Amount (Power)" 26 0.0 200 2
 
+#pragma parameter DG_COLOR_TEMP_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter DG_COLOR_TEMP_TITLE               "[ COLOR TEMP & HUE ]:" 0 0 0 1
 // Color temp changed to 7000 (Used to be 6500) because this seems to be better for the default crt phosphor gamut of NTSC-J
 #pragma parameter wp_temperature                  "          White Point"          6500.0 5000.0 12000.0 100.0
 #pragma parameter g_sat                             "          Saturation"           0.0 -1.0 2.0 0.01
 #pragma parameter g_vibr                            "          Dullness/Vibrance"    0.0 -1.0 1.0 0.05
 
+#pragma parameter DG_HVS_LINE							" " 0 0 0.001 0.001
 #pragma parameter DG_HUE_VS_SAT_TITLE               "[ HUE VS SATURATION ]:" 0 0 0 1
 #pragma parameter g_satr                            "          Hue vs Sat Red"                 0.0 -1.0 1.0 0.01
 #pragma parameter g_satg                            "          Hue vs Sat Green"    0.0 -1.0 1.0 0.01
 #pragma parameter g_satb                            "          Hue vs Sat Blue"     0.0 -1.0 1.0 0.01
 
+#pragma parameter DG_BLACKTINT_LINE							" " 0 0 0.001 0.001
 #pragma parameter DG_BLACKTINT_TITLE                "[ BLACK TINT ]:" 0 0 0 1
 #pragma parameter blr                             "          Black-Red Tint"       0.0  0.0 1.0 0.01
 #pragma parameter blg                             "          Black-Green Tint"     0.0  0.0 1.0 0.01
 #pragma parameter blb                             "          Black-Blue Tint"      0.0  0.0 1.0 0.01
 
+#pragma parameter DG_WHITETINT_LINE							" " 0 0 0.001 0.001
 #pragma parameter DG_WHITETINT_TITLE                "[ WHITE TINT ]:" 0 0 0 1
 #pragma parameter wlr                             "          White-Red Tint"       1.0  0.0 2.0 0.01
 #pragma parameter wlg                             "          White-Green Tint"     1.0  0.0 2.0 0.01
 #pragma parameter wlb                             "          White-Blue Tint"      1.0  0.0 2.0 0.01
 
+#pragma parameter DG_REDTINT_LINE							" " 0 0 0.001 0.001
 #pragma parameter DG_REDTINT_TITLE                  "[ RED TINT ]:" 0 0 0 1
 #pragma parameter rg                              "          Red-Green Tint"       0.0 -1.0 1.0 0.005
 #pragma parameter rb                              "          Red-Blue Tint"        0.0 -1.0 1.0 0.005
 
+#pragma parameter DG_GREENTINT_LINE							" " 0 0 0.001 0.001
 #pragma parameter DG_GREENTINT_TITLE                "[ GREEN TINT ]:" 0 0 0 1
 #pragma parameter gr                              "          Green-Red Tint"       0.0 -1.0 1.0 0.005
 #pragma parameter gb                              "          Green-Blue Tint"      0.0 -1.0 1.0 0.005
 
+#pragma parameter DG_BLUETINT_LINE							" " 0 0 0.001 0.001
 #pragma parameter DG_BLUETINT_TITLE                 "[ BLUE TINT ]:" 0 0 0 1
 #pragma parameter br                              "          Blue-Red Tint"        0.0 -1.0 1.0 0.005
 #pragma parameter bg                              "          Blue-Green Tint"      0.0 -1.0 1.0 0.005
@@ -875,22 +889,21 @@ vec3 vcolor = adj;
 
 
 // Vignetting & Black Level
-/* HSM Removed
     vec2 vpos = vTexCoord*(global.OriginalSize.xy/global.SourceSize.xy);
-*/
 
     // HSM Added
 	vec2 viewportCoordTransformed = HSM_GetViewportCoordWithZoomAndPan(vTexCoord);
 	HSM_UpdateGlobalScreenValuesFromCache(InfoCachePass, vTexCoord);
-    vec2 derezed_size = HSM_GetNegativeCropAddedSize();
-    vec2 cur_pixel_pos = vTexCoord * derezed_size;
-    vec2 cropped_size = HSM_ROTATE_CORE_IMAGE > 0.5 ? vec2(CROPPED_ROTATED_SIZE.y, CROPPED_ROTATED_SIZE.x) : CROPPED_ROTATED_SIZE;
-    vec2 raw_size = HSM_ROTATE_CORE_IMAGE > 0.5 ? vec2(ROTATED_CORE_PREPPED_SIZE.y, ROTATED_CORE_PREPPED_SIZE.x) : ROTATED_CORE_PREPPED_SIZE;
-    vec2 sample_start_area = HSM_ROTATE_CORE_IMAGE > 0.5 ? vec2(SAMPLE_AREA_START_PIXEL_COORD.y, SAMPLE_AREA_START_PIXEL_COORD.x) : SAMPLE_AREA_START_PIXEL_COORD;
-    vec2 pos_in_cropped_coords = (cur_pixel_pos - sample_start_area) /  cropped_size;
-    pos_in_cropped_coords = (pos_in_cropped_coords - 0.5) * (1 - 2 * MAX_NEGATIVE_CROP) + 0.5;
 
-    vec2 vpos = pos_in_cropped_coords;
+    // vec2 derezed_size = HSM_GetNegativeCropAddedSize();
+    // vec2 cur_pixel_pos = vTexCoord * derezed_size;
+    // vec2 cropped_size = HSM_ROTATE_CORE_IMAGE > 0.5 ? vec2(CROPPED_ROTATED_SIZE.y, CROPPED_ROTATED_SIZE.x) : CROPPED_ROTATED_SIZE;
+    // vec2 raw_size = HSM_ROTATE_CORE_IMAGE > 0.5 ? vec2(ROTATED_CORE_PREPPED_SIZE.y, ROTATED_CORE_PREPPED_SIZE.x) : ROTATED_CORE_PREPPED_SIZE;
+    // vec2 sample_start_area = HSM_ROTATE_CORE_IMAGE > 0.5 ? vec2(SAMPLE_AREA_START_PIXEL_COORD.y, SAMPLE_AREA_START_PIXEL_COORD.x) : SAMPLE_AREA_START_PIXEL_COORD;
+    // vec2 pos_in_cropped_coords = (cur_pixel_pos - sample_start_area) /  cropped_size;
+    // pos_in_cropped_coords = (pos_in_cropped_coords - 0.5) * (1 - 2 * MAX_NEGATIVE_CROP) + 0.5;
+
+    // vec2 vpos = pos_in_cropped_coords;
 
     // if (vignette > 0.5)
     // {

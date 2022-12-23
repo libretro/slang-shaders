@@ -149,12 +149,11 @@ vec4 HSM_UpdateGlobalScreenValuesFromCache(sampler2D in_cache_pass, vec2 vTexCoo
 	sample_coord = HSM_GetCacheSampleCoord(1, 1);
 	texture_sample = texture(in_cache_pass, sample_coord);
 	AVERAGE_LUMA = texture_sample.a;
+	SAMPLING_SCANLINE_DIR_MULT = texture_sample.r;
+	SAMPLING_OPPOSITE_DIR_MULT = texture_sample.g;
 
 	float res_mult_size_sum = 0;
-	float res_mult_size_sum_feedback = 0;
-
 	float res_mult_size2_sum = 0;
-	float res_mult_size2_sum_feedback = 0;
 
 	if (SCREEN_INDEX == 1)
 	{
@@ -196,6 +195,13 @@ vec4 HSM_UpdateGlobalScreenValuesFromCache(sampler2D in_cache_pass, vec2 vTexCoo
 		texture_sample = texture(in_cache_pass, sample_coord);
 		CROPPED_ROTATED_SIZE = texture_sample.rg;
 		SAMPLE_AREA_START_PIXEL_COORD = texture_sample.ba;
+
+		// Sample 4, 4
+		// rg screen size first screen
+		// ba screen size second screen
+		sample_coord = HSM_GetCacheSampleCoord(4, 4);
+		texture_sample = texture(in_cache_pass, sample_coord);
+		SCREEN_SIZE = texture_sample.rg;
 	}
 	// If we are in the section of the viewport which is the second screen
 	if (SCREEN_INDEX == 2)
@@ -238,6 +244,13 @@ vec4 HSM_UpdateGlobalScreenValuesFromCache(sampler2D in_cache_pass, vec2 vTexCoo
 		texture_sample = texture(in_cache_pass, sample_coord);
 		CROPPED_ROTATED_SIZE = texture_sample.rg;
 		SAMPLE_AREA_START_PIXEL_COORD = texture_sample.ba;
+
+		// Sample 4, 4
+		// rg screen size first screen
+		// ba screen size second screen
+		sample_coord = HSM_GetCacheSampleCoord(4, 4);
+		texture_sample = texture(in_cache_pass, sample_coord);
+		SCREEN_SIZE = texture_sample.ba;
 	}
 
 	// Sample 3, 1
@@ -310,12 +323,13 @@ vec4 HSM_UpdateGlobalScreenValuesFromCache(sampler2D in_cache_pass, vec2 vTexCoo
 	MAX_NEGATIVE_CROP = texture_sample.g;
 	USE_VERTICAL_SCANLINES = texture_sample.b;
 
-	// Sample 4, 4 
+	// Sample 8, 8
 	// r CACHE_INFO_CHANGED
-	sample_coord = HSM_GetCacheSampleCoord(4, 4);
+	sample_coord = HSM_GetCacheSampleCoord(8, 8);
 	texture_sample = texture(in_cache_pass, sample_coord);
 	CACHE_INFO_CHANGED = texture_sample.r > 0.5 ? true : false;
 
+	SCREEN_SCALE_WITH_ZOOM = SCREEN_SCALE * HSM_VIEWPORT_ZOOM;
 	SCREEN_COORD = HSM_GetVTexCoordWithArgs(flipped_viewport_coord, SCREEN_SCALE, SCREEN_POS_OFFSET);
 	TUBE_DIFFUSE_COORD = HSM_GetVTexCoordWithArgs(flipped_viewport_coord, TUBE_DIFFUSE_SCALE, SCREEN_POS_OFFSET);
 	TUBE_DIFFUSE_COORD_MIXED_POS = HSM_GetVTexCoordWithArgs(flipped_viewport_coord, TUBE_DIFFUSE_SCALE_1ST_SCREEN, (SCREEN_POS_OFFSET_1ST_SCREEN + SCREEN_POS_OFFSET_2ND_SCREEN) / 2.0);

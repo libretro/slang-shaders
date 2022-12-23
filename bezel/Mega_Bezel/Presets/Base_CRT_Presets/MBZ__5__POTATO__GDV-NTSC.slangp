@@ -58,9 +58,10 @@ scale8 = 1.0
 // Color Correction with Dogway's awesome Grade shader
 // Grade is after Afterglow so that brightening the black level does not break the afterglow
 shader9 = ../../shaders/dogway/hsm-grade.slang
-filter_linear9 = true
+filter_linear9 = false
 scale_type9 = source
 scale9 = 1.0
+alias9 = "ColorCorrectPass"
 
 shader10 = ../../shaders/base/stock.slang
 alias10 = "PrePass0"
@@ -158,23 +159,27 @@ scale_x22 = 640.0
 scale_type_y22 = absolute
 scale_y22 = 480.0
 float_framebuffer22 = true
-alias22 = BloomPass 
+alias22 = BloomPass
 
 shader23 = ../../shaders/guest/hsm-crt-guest-advanced-ntsc-pass2-potato.slang
 filter_linear23 = true
-float_framebuffer23 = true
 scale_type23 = viewport
 scale_x23 = 1.0
 scale_y23 = 1.0
+float_framebuffer23 = true
 
 shader24 = ../../shaders/guest/hsm-deconvergence.slang
 filter_linear24 = true
 scale_type24 = viewport
 scale_x24 = 1.0
 scale_y24 = 1.0
+float_framebuffer24 = true
+alias24 = "CRTPass"
 
 shader25 = ../../shaders/base/post-crt-prep-potato.slang
-alias25 = "MBZ_PostCRTPass"
+scale_type25 = viewport
+float_framebuffer25 = true
+alias25 = "PostCRTPass"
 // Define textures to be used by the different passes
 textures = "SamplerLUT1;SamplerLUT2;SamplerLUT3;SamplerLUT4;ScreenPlacementImage;BackgroundImage;BackgroundVertImage"
 

@@ -22,7 +22,7 @@ layout(push_constant) uniform Push
    float ExpandGamut;
 } params;
 
-#pragma parameter PaperWhiteNits    "Paper White Luminance"    450.0    0.0 10000.0 10.0
+#pragma parameter PaperWhiteNits    "Paper White Luminance"    200.0    0.0 10000.0 10.0
 #pragma parameter ExpandGamut       "ExpandGamut"              1.0      0.0 1.0     1.0
 
 layout(std140, set = 0, binding = 0) uniform UBO

@@ -25,6 +25,7 @@
 //---------------------------------------------------------------------------------------------------
 //    STANDARD BACKGROUND IMAGE LAYER
 //---------------------------------------------------------------------------------------------------
+#pragma parameter HSM_BG_IMG_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter HSM_BG_IMG_TITLE	            "[ GLASS BACKGROUND IMAGE ]:" 0 0 0.01 0.01
 
 #pragma parameter HSM_BG_OPACITY                  "          Opacity" 100 0 100 0.1

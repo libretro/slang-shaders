@@ -3,7 +3,7 @@
 /*
    Phosphor Afterglow Shader pass 0
    
-   Copyright (C) 2020 guest(r) - guest.r@gmail.com
+   Copyright (C) 2020 - 2022 guest(r) - guest.r@gmail.com
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -30,8 +30,10 @@ layout(push_constant) uniform Push
    float PR, PG, PB;
 } params;
 
+#pragma parameter GDV_XX_LINE							" " 0 0 0.001 0.001
 #pragma parameter GDV_GDV_ADV_TITLE 		"[ --- GUEST ADVANCED --- ]:" 0.0 0.0 1.0 1.0
 
+#pragma parameter GDV_AFTERGLOW_LINE							" " 0 0 0.001 0.001
 #pragma parameter bogus_afterglow         "[ AFTERGLOW ]:" 0.0 0.0 1.0 1.0
 #pragma parameter GDV_AFTERGLOW_THRESHOLD "          Threshold ( Afterglow Appears Under Threshold )" 0.5 0.0 100 0.5
 #pragma parameter PR                      "          Persistence Red -- PR" 0.32 0.0 0.50 0.01

@@ -15,13 +15,16 @@ layout(std140, set = 0, binding = 0) uniform UBO
    float quality, ntsc_sat, cust_fringing, cust_artifacting, ntsc_bright, ntsc_scale, ntsc_fields, ntsc_phase, ntsc_sharp;
 } global;
 
+#pragma parameter NTSC_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter ntsc_title        "[ NTSC ]:" 0 0 0.01 0.01
 #pragma parameter ntsc_sat          "          Color Saturation" 1.0 0.0 2.0 0.01
 #pragma parameter ntsc_bright       "          Brightness" 1.0 0.0 1.5 0.01
+#pragma parameter NTSC_QUALITY_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter ntsc_quality_title "   [ NTSC QUALITY ]:" 0 0 0.01 0.01
 #pragma parameter quality           "        Preset: S-Video | Composite | RF | Custom:-1 -- quality" 1.0 -1.0 2.0 1.0
 #pragma parameter ntsc_phase        "          Phase: Auto | 2 phase | 3 phase" 1.0 1.0 3.0 1.0
 #pragma parameter ntsc_scale        "          Resolution Scaling" 1.0 0.20 2.5 0.01
+#pragma parameter NTSC_CUSTOM_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter ntsc_custom_title "   [ NTSC Custom Options]:" 0 0 0.01 0.01
 #pragma parameter ntsc_fields       "          Merge Fields" 0.0 0.0 1.0 1.0
 #pragma parameter cust_fringing     "          Fringing" 0.0 0.0 5.0 0.1

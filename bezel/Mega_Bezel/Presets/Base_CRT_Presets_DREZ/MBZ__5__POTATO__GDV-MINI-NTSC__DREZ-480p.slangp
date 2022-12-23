@@ -1,0 +1,158 @@
+shaders = 19
+
+shader0 = ../../shaders/base/add-params-potato.slang
+alias0 = "CorePass"
+
+shader1 = ../../shaders/hyllian/cubic/hsm-drez-b-spline-x.slang
+filter_linear1 = false
+scale_type_x1 = absolute
+scale_x1 = 640
+scale_type_y1 = viewport
+scaley0 = 1.0
+wrap_mode1 = "clamp_to_edge"
+
+shader2 = ../../shaders/hyllian/cubic/hsm-drez-b-spline-y.slang
+filter_linear2 = false
+scale_type2 = absolute
+scale_x2 = 640
+scale_y2 = 480
+wrap_mode2 = "clamp_to_edge"
+alias2 = "DerezedPass"
+
+shader3 = ../../shaders/base/add-negative-crop-area.slang
+filter_linear3 = false
+mipmap_input3 = false
+srgb_framebuffer3 = true
+scale_type3 = source
+scale_x3 = 1
+scale_y3 = 1
+alias3 = "NegativeCropAddedPass"
+
+shader4 = ../../shaders/base/cache-info-screen-scale-params.slang
+filter_linear4 = false
+scale_type4 = source
+scale4 = 1.0
+alias4 = "InfoCachePass"
+
+shader5 = ../../shaders/base/text-potato.slang
+filter_linear5 = false
+float_framebuffer5 = true
+scale_type5 = source
+scale5 = 1.0
+alias5 = "TextPass"
+
+shader6 = ../../shaders/base/intro-potato.slang
+filter_linear6 = false
+float_framebuffer6 = true
+scale_type6 = source
+scale6 = 1.0
+alias6 = "IntroPass"
+
+// Color Correction with Dogway's awesome Grade shader
+// Grade is after Afterglow so that brightening the black level does not break the afterglow
+shader7 = ../../shaders/dogway/hsm-grade.slang
+filter_linear7 = false
+scale_type7 = source
+scale7 = 1.0
+alias7 = "ColorCorrectPass"
+
+shader8 = ../../shaders/base/stock.slang
+alias8 = "PrePass0"
+
+shader9 = ../../shaders/guest/ntsc/hsm-ntsc-pass1.slang
+filter_linear9 = false
+float_framebuffer9 = true
+scale_type_x9 = source
+scale_type_y9 = source
+scale_x9 = 4.0
+scale_y9 = 1.0
+frame_count_mod9 = 2
+alias9 = NPass1
+
+shader10 = ../../shaders/guest/ntsc/hsm-ntsc-pass2.slang
+float_framebuffer10 = true
+filter_linear10 = true
+scale_type10 = source
+scale_x10 = 0.5
+scale_y10 = 1.0
+
+shader11 = ../../shaders/guest/ntsc/hsm-ntsc-pass3.slang
+filter_linear11 = true
+scale_type11 = source
+scale_x11 = 1.0
+scale_y11 = 1.0
+
+shader12 =  ../../shaders/guest/hsm-custom-fast-sharpen.slang
+filter_linear12 = true
+scale_type12 = source
+scale_x12 = 1.0
+scale_y12 = 1.0
+
+shader13 = ../../shaders/base/stock.slang
+filter_linear13 = true
+scale_type13 = source
+scale_x13 = 1.0
+scale_y13 = 1.0
+alias13 = "PrePass"
+mipmap_input13 = true
+
+shader14 = ../../shaders/guest/hsm-avg-lum.slang
+filter_linear14 = true
+scale_type14 = source
+scale14 = 1.0
+mipmap_input14 = true
+alias14 = "AvgLumPass"
+
+// Pass referenced by subsequent blurring passes and crt pass
+shader15 = ../../shaders/guest/hsm-interlace-and-linearize.slang
+filter_linear15 = true
+scale_type15 = source
+scale15 = 1.0
+float_framebuffer15 = true
+alias15 = "LinearizePass"
+
+shader16 = ../../shaders/base/delinearize.slang
+scale_type16 = source
+float_framebuffer16 = "true"
+
+shader17 = ../../shaders/guest/hsm-crt-dariusg-gdv-mini-potato.slang
+scale_type17 = viewport
+scale_x17 = 1.0
+scale_y17 = 1.0
+filter_linear17 = true
+float_framebuffer17 = "true"
+alias17 = "CRTPass"
+
+g_sat = 0.15
+g_gamma_out = 2.45
+
+shader18 = ../../shaders/base/post-crt-prep-potato.slang
+scale_type18 = viewport
+float_framebuffer18 = true
+alias18 = "PostCRTPass"
+// Define textures to be used by the different passes
+textures = "ScreenPlacementImage;BackgroundImage;BackgroundVertImage"
+
+ScreenPlacementImage = ../../shaders/textures/Placeholder_Transparent_16x16.png
+ScreenPlacementImage_linear = false
+
+BackgroundImage = ../../shaders/textures/Baked_Frame_Carbonfiber_Background.png
+BackgroundImage_linear = true
+BackgroundImage_mipmap = 1
+
+BackgroundVertImage = ../../shaders/textures/Baked_Frame_Carbonfiber_Background_Vert.png
+BackgroundVertImage_linear = true
+BackgroundVertImage_mipmap = 1
+
+// Parameters
+HSM_ASPECT_RATIO_MODE = 1
+
+// Use for matching vanilla GDV-Advanced
+// HSM_ASPECT_RATIO_MODE = 6
+// HSM_CURVATURE_MODE = 0
+
+// NTSC Parameters
+GAMMA_INPUT = 2.0
+gamma_out = 1.95
+// hcrt_gamma_in = "2.250000"
+// hcrt_gamma_out = "2.250000"

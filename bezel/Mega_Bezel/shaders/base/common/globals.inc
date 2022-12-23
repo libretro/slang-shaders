@@ -183,12 +183,18 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	float HSM_CURVATURE_MODE;
 	float HSM_CURVATURE_2D_SCALE_LONG_AXIS;
 	float HSM_CURVATURE_2D_SCALE_SHORT_AXIS;
-	// float HSM_CURVATURE_2D_SHAPE;
 	float HSM_CURVATURE_3D_RADIUS;
 	float HSM_CURVATURE_3D_VIEW_DIST;
 	float HSM_CURVATURE_3D_TILT_ANGLE_X;
 	float HSM_CURVATURE_3D_TILT_ANGLE_Y;
 	float HSM_CRT_CURVATURE_SCALE;
+
+	//    SIGNAL NOISE
+	float HSM_SIGNAL_NOISE_ON;
+	float HSM_SIGNAL_NOISE_AMOUNT;
+	float HSM_SIGNAL_NOISE_SIZE_MODE;
+	float HSM_SIGNAL_NOISE_SIZE_MULT;
+	float HSM_SIGNAL_NOISE_TYPE;
 
 	//    ANTI-FLICKER
 	float HSM_ANTI_FLICKER_ON;
@@ -202,15 +208,10 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	float HSM_AB_COMPARE_SPLIT_AREA;
 	float HSM_AB_COMPARE_SPLIT_POSITION;
 
-	// CRT Screen
-	// These names are inconsistent with the general naming on purpose
-	// They match the namse in Guest's shader
-	float HSM_CRT_BLEND_MODE;
-	float HSM_CRT_BLEND_AMOUNT;
+	// Show Pass
+	float HSM_SHOW_PASS_INDEX;
+	float HSM_SHOW_PASS_APPLY_SCREEN_COORD;
 
-	float HSM_CRT_SCREEN_BLEND_MODE;
-
-	//    Screen Vignette
 	float HSM_SCREEN_VIGNETTE_ON;
 	float HSM_SCREEN_VIGNETTE_DUALSCREEN_VIS_MODE;
 	float HSM_SCREEN_VIGNETTE_STRENGTH;
@@ -296,9 +297,17 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	float HSM_TUBE_STATIC_POS_Y;
 	float HSM_TUBE_STATIC_SHADOW_OPACITY;
 	float HSM_TUBE_STATIC_DITHER_SAMPLES;
-float HSM_TUBE_STATIC_DITHER_DISTANCE;
-float HSM_TUBE_STATIC_DITHER_AMOUNT;
+	float HSM_TUBE_STATIC_DITHER_DISTANCE;
+	float HSM_TUBE_STATIC_DITHER_AMOUNT;
 
+	// CRT Screen
+	// These names are inconsistent with the general naming on purpose
+	// They match the namse in Guest's shader
+	float HSM_CRT_BLEND_MODE;
+	float HSM_CRT_BLEND_AMOUNT;
+	float HSM_CRT_SCREEN_BLEND_MODE;
+
+	//    Screen Vignette
 	//    SCREEN BLACK EDGE
 	float HSM_GLOBAL_CORNER_RADIUS;
 	float HSM_TUBE_BLACK_EDGE_CORNER_RADIUS_SCALE;
@@ -409,6 +418,8 @@ float HSM_TUBE_STATIC_DITHER_AMOUNT;
 	float HSM_GLASS_BORDER_ON;
 
 	float HSM_POTATO_SHOW_BG_OVER_SCREEN;
+	float HSM_POTATO_COLORIZE_CRT_WITH_BG;
+	float HSM_POTATO_COLORIZE_BRIGHTNESS;
 	float HSM_STANDARD_DECAL_SCALE_WITH_FRAME;
 	float HSM_STANDARD_TOP_SCALE_WITH_FRAME;
 
@@ -428,7 +439,6 @@ float HSM_TUBE_STATIC_DITHER_AMOUNT;
 	float HSM_CUTOUT_EXPLICIT_ASPECT;
 	float HSM_CUTOUT_FOLLOW_LAYER;
 	float HSM_CUTOUT_FOLLOW_FULL_USES_ZOOM;
-	float HSM_CUTOUT_KEEP_ASPECT;
 	float HSM_CUTOUT_SCALE;
 	float HSM_CUTOUT_SCALE_X;
 	float HSM_CUTOUT_CORNER_RADIUS;
@@ -456,7 +466,6 @@ float HSM_TUBE_STATIC_DITHER_AMOUNT;
 	float HSM_BG_FILL_MODE;
 	float HSM_BG_SPLIT_PRESERVE_CENTER;
 	float HSM_BG_SPLIT_REPEAT_WIDTH;
-	float HSM_BG_SCALE_KEEP_ASPECT;
 	float HSM_BG_SCALE;
 	float HSM_BG_SCALE_X;
 	float HSM_BG_POS_X;
@@ -492,7 +501,6 @@ float HSM_TUBE_STATIC_DITHER_AMOUNT;
 	float HSM_LED_FOLLOW_LAYER;
 	float HSM_LED_FOLLOW_MODE;
 	float HSM_LED_FOLLOW_FULL_USES_ZOOM;
-	float HSM_LED_SCALE_KEEP_ASPECT;
 	float HSM_LED_FILL_MODE;
 	float HSM_LED_SPLIT_PRESERVE_CENTER;
 	float HSM_LED_SPLIT_REPEAT_WIDTH;
@@ -520,7 +528,6 @@ float HSM_TUBE_STATIC_DITHER_AMOUNT;
 	float HSM_DEVICE_FOLLOW_LAYER;
 	float HSM_DEVICE_FOLLOW_MODE;
 	float HSM_DEVICE_FOLLOW_FULL_USES_ZOOM;
-	float HSM_DEVICE_SCALE_KEEP_ASPECT;
 	float HSM_DEVICE_FILL_MODE;
 	float HSM_DEVICE_SPLIT_PRESERVE_CENTER;
 	float HSM_DEVICE_SPLIT_REPEAT_WIDTH;
@@ -550,7 +557,6 @@ float HSM_TUBE_STATIC_DITHER_AMOUNT;
 	float HSM_DEVICELED_FOLLOW_LAYER;
 	float HSM_DEVICELED_FOLLOW_MODE;
 	float HSM_DEVICELED_FOLLOW_FULL_USES_ZOOM;
-	float HSM_DEVICELED_SCALE_KEEP_ASPECT;
 	float HSM_DEVICELED_FILL_MODE;
 	float HSM_DEVICELED_SPLIT_PRESERVE_CENTER;
 	float HSM_DEVICELED_SPLIT_REPEAT_WIDTH;
@@ -584,7 +590,6 @@ float HSM_TUBE_STATIC_DITHER_AMOUNT;
 	float HSM_DECAL_FOLLOW_LAYER;
 	float HSM_DECAL_FOLLOW_MODE;
 	float HSM_DECAL_FOLLOW_FULL_USES_ZOOM;
-	float HSM_DECAL_SCALE_KEEP_ASPECT;
 	float HSM_DECAL_FILL_MODE;
 	float HSM_DECAL_SPLIT_PRESERVE_CENTER;
 	float HSM_DECAL_SPLIT_REPEAT_WIDTH;
@@ -612,7 +617,6 @@ float HSM_TUBE_STATIC_DITHER_AMOUNT;
 	float HSM_CAB_GLASS_FOLLOW_LAYER;
 	float HSM_CAB_GLASS_FOLLOW_MODE;
 	float HSM_CAB_GLASS_FOLLOW_FULL_USES_ZOOM;
-	float HSM_CAB_GLASS_SCALE_KEEP_ASPECT;
 	float HSM_CAB_GLASS_FILL_MODE;
 	float HSM_CAB_GLASS_SPLIT_PRESERVE_CENTER;
 	float HSM_CAB_GLASS_SPLIT_REPEAT_WIDTH;
@@ -640,7 +644,6 @@ float HSM_TUBE_STATIC_DITHER_AMOUNT;
 	float HSM_TOP_FOLLOW_LAYER;
 	float HSM_TOP_FOLLOW_MODE;
 	float HSM_TOP_FOLLOW_FULL_USES_ZOOM;
-	float HSM_TOP_SCALE_KEEP_ASPECT;
 	float HSM_TOP_FILL_MODE;
 	float HSM_TOP_SPLIT_PRESERVE_CENTER;
 	float HSM_TOP_SPLIT_REPEAT_WIDTH;
@@ -725,8 +728,9 @@ float mask_bloom;
 	float scan_falloff;
 	float spike;
 	float ring;
+	float no_scanlines;
 	float scangamma;
-	
+
 	float rolling_scan;
 
 	float h_sharp;
@@ -742,7 +746,9 @@ float mask_bloom;
 	float shadowMask;
 	float maskstr;
 	float mcut;	
+	float maskboost;
 	float masksize;
+	float masksizeautothreshold;
 	float maskDark;
 	float maskLight;
 	float mask_gamma;
@@ -752,15 +758,12 @@ float mask_bloom;
 	float double_slot;
 	float slotms;
 	float mclip;
+	float smoothmask;
 	float mshift;
 	float mask_layout;
 	
 	float GDV_DECONVERGENCE_ON;
 	float decons;
-	float GDV_NOISE_ON;
-	float addnoised;
-	float noisetype;
-	float noiseresd;
 	float deconrr;
 	float deconrg;
 	float deconrb;
@@ -770,6 +773,13 @@ float mask_bloom;
 	float deconsmooth;
 	float dctypex;
 	float dctypey; 
+	float dcscalemode; 
+	
+	float GDV_NOISE_ON;
+	float addnoised;
+	float noisetype;
+	float noiseresd;
+	float noiseresd4kmult;
 
 	// Grade Params
 	float g_grade_on;
@@ -841,25 +851,6 @@ vec2 DEFAULT_BEZEL_SCALE = vec2(0);
 
 int INFOCACHE_MAX_INDEX = 4;
 
-float IMAGE_ASPECT_MODE_INHERIT_ASPECT_SCALE = 0;
-float IMAGE_ASPECT_MODE_KEEP_ASPECT = 1;
-
-float FILL_MODE_STRETCH = 0;
-float FILL_MODE_SPLIT_FILL_HORIZONTAL = 1;
-float FILL_MODE_SPLIT_FILL_VERTICAL = 2;
-
-#define RENDER_SIMPLE_MODE_NONE 0
-#define RENDER_SIMPLE_MODE_BLACK_SCREEN 1
-#define RENDER_SIMPLE_MODE_BLACK_SCREEN_AND_BG 2
-#define RENDER_SIMPLE_MODE_PINK_MASK 3
-#define RENDER_SIMPLE_MODE_BLACK_WHITE_MASK 4
-
-#define RENDER_SIMPLE_MASK_TYPE_SCREEN 0
-#define RENDER_SIMPLE_MASK_TYPE_TUBE 1
-#define RENDER_SIMPLE_MASK_TYPE_BEZEL_AND_FRAME 2
-#define RENDER_SIMPLE_MASK_TYPE_BEZEL 3
-#define RENDER_SIMPLE_MASK_TYPE_FRAME 4
-
 bool CACHE_INFO_CHANGED = false;
 float CURRENT_FRAME_FROM_CACHE_INFO = 0;
 
@@ -879,6 +870,7 @@ float SCREEN_INDEX = 1;
 
 float SCREEN_ASPECT = 1;
 vec2 SCREEN_SCALE = vec2(1);
+vec2 SCREEN_SCALE_WITH_ZOOM = vec2(1);
 vec2 SCREEN_POS_OFFSET = vec2(0.15);
 vec2 SCREEN_SCALE_2ND_SCREEN = vec2(1);
 
@@ -907,6 +899,8 @@ vec2 TOP_IMAGE_SCALE = vec2(0.5);
 
 float AVERAGE_LUMA = 0;
 float USE_VERTICAL_SCANLINES = 0;
+float SAMPLING_SCANLINE_DIR_MULT = 0;
+float SAMPLING_OPPOSITE_DIR_MULT = 0;
 
 vec2 CORE_SIZE = vec2(1);
 
@@ -918,6 +912,8 @@ vec2 CROPPED_ROTATED_SIZE_WITH_RES_MULT = vec2(1);
 vec2 CROPPED_ROTATED_SIZE_WITH_RES_MULT_FEEDBACK = vec2(1);
 vec2 CROPPED_ROTATED_SIZE = vec2(1);
 vec2 SAMPLE_AREA_START_PIXEL_COORD = vec2(1);
+
+vec2 SCREEN_SIZE = vec2(1);
 
 vec2 VIEWPORT_UNSCALED_COORD = vec2(0.5);
 vec2 SCREEN_COORD = vec2(0.5);

@@ -42,6 +42,7 @@ layout(push_constant) uniform Push
 } params;
 
 // Parameter lines go here:
+#pragma parameter GDVMINI_X_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter gdv_mini_title 	"[ GDV MINI - DariusG ]:" 0.0 0.0 1.0 1.0
 
 #pragma parameter brightboost 		"          Bright boost -- brightboost" 1.1 0.5 2.0 0.05
@@ -315,13 +316,11 @@ void main()
 	color = min(color, 1.0);
 	color = color * Mask(vTexCoord * global.OutputSize.xy, color);
 
-    // TODO Add adjust to take into acount Gamma IN
-    color = pow(color, vec3(1.0 / (DEFAULT_SRGB_GAMMA * GAMMA_INPUT / HSM_GAMMA_OUT_CRT)));
-    // color = pow(color, vec3(1.0/(DEFAULT_SRGB_GAMMA * GAMMA_INPUT / (0.9 * HSM_GAMMA_OUT_CRT))));
-
+	// Apply difference between GAMMA_INPUT and HSM_GAMMA_OUT_CRT
+    color = pow(color, vec3(GAMMA_INPUT / HSM_GAMMA_OUT_CRT) + 0.05);
+	
 	float l = length(color);
 	color = normalize(pow(color, vec3(saturation,saturation,saturation)))*l;
-    color = pow(color, vec3(DEFAULT_SRGB_GAMMA / HSM_GAMMA_OUT_CRT));
-	
+
     FragColor = vec4(color, 1.0);
 }

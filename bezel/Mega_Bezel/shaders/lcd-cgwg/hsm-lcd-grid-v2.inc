@@ -17,6 +17,7 @@ layout(push_constant) uniform Push
     float LCD_BGR;
 } param;
 
+#pragma parameter LCDGRID_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter LCD_TITLE	        "[ --- LCD GRID V2 --- ]:" 0 0 0.01 0.01
 #pragma parameter LCD_SUBPIX_TITLE	"[ SUBPIXEL COLORS ]:" 0 0 0.01 0.01
 #pragma parameter LCD_RSUBPIX_R     "          Colour of R subpixel: R" 0.75 0.0 1.0 0.01
@@ -28,6 +29,7 @@ layout(push_constant) uniform Push
 #pragma parameter LCD_BSUBPIX_R     "          Colour of B subpixel: R" 0.0 0.0 1.0 0.01
 #pragma parameter LCD_BSUBPIX_G     "          Colour of B subpixel: G" 0.0 0.0 1.0 0.01
 #pragma parameter LCD_BSUBPIX_B     "          Colour of B subpixel: B" 0.75 0.0 1.0 0.01
+#pragma parameter LCDGRID_BRIGHTNESS_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter LCD_BRIGHT_TITLE	"[ BRIGHTNESS & GAMMA ]:" 0 0 0.01 0.01
 #pragma parameter LCD_GAIN          "          Gain"                    1.75 0.5 2.0 0.05
 #pragma parameter LCD_GAMMA         "          LCD Gamma"               2.5 0.5 5.0 0.1
@@ -65,8 +67,6 @@ vec3 fetch_offset(sampler2D in_sampler, vec2 coord, vec2 offset)
     offset = vec2(0);
     vec2 texel_size = 1 / CROPPED_ROTATED_SIZE;
     vec2 pixel_coord = SAMPLE_AREA_START_PIXEL_COORD + coord * CROPPED_ROTATED_SIZE + offset;
-    vec2 raw_coord = pixel_coord / ROTATED_CORE_PREPPED_SIZE;
-
 
     vec3 out_rgb = HSM_GetCroppedTexSample(in_sampler, coord + offset * texel_size).rgb;
     out_rgb = pow(vec3(param.LCD_GAIN) * out_rgb, vec3(param.LCD_GAMMA));
@@ -173,8 +173,5 @@ void main()
 
     // HSM Added
     FragColor = vec4(averageColor, 1);
-
-	// HSM add output gamma
-	FragColor = HSM_Delinearize(FragColor, HSM_GAMMA_OUT_CRT);
-	// End Addition
+	FragColor = pow(FragColor, vec4(1 / (HSM_GAMMA_OUT_CRT / DEFAULT_SRGB_GAMMA)));
 }

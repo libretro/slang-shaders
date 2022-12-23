@@ -80,11 +80,6 @@ vec2 HSM_GetRotatedNegativeCropAddedSize()
 	return HSM_ROTATE_CORE_IMAGE * global.NegativeCropAddedPassSize.yx + (1 - HSM_ROTATE_CORE_IMAGE) * global.NegativeCropAddedPassSize.xy;
 }
 
-float HSM_GetNegativeCropExpandMultiplier()
-{
-	return HSM_GetNegativeCropAddedSize().y / HSM_GetDerezedSize().y;
-}
-
 float HSM_GetSwappedScreenIndex(float screen_index)
 {
 	float out_index = screen_index;
@@ -104,46 +99,6 @@ float HSM_GetSwappedScreenIndex(float screen_index)
 	return out_index;
 }
 
-// Get the original size with split area added
-vec2 HSM_GetScreenCorePreppedSize(float screen_index)
-{
-	vec2 core_prepped_size = global.NegativeCropAddedPassSize.xy;
-
-	if (HSM_DUALSCREEN_MODE > 0)
-		if (HSM_GetCoreImageSplitDirection() == 1)
-			core_prepped_size.y *= 0.5;
-		else
-			core_prepped_size.x *= 0.5;
-
-	return core_prepped_size;
-}
-
-vec2 HSM_GetRotatedScreenCorePreppedSize(float screen_index)
-{
-	vec2 original_size = HSM_GetScreenCorePreppedSize(screen_index);
-	return HSM_ROTATE_CORE_IMAGE * original_size.yx + (1 - HSM_ROTATE_CORE_IMAGE) * original_size.xy;
-}
-
-// Get the original size with split area added
-vec2 HSM_GetScreenDerezedSize()
-{
-	vec2 pass_size = global.DerezedPassSize.xy;
-
-	if (HSM_DUALSCREEN_MODE > 0)
-		if (HSM_GetCoreImageSplitDirection() == 1)
-			pass_size.y *= 0.5;
-		else
-			pass_size.x *= 0.5;
-
-	return pass_size;
-}
-
-vec2 HSM_GetRotatedScreenDerezedSize()
-{
-	vec2 pass_size = HSM_GetScreenDerezedSize();
-	return HSM_ROTATE_CORE_IMAGE * pass_size.yx + (1 - HSM_ROTATE_CORE_IMAGE) * pass_size.xy;
-}
-
 vec2 HSM_RotateCoordinate(vec2 in_coord, float rotation)
 {
 	vec2 ctr_coord = in_coord - 0.5;
@@ -153,40 +108,6 @@ vec2 HSM_RotateCoordinate(vec2 in_coord, float rotation)
 				+ abs(clamp(rotation, -1, 0)) * abs(rotation) * vec2(ctr_coord.y, -ctr_coord.x);
 
 	return ctr_coord + 0.5;
-}
-
-float HSM_GetUseVerticalScanlines(float screen_aspect)
-{
-	float auto_use_vert_scanlines = screen_aspect < 1 ? 1 : 0;
-
-	float scanline_direction = HSM_SCANLINE_DIRECTION < 2 ? 0 : 1;
-	
-	if (HSM_SCANLINE_DIRECTION < 1)
-		if (HSM_DUALSCREEN_MODE < 1) 
-			scanline_direction = auto_use_vert_scanlines;
-
-	return scanline_direction;
-}
-
-vec2 HSM_GetResMult()
-{
-	// TODO when using target resolution
-	// float epsilon = 0.25;
-	// float original_res = 1464;
-	// float target_res
-	// float multiple = 1464 / 224;
-	// float int_multiple = floor(multiple + epsilon);
-	// float int_div_res_near_target_res = original_res / int_multiple;
-
-	vec2 original_size = HSM_GetRotatedNegativeCropAddedSize();
-	float use_vert_scanlines = HSM_GetUseVerticalScanlines(original_size.x/original_size.y);
-
-	vec2 sampling_mult = vec2(HSM_CORE_RES_SAMPLING_MULT_SCANLINE_DIR, HSM_CORE_RES_SAMPLING_MULT_OPPOSITE_DIR);
-	
-	if (use_vert_scanlines == 1 && HSM_ROTATE_CORE_IMAGE == 0 || use_vert_scanlines == 0 && HSM_ROTATE_CORE_IMAGE == 1)
-		sampling_mult = sampling_mult.yx;
-
-	return sampling_mult;
 }
 
 // Texture Sampler function which takes a coordinate in the cropped coordinate space
@@ -261,16 +182,6 @@ vec2 GetSimpleImageScaledCoord(vec2 in_viewport_coord, vec2 in_viewport_unscaled
 	}
 
 	return HSM_AddPosScaleToCoord(coord_ctr + 0.5, in_pos, in_scale);
-}
-
-vec2 HSM_GetRotatedCorePreppedSizeWithResMult(float screen_index)
-{
-	vec2 prepped_size = HSM_GetScreenCorePreppedSize(screen_index);
-	vec2 sampling_mult = HSM_GetResMult();
-
-	vec2 sampling_size = vec2(floor(sampling_mult.x * prepped_size.x), floor(sampling_mult.y * prepped_size.y));
-
-	return HSM_ROTATE_CORE_IMAGE * sampling_size.yx + (1 - HSM_ROTATE_CORE_IMAGE) * sampling_size.xy;
 }
 
 vec2 HSM_GetScreenPositionOffset(vec2 placement_image_pos, vec2 screen_scale, float screen_index )
@@ -388,14 +299,6 @@ vec3 HSM_GetScreenPlacementAndHeight(sampler2D in_sampler_2D, float num_samples)
 vec2 HSM_GetScreenVTexCoord(vec2 in_coord, vec2 in_screen_scale, vec2 position_offset)
 {
 	return HSM_GetVTexCoordWithArgs(in_coord, in_screen_scale, position_offset);
-}
-
-vec2 HSM_GetCurvatureScales(float screen_aspect)
-{
-	vec2 curvature_scales = screen_aspect < 1 ? vec2(HSM_CURVATURE_2D_SCALE_SHORT_AXIS, HSM_CURVATURE_2D_SCALE_LONG_AXIS)
-											  : vec2(HSM_CURVATURE_2D_SCALE_LONG_AXIS,  HSM_CURVATURE_2D_SCALE_SHORT_AXIS);
-	curvature_scales = (clamp(curvature_scales, 1, 5) - 1) + 1;
-	return curvature_scales;
 }
 
 vec2 HSM_GetCurvatureValues(float screen_aspect)
@@ -555,7 +458,6 @@ vec2 HSM_GetCurvedCoord(vec2 in_coord, float curvature_multiplier, float screen_
 		return in_coord;
 	
 	float epsilon = 0.002;
-	vec2 original_size = HSM_GetRotatedNegativeCropAddedSize();
 
 	vec2 adjusted_coord = in_coord;
 	float tilt_angle_y = HSM_CURVATURE_3D_TILT_ANGLE_Y;
@@ -576,7 +478,6 @@ vec2 HSM_GetCurvedCoord(vec2 in_coord, float curvature_multiplier, float screen_
 			if (HSM_CURVATURE_MODE == CURVATURE_MODE_3D_1) geom_radius_with_mult -= 0.40;
 			if (HSM_CURVATURE_MODE == CURVATURE_MODE_3D_CYLINDER) geom_radius_with_mult -= 1;
 			geom_radius_with_mult *= (1 / (curvature_multiplier + epsilon));
-			vec2 extra_curvature_mult = HSM_GetCurvatureScales(screen_aspect);
 			mat2x2 pixel_to_video_uv;
 
 			float geom_mode = HSM_CURVATURE_MODE - 2;
@@ -872,14 +773,7 @@ vec4 HSM_GetMipmappedTexSample(sampler2D in_sampler, vec2 in_coord, vec2 in_scal
 // Texture Sampler function which takes a coordinate in the cropped coordinate space
 vec4 HSM_GetCroppedTexSample(sampler2D in_sampler, vec2 in_screen_coord)
 {
-	vec2 core_prepped_size = HSM_GetRotatedNegativeCropAddedSize();
-	if (HSM_GetUseVerticalScanlines(SCREEN_ASPECT) > 0.5)
-		in_screen_coord.x += HSM_CORE_RES_SAMPLING_SHIFT_OPPOSITE_DIR /CROPPED_ROTATED_SIZE_WITH_RES_MULT.x;
-	else
-		in_screen_coord.y += HSM_CORE_RES_SAMPLING_SHIFT_OPPOSITE_DIR /CROPPED_ROTATED_SIZE_WITH_RES_MULT.y;
-	vec4 out_color = HSM_GetTexSampleFromSampleStartAndSize(in_sampler, in_screen_coord, SAMPLE_AREA_START_PIXEL_COORD, CROPPED_ROTATED_SIZE);
-
-	return out_color;
+	return HSM_GetTexSampleFromSampleStartAndSize(in_sampler, in_screen_coord, SAMPLE_AREA_START_PIXEL_COORD, CROPPED_ROTATED_SIZE);
 }
 
 float HSM_GetVignetteFactor(vec2 coord, float amount, float size)
@@ -1085,4 +979,68 @@ vec3 HSM_ApplyAmbientImage(vec3 base_image, vec3 ambient_image, float layer_blen
 		return (1 - layer_blend_amount) * base_image.rgb + layer_blend_amount * base_image.rgb * ambient_image.rgb;
 	else
 		return base_image;
+}
+
+bool HSM_GetUseFakeScanlines()
+{
+	float scane_axis_core_res = USE_VERTICAL_SCANLINES * CROPPED_ROTATED_SIZE_WITH_RES_MULT.x + (1 - USE_VERTICAL_SCANLINES) * CROPPED_ROTATED_SIZE_WITH_RES_MULT.y;
+	return HSM_FAKE_SCANLINE_OPACITY > 0.001 && (HSM_FAKE_SCANLINE_MODE == 1 || (HSM_FAKE_SCANLINE_MODE == 2 && scane_axis_core_res > HSM_INTERLACE_TRIGGER_RES));
+}
+
+vec4 HSM_ApplyScanlineMask(vec4 in_color, vec2 screen_scale, vec2 in_coord, vec2 in_screen_curved_coord, vec2 in_tube_curved_coord, float in_scanline_opacity)
+{
+	//   Stuff to try implementing
+    //   Try mame hlsl darkening
+    //   Check Lottes tone mapping
+
+	in_coord = mix(in_coord, in_screen_curved_coord, HSM_FAKE_SCANLINE_CURVATURE);
+
+    /* Scanlines */
+	float scanline_roll_offset = float(mod(global.FrameCount, 1280)) / 1280 * HSM_FAKE_SCANLINE_ROLL; 
+
+    // float scans = clamp( 0.35+0.18*sin(6.0*time-curved_uv.y*resolution.y*1.5), 0.0, 1.0);
+    // float s = pow(scans,0.9);
+    // col = col * vec3(s);
+
+	float scan_axis_pos = USE_VERTICAL_SCANLINES > 0.5 ? in_coord.x : in_coord.y;
+	scan_axis_pos += scanline_roll_offset;
+
+	vec2 screen_size = global.OutputSize.xy * screen_scale;
+	float scan_axis_screen_scale_res = USE_VERTICAL_SCANLINES > 0.5 ? screen_size.x : screen_size.y;
+	
+	float cropped_rotated_scan_res = USE_VERTICAL_SCANLINES > 0.5 ? CROPPED_ROTATED_SIZE.x : CROPPED_ROTATED_SIZE.y;
+	float simulated_scanline_res = HSM_FAKE_SCANLINE_RES_MODE > 0.5 ? HSM_FAKE_SCANLINE_RES : cropped_rotated_scan_res;
+
+	float scanline_size = scan_axis_screen_scale_res / simulated_scanline_res;
+
+	if (HSM_FAKE_SCANLINE_INT_SCALE == 1)
+		scanline_size = ceil(scanline_size);
+
+	float scan = mod(scan_axis_pos * scan_axis_screen_scale_res + scanline_size / 2, scanline_size) / scanline_size;
+
+	// Alternate, modulating the scanline width depending on brightness
+	//float scanline_mask = HHLP_EasePowerOut(1 - abs(scan - 0.5) * 2, 0.5 + 2 * smoothstep(0.4, 0.9, (in_color.r + in_color.g +  in_color.b) / 3));
+	float color_brightness_modulation = HHLP_EasePowerOut(smoothstep(0.4, 0.99, (in_color.r + in_color.g +  in_color.b) / 3), 2);
+
+	float scanline_mask = 1 - abs(scan - 0.5) * 2;
+	scanline_mask = pow(1 - scanline_mask, 1);
+
+	float final_scanline_mask = clamp(1 * scanline_mask, 0, 1);
+
+	color_brightness_modulation = HHLP_EasePowerOut(smoothstep(0.4, HSM_FAKE_SCANLINE_BRIGHTNESS_CUTOFF + 1.5, (in_color.r + in_color.g +  in_color.b) / 3), 2);
+	final_scanline_mask = clamp(mix(1, mix(final_scanline_mask, 1, color_brightness_modulation), in_scanline_opacity), 0, 1);
+
+	vec4 masked_color = in_color;
+	masked_color *= 1 + 0.5 * in_scanline_opacity;
+	masked_color = clamp(final_scanline_mask * masked_color, 0, 1);
+	masked_color.w = in_color.w;
+
+	// Darken the outside image a bit
+	vec4 crt_darkened_color = mix(in_color, in_color * 0.9, HSM_FAKE_SCANLINE_OPACITY);
+
+	// Show scanlines only in the tube area
+	float softened_tube_mask = HSM_GetCornerMask((in_tube_curved_coord - 0.5) * 0.995 + 0.5 , TUBE_DIFFUSE_ASPECT, HSM_BZL_INNER_CORNER_RADIUS_SCALE * HSM_GLOBAL_CORNER_RADIUS, 0.05);
+	vec4 out_color = mix(crt_darkened_color, masked_color, softened_tube_mask);
+
+	return clamp(out_color, 0, 1);
 }

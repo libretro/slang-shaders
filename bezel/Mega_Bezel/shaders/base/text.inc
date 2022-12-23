@@ -358,7 +358,7 @@ float print_number(float number,vec2 pos, vec2 uv)
 	vec2 dec_pos = pos;
     float result = 0.0;
     
-	for(int i = 3;i >= -2;i--)
+	for(int i = 3; i >= -2; i--)
     {
         float clip = float(abs(number) > pow(10.0, float(i)) || i == 0); //Clip off leading zeros.
         
@@ -382,7 +382,7 @@ float print_integer(float number, int zeros, vec2 uv)
 {
     float result = 0.0;
 
-	for(int i = MAX_INT_DIGITS;i >= 0;i--)
+	for(int i = MAX_INT_DIGITS; i >= 0; i--)
     {
         float digit = mod( number / pow(10.0, float(i)) , 10.0);
 
@@ -446,8 +446,8 @@ float DrawResolutions(vec2 uv, vec2 viewport_size, vec2 screen_size, vec2 dereze
     
    _I _n _t _spc _S _c _l _spc _V _e _r _t _spc _dsh _dsh _spc
 
-    if (fract(int_mult.y) < 0.01 || fract(int_mult.y) > 0.99)
-        TEXT_MASK += print_number(int_mult.y, print_pos, uv);
+    if (fract(int_mult.y) < 0.01)
+        TEXT_MASK += print_integer(int_mult.y, 0, uv);
     else
         TEXT_MASK += print_number(int_mult.y, print_pos, uv);
 
@@ -457,8 +457,8 @@ float DrawResolutions(vec2 uv, vec2 viewport_size, vec2 screen_size, vec2 dereze
     
    _I _n _t _spc _S _c _l _spc _H _o _r _z _spc _dsh _dsh _spc
 
-    if (fract(int_mult.x) < 0.01 || fract(int_mult.x) > 0.99)
-        TEXT_MASK += print_number(int_mult.x, print_pos, uv);
+    if (fract(int_mult.x) < 0.01)
+        TEXT_MASK += print_integer(int_mult.x, 0, uv);
     else
         TEXT_MASK += print_number(int_mult.x, print_pos, uv);
 
@@ -557,10 +557,11 @@ float DrawResolutions(vec2 uv, vec2 viewport_size, vec2 screen_size, vec2 dereze
     print_pos.x = margin;
     print_pos.y += STRHEIGHT(1);
 
+   // Text Version V1.7.0_2022-12-21
    // Version
-   _1 _per _5 _per _0 _spc
+   _1 _per _7 _per _0 _spc
    // Date
-   _2 _0 _2 _2 _dsh _1 _0 _dsh _1 _1
+   _2 _0 _2 _2 _dsh _1 _2 _dsh _2 _1
 
     // Line 01 Title ----------------------------------------------------------
     print_pos.x = margin;
@@ -571,20 +572,12 @@ float DrawResolutions(vec2 uv, vec2 viewport_size, vec2 screen_size, vec2 dereze
     return TEXT_MASK;
 }
 
-vec2 GetScreenSize(vec2 screen_scale)
-{
-	vec2 screen_size = global.FinalViewportSize.xy * screen_scale;
-	// Round this so we get proper integers
-	screen_size = vec2(ceil(screen_size.x), ceil(screen_size.y));
-	return screen_size;
-}
-
 vec2 GetIntegerScaleMult(vec2 screen_size, vec2 cropped_size)
 {
-	float epsilon = 0.002;
+	float epsilon = 0.01;
 	vec2 integer_scale = screen_size / cropped_size;
-	integer_scale = vec2(fract(integer_scale.x + 0.001) < epsilon ? round(integer_scale.x) : integer_scale.x,
-						 fract(integer_scale.y + 0.001) < epsilon ? round(integer_scale.y) : integer_scale.y);
+	integer_scale = vec2(abs(integer_scale.x - round(integer_scale.x)) < epsilon ? round(integer_scale.x) : integer_scale.x,
+						 abs(integer_scale.y - round(integer_scale.y)) < epsilon ? round(integer_scale.y) : integer_scale.y);
 	return integer_scale;
 }
 
@@ -593,8 +586,7 @@ float GetText(vec2 in_coord)
    in_coord.x = HSM_FLIP_VIEWPORT_HORIZONTAL * HSM_FLIP_CORE_HORIZONTAL * (in_coord.x - 0.5) + 0.5;
    in_coord.y = HSM_FLIP_VIEWPORT_VERTICAL * HSM_FLIP_CORE_VERTICAL * (in_coord.y - 0.5) + 0.5;
 
-   vec2 screen_size = GetScreenSize(SCREEN_SCALE);
-   vec2 int_mult = GetIntegerScaleMult(screen_size, CROPPED_ROTATED_SIZE);
+   vec2 int_mult = GetIntegerScaleMult(SCREEN_SIZE, CROPPED_ROTATED_SIZE);
    vec2 canvas_size = global.DerezedPassSize.xy;
 
     in_coord = (in_coord - 0.5) * vec2(1, -1) + 0.5;
@@ -605,7 +597,7 @@ float GetText(vec2 in_coord)
    vec2 uv = global.OutputSize.xy * in_coord;
 	vec2 downscaled_uv = floor(global.OutputSize.xy * in_coord / downscale);
 
-	float pixel = DrawResolutions(downscaled_uv, global.FinalViewportSize.xy, screen_size, ROTATED_DEREZED_SIZE, ROTATED_CORE_PREPPED_SIZE, CROPPED_ROTATED_SIZE, CROPPED_ROTATED_SIZE_WITH_RES_MULT, int_mult);
+	float pixel = DrawResolutions(downscaled_uv, global.FinalViewportSize.xy, SCREEN_SIZE, ROTATED_DEREZED_SIZE, ROTATED_CORE_PREPPED_SIZE, CROPPED_ROTATED_SIZE, CROPPED_ROTATED_SIZE_WITH_RES_MULT, int_mult);
     
     vec3 col = vec3(1);
     pixel *= (1 - distance(mod(uv, vec2(1.0)), vec2(0.65))) * 1.2;

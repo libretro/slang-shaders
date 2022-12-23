@@ -3,7 +3,7 @@
 /*
    Gaussian blur - horizontal pass, dynamic range, resizable
    
-   Copyright (C) 2020 guest(r) - guest.r@gmail.com
+   Copyright (C) 2020 - 2022 guest(r) - guest.r@gmail.com
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -32,6 +32,7 @@ layout(push_constant) uniform Push
 	float SIGMA_H;
 } params;
 
+#pragma parameter GDV_GDV_ADV_LINE							" " 0 0 0.001 0.001
 #pragma parameter GDV_GDV_ADV_TITLE_2 		"[ --- GUEST-DrVenom Advanced --- ]:" 0.0 0.0 1.0 1.0
 
 #pragma parameter bogus_glow "[ GLOW ]:" 0.0 0.0 1.0 1.0

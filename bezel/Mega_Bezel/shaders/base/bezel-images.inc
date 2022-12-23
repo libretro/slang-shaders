@@ -47,6 +47,10 @@
 #define CUTOUT_MODE_INSIDE 1
 #define CUTOUT_MODE_OUTSIDE 2
 
+float FILL_MODE_KEEP_TEXTURE_ASPECT = 0;
+float FILL_MODE_SPLIT = 1;
+float FILL_MODE_STRETCH = 2;
+
 float USE_INHERITED_COORD_OFF = 0;
 float USE_INHERITED_COORD_ON = 1;
 
@@ -115,7 +119,6 @@ vec2 HSM_GetScaledCoord(vec2 in_viewport_coord,
 						float layer_to_follow,
 						float follow_mode,
 						float scale_full_with_zoom,
-						float image_aspect_mode,
 						float image_fill_mode,
 						float split_preserve_center,
 						float split_repeat_width,
@@ -222,7 +225,7 @@ vec2 HSM_GetScaledCoord(vec2 in_viewport_coord,
 
 	// Get the overall scale for the placement of the texture (No Split/Fill Yet)
 	out_placement_scale = inherited_scale;
-	if ( image_aspect_mode == IMAGE_ASPECT_MODE_KEEP_ASPECT )
+	if ( image_fill_mode == FILL_MODE_KEEP_TEXTURE_ASPECT )
 		out_placement_scale.x *= inherited_aspect_difference;
 	out_placement_scale = out_placement_scale * offset_scale;
 
@@ -234,7 +237,7 @@ vec2 HSM_GetScaledCoord(vec2 in_viewport_coord,
 	vec2 drawing_scale = out_placement_scale;
 	float slide_x = 0;
 
-	if ( image_fill_mode == FILL_MODE_SPLIT_FILL_HORIZONTAL )
+	if ( image_fill_mode == FILL_MODE_SPLIT )
 	{
 		float abs_ctr_coord_x = abs(out_placement_coord.x - 0.5);
 		// Correct the aspect so it matches the texture and is never stretched
@@ -667,7 +670,6 @@ void main()
 												HSM_BG_FOLLOW_LAYER,
 												HSM_BG_FOLLOW_MODE,
 												HSM_BG_FOLLOW_FULL_USES_ZOOM,
-												HSM_BG_SCALE_KEEP_ASPECT,
 												HSM_BG_FILL_MODE,
 												HSM_BG_SPLIT_PRESERVE_CENTER,
 												HSM_BG_SPLIT_REPEAT_WIDTH,
@@ -708,7 +710,7 @@ void main()
 	//----------------------------------------------------
 	// Device Image
 	//----------------------------------------------------
-	bool device_use_vert_image = SCREEN_ASPECT < 1 && textureSize(BackgroundVertImage, 0).y > 16 ? true : false; 
+	bool device_use_vert_image = SCREEN_ASPECT < 1 && textureSize(DeviceVertImage, 0).y > 16 ? true : false; 
 	vec2 device_size = device_use_vert_image ? textureSize(DeviceVertImage, 0) : textureSize(DeviceImage, 0);
 	DEVICE_CURVED_COORD = HSM_GetScaledCoord(VIEWPORT_COORD,
 											VIEWPORT_UNSCALED_COORD,
@@ -719,7 +721,6 @@ void main()
 											HSM_DEVICE_FOLLOW_LAYER,
 											HSM_DEVICE_FOLLOW_MODE,
 											HSM_DEVICE_FOLLOW_FULL_USES_ZOOM,
-											HSM_DEVICE_SCALE_KEEP_ASPECT,
 											HSM_DEVICE_FILL_MODE,
 											HSM_DEVICE_SPLIT_PRESERVE_CENTER,
 											HSM_DEVICE_SPLIT_REPEAT_WIDTH,
@@ -731,7 +732,7 @@ void main()
 	if (HSM_DEVICE_OPACITY > 0 && device_size.y > 16)
 	{
 		device_image = device_use_vert_image ? 	HSM_GetMipmappedTexSample(DeviceVertImage, DEVICE_CURVED_COORD, DEVICE_SCALE, HSM_DEVICE_MIPMAPPING_BLEND_BIAS) :
-											HSM_GetMipmappedTexSample(DeviceImage, DEVICE_CURVED_COORD, DEVICE_SCALE, HSM_DEVICE_MIPMAPPING_BLEND_BIAS);
+												HSM_GetMipmappedTexSample(DeviceImage, DEVICE_CURVED_COORD, DEVICE_SCALE, HSM_DEVICE_MIPMAPPING_BLEND_BIAS);
 
 		// Premultiply Alpha
 		device_image = HSM_GetPreMultipliedColorLinear(device_image, HSM_DEVICE_SOURCE_MATTE_TYPE, DEFAULT_SRGB_GAMMA);
@@ -765,7 +766,6 @@ void main()
 											HSM_DEVICELED_FOLLOW_LAYER,
 											HSM_DEVICELED_FOLLOW_MODE,
 											HSM_DEVICELED_FOLLOW_FULL_USES_ZOOM,
-											HSM_DEVICELED_SCALE_KEEP_ASPECT,
 											HSM_DEVICELED_FILL_MODE,
 											HSM_DEVICELED_SPLIT_PRESERVE_CENTER,
 											HSM_DEVICELED_SPLIT_REPEAT_WIDTH,
@@ -813,7 +813,6 @@ void main()
 											HSM_LED_FOLLOW_LAYER,
 											HSM_LED_FOLLOW_MODE,
 											HSM_LED_FOLLOW_FULL_USES_ZOOM,
-											HSM_LED_SCALE_KEEP_ASPECT, 
 											HSM_LED_FILL_MODE,
 											HSM_LED_SPLIT_PRESERVE_CENTER,
 											HSM_LED_SPLIT_REPEAT_WIDTH,
@@ -859,7 +858,6 @@ void main()
 											HSM_DECAL_FOLLOW_LAYER,
 											HSM_DECAL_FOLLOW_MODE,
 											HSM_DECAL_FOLLOW_FULL_USES_ZOOM,
-											HSM_DECAL_SCALE_KEEP_ASPECT, 
 											HSM_DECAL_FILL_MODE,
 											HSM_DECAL_SPLIT_PRESERVE_CENTER,
 											HSM_DECAL_SPLIT_REPEAT_WIDTH,
@@ -904,7 +902,6 @@ void main()
 												HSM_TOP_FOLLOW_LAYER,
 												HSM_TOP_FOLLOW_MODE,
 												HSM_TOP_FOLLOW_FULL_USES_ZOOM,
-												HSM_TOP_SCALE_KEEP_ASPECT, 
 												HSM_TOP_FILL_MODE,
 												HSM_TOP_SPLIT_PRESERVE_CENTER,
 												HSM_TOP_SPLIT_REPEAT_WIDTH,
@@ -948,6 +945,8 @@ void main()
 
 	if (HSM_CAB_GLASS_OPACITY > 0)
 	{
+
+
 		vec2 cab_glass_size = textureSize(CabinetGlassImage, 0);
 		CAB_GLASS_CURVED_COORD = HSM_GetScaledCoord(VIEWPORT_COORD,
 													VIEWPORT_UNSCALED_COORD,
@@ -958,7 +957,6 @@ void main()
 													HSM_CAB_GLASS_FOLLOW_LAYER,
 													HSM_CAB_GLASS_FOLLOW_MODE,
 													HSM_CAB_GLASS_FOLLOW_FULL_USES_ZOOM,
-													HSM_CAB_GLASS_SCALE_KEEP_ASPECT, 
 													HSM_CAB_GLASS_FILL_MODE,
 													HSM_CAB_GLASS_SPLIT_PRESERVE_CENTER,
 													HSM_CAB_GLASS_SPLIT_REPEAT_WIDTH,
@@ -1015,7 +1013,6 @@ void main()
 											HSM_CUTOUT_FOLLOW_LAYER,
 											FOLLOW_MODE_SCALE_AND_POS,
 											HSM_CUTOUT_FOLLOW_FULL_USES_ZOOM,
-											HSM_CUTOUT_KEEP_ASPECT,
 											FILL_MODE_STRETCH,
 											0,
 											0,
@@ -1040,7 +1037,6 @@ void main()
 												HSM_VIEWPORT_VIGNETTE_FOLLOW_LAYER,
 												FOLLOW_MODE_SCALE_AND_POS,
 												FOLLOW_LAYER_VIEWPORT,
-												0,
 												FILL_MODE_STRETCH,
 												0,
 												0,

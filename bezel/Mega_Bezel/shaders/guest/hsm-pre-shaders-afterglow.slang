@@ -48,6 +48,7 @@ layout(push_constant) uniform Push
 #pragma parameter sat            "          Afterglow Saturation  -- sat" 0.50 0.0 1.0 0.01
 #define sat params.sat
 
+#pragma parameter GDV_COLOR_LINE							" " 0 0 0.001 0.001
 #pragma parameter bogus_color    "[ COLOR TWEAKS ]:" 0.0 0.0 1.0 1.0
 
 #pragma parameter CS             "       Display Gamut: sRGB, Modern, DCI, Adobe, Rec.2020 -- CS" 0.0 0.0 4.0 1.0 

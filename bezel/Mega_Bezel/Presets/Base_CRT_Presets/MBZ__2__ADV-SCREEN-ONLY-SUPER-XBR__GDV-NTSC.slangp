@@ -1,4 +1,4 @@
-shaders = 44
+shaders = 45
 
 shader0 = ../../shaders/base/add-params-no-reflect.slang
 alias0 = "CorePass"
@@ -60,6 +60,7 @@ shader15 = ../../shaders/dedither/dedither-gamma-prep-2-after.slang
 shader16 = ../../shaders/ps1dither/hsm-PS1-Undither-BoxBlur.slang
 
 shader17 = ../../shaders/guest/extras/hsm-sharpsmoother.slang
+alias17 = "DeditherPass"
 
 shader18 = ../../shaders/base/stock.slang
 // filter_linear18 = "false"
@@ -138,9 +139,10 @@ scale26 = 1.0
 // Color Correction with Dogway's awesome Grade shader
 // Grade is after Afterglow so that brightening the black level does not break the afterglow
 shader27 = ../../shaders/dogway/hsm-grade.slang
-filter_linear27 = true
+filter_linear27 = false
 scale_type27 = source
 scale27 = 1.0
+alias27 = "ColorCorrectPass"
 
 shader28 = ../../shaders/base/stock.slang
 alias28 = "PrePass0"
@@ -221,7 +223,7 @@ scale_x38 = 640.0
 scale_type_y38 = absolute
 scale_y38 = 480.0
 float_framebuffer38 = true
-alias38 = GlowPass
+alias38 = "GlowPass"
 
 shader39 = ../../shaders/guest/hsm-bloom_horizontal.slang
 filter_linear39 = true
@@ -238,23 +240,32 @@ scale_x40 = 640.0
 scale_type_y40 = absolute
 scale_y40 = 480.0
 float_framebuffer40 = true
-alias40 = BloomPass 
+alias40 = "BloomPass" 
 
 shader41 = ../../shaders/guest/hsm-crt-guest-advanced-ntsc-pass2-no-reflect.slang
 filter_linear41 = true
-float_framebuffer41 = true
 scale_type41 = viewport
 scale_x41 = 1.0
 scale_y41 = 1.0
+float_framebuffer41 = true
 
 shader42 = ../../shaders/guest/hsm-deconvergence.slang
 filter_linear42 = true
 scale_type42 = viewport
 scale_x42 = 1.0
 scale_y42 = 1.0
+float_framebuffer42 = true
+alias42 = "CRTPass"
 
 shader43 = ../../shaders/base/post-crt-prep-no-reflect.slang
-alias43 = "MBZ_PostCRTPass"
+scale_type43 = viewport
+float_framebuffer43 = true
+alias43 = "PostCRTPass"
+
+// Combine Passes ----------------------------------------------------------------
+shader44 = ../../shaders/base/output-sdr.slang
+scale_type44 = viewport
+alias44 = "OutputPass"
 // Define textures to be used by the different passes
 textures = "SamplerLUT1;SamplerLUT2;SamplerLUT3;SamplerLUT4;IntroImage;ScreenPlacementImage;TubeDiffuseImage;TubeColoredGelImage;TubeShadowImage;TubeStaticReflectionImage;BackgroundImage;BackgroundVertImage;ReflectionMaskImage;FrameTextureImage;CabinetGlassImage;DeviceImage;DeviceVertImage;DeviceLEDImage;DecalImage;NightLightingImage;NightLighting2Image;LEDImage;TopLayerImage;"
 
@@ -351,8 +362,6 @@ GAMMA_INPUT = 2.0
 gamma_out = 1.95
 
 // SMOOTH-ADV
-HSM_CORE_RES_SAMPLING_MULT_SCANLINE_DIR = 600
-
 HSM_DEDITHER_MODE = 3
 
 SHARPSMOOTHER_ON = 1
@@ -364,9 +373,9 @@ mtric = 0.3
 
 SUPERXBR_ON = 1
 
-ntsc_scale = 0.55
+ntsc_scale = 0.45
 
-SHARPEN = 0.5
+SHARPEN = 1
 
 HSM_CORE_RES_SAMPLING_MULT_SCANLINE_DIR = 600
 HSM_CORE_RES_SAMPLING_MULT_OPPOSITE_DIR = 100
@@ -380,3 +389,6 @@ HSM_DOWNSAMPLE_BLUR_OPPOSITE_DIR = 0
 // maskDark = 0.4
 // maskLight = 1.2
 // mask_gamma = 4
+
+// Mask Size is Auto, so it will look the same at 1080p and 4K
+masksize = 0

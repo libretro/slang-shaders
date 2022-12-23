@@ -32,16 +32,14 @@ layout(push_constant) uniform Push
 	float HSHARPNESS;
 	float S_SHARP;
 	float HARNG;
-	float HSHARP; 
-	float prescalex;
-	float prescaley;
+	float HSHARP;
 	float spike;
 	float internal_res;
 } params;
 
 #pragma parameter bogus_filtering "[ FILTERING OPTIONS ]: " 0.0 0.0 1.0 1.0
 
-#pragma parameter HSHARPNESS "          Horizontal Filter Range -- HSHARPNESS" 1.5 1.0 8.0 0.125
+#pragma parameter HSHARPNESS "          Horizontal Filter Range -- HSHARPNESS" 1.5 1.0 8.0 0.05
 #define HSHARPNESS params.HSHARPNESS
 
 #pragma parameter SIGMA_HOR "          Horizontal Blur Sigma -- SIGMA_HOR" 0.90 0.1 7.0 0.05
@@ -58,9 +56,6 @@ layout(push_constant) uniform Push
 
 #pragma parameter spike "          Scanline Spike Removal -- spike" 1.0 0.0 2.0 0.10
 #define spike params.spike
-
-#pragma parameter prescalex "          Prescale-X Factor (for xBR...pre-shader) -- prescalex" 1.0 1.0 4.0 1.0  // Joint parameter with main pass, values must match
-#define prescalex        params.prescalex     // prescale-x factor 
 
 #define COMPAT_TEXTURE(c,d) texture(c,d)
 
@@ -116,10 +111,14 @@ void main()
 #endif
 
 	/* HSM Removed
-	vec4 SourceSize = params.OriginalSize * vec4(2.0*prescalex, 1.0, 0.5/prescalex, 1.0);
+	vec2 prescalex = vec2(textureSize(LinearizePass, 0)) / params.OriginalSize.xy;
+
+	vec4 SourceSize = params.OriginalSize * vec4(2.0*prescalex.x, prescalex.y, 0.5/prescalex.x, 1.0/prescalex.y);
 	*/
-	// HSM Added
-	vec4 SourceSize = vec4(CROPPED_ROTATED_SIZE_WITH_RES_MULT, 1 / CROPPED_ROTATED_SIZE_WITH_RES_MULT) * vec4(2.0*prescalex, 1.0, 0.5/prescalex, 1.0);
+
+	vec2 prescalex = global.NegativeCropAddedPassSize.xy / params.OriginalSize.xy;
+
+	vec4 SourceSize = global.NegativeCropAddedPassSize * vec4(2.0*prescalex.x, prescalex.y, 0.5/prescalex.x, 1.0/prescalex.y);
 
 	float f = fract(SourceSize.x * vTexCoord.x);
 	f = 0.5 - f;
@@ -159,7 +158,7 @@ void main()
 		w = gaussian(n+f) - sharp;
 		fpx = abs(n+f-sign(n)*FPR)/FPR;
 		if (abs(n) <= CLAMPSIZE) { cmax = max(cmax, pixel); cmin = min(cmin, pixel); }
-		if (w < 0.0) w = clamp(w, mix(-maxsharp, 0.0, pow(fpx, HSHARP)), 0.0);
+		if (w < 0.0) w = clamp(w, mix(-maxsharp, 0.0, pow(clamp(fpx,0.0,1.0), HSHARP)), 0.0);
 	
 		color = color + w * pixel;
 		wsum  = wsum + w;

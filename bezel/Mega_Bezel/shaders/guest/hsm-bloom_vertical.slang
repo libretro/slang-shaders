@@ -3,7 +3,7 @@
 /*
    Gaussian blur - vertical pass, dynamic range, resizable
    
-   Copyright (C) 2020 guest(r) - guest.r@gmail.com
+   Copyright (C) 2020 - 2022 guest(r) - guest.r@gmail.com
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -29,6 +29,7 @@ layout(push_constant) uniform Push
 	uint FrameCount;
 	float SIZEVB;
 	float SIGMA_VB;
+	float BLOOMCUT_V;
 } params;
 
 
@@ -37,6 +38,9 @@ layout(push_constant) uniform Push
 
 #pragma parameter SIGMA_VB "          Vertical Sigma ( Spread ) -- SIGMA_VB" 0.60 0.25 15.0 0.05
 #define SIGMA_VB params.SIGMA_VB
+
+#pragma parameter BLOOMCUT_V "          Vertical Bloom/Halation/(Glow) Substract" 0.0 0.0 0.5 0.01
+#define BLOOMCUT_V params.BLOOMCUT_V
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -87,7 +91,7 @@ void main()
 	do
 	{
 		pixel  = COMPAT_TEXTURE(Source, tex + n*dy);
-		w      = gaussian(n+f);
+		w      = max(gaussian(n+f) - BLOOMCUT_V, 0.0);
 		pixel.a*=pixel.a*pixel.a;
 		color  = color + w * pixel;
 		wsum   = wsum + w;

@@ -30,6 +30,7 @@ layout(push_constant) uniform Push
 	float SHARPEN_ON;
 } params;
 
+#pragma parameter SHARPEN_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter SHARPEN_TITLE  	"[ FAST SHARPEN - GUEST.R ]:"         			0.00 0.0 2.00 0.05
 // #pragma parameter SHARPEN_ON  		"          Sharpen ON"       		0 0 1 1
 // #define SHARPEN_ON params.SHARPEN_ON

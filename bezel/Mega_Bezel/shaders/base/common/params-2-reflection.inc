@@ -25,6 +25,7 @@
 //---------------------------------------------------------------------------------------------------
 //    REFLECTION
 //---------------------------------------------------------------------------------------------------
+#pragma parameter HSM_REFLECTION_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter HSM_REFLECTION_TITLE			                "[ REFLECTION ]:" 0 0 0.01 0.01
 
 #pragma parameter HSM_REFLECT_GLOBAL_AMOUNT 				    "          Global Amount" 40 0 1000 1
@@ -61,6 +62,7 @@ float HSM_REFLECT_FRAME_INNER_EDGE_SHARPNESS = global.HSM_REFLECT_FRAME_INNER_ED
 //---------------------------------------------------------------------------------------------------
 // Reflection Fading
 //---------------------------------------------------------------------------------------------------
+#pragma parameter HSM_REFLECTION_FADE_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter HSM_REFLECTION_FADE_TITLE			            "[ REFLECTION FADE ]:" 0 0 0.01 0.01
 
 #pragma parameter HSM_REFLECT_FADE_AMOUNT 					    "          Fade Amount" 100 0 100 5
@@ -82,6 +84,7 @@ float HSM_REFLECT_LATERAL_OUTER_FADE_DISTANCE = global.HSM_REFLECT_LATERAL_OUTER
 //---------------------------------------------------------------------------------------------------
 // Reflection Blur
 //---------------------------------------------------------------------------------------------------
+#pragma parameter HSM_REFLECT_BLUR_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter HSM_REFLECT_BLUR_TITLE			                "[ REFLECTION BLUR ]:" 0 0 0.01 0.01
 
 #pragma parameter HSM_REFLECT_BLUR_NUM_SAMPLES 					    "          Blur Samples - 0 for OFF" 12 0 40 1
@@ -99,6 +102,7 @@ float HSM_REFLECT_BLUR_FALLOFF_DISTANCE = global.HSM_REFLECT_BLUR_FALLOFF_DISTAN
 // float HSM_REFLECT_BLUR_FALLOFF_DISTANCE = 1;
 
 // Reflection Noise
+#pragma parameter HSM_REFLECT_NOISE_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter HSM_REFLECT_NOISE_TITLE			                "[ REFLECTION NOISE ]:" 0 0 0.01 0.01
 
 #pragma parameter HSM_REFLECT_NOISE_AMOUNT 						    "          Noise Amount" 50 0 100 1

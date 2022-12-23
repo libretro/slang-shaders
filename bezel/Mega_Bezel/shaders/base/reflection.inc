@@ -22,6 +22,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// Float format so we can avoid banding
+#pragma format R16G16B16A16_SFLOAT
+
 /////////////// IMPORTS ///////////////
 #include "common/common-functions-bezel.inc"
 
@@ -51,7 +54,6 @@ layout(location = 1) in vec2 TexCoord;
 
 layout(location = 6) out vec2 vTexCoord;
 layout(location = 7) out vec2 UNFLIPPED_VIEWPORT_COORD;
-layout(location = 8) out vec3 BEZEL_FRAME_ORIGINAL_COLOR_RGB;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 void main()
@@ -62,8 +64,6 @@ void main()
 	UNFLIPPED_VIEWPORT_COORD = vTexCoord * 1.0001;
 	vTexCoord * 1.0001;
 
-	// Not sure why we need linearize this but it seems to have a smoother range this way
-	BEZEL_FRAME_ORIGINAL_COLOR_RGB = HSM_Linearize(vec4(HSM_HSVtoRGB(vec3(HSM_BZL_COLOR_HUE, HSM_BZL_COLOR_SATURATION, HSM_BZL_COLOR_VALUE)), 1), DEFAULT_SRGB_GAMMA).rgb;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -71,28 +71,23 @@ void main()
 
 layout(location = 6) in vec2 vTexCoord;
 layout(location = 7) in vec2 UNFLIPPED_VIEWPORT_COORD;
-layout(location = 8) in vec3 BEZEL_FRAME_ORIGINAL_COLOR_RGB;
 
 layout(location = 0) out vec4 FragColor;
 
 // Pass Framebuffer Textures
 layout(set = 0, binding = 1) uniform sampler2D InfoCachePass;
 
-layout(set = 0, binding = 3) uniform sampler2D NightLightingImage;
-layout(set = 0, binding = 4) uniform sampler2D NightLighting2Image;
-layout(set = 0, binding = 5) uniform sampler2D BackgroundImage;
-layout(set = 0, binding = 6) uniform sampler2D ReflectionMaskImage;
+layout(set = 0, binding = 2) uniform sampler2D BackgroundImage;
+layout(set = 0, binding = 3) uniform sampler2D ReflectionMaskImage;
 
-layout(set = 0, binding = 7) uniform sampler2D TubeStaticReflectionImage;
-layout(set = 0, binding = 8) uniform sampler2D TubeColoredGelImage;
+layout(set = 0, binding = 4) uniform sampler2D BR_MirrorLowResPass;
+layout(set = 0, binding = 5) uniform sampler2D PostCRTPass;
+layout(set = 0, binding = 6) uniform sampler2D BR_MirrorBlurredPass;
+layout(set = 0, binding = 7) uniform sampler2D BR_MirrorReflectionDiffusedPass;
+layout(set = 0, binding = 8) uniform sampler2D BR_MirrorFullscreenGlowPass;
 
-layout(set = 0, binding = 9) uniform sampler2D MBZ_PostCRTPass;
-layout(set = 0, binding = 10) uniform sampler2D BR_MirrorBlurredPass;
-layout(set = 0, binding = 11) uniform sampler2D BR_MirrorReflectionDiffusedPass;
-layout(set = 0, binding = 12) uniform sampler2D BR_MirrorFullscreenGlowPass;
-
-layout(set = 0, binding = 13) uniform sampler2D BR_CRTAndReflectionPassFeedback;
-#define PassFeedback BR_CRTAndReflectionPassFeedback
+layout(set = 0, binding = 9) uniform sampler2D ReflectionPassFeedback;
+#define PassFeedback ReflectionPassFeedback
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 void main()
@@ -133,8 +128,7 @@ void main()
 	// CRT Pass
 	//----------------------------------------------------
 	// Get the CRT pass and make it in linear space & mask the area outside the screen
-	vec4 crt_linear = HSM_Linearize(texture(MBZ_PostCRTPass, UNFLIPPED_VIEWPORT_COORD.xy), DEFAULT_CRT_GAMMA);
-	crt_linear = HSM_ApplyGamma(crt_linear, DEFAULT_CRT_GAMMA / DEFAULT_SRGB_GAMMA);
+	vec4 crt_linear = texture(PostCRTPass, UNFLIPPED_VIEWPORT_COORD.xy);
 
 	vec4 blurred_reflection_color = HHLP_GetBilinearTextureSample(BR_MirrorBlurredPass, UNFLIPPED_VIEWPORT_COORD.xy, params.BR_MirrorBlurredPassSize);
 
@@ -408,8 +402,6 @@ void main()
 		// 		reflection_image_scale = DEVICE_SCALE;
 		// 	}
 
-		// 	float reflection_image = HSM_GetMipmappedTexSample(TubeColoredGelImage, mirrored_tube_coord, TUBE_SCALE, 0);
-
 		// 	reflection_color *= HSM_REFLECT_MASK_IMG_AMOUNT * texture(ReflectionMaskImage, reflection_image_coord).r + (1 - HSM_REFLECT_MASK_IMG_AMOUNT);
 		// }
 	}
@@ -427,7 +419,20 @@ void main()
 	vec4 frag_color_linear = crt_linear;
 	frag_color_linear = HSM_BlendModeLayerMix(frag_color_linear, bg_image, HSM_BG_BLEND_MODE, HSM_BG_OPACITY);
 	frag_color_linear += reflection_color;
-	FragColor = HSM_ApplyGamma(clamp(frag_color_linear, 0, 1), DEFAULT_SRGB_GAMMA);
+
+
+	FragColor = frag_color_linear;
+
+// Apply output gamma if this not an HDR preset because it is the last pass
+#ifndef IS_HDR_PRESET
+	FragColor = HSM_Delinearize(frag_color_linear, DEFAULT_SRGB_GAMMA);
+#endif
+
+// #ifdef IS_HDR_PRESET
+// 	vec3 output_colour = vec3(0);
+// 	LinearToOutputColor(FragColor.rgb, output_colour);
+// 	FragColor = vec4(output_colour, 1.0f);
+// #endif
 
 	return;
 #endif
@@ -436,5 +441,4 @@ FragColor = crt_linear;
 FragColor.rgb += reflection_color.rgb;
 FragColor *= 1 - OUTSIDE_BEZEL_MASK;
 return;
-
 }

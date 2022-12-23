@@ -295,8 +295,7 @@ void main()
 #endif
 
    bool cache_info_changed = CACHE_INFO_CHANGED;
-   bool cache_updated = cache_info_changed || HSM_CACHE_GRAPHICS_ON == 0;
-   bool show_update_indicator = (HSM_CACHE_UPDATE_INDICATOR_MODE == 2 && HSM_CACHE_GRAPHICS_ON == 0) || (HSM_CACHE_UPDATE_INDICATOR_MODE == 1 && cache_info_changed);
+   bool show_update_indicator = cache_info_changed && ( HSM_CACHE_UPDATE_INDICATOR_MODE == 1 || HSM_CACHE_GRAPHICS_ON < 0.5 && HSM_CACHE_UPDATE_INDICATOR_MODE == 2);
 
 	if (show_update_indicator)
 	{

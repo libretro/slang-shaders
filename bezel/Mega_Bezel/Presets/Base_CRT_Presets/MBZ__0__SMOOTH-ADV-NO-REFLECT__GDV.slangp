@@ -60,6 +60,7 @@ shader15 = ../../shaders/dedither/dedither-gamma-prep-2-after.slang
 shader16 = ../../shaders/ps1dither/hsm-PS1-Undither-BoxBlur.slang
 
 shader17 = ../../shaders/guest/extras/hsm-sharpsmoother.slang
+alias17 = "DeditherPass"
 
 shader18 = ../../shaders/base/stock.slang
 alias18 = refpass
@@ -124,9 +125,10 @@ scale28 = 1.0
 // Color Correction with Dogway's awesome Grade shader
 // Grade is after Afterglow so that brightening the black level does not break the afterglow
 shader29 = ../../shaders/dogway/hsm-grade.slang
-filter_linear29 = true
+filter_linear29 = false
 scale_type29 = source
 scale29 = 1.0
+alias29 = "ColorCorrectPass"
 
 shader30 =  ../../shaders/guest/hsm-custom-fast-sharpen.slang
 filter_linear30 = true
@@ -172,7 +174,7 @@ scale_x35 = 800.0
 scale_type_y35 = absolute
 scale_y35 = 600.0
 float_framebuffer35 = true
-alias35 = GlowPass
+alias35 = "GlowPass"
 
 shader36 = ../../shaders/guest/hsm-bloom_horizontal.slang
 filter_linear36 = true
@@ -189,23 +191,27 @@ scale_x37 = 1.0
 scale_type_y37 = source
 scale_y37 = 1.0
 float_framebuffer37 = true
-alias37 = BloomPass
+alias37 = "BloomPass"
 
 shader38 = ../../shaders/guest/hsm-crt-guest-advanced-no-reflect.slang
 filter_linear38 = true
-float_framebuffer38 = true
 scale_type38 = viewport
 scale_x38 = 1.0
 scale_y38 = 1.0
+float_framebuffer38 = true
 
 shader39 = ../../shaders/guest/hsm-deconvergence-no-reflect.slang
 filter_linear39 = true
 scale_type39 = viewport
 scale_x39 = 1.0
 scale_y39 = 1.0
+float_framebuffer39 = true
+alias39 = "CRTPass"
 
 shader40 = ../../shaders/base/post-crt-prep-no-reflect.slang
-alias40 = "MBZ_PostCRTPass"
+scale_type40 = viewport
+float_framebuffer40 = true
+alias40 = "PostCRTPass"
 
 // Bezel Generation & Composite of Image Layers ----------------------------------------------------------------
 
@@ -315,17 +321,21 @@ TopLayerImage_mipmap = 1
 // Use for matching vanilla GDV-Advanced
 // HSM_ASPECT_RATIO_MODE = 6
 // HSM_CURVATURE_MODE = 0
-
 // SMOOTH-ADV
-HSM_DEDITHER_MODE = 1
+HSM_DEDITHER_MODE = "3.000000"
 
 HSM_SCALEFX_ON = 1
 
-HSM_CORE_RES_SAMPLING_MULT_SCANLINE_DIR = 300
-HSM_CORE_RES_SAMPLING_MULT_OPPOSITE_DIR = 125
+HSM_CORE_RES_SAMPLING_MULT_SCANLINE_DIR = 600
+HSM_CORE_RES_SAMPLING_MULT_OPPOSITE_DIR = 100
 HSM_DOWNSAMPLE_BLUR_SCANLINE_DIR = 0
-HSM_DOWNSAMPLE_BLUR_OPPOSITE_DIR = 0
+HSM_DOWNSAMPLE_BLUR_OPPOSITE_DIR = 30
 
 ntsc_scale = 0.4
 
-shadowMask = 3
+// Lottes mask, a bit like a slot mask effect
+shadowMask = 1
+mask_bloom = 0.3
+
+// Mask Size is Auto, so it will look the same at 1080p and 4K
+masksize = 0

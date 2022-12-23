@@ -32,6 +32,7 @@ layout(push_constant) uniform Push
 
 // HSM Removed
 // #pragma parameter GAMMA_OUTPUT          "    Gamma Output" 2.2 0.1 5.0 0.01
+#pragma parameter ESM_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter ESM_EASYMODE_TITLE        "[ --- EASYMODE--- ]:" 0 0 0 1
 #pragma parameter ESM_SCANLINE_TITLE        "[ SCANLINE ]:" 0 0 0 1
 // #pragma parameter ESM_INTERLACING_TOGGLE    "[EASYMODE SCANLINE]  Interlace ON" 0 0.0 1.0 1.0
@@ -40,16 +41,19 @@ layout(push_constant) uniform Push
 #pragma parameter ESM_SCANLINE_BEAM_MIN     "          Beam Min." 1.0 0.25 5.0 0.05
 #pragma parameter ESM_SCANLINE_BEAM_MAX     "          Beam Max." 1.0 0.25 5.0 0.05
 
+#pragma parameter ESM_SHARPNESS_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter ESM_SHARPNESS_TITLE       "[ SHARPNESS ]:" 0 0 0 1
 #pragma parameter ESM_SHARPNESS_H           "          Horizontal" 0.6 0.0 1.0 0.05
 #pragma parameter ESM_SHARPNESS_V           "          Vertical" 1.0 0.0 1.0 0.05
 
+#pragma parameter ESM_MASK_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter ESM_MASK_TITLE            "[ MASK ]:" 0 0 0 1
 #pragma parameter ESM_MASK_TYPE             "          Type" 4.0 0.0 7.0 1.0
 #pragma parameter ESM_MASK_SIZE             "          Size - 0:Auto, 1:2K, 2:4K" 0 0 100 1
 #pragma parameter ESM_MASK_STRENGTH_MIN     "          Strength Min." 0.2 0.0 0.5 0.01
 #pragma parameter ESM_MASK_STRENGTH_MAX     "          Strength Max." 0.2 0.0 0.5 0.01
 
+#pragma parameter ESM_GLOW_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter ESM_GLOW_TITLE            "[ GLOW ]:" 0 0 0 1
 #pragma parameter ESM_HALATION              "          Halation" 0.03 0.0 1.0 0.01
 #pragma parameter ESM_DIFFUSION             "          Diffusion" 0.0 0.0 1.0 0.01
@@ -365,7 +369,6 @@ void main()
     
     FragColor = vec4(col, 1);
 
-	// HSM add output gamma
-	FragColor = HSM_Delinearize(FragColor, HSM_GAMMA_OUT_CRT);
-	// End Addition
+	// Apply gamma offset mimicking the difference in incoming siglnal and CRT image output
+	FragColor = pow(FragColor, vec4(1 / (HSM_GAMMA_OUT_CRT / DEFAULT_SRGB_GAMMA)));
 }

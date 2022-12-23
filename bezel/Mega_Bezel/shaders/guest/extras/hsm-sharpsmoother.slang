@@ -43,6 +43,7 @@ layout(push_constant) uniform Push
 // mtric = "0.7"
 
 // New default values tuned by Hyllian
+#pragma parameter HSM_SHARPSMOOTHER_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter SHARPSMOOTHER_TITLE     "[ --- SHARPSMOOTHER by Guest.r --- ] "  0  0 0.0.001 0.001
 #pragma parameter SHARPSMOOTHER_ON        "          SharpSmoother ON"     0     0 1 1
 #define SHARPSMOOTHER_ON params.SHARPSMOOTHER_ON

@@ -57,6 +57,7 @@ float HSM_BZL_INNER_EDGE_SHADOW = global.HSM_BZL_INNER_EDGE_SHADOW / 100;
 //---------------------------------------------------------------------------------------------------
 // Bezel Brightness
 //---------------------------------------------------------------------------------------------------
+#pragma parameter HSM_BEZEL_BRIGHTNESS_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter HSM_BEZEL_BRIGHTNESS_TITLE		    "[ BEZEL BRIGHTNESS ]:" 0 0 0.01 0.01
 
 #pragma parameter HSM_BZL_BRIGHTNESS 				    "          Base Brightness - Def 30" 30 0 600 2
@@ -84,6 +85,7 @@ float HSM_BZL_HIGHLIGHT = global.HSM_BZL_HIGHLIGHT / 100;
 //---------------------------------------------------------------------------------------------------
 // Bezel Color
 //---------------------------------------------------------------------------------------------------
+#pragma parameter HSM_BEZEL_COLOR_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter HSM_BEZEL_COLOR_TITLE		"[ BEZEL COLOR ]:" 0 0 0.01 0.01
 
 #pragma parameter HSM_BZL_COLOR_HUE					"          Hue" 0 0 360 1
@@ -105,6 +107,7 @@ float HSM_BZL_AMBIENT2_LIGHTING_MULTIPLIER = global.HSM_BZL_AMBIENT2_LIGHTING_MU
 //---------------------------------------------------------------------------------------------------
 // Frame Color
 //---------------------------------------------------------------------------------------------------
+#pragma parameter HSM_FRM_COLOR_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter HSM_FRM_COLOR_TITLE		"[ FRAME COLOR ]:" 0 0 0.01 0.01
 
 #pragma parameter HSM_FRM_USE_INDEPENDENT_COLOR				"          Use Independent Frame Color" 0 0 1 1
@@ -123,6 +126,7 @@ float HSM_FRM_COLOR_VALUE = global.HSM_FRM_COLOR_VALUE / 100;
 //---------------------------------------------------------------------------------------------------
 //    FRAME
 //---------------------------------------------------------------------------------------------------
+#pragma parameter HSM_FRAME_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter HSM_FRAME_TITLE			        "[ FRAME GENERAL ]:" 0 0 0.01 0.01
 
 #pragma parameter HSM_FRM_OPACITY                   "          Opacity" 100 0 100 5
@@ -174,6 +178,7 @@ float HSM_FRM_SHADOW_OPACITY = global.HSM_FRM_SHADOW_OPACITY / 100;
 float HSM_FRM_SHADOW_WIDTH = global.HSM_FRM_SHADOW_WIDTH / 1000;
 
 
+#pragma parameter HSM_REFLECT_CORNER_EMPTY_LINE							" " 0 0 0.001 0.001
 #pragma parameter HSM_REFLECT_CORNER_TITLE			            "[ CORNER CREASE - ALSO CONTROLS REFLECTION]:" 0 0 0.01 0.01
 
 #pragma parameter HSM_REFLECT_CORNER_FADE 						"          Corner Fade" 10 1 100 0.5

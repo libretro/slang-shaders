@@ -57,41 +57,48 @@ float intsmear(float x, float dx)
 
 void main()
 {
-  vec2 texelSize = global.SourceSize.zw;
-  vec2 subtexelSize = texelSize / vec2(3.0,1.0);
-  vec2 range;
-  range = global.SourceSize.zw / screen_scale;
-  
-  float left   = vTexCoord.x - texelSize.x*0.5;
-  float top    = vTexCoord.y + range.y;
-  float right  = vTexCoord.x + texelSize.x*0.5;
-  float bottom = vTexCoord.y - range.y;
-  
-  vec4 lcol, rcol;
-  float subpix = mod(vTexCoord.x/subtexelSize.x+1.5,3.0);
-  float rsubpix = range.x/subtexelSize.x;
-  lcol = vec4(intsmear(subpix+1.0,rsubpix),intsmear(subpix    ,rsubpix),
-	      intsmear(subpix-1.0,rsubpix),0.0);
-  rcol = vec4(intsmear(subpix-2.0,rsubpix),intsmear(subpix-3.0,rsubpix),
-	      intsmear(subpix-4.0,rsubpix),0.0);
-			  
-  vec4 topLeftColor     = TEX2D((floor(vec2(left, top)     / texelSize) + 0.5) * texelSize) * lcol;
-  vec4 bottomRightColor = TEX2D((floor(vec2(right, bottom) / texelSize) + 0.5) * texelSize) * rcol;
-  vec4 bottomLeftColor  = TEX2D((floor(vec2(left, bottom)  / texelSize) + 0.5) * texelSize) * lcol;
-  vec4 topRightColor    = TEX2D((floor(vec2(right, top)    / texelSize) + 0.5) * texelSize) * rcol;
-  
-  vec2 border = round(vTexCoord.st/subtexelSize);
-  vec2 bordert = clamp((border+vec2(0.0,+global.GRID_STRENGTH)) * subtexelSize,
-		       vec2(left, bottom), vec2(right, top));
-  vec2 borderb = clamp((border+vec2(0.0,-global.GRID_STRENGTH)) * subtexelSize,
-		       vec2(left, bottom), vec2(right, top));
-  float totalArea = 2.0 * range.y;  
+  if(abs(vTexCoord.x - 0.5) < 0.5 && abs(vTexCoord.y - 0.5) < 0.5)
+  {
+    vec2 texelSize = global.SourceSize.zw;
+    vec2 subtexelSize = texelSize / vec2(3.0,1.0);
+    vec2 range;
+    range = global.SourceSize.zw / screen_scale;
+    
+    float left   = vTexCoord.x - texelSize.x*0.5;
+    float top    = vTexCoord.y + range.y;
+    float right  = vTexCoord.x + texelSize.x*0.5;
+    float bottom = vTexCoord.y - range.y;
+    
+    vec4 lcol, rcol;
+    float subpix = mod(vTexCoord.x/subtexelSize.x+1.5,3.0);
+    float rsubpix = range.x/subtexelSize.x;
+    lcol = vec4(intsmear(subpix+1.0,rsubpix),intsmear(subpix    ,rsubpix),
+          intsmear(subpix-1.0,rsubpix),0.0);
+    rcol = vec4(intsmear(subpix-2.0,rsubpix),intsmear(subpix-3.0,rsubpix),
+          intsmear(subpix-4.0,rsubpix),0.0);
+          
+    vec4 topLeftColor     = TEX2D((floor(vec2(left, top)     / texelSize) + 0.5) * texelSize) * lcol;
+    vec4 bottomRightColor = TEX2D((floor(vec2(right, bottom) / texelSize) + 0.5) * texelSize) * rcol;
+    vec4 bottomLeftColor  = TEX2D((floor(vec2(left, bottom)  / texelSize) + 0.5) * texelSize) * lcol;
+    vec4 topRightColor    = TEX2D((floor(vec2(right, top)    / texelSize) + 0.5) * texelSize) * rcol;
+    
+    vec2 border = round(vTexCoord.st/subtexelSize);
+    vec2 bordert = clamp((border+vec2(0.0,+global.GRID_STRENGTH)) * subtexelSize,
+            vec2(left, bottom), vec2(right, top));
+    vec2 borderb = clamp((border+vec2(0.0,-global.GRID_STRENGTH)) * subtexelSize,
+            vec2(left, bottom), vec2(right, top));
+    float totalArea = 2.0 * range.y;  
 
-   vec4 averageColor;
-  averageColor  = ((top - bordert.y)    / totalArea) * topLeftColor;
-  averageColor += ((borderb.y - bottom) / totalArea) * bottomRightColor;
-  averageColor += ((borderb.y - bottom) / totalArea) * bottomLeftColor;
-  averageColor += ((top - bordert.y)    / totalArea) * topRightColor;
-  
-   FragColor = pow(averageColor,vec4(1.0/global.gamma));
+    vec4 averageColor;
+    averageColor  = ((top - bordert.y)    / totalArea) * topLeftColor;
+    averageColor += ((borderb.y - bottom) / totalArea) * bottomRightColor;
+    averageColor += ((borderb.y - bottom) / totalArea) * bottomLeftColor;
+    averageColor += ((top - bordert.y)    / totalArea) * topRightColor;
+    
+    FragColor = pow(averageColor,vec4(1.0/global.gamma));
+  }
+  else
+  {
+    FragColor = vec4(0.0);
+  }
 }

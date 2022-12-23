@@ -1,4 +1,4 @@
-shaders = 38
+shaders = 39
 
 shader0 = ../../shaders/base/add-params-no-reflect.slang
 alias0 = "CorePass"
@@ -60,6 +60,7 @@ shader15 = ../../shaders/dedither/dedither-gamma-prep-2-after.slang
 shader16 = ../../shaders/ps1dither/hsm-PS1-Undither-BoxBlur.slang
 
 shader17 = ../../shaders/guest/extras/hsm-sharpsmoother.slang
+alias17 = "DeditherPass"
 
 shader18 = ../../shaders/base/stock.slang
 alias18 = "PreCRTPass"
@@ -79,9 +80,10 @@ scale20 = 1.0
 // Color Correction with Dogway's awesome Grade shader
 // Grade is after Afterglow so that brightening the black level does not break the afterglow
 shader21 = ../../shaders/dogway/hsm-grade.slang
-filter_linear21 = true
+filter_linear21 = false
 scale_type21 = source
 scale21 = 1.0
+alias21 = "ColorCorrectPass"
 
 shader22 = ../../shaders/base/stock.slang
 alias22 = "PrePass0"
@@ -162,7 +164,7 @@ scale_x32 = 640.0
 scale_type_y32 = absolute
 scale_y32 = 480.0
 float_framebuffer32 = true
-alias32 = GlowPass
+alias32 = "GlowPass"
 
 shader33 = ../../shaders/guest/hsm-bloom_horizontal.slang
 filter_linear33 = true
@@ -179,23 +181,32 @@ scale_x34 = 640.0
 scale_type_y34 = absolute
 scale_y34 = 480.0
 float_framebuffer34 = true
-alias34 = BloomPass 
+alias34 = "BloomPass" 
 
 shader35 = ../../shaders/guest/hsm-crt-guest-advanced-ntsc-pass2-no-reflect.slang
 filter_linear35 = true
-float_framebuffer35 = true
 scale_type35 = viewport
 scale_x35 = 1.0
 scale_y35 = 1.0
+float_framebuffer35 = true
 
 shader36 = ../../shaders/guest/hsm-deconvergence.slang
 filter_linear36 = true
 scale_type36 = viewport
 scale_x36 = 1.0
 scale_y36 = 1.0
+float_framebuffer36 = true
+alias36 = "CRTPass"
 
 shader37 = ../../shaders/base/post-crt-prep-no-reflect.slang
-alias37 = "MBZ_PostCRTPass"
+scale_type37 = viewport
+float_framebuffer37 = true
+alias37 = "PostCRTPass"
+
+// Combine Passes ----------------------------------------------------------------
+shader38 = ../../shaders/base/output-sdr.slang
+scale_type38 = viewport
+alias38 = "OutputPass"
 // Define textures to be used by the different passes
 textures = "SamplerLUT1;SamplerLUT2;SamplerLUT3;SamplerLUT4;IntroImage;ScreenPlacementImage;TubeDiffuseImage;TubeColoredGelImage;TubeShadowImage;TubeStaticReflectionImage;BackgroundImage;BackgroundVertImage;ReflectionMaskImage;FrameTextureImage;CabinetGlassImage;DeviceImage;DeviceVertImage;DeviceLEDImage;DecalImage;NightLightingImage;NightLighting2Image;LEDImage;TopLayerImage;"
 

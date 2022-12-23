@@ -26,8 +26,8 @@ layout(push_constant) uniform Push
 } params;
 
 #pragma parameter Contrast          "Contrast"              3.75     0.0 10.0    0.05
-#pragma parameter PaperWhiteNits    "Paper White Luminance" 450.0    0.0 10000.0 10.0
-#pragma parameter MaxNits           "Peak Luminance"        700.0    0.0 10000.0 10.0
+#pragma parameter PaperWhiteNits    "Paper White Luminance" 200.0    0.0 10000.0 10.0
+#pragma parameter MaxNits           "Peak Luminance"        1000.0   0.0 10000.0 10.0
 #pragma parameter Saturation        "Saturation"            0.25     0.0 1.0     0.01
 #pragma parameter DisplayGamma      "Display Gamma"         2.2      0.0 5.0     0.1
 
