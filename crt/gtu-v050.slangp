@@ -10,7 +10,7 @@ scale_type_x1 = viewport
 scale_x1 = 1.0
 scale_type_y1 = source
 scale_y1 = 1.0
-filter_linear1 = true
+filter_linear1 = false
 float_framebuffer1 = true
 
 shader2 = shaders/gtu-v050/pass3.slang
