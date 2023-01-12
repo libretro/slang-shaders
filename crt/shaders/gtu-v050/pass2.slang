@@ -12,17 +12,9 @@ layout(push_constant) uniform Push
 } params;
 
 #pragma parameter compositeConnection "Composite Connection Enable" 0.0 0.0 1.0 1.0
-//#define compositeConnection params.compositeConnection
 #pragma parameter signalResolution "Signal Resolution Y" 256.0 16.0 1024.0 16.0
-//#define signalResolution params.signalResolution
 #pragma parameter signalResolutionI "Signal Resolution I" 83.0 1.0 350.0 2.0
-//#define signalResolutionI params.signalResolutionI
 #pragma parameter signalResolutionQ "Signal Resolution Q" 25.0 1.0 350.0 2.0
-//#define signalResolutionQ params.signalResolutionQ
-
-#define InputSize params.SourceSize
-//#define SourceSize params.SourceSize
-#define COMPAT_TEXTURE(c,d) texture(c,d)
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -43,8 +35,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define d(x,b) (pi*b*min(a(x)+0.5,1.0/b))
 #define e(x,b) (pi*b*min(max(a(x)-0.5,-1.0/b),1.0/b))
 #define STU(x,b) ((d(x,b)+sin(d(x,b))-e(x,b)-sin(e(x,b)))/(2.0*pi))
-//#define X(i) (offset-(i))
-#define GETC (COMPAT_TEXTURE(Source, vec2(vTexCoord.x - X * params.SourceSize.z, vTexCoord.y)).rgb)
+#define GETC (texture(Source, vec2(vTexCoord.x - X * params.SourceSize.z, vTexCoord.y)).rgb)
 
 #define VAL_composite vec3((c.x*STU(X,(params.signalResolution  / params.SourceSize.x))),(c.y*STU(X,(params.signalResolutionI / params.SourceSize.x))),(c.z*STU(X,(params.signalResolutionQ / params.SourceSize.x))))
 #define VAL (c*STU(X,(params.signalResolution / params.SourceSize.x)))
@@ -96,6 +87,5 @@ void main()
    else
       tempColor=clamp(tempColor,0.0,1.0);
 
-   // tempColor=clamp(tempColor,0.0,1.0);
    FragColor = vec4(tempColor, 1.0);
 }
