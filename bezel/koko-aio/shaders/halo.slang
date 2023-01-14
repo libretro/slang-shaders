@@ -29,8 +29,7 @@ layout(set = 0, binding = 2) uniform sampler2D FXAA_pass;
 layout(set = 0, binding = 3) uniform sampler2D first_pass;
 layout(set = 0, binding = 4) uniform sampler2D in_glow_pass;
 layout(set = 0, binding = 5) uniform sampler2D shift_and_bleed_pass;
-// What follows is an ugly optimization with a lot of code copied and pasted repeated multiple times,
-// shamlessly hidden into an include:
+
 #include "includes/pixel_glows.include.slang"    
 
 
@@ -40,13 +39,13 @@ vec4 main_wrap(void) {
     vec2 halo_coords = vTexCoord;
 
     if (DO_IN_GLOW == 1.0)
-        pixel_haloed = pixel_glow(in_glow_pass, HALO_W,HALO_H,HALO_POWER,HALO_GAMMA,halo_coords, global.FXAA_passSize, global.FXAA_passSize).rgb;
+        pixel_haloed = pixel_glow(in_glow_pass, HALO_W, HALO_H, HALO_POWER, HALO_GAMMA, halo_coords, global.FXAA_passSize, global.FXAA_passSize).rgb;
     else if ( DO_SHIFT_RGB + DO_SAT_BLEED > 0.0)
-        pixel_haloed = pixel_glow(shift_and_bleed_pass, HALO_W,HALO_H,HALO_POWER,HALO_GAMMA,halo_coords, params.OutputSize, params.OutputSize).rgb;
+        pixel_haloed = pixel_glow(shift_and_bleed_pass, HALO_W, HALO_H, HALO_POWER, HALO_GAMMA, halo_coords, global.FXAA_passSize, global.FXAA_passSize).rgb;
     else if (DO_FXAA > 0.0)
-        pixel_haloed = pixel_glow(FXAA_pass, HALO_W,HALO_H,HALO_POWER,HALO_GAMMA,halo_coords, global.FXAA_passSize, global.FXAA_passSize).rgb;
+        pixel_haloed = pixel_glow(FXAA_pass, HALO_W, HALO_H, HALO_POWER, HALO_GAMMA, halo_coords, global.FXAA_passSize, global.FXAA_passSize).rgb;
     else
-        pixel_haloed = pixel_glow(first_pass, HALO_W,HALO_H,HALO_POWER,HALO_GAMMA,halo_coords, global.FXAA_passSize, global.FXAA_passSize).rgb;
+        pixel_haloed = pixel_glow(first_pass, HALO_W, HALO_H, HALO_POWER, HALO_GAMMA, halo_coords, global.FXAA_passSize, global.FXAA_passSize).rgb;
         
     return vec4(pixel_haloed.rgb,1.0);
 }

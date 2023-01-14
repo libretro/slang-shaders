@@ -1,14 +1,8 @@
-	//Setting the glow/halo sharpness parameter to this
-	//will skip the blurring phase and lowers the gpu use
-	//Set this to the same value as used for the maximum
-	//of IN_GLOW_WH, HALO_W and HALO_H
-#define GLOW_SHARP_MAX 7	        
-
 	//Consider content interlaced if lines are more than this
-#define MIN_LINES_INTERLACED 300
+#define MIN_LINES_INTERLACED 380
 
-//Sort of dithering used in vignette, spot, backlight leds
-	#define NOISEPOWER ((params.OutputSize.z)*3)
+	//Sort of dithering used in vignette, spot, backlight leds
+#define NOISEPOWER ((params.OutputSize.z)*3)
 
 	//Bezel reflection area size in relation to the game frame
 	//Use the lowest possible value for best performance
@@ -29,8 +23,24 @@
 	// try between (1/avglum_divider) and (1/avglum_divider)/3
 #define AMBI_FAST_STEP 0.125 
 
+	//Setting the glow/halo sharpness parameter to this
+	//will skip the blurring phase and lowers the gpu use
+	//Set this to the same value as used for the maximum
+	//of IN_GLOW_W/H, HALO_W/H
+#define GLOW_SHARP_MAX 7	        
+
+	//Setting glow to blur bias parameter to this
+	//will skip the glow/blur mix codem and just return
+	//the blurred image
+	//Set this to the same value as used for the maximum
+	//of IN_GLOW_BIAS
+#define IN_GLOW_BIAS_MAX 2.0
 
 #define eps 1e-5
+#define pi 3.141592654
+#define TAU  6.28318530717958647693
+#define alpha_mark 0.1
+
 
 layout(push_constant) uniform Push {
 	vec4 SourceSize;
@@ -45,12 +55,13 @@ layout(push_constant) uniform Push {
 	float VMASK_GAP;
 	float VMASK_USE_GM;
 	float DRKLN_OVERWHITE ;
-	float DO_DARKLINES_VOFFSET ;
+	float DARKLINES_VOFFSET ;
 	float DARKLINES_PERIOD ;
 	float HALO_W ;
 	float HALO_H ;
 	float HALO_POWER ;
 	float HALO_GAMMA ;
+	float HALO_VS_SCAN ;
 	float DO_BLOOM ; //4
  	float BLOOM_QUALITY ; //1
 
@@ -75,31 +86,42 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 	float DO_HALO ;
 	float DO_CCORRECTION;
 	float DO_ALT_BLANK;
-	//float IN_GLOW_ADD ;
+	float IN_GLOW_BIAS ;
 	float SCANLINES_BLEEDING ;
-	float IN_GLOW_WH ;
-	float IN_GLOW_POWER ;
-	float IN_GLOW_GAMMA ;
+	float IN_GLOW_W;
+	float IN_GLOW_H;
+	float IN_GLOW_POWER;
+	float IN_GLOW_GAMMA;
 	float BLOOM_MIX;
- 	float BLOOM_SIZE ; //1
-	float BLOOM_GAMMA; //1
-	float BLOOM_BYPASS; //1
-	float BLOOM_POWER; //1
+ 	float BLOOM_SIZE;
+	float BLOOM_GAMMA;
+	float BLOOM_BYPASS;
+	float BLOOM_POWER;
 	float BLOOM_OVER_WHITE;
   	float BLOOM_GAMMA_OUT;
-  	float ALT_BLANK_STRENGTH ; //2 FIXME to 1
-  	float ALT_BLANK_PERIOD ;
-	float DO_FXAA ; //1
+  	float ALT_BLANK_STRENGTH;
+  	float ALT_BLANK_PERIOD;
+	float DO_FXAA;
 	float DO_SAT_BLEED;
 	float SAT_BLEED_SIZE_LEFT;
 	float SAT_BLEED_SIZE_RIGHT;
 	float SAT_BLEED_FALLOFF;
 	float SAT_BLEED_STRENGTH;
 	float SAT_BLEED_PAL;
+	float DO_NTSC_ARTIFACTS;
+	float NTSC_FILTER_WIDTH;
+	float NTSC_FILTER_SCF;
+	float NTSC_FILTER_FC;
+	float NTSC_MIX;
+	float NTSC_PHASE_SHIFT;
+	//float NTSC_DOT_CRAWL;
 	float SCANLINE_FLICKERING ; //2
 	float SCANLINE_FLICKERING_POWER;
 	float SCANLINE_DISABLE_ON_INTERLACE;
 	float SCANLINE_COMPENSATION;
+	float SCANLINE_SM_STRENGTH;
+	float SCANLINE_SM_TYPE;
+	float SCANLINE_SM_VOFFSET;
 	float RGB_MASK_STRENGTH;
 	float DARKLINES_STRENGTH;
 	float GAMMA_OUT ; //1
@@ -123,6 +145,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 	float BEZEL_CON;
 	float BEZEL_INNER_ZOOM;
 	float BEZEL_IMAGE_BORDER;
+	float BEZEL_REFL_ZOOM;
 	float BEZEL_FRAME_ZOOM;
 
 	float DO_SPOT;
@@ -151,6 +174,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 	float BG_IMAGE_OFFY;
 	float BG_IMAGE_OFFX;
 	float BG_IMAGE_ZOOM;
+	float BG_IMAGE_ROTATION;
 	
 	float DO_SHIFT_RGB;
 	float SHIFT_R;
@@ -169,123 +193,87 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter TEMPERATURE    "        Temperature in (6500=off)"		6500.0	3000 10000.0 50.0
 #pragma parameter GAMMA_OUT      "        Gamma out"				0.69	0.1 	9.0  0.025
 
+
+
 // FXAA
 // Apply an antialiasing filter via FXAA from Nvidia.
 #pragma parameter DO_FXAA "★ FXAA enable? ==>"	0.0 	0.0 1.0 1.0
 
+// NTSC color artifacting
+#pragma parameter DO_NTSC_ARTIFACTS "★ CVBS: NTSC color artifacts enable? ==>"	0.0 	0.0 1.0 1.0
+#pragma parameter NTSC_FILTER_WIDTH "        Filter width"			17.0	5.0 21.0 4.0
+#pragma parameter NTSC_FILTER_SCF   "        Subcarrier Frequency"		5.30	0.0 10.0 0.01
+#pragma parameter NTSC_FILTER_FC    "        Frequency cutoff"			2.5	0.1 10.0 0.1
+#pragma parameter NTSC_PHASE_SHIFT  "        Phase shift"			0.0	0.0 1.0  1.0
+//#pragma parameter NTSC_DOT_CRAWL    "        Dot Crawl"			1.0	0.0 1.0  1.0
+#pragma parameter NTSC_MIX          "        Strength"				0.5	0.0 3.0  0.05
+
+// YIQ/YUV bandwidth limited chroma bleeding and NTSC color artifacts.
+#pragma parameter DO_SAT_BLEED "★ CVBS: Bandwidth limited chroma enable? ==>"	0.0 	0.0 1.0 1.0
+#pragma parameter SAT_BLEED_PAL           "        Use PAL colorspace, not NTSC"	0.0 	 0.0 1.0 1.0
+#pragma parameter SAT_BLEED_STRENGTH      "        Strength"				1.0	 0.0 5.0  0.01
+#pragma parameter SAT_BLEED_SIZE_LEFT     "        Size Left"				5.0 	 1.0 40.0  1.0
+#pragma parameter SAT_BLEED_SIZE_RIGHT    "        Size Right"				5.0 	 1.0 40.0  1.0
+#pragma parameter SAT_BLEED_FALLOFF  	  "        Falloff"				1.7 	 1.0 2.0 0.01
+
 //Offset RGB
-// Allow to shift Red, Green, Blue components along x and y axis
-#pragma parameter DO_SHIFT_RGB       "★ Shift RGB components enable? (bad with FXAA) ==>"	0.0	 0.0 1.0 1.0
+#pragma parameter DO_SHIFT_RGB       "★ RGB deconvergence enable? (bad with FXAA) ==>"	0.0	 0.0 1.0 1.0
 #pragma parameter OFFSET_STRENGTH "        Strength"			0.5 	 0.0 1.0 0.1
 #pragma parameter SHIFT_R         "        Red offset"			-40.0 	-210.0 189.0 1
 #pragma parameter SHIFT_G         "        Green offset"		40.0 	-210.0 189.0 1
 #pragma parameter SHIFT_B         "        Blue offset"			3.0 	-210.0 189.0 1
 
 
-// YIQ/YUV bandwidth limited chroma bleeding.
-#pragma parameter DO_SAT_BLEED "★ Bandwidth limited chroma bleeding enable? ==>"	0.0 	0.0 1.0 1.0
-#pragma parameter SAT_BLEED_PAL           "        Use PAL colorspace, not NTSC"	0.0 	 0.0 1.0 1.0
-#pragma parameter SAT_BLEED_STRENGTH      "        Strength"				1.0	 0.0 5.0  0.01
-#pragma parameter SAT_BLEED_SIZE_LEFT     "        Size Left"				5.0 	 1.0 40.0  1.0
-#pragma parameter SAT_BLEED_SIZE_RIGHT    "        Size Right"				5.0 	 1.0 40.0  1.0
-#pragma parameter SAT_BLEED_FALLOFF  	  "        Falloff"			1.7 	 1.0 2.0 0.01
-
-
 // Input glowing
-// Emulates the glowing of the input signal by blurring it with "IN_GLOW_WH" sharpness.
-// Apply a gamma filter "IN_GLOW_GAMMA" to "light" it, multiplying the result by "IN_GLOW_POWER" and
-// finally interpolating(*) it with the source image.
-// "IN_GLOW_ADD" allows to modulate from interpolation(*) to a sum, wihch may (or not) produce better effects.
-// With "IN_GLOW_ADD=0" input glowing does not alter the RGB mask
-// or slot mask applied to the image.
 #pragma parameter DO_IN_GLOW               "★ Glowing Input/power enable? ==>" 					0.0	0.0 1.0 1.0
 #pragma parameter IN_GLOW_POWER            "        Input signal glow strength"					0.45 	0.0 5.0 0.05
-#pragma parameter IN_GLOW_WH               "        Sharpness"							2.5	0.2 7.0 0.05
+#pragma parameter IN_GLOW_W                "        Sharpness, horizontal"					2.5	0.2 7.0 0.05
+#pragma parameter IN_GLOW_H                "        Sharpness, vertical"					2.5	0.2 7.0 0.05
 #pragma parameter IN_GLOW_GAMMA            "        Gamma, the higher, the less the glow on dark colors"	1.0 	1.0 10.0 0.1
-//#pragma parameter IN_GLOW_ADD              "        Post gain (0.0 to disable)"					0.0 	0.0 1.0 0.05
+#pragma parameter IN_GLOW_BIAS             "        Glow to blur bias"						2.0     0.0 2.0 0.05 
 
 
-// RGB Mask
-// Emulates CRT RGB phosphors.
-// This is done by multiplying the source image pixels, in turn, by red green or blue.
-// The strenght of the multiplication, and so of the final effect is affected by "RGB_MASK_STRENGTH" value.
-// A Value of 0 completely disable the effect.
-// "VMASK_DARKLINE_SCALE" Scales the gaps, the width the mask, and the height of the rgm bask and darklines (for HiDPI).
-// "VMASK_GAP" Will draw an horizontal gap between triads, for HiDPI monitors.
-// "VMASK_USE_GM" exploit the rgb subpixel layout of the real monitor to higher the apparent RGB vmask resolution
-// "VMASK_OVERWHITE" modulates the strenght of the effect depending on the source pixel brightness,
-// This is handy  if you want to keep a good image contrast/brightness, but keep in mind that other
-// parameters like haloing and bloom.
 
-// Aperture grille/slot mask (shadow mask not implemented) are handled via *DARKLINES*
-// Draw darklines on screen coordinates, by mixing black pixels with the source image
-// on final viewport coordinates.
-// "DARKLINES_STRENGTH" expresses the final strenght of the effect.
-// if "DO_DARKLINES_VOFFSET" is 0, straight horizontal black lines will be painted that emulates an aperture grille.
-// "DARKLINES_PERIOD" expresses every how many lines draw a black one (or the height ov the RGB triads)
-// "DO_DARKLINES_VOFFSET" lets you to vertically offset by ""DARKLINES_PERIOD/2" the lines every 3 screen pixels,
-// allowing, in conjunction with RGB mask, to emulate slot mask
-// MASK_COMPENSATION will, where possible, compensate for the loss of brightness by smartly pushing the source luminance
-
+// Mask
 #pragma parameter DO_VMASK_AND_DARKLINES "★  RGB Masks and/or Darklines enable? ==>"         	0.0 	0.0 1.0 1.0
-
 #pragma parameter MASK_COMPENSATION      "        Compensate for brightness loss"		0.0 	0.0 1.0 0.05
-
 #pragma parameter VMASK_DARKLINE_SCALE   "        (HiDPI) Vmask and Darklines multiplier"	1.0  	1.0 4.0 1.0
-#pragma parameter RGB_MASK_STRENGTH      "        Vmask Strength (0.0 to disable)"		0.75  	0.0 1.0 0.05
-#pragma parameter VMASK_USE_GM           "        RGB Mask: (LoDPI) Green,Magenta -> BGR"	0.0  	0.0 1.0 1.0
-#pragma parameter VMASK_GAP              "        RGB Mask: Horizontal Gap between triads"	0.0  	0.0 1.0 1.0
-#pragma parameter VMASK_OVERWHITE        "        RGB Mask: affect bright colors"		1.0 	0.0 1.0 0.05
+#pragma parameter RGB_MASK_STRENGTH      "        RGB Mask Strength (0.0 to disable)"		0.75  	0.0 1.0 0.05
+#pragma parameter VMASK_USE_GM           "           . (LoDPI) Green,Magenta -> BGR"	0.0  	0.0 1.0 1.0
+#pragma parameter VMASK_GAP              "           . Horizontal Gap between triads"	0.0  	0.0 1.0 1.0
+#pragma parameter VMASK_OVERWHITE        "           . Affect bright colors"		1.0 	0.0 1.0 0.05
 
-#pragma parameter DARKLINES_STRENGTH     "        Darklines: strength (0.0 to disable)"		0.65 	0.0 1.0 0.05
-#pragma parameter DO_DARKLINES_VOFFSET   "        Darklines: offset by triads"			1.0 	0.0 1.0 1.0
-#pragma parameter DARKLINES_PERIOD       "        Darklines: period (triad height)"		4.0 	2.0 16.0 2.0
-#pragma parameter DRKLN_OVERWHITE        "        Darklines: affect bright colors"		1.0 	0.0 1.0 0.05
+#pragma parameter DARKLINES_STRENGTH     "        Darklines strength (0.0 to disable)"				0.65 	0.0 1.0   0.05
+#pragma parameter DARKLINES_VOFFSET      "           . Offset"							1.0 	0.0 1.0   1.0
+#pragma parameter DARKLINES_PERIOD       "           . Height"							4.0 	2.0 16.0  2.0
+#pragma parameter DRKLN_OVERWHITE        "           . Affect bright colors"					1.0 	0.0 1.0   0.05
+
 
 
 // Halo
-// The parameters are the same as input glowing, but this time the effect is applie
-// after emulating the RGB phosphors the aperture grille or the slot masks and, instead of
-// multiplying the resulting picture by the source one, it is added.
-// this means that haloing will produce solid colors,
-// lessening afromentioned effects on bright colors.
 #pragma parameter DO_HALO       "★ Halo enable? ==>" 						0.0	0.0 1.0 1.0
 #pragma parameter HALO_POWER    "        Strength"						0.9 	0.0  5.0 0.025
-#pragma parameter HALO_W        "        Horizontal sharpness"					1.75	0.2  7.0 0.05
-#pragma parameter HALO_H        "        Vertical sharpness"					1.75	0.2  7.0 0.05
+#pragma parameter HALO_W        "        Sharpness, horizontal"					1.75	0.2  7.0 0.05
+#pragma parameter HALO_H        "        Sharpness, Vertical"					1.75	0.2  7.0 0.05
 #pragma parameter HALO_GAMMA    "        Gamma, the higher, the less the halo on dark colors"	2.0 	1.0  10.0 0.1
+#pragma parameter HALO_VS_SCAN  "        Light up scanlines too"				0.0	0.0  1.0  0.1
 
 
 // Scanlines
-// Blank even source lines, the value from 0.0 to 1.0 expresses the darkness of the blanked lines
-// 1.0 means no blank at all.
-// SCANLINE_DARK controls the gap brightness
-// SCANLINE_COMPENSATION will make scanlines brighter, where possible, to compensate for the loss of brightness
-// SCANLINE_BLEEDING will make the whiter part of the scanline to bright the gap.
-
-#pragma parameter DO_SCANLINES	"★ Scanlines enable? ==>"							0.0 	0.0  1.0 1.0
-#pragma parameter SCANLINE_DARK "        Scanlines gap brightness"			  			0.0 	-0.5 1.0 0.05
-#pragma parameter SCANLINE_COMPENSATION "        Compensate for brightness loss"				0.0	0.0 1.0 0.1
-#pragma parameter SCANLINES_BLEEDING "        Scanlines bleeding"						0.0 	0.0 3.0 0.05
-
-// Alternate the drawing of the scanlines between frames. this will produce a flickering typical of
-// interlaced screens; 0 disable the effect, 1 always enables it, 2 enables it only when
-// the shader detects an interlaced signal, which actually means that the vertical resoution is "high enough"
-#pragma parameter SCANLINE_FLICKERING "        Interlace Flicker (0=off,1=on,2=if interlaced)"		  	2.0 	0.0 2.0 1.0
-#pragma parameter SCANLINE_FLICKERING_POWER "        Interlace Flicker power"		  			0.75 	0.0 4.0 0.1
-
+#pragma parameter DO_SCANLINES	         "★ Scanlines enable? ==>"						0.0 	0.0  1.0 1.0
+#pragma parameter SCANLINE_DARK          "        Scanlines gap brightness"			  		0.0 	-0.5 1.0 0.05
+#pragma parameter SCANLINE_COMPENSATION  "        Compensate for brightness loss"				0.0	0.0 1.0 0.1
+#pragma parameter SCANLINES_BLEEDING     "        Scanlines bleeding"						0.0 	0.0 3.0 0.05
+#pragma parameter SCANLINE_FLICKERING    "        Interlace Flicker (0=off,1=on,2=if interlaced)"		2.0 	0.0 2.0 1.0
+#pragma parameter SCANLINE_FLICKERING_POWER     "        Interlace Flicker power"		  		0.75 	0.0 4.0 0.1
 #pragma parameter SCANLINE_DISABLE_ON_INTERLACE "        Disable on interlaced screen"			  	0.0 	0.0 1.0 1.0
+#pragma parameter SCANLINE_SM_TYPE         "        Slotmask type (disable (0) with darklines!)"		0.0 	0.0 3.0 1.0
+#pragma parameter SCANLINE_SM_STRENGTH     "           . Slotmask strength (type 1 and 2 only)"			0.0 	0.0 1.0 0.05
+#pragma parameter SCANLINE_SM_VOFFSET      "           . Offset (type 1 only)"					45.0 	0.0 158.0 1.0
+
 
 
 // Bloom
-// The image is downsampled, bloomed and mixed back with the original image.
-// "BLOOM_MIX" is the final mix strength
-// "BLOOM_SIZE" is the radius of the blurred image
-// "BLOOM_QUALITY" express a tradeoff between quality and effect speed.
-// "BLOOM_GAMMA" allows to apply more bloom on the bright colors of the source image
-// "BLOOM_POWER" is the additional gain applied to the bloom
-// "BLOOM_BYPASS" will show only the bloomed component
-// the original image.
 #pragma parameter DO_BLOOM           "★ Bloom enable? ==>" 				0.0  0.0  1.0  1.0
 #pragma parameter BLOOM_MIX          "        Final mix, (0.0=off)"			0.2 0.0 1.0  0.01
 #pragma parameter BLOOM_SIZE         "        Radius"					2.0  0.25 30.0 0.25
@@ -296,12 +284,16 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter BLOOM_OVER_WHITE   "        Strength on bright areas (0 = aura)"	0.5  0.0 1.0  0.05
 #pragma parameter BLOOM_BYPASS       "        Bypass"					0.0  0.0 1.0  1.0
 
+
+
 //Curvature parameters:
 #pragma parameter DO_CURVATURE	     "★ Curvature enable? ==>"			0.0   0.0 1.0 1.0
 #pragma parameter GEOM_WARP_X        "        Warp X"				0.3  0.0 6.0 0.05
 #pragma parameter GEOM_WARP_Y        "        Warp Y"				0.0   0.0 6.0 0.05
 #pragma parameter GEOM_CORNER_SIZE   "        Corner radius"			0.01  0.01 0.1 0.005
 #pragma parameter GEOM_CORNER_SMOOTH "        Corner sharpness"			350.0 50.0 1000.0 25.0
+
+
 
 //Bezel related
 #pragma parameter DO_BEZEL	     "★ Bezel enable? ==>"			0.0   0.0 1.0 1.0
@@ -312,13 +304,18 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter BEZEL_INNER_ZOOM   "        Image zoom"			-0.18   -1.5 0.5 0.01
 #pragma parameter BEZEL_FRAME_ZOOM   "        Frame zoom"			0.0   -1.5 0.5 0.01
 #pragma parameter BEZEL_IMAGE_BORDER "        Image border"			1.01   1.0 1.2 0.01
+#pragma parameter BEZEL_REFL_ZOOM    "        Reflections zoom"			0.965   0.0 2.0 0.005
 
+
+//Background Image
 #pragma parameter DO_BG_IMAGE	 "★ Backgound image enable? ==>"			0.0  0.0  1.0     1.0
 #pragma parameter LABEL_WARNING1 "    ⚠ RetroArch aspect needs to be set to Full! ⚠"	1.0  1.0  1.0     1.0
 #pragma parameter BG_IMAGE_OVER	 "        Image over content (alpha channel driven)?"	0.0  0.0  1.0     1.0
-#pragma parameter BG_IMAGE_OFFX	 "        Shift Image over X axis"			0.0  -1.0  1.0    0.001
-#pragma parameter BG_IMAGE_OFFY	 "        Shift Image over Y axis"			0.0  -1.0  1.0    0.001
-#pragma parameter BG_IMAGE_ZOOM	 "        Zoom Image"					1.0  -1.0  3.0    0.001
+#pragma parameter BG_IMAGE_OFFX	 "        Shift Image over X axis"			0.0  -1.0  1.0    0.0005
+#pragma parameter BG_IMAGE_OFFY	 "        Shift Image over Y axis"			0.0  -1.0  1.0    0.0005
+#pragma parameter BG_IMAGE_ZOOM	 "        Zoom Image"					1.0  -1.0  3.0    0.0005
+#pragma parameter BG_IMAGE_ROTATION "        Rotate image mode (-1 for auto)"	     	-1.0  -1.0  2.0    1.0
+
 
 
 //Back leds
@@ -331,8 +328,10 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter AMBI_POWER     "        Led power"							1.5  1.0  7.0     0.05
 
 
+
+//Aspect Ratio
 #pragma parameter label_ar	 "★ Aspect Ratio "							0.0  0.0  1.0     1.0
-#pragma parameter ASPECT_X       "        Aspect Ratio Numerator (-x for a preset below)"   		0.0  -5.0 256. 1.0
+#pragma parameter ASPECT_X       "        Aspect Ratio Numerator (-x for a preset below)"   		0.0  -6.0 256. 1.0
 #pragma parameter ASPECT_Y       "        Aspect Ratio Denominator"	  				3.0   0.0 256. 1.0
 #pragma parameter label_aspect_presets "        Presets reference list:" 0.0 0.0 0.0 1.0
 #pragma parameter label_aspect_preset0 "          (0 =  MAME 1.33)" 0.0 0.0 0.0 1.0
@@ -341,6 +340,9 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter label_aspect_preset3 "          (-3 = Snes 8/7)" 0.0 0.0 0.0 1.0
 #pragma parameter label_aspect_preset4 "          (-4 = Megadrive 10/7)" 0.0 0.0 0.0 1.0
 #pragma parameter label_aspect_preset5 "          (-5 = Uncorrected)" 0.0 0.0 0.0 1.0
+#pragma parameter label_aspect_preset6 "          (-6 = MAME rotated/TATE 0.75)" 0.0 0.0 0.0 1.0
+
+
 
 //Full screen glowing
 //Modulate the image zooming depending on the image luminosity.
@@ -349,8 +351,8 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter DYNZOOM_FACTOR     "        Narrowness"				80.0  30.0  120.0 1.0
 
 
+
 //Vignette and spot
-//Emulates the vignette effect and/or a light reflection.
 #pragma parameter DO_VIGNETTE	"★ Vignette enable? ==>"	0.0  0.0  1.0  1.0
 #pragma parameter V_BYPASS	"        bypass "	        0.0  0.0  1.0  1.0
 #pragma parameter V_SIZE	"        size"			1.7  0.0  3.0  0.05
@@ -363,24 +365,33 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter S_POWER	"        power" 		0.1  0.05  2.0 0.05
 
 
+
 // Alternative blanking.
-// Emulates the low pixel persistance of CRT monitors and reduces the motion blur,
-// typical of LCD displays, by blanking even/odd screen lines on even/odd frames.
-// ALT_BLANK_STRENGTH expresses the strength of the "blank".
 #pragma parameter DO_ALT_BLANK       "★ Alternate line blanking enable? ==>"			0.0 0.0 1.0 1.0
 #pragma parameter ALT_BLANK_STRENGTH "        Alternate black frame insertion strength" 	0.5 0.0 1.0 0.1
-#pragma parameter ALT_BLANK_PERIOD   "        Dark lines period" 				4.0 0.0 20.0 1.0
+#pragma parameter ALT_BLANK_PERIOD   "        Blank lines period" 				4.0 0.0 20.0 1.0
+
+
+
+
 
 
 #define DO_FXAA        	global.DO_FXAA
 
-#define DO_SAT_BLEED       global.DO_SAT_BLEED
+#define DO_SAT_BLEED            global.DO_SAT_BLEED
 #define SAT_BLEED_SIZE_LEFT     global.SAT_BLEED_SIZE_LEFT
 #define SAT_BLEED_SIZE_RIGHT    global.SAT_BLEED_SIZE_RIGHT
-#define SAT_BLEED_FALLOFF  global.SAT_BLEED_FALLOFF
-#define SAT_BLEED_STRENGTH global.SAT_BLEED_STRENGTH
-#define SAT_BLEED_PAL      global.SAT_BLEED_PAL
-//#define prefer_std_pow params.prefer_std_pow
+#define SAT_BLEED_FALLOFF       global.SAT_BLEED_FALLOFF
+#define SAT_BLEED_STRENGTH      global.SAT_BLEED_STRENGTH
+#define SAT_BLEED_PAL           global.SAT_BLEED_PAL
+
+#define DO_NTSC_ARTIFACTS global.DO_NTSC_ARTIFACTS
+#define NTSC_FILTER_WIDTH global.NTSC_FILTER_WIDTH
+#define NTSC_FILTER_SCF   global.NTSC_FILTER_SCF
+#define NTSC_FILTER_FC    global.NTSC_FILTER_FC
+#define NTSC_MIX          global.NTSC_MIX
+#define NTSC_PHASE_SHIFT  global.NTSC_PHASE_SHIFT
+//#define NTSC_DOT_CRAWL    global.NTSC_DOT_CRAWL
 
 #define DO_SCANLINES                  global.DO_SCANLINES
 #define SCANLINE_DARK                 params.SCANLINE_DARK
@@ -389,11 +400,15 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #define SCANLINE_FLICKERING_POWER     global.SCANLINE_FLICKERING_POWER
 #define SCANLINE_DISABLE_ON_INTERLACE global.SCANLINE_DISABLE_ON_INTERLACE
 #define SCANLINE_COMPENSATION         global.SCANLINE_COMPENSATION
+#define SCANLINE_SM_TYPE              global.SCANLINE_SM_TYPE
+#define SCANLINE_SM_STRENGTH          global.SCANLINE_SM_STRENGTH
+#define SCANLINE_SM_VOFFSET           global.SCANLINE_SM_VOFFSET 
 
 #define DO_IN_GLOW               global.DO_IN_GLOW
-//#define IN_GLOW_ADD              global.IN_GLOW_ADD
+#define IN_GLOW_BIAS             global.IN_GLOW_BIAS
 #define SCANLINES_BLEEDING       global.SCANLINES_BLEEDING
-#define IN_GLOW_WH               global.IN_GLOW_WH
+#define IN_GLOW_W                global.IN_GLOW_W
+#define IN_GLOW_H                global.IN_GLOW_H
 #define IN_GLOW_POWER            global.IN_GLOW_POWER
 #define IN_GLOW_GAMMA            global.IN_GLOW_GAMMA
 
@@ -407,14 +422,15 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 
 #define DARKLINES_STRENGTH   global.DARKLINES_STRENGTH
 #define DRKLN_OVERWHITE      params.DRKLN_OVERWHITE
-#define DO_DARKLINES_VOFFSET params.DO_DARKLINES_VOFFSET
+#define DARKLINES_VOFFSET    params.DARKLINES_VOFFSET
 #define DARKLINES_PERIOD     params.DARKLINES_PERIOD
 
-#define DO_HALO    global.DO_HALO
-#define HALO_W     params.HALO_W
-#define HALO_H     params.HALO_H
-#define HALO_POWER params.HALO_POWER
-#define HALO_GAMMA params.HALO_GAMMA
+#define DO_HALO       global.DO_HALO
+#define HALO_W        params.HALO_W
+#define HALO_H        params.HALO_H
+#define HALO_POWER    params.HALO_POWER
+#define HALO_GAMMA    params.HALO_GAMMA
+#define HALO_VS_SCAN  params.HALO_VS_SCAN
 
 #define DO_BLOOM           params.DO_BLOOM
 #define BLOOM_MIX          global.BLOOM_MIX
@@ -455,6 +471,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #define BEZEL_INNER_ZOOM   global.BEZEL_INNER_ZOOM
 #define BEZEL_FRAME_ZOOM   global.BEZEL_FRAME_ZOOM
 #define BEZEL_IMAGE_BORDER global.BEZEL_IMAGE_BORDER
+#define BEZEL_REFL_ZOOM    global.BEZEL_REFL_ZOOM
 
 #define DO_SPOT    global.DO_SPOT
 #define S_BYPASS   global.S_BYPASS
@@ -477,14 +494,15 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #define ASPECT_X     global.ASPECT_X
 #define ASPECT_Y     global.ASPECT_Y
 
-#define DO_BG_IMAGE    global.DO_BG_IMAGE
-#define BG_IMAGE_OVER  global.BG_IMAGE_OVER
-#define BG_IMAGE_OFFY  global.BG_IMAGE_OFFY
-#define BG_IMAGE_OFFX  global.BG_IMAGE_OFFX
-#define BG_IMAGE_ZOOM  global.BG_IMAGE_ZOOM
+#define DO_BG_IMAGE        global.DO_BG_IMAGE
+#define BG_IMAGE_OVER      global.BG_IMAGE_OVER
+#define BG_IMAGE_OFFY      global.BG_IMAGE_OFFY
+#define BG_IMAGE_OFFX      global.BG_IMAGE_OFFX
+#define BG_IMAGE_ZOOM      global.BG_IMAGE_ZOOM
+#define BG_IMAGE_ROTATION  global.BG_IMAGE_ROTATION
 
-#define DO_SHIFT_RGB         global.DO_SHIFT_RGB
-#define SHIFT_R          global.SHIFT_R
-#define SHIFT_G          global.SHIFT_G
-#define SHIFT_B          global.SHIFT_B
+#define DO_SHIFT_RGB      global.DO_SHIFT_RGB
+#define SHIFT_R           global.SHIFT_R
+#define SHIFT_G           global.SHIFT_G
+#define SHIFT_B           global.SHIFT_B
 #define OFFSET_STRENGTH   global.OFFSET_STRENGTH

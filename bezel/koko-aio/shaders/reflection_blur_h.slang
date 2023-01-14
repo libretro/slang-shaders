@@ -7,11 +7,12 @@ layout(location = 1) in vec2 TexCoord;
 
 layout(location = 0) out vec2 vTexCoord;
 
-
-void main()
-{
+#include "includes/functions.include.slang"
+void main() {
    gl_Position = global.MVP * Position;
    vTexCoord = TexCoord;
+   if (DO_BEZEL > 0.5)
+    vTexCoord = zoom(vTexCoord, BEZEL_REFL_ZOOM);
 }
 
 #pragma stage fragment
