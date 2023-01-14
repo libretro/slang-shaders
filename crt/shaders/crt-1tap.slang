@@ -1,5 +1,29 @@
 #version 450
 
+/*
+    crt-1tap v1.0 by fishku
+    Copyright (C) 2023
+    Public domain license
+
+    Extremely fast and lightweight dynamic scanline shader.
+    Contrasty and sharp output. Easy to configure.
+    Can be combined with other shaders.
+
+    How it works: Uses a single texture "tap" per pixel, hence the name.
+    Exploits bilinear interpolation plus local coordinate distortion to shape
+    the scanline. A pseudo-sigmoid function with a configurable slope at the
+    inflection point is used to control horizontal smoothness.
+    Uses a clamped linear function to anti-alias the edge of the scanline while
+    avoiding further branching. The final thickness is shaped with a gamma-like
+    operation to control overall image contrast.
+    The scanline subpixel position can be controlled to achieve the best
+    sharpness and uniformity of the output given different input sizes, e.g.,
+    for even and odd integer scaling.
+
+    Changelog:
+    v1.0: Initial release.
+*/
+
 // clang-format off
 #pragma parameter MIN_THICK "MIN_THICK: Scanline thickness of dark pixels." 0.3 0.0 1.4 0.05
 #pragma parameter MAX_THICK "MAX_THICK: Scanline thickness of bright pixels." 1.05 0.0 1.4 0.05
@@ -61,7 +85,7 @@ void main() {
         texture(Source, vec2((src_x + 0.5f) * param.SourceSize.z,
                              (src_y_int + 0.5f) * param.SourceSize.w));
 
-    // Vectorize operations for speed
+    // Vectorize operations for speed.
     const float eff_v_sharp = 5.0f + 100.0f * param.V_SHARP * param.V_SHARP;
     const vec4 min_thick = {param.MIN_THICK, param.MIN_THICK, param.MIN_THICK,
                             param.MIN_THICK};
