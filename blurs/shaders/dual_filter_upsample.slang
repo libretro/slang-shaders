@@ -1,5 +1,7 @@
 #version 450
 
+// See dual_filter_parameters.slang for copyright and other information.
+
 #include "dual_filter_parameters.slang"
 
 layout(push_constant) uniform Push {
