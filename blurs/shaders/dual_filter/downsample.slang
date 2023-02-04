@@ -1,15 +1,16 @@
 #version 450
 
-// See dual_filter_parameters.slang for copyright and other information.
+// See dual_filter.slang for copyright and other information.
 
-#include "dual_filter_parameters.slang"
+#include "dual_filter.slang"
+#include "parameters.slang"
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
     vec4 OriginalSize;
     vec4 OutputSize;
     uint FrameCount;
-    float BLUR_STRENGTH;
+    float BLUR_RADIUS;
 }
 param;
 
@@ -34,11 +35,6 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main() {
-    const vec2 halfpixel = 0.5 * param.SourceSize.zw * param.BLUR_STRENGTH;
-    vec3 sum = texture(Source, vTexCoord).rgb * 4.0;
-    sum += texture(Source, vTexCoord - halfpixel).rgb;
-    sum += texture(Source, vTexCoord + halfpixel).rgb;
-    sum += texture(Source, vTexCoord + vec2(halfpixel.x, -halfpixel.y)).rgb;
-    sum += texture(Source, vTexCoord - vec2(halfpixel.x, -halfpixel.y)).rgb;
-    FragColor = vec4(sum * 0.125, 1.0);
+    const vec2 offset = param.SourceSize.zw * param.BLUR_RADIUS;
+    FragColor = vec4(downsample(Source, vTexCoord, offset), 1.0);
 }
