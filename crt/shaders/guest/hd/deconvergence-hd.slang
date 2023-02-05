@@ -187,7 +187,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter smoothmask "          Smooth Masks in bright scanlines" 0.0 0.0 1.0 1.0
 #define smoothmask  global.smoothmask
 
-#pragma parameter gamma_out "Gamma out" 1.75 1.0 5.0 0.05
+#pragma parameter gamma_out "          Gamma out" 1.75 1.0 5.0 0.05
 #define gamma_out    global.gamma_out     // output gamma
 
 
@@ -451,7 +451,7 @@ float SlotMask(vec2 pos, float m)
 	if ((slotmask + slotmask1) == 0.0) return 1.0;
 	else
 	{
-	if (shadowMask == 2.0 || shadowMask == 6.0) pos.x = pos.x + 1.0;	
+	if (shadowMask == 2.0 || shadowMask == 6.0) pos.x = pos.x + slotms;	
 	pos = floor(pos/slotms);
 	float mlen = slotwidth*2.0;
 	float px = fract(pos.x/mlen);
@@ -653,7 +653,7 @@ if ((abs(global.deconrr) + abs(global.deconrry) + abs(global.deconrg) + abs(glob
 	float smask = SlotMask(maskcoord, mx);	
 	cmask*= Mask(maskcoord, mx, mb);
 
-	if (mask_layout > 0.5) cmask = cmask.bgr;
+	if (mask_layout > 0.5) cmask = cmask.rbg;
 
 	cmask*=smask;
 	vec3 cmask1 = cmask;

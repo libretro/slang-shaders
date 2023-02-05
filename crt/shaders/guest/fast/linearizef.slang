@@ -34,6 +34,7 @@ layout(push_constant) uniform Push
 	float inters;
 	float iscan;
 	float intres;
+	float gamma_out;
 } params;
 
 
@@ -42,9 +43,13 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	mat4 MVP;
 } global;
 
+#pragma parameter bogus_gamma "[ GAMMA OPTIONS ]: " 0.0 0.0 0.0 1.0
 
-#pragma parameter GAMMA_INPUT "Gamma Input" 2.4 1.0 5.0 0.05
+#pragma parameter GAMMA_INPUT "          Gamma Input" 2.4 1.0 5.0 0.05
 #define GAMMA_INPUT params.GAMMA_INPUT
+
+#pragma parameter gamma_out "          Gamma out" 2.4 1.0 5.0 0.05
+#define gamma_out    params.gamma_out     // output gamma
 
 #pragma parameter bogus_interlacing "[ INTERLACING OPTIONS ]: " 0.0 0.0 0.0 1.0
 

@@ -190,7 +190,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter DES  "          Deconvergence Strength" 0.7 0.0 1.0 0.05
 
-#pragma parameter gamma_out "Gamma out" 2.4 1.0 5.0 0.05
+#pragma parameter gamma_out "          Gamma out" 2.4 1.0 5.0 0.05
 #define gamma_out    params.gamma_out     // output gamma
 
 #pragma parameter inters "          Interlacing Effect Smoothness" 0.0 0.0 0.5 0.05 // Joint parameter with linearize pass, values must match
@@ -465,7 +465,7 @@ float SlotMask(vec2 pos, float m)
 	if ((slotmask + slotmask1) == 0.0) return 1.0;
 	else
 	{
-	if (shadowMask == 2.0 || shadowMask == 6.0) pos.x = pos.x + 1.0;	
+	if (shadowMask == 2.0 || shadowMask == 6.0) pos.x = pos.x + slotms;
 	pos = floor(pos/slotms);
 	float mlen = slotwidth*2.0;
 	float px = fract(pos.x/mlen);
@@ -731,7 +731,7 @@ if (abs(vertmask) > 0.025)
 	float smask = SlotMask(gl_FragCoord.xy * 1.000001, mx);	
 	cmask*= Mask(gl_FragCoord.xy * 1.000001, mx);
 
-	if (mask_layout > 0.5) cmask = cmask.bgr;
+	if (mask_layout > 0.5) cmask = cmask.rbg;
 	
 	color = color*cmask;
 	color = min(color,1.0);
