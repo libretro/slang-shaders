@@ -1,7 +1,7 @@
 #version 450
 
 /*
-    crt-1tap v1.1 by fishku
+    crt-1tap v1.2 by fishku
     Copyright (C) 2023
     Public domain license (CC0)
 
@@ -21,18 +21,19 @@
     for even and odd integer scaling.
 
     Changelog:
+    v1.2: Better scanline sharpness; Minor cleanups.
     v1.1: Update license; Better defaults; Don't compute alpha.
     v1.0: Initial release.
 */
 
 // clang-format off
-#pragma parameter CRT1TAP_SETTINGS "=== CRT-1tap settings ===" 0.0 0.0 1.0 1.0
-#pragma parameter MIN_THICK "MIN_THICK: Scanline thickness of dark pixels." 0.3 0.0 1.4 0.05
-#pragma parameter MAX_THICK "MAX_THICK: Scanline thickness of bright pixels." 1.05 0.0 1.4 0.05
-#pragma parameter V_SHARP "V_SHARP: Vertical sharpness of the scanline" 0.2 0.0 1.0 0.05
-#pragma parameter H_SHARP "H_SHARP: Horizontal sharpness of pixel transitions." 0.15 0.0 1.0 0.05
-#pragma parameter SUBPX_POS "SUBPX_POS: Scanline subpixel position." 0.15 -0.5 0.5 0.01
-#pragma parameter THICK_FALLOFF "THICK_FALLOFF: Reduction of thinner scanlines." 0.65 0.2 2.0 0.05
+#pragma parameter CRT1TAP_SETTINGS "=== CRT-1tap v1.2 settings ===" 0.0 0.0 1.0 1.0
+#pragma parameter MIN_THICK "Scanline thickness of dark pixels" 0.3 0.0 1.4 0.05
+#pragma parameter MAX_THICK "Scanline thickness of bright pixels" 1.05 0.0 1.4 0.05
+#pragma parameter V_SHARP "Vertical sharpness of the scanline" 0.2 0.0 1.0 0.05
+#pragma parameter H_SHARP "Horizontal sharpness of pixel transitions" 0.15 0.0 1.0 0.05
+#pragma parameter SUBPX_POS "Scanline subpixel position" 0.15 -0.5 0.5 0.01
+#pragma parameter THICK_FALLOFF "Reduction / increase of thinner scanlines" 0.65 0.2 2.0 0.05
 // clang-format on
 
 layout(push_constant) uniform Push {
@@ -47,7 +48,9 @@ layout(push_constant) uniform Push {
 }
 param;
 
-layout(std140, set = 0, binding = 0) uniform UBO { mat4 MVP; }
+layout(std140, set = 0, binding = 0) uniform UBO {
+    mat4 MVP;
+}
 global;
 
 #pragma stage vertex
@@ -68,34 +71,27 @@ layout(set = 0, binding = 2) uniform sampler2D Original;
 
 void main() {
     float src_x_int;
-    const float src_x_fract =
-        modf(vTexCoord.x * param.SourceSize.x - 0.5f, src_x_int);
+    const float src_x_fract = modf(vTexCoord.x * param.SourceSize.x - 0.5, src_x_int);
 
     float src_y_int;
     const float src_y_fract =
-        modf(vTexCoord.y * param.SourceSize.y - param.SUBPX_POS, src_y_int);
+        modf(vTexCoord.y * param.SourceSize.y - param.SUBPX_POS, src_y_int) - 0.5;
 
     // Function similar to smoothstep and sigmoid.
-    const float s = sign(src_x_fract - 0.5f);
-    const float o = (1.0f + s) * 0.5f;
+    const float s = sign(src_x_fract - 0.5);
+    const float o = (1.0 + s) * 0.5;
     const float src_x =
-        src_x_int + o -
-        0.5f * s *
-            pow(2.0f * (o - s * src_x_fract), mix(1.0f, 6.0f, param.H_SHARP));
+        src_x_int + o - 0.5 * s * pow(2.0 * (o - s * src_x_fract), mix(1.0, 6.0, param.H_SHARP));
 
-    const vec3 signal =
-        texture(Source, vec2((src_x + 0.5f) * param.SourceSize.z,
-                             (src_y_int + 0.5f) * param.SourceSize.w))
-            .rgb;
+    const vec3 signal = texture(Source, vec2((src_x + 0.5) * param.SourceSize.z,
+                                             (src_y_int + 0.5) * param.SourceSize.w))
+                            .rgb;
 
     // Vectorize operations for speed.
-    const float eff_v_sharp = 3.0f + 50.0f * param.V_SHARP * param.V_SHARP;
+    const float eff_v_sharp = 3.0 + 50.0 * param.V_SHARP * param.V_SHARP;
+    const vec3 radius =
+        pow(mix(param.MIN_THICK.xxx, param.MAX_THICK.xxx, signal), param.THICK_FALLOFF.xxx) * 0.5;
     FragColor.rgb =
-        signal *
-        clamp(eff_v_sharp *
-                  ((pow(mix(param.MIN_THICK.xxx, param.MAX_THICK.xxx, signal),
-                        param.THICK_FALLOFF.xxx) *
-                    0.5f) -
-                   abs(src_y_fract - 0.5f)),
-              0.0f, 1.0f);
+        signal * clamp(0.25 - eff_v_sharp * (src_y_fract * src_y_fract - radius * radius),
+        0.0, 1.0);
 }
