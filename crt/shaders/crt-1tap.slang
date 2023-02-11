@@ -29,10 +29,10 @@
 // clang-format off
 #pragma parameter CRT1TAP_SETTINGS "=== CRT-1tap v1.2 settings ===" 0.0 0.0 1.0 1.0
 #pragma parameter MIN_THICK "Scanline thickness of dark pixels" 0.3 0.0 1.4 0.05
-#pragma parameter MAX_THICK "Scanline thickness of bright pixels" 1.05 0.0 1.4 0.05
+#pragma parameter MAX_THICK "Scanline thickness of bright pixels" 0.9 0.0 1.4 0.05
 #pragma parameter V_SHARP "Vertical sharpness of the scanline" 0.5 0.0 1.0 0.05
 #pragma parameter H_SHARP "Horizontal sharpness of pixel transitions" 0.15 0.0 1.0 0.05
-#pragma parameter SUBPX_POS "Scanline subpixel position" 0.15 -0.5 0.5 0.01
+#pragma parameter SUBPX_POS "Scanline subpixel position" 0.3 -0.5 0.5 0.01
 #pragma parameter THICK_FALLOFF "Reduction / increase of thinner scanlines" 0.65 0.2 2.0 0.05
 // clang-format on
 
