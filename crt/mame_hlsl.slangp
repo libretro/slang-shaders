@@ -67,8 +67,8 @@ filter_linear10 = true
 scale_type10 = viewport
 scale10 = 1.0
 
-shader11 = shaders/mame_hlsl/shaders/lut.slang
-filter_linear11 = true
+#shader11 = shaders/mame_hlsl/shaders/lut.slang
+#filter_linear11 = true
 
 # mame's textures are available here: https://github.com/mamedev/mame/tree/master/artwork
 textures = "MaskTexture"
