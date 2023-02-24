@@ -235,7 +235,7 @@ MONITORBORDER = "shaders/crt-maximus-royale/FrameTextures/16_9/MONITOR_frame.png
 MONITORLIGHTS = "shaders/crt-maximus-royale/FrameTextures/16_9/MONITOR_frame_lights_alpha.png"
 SHAPE1 = "shaders/crt-maximus-royale/FrameTextures/16_9/frame_1_shape.png"
 SHAPE2 = "shaders/crt-maximus-royale/FrameTextures/16_9/frame_2_shape.png"
-DECOR1 = "shaders/crt-maximus-royale/FrameTextures/16_9/TV_decor_1.png"
+#DECOR1 = "shaders/crt-maximus-royale/FrameTextures/16_9/TV_decor_1.png"
 
 mask_grille_texture_small = "shaders/crt-maximus-royale/TilePhosphorTextures/TilePhosphor128pxH.png"
 mask_grille_texture_large = "shaders/crt-maximus-royale/TilePhosphorTextures/TilePhosphor512pxH.png"
