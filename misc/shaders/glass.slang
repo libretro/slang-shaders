@@ -90,11 +90,11 @@ layout(std140, set = 0, binding = 0) uniform UBO
     vec4 OriginalSize;
     vec4 SourceSize;
     uint FrameCount;
-#include "../include/img/param_floats.h"
+#include "../../include/img/param_floats.h"
 } global;
 
-#include "../include/img/helper_macros.h"
-#include "../include/img/white_point.h"
+#include "../../include/img/helper_macros.h"
+#include "../../include/img/white_point.h"
 #define temperature global.temperature
 
 #define reflblur params.g_reflblur

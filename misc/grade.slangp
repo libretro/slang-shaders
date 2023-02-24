@@ -1,3 +1,13 @@
 shaders = 1
 
 shader0 = shaders/grade.slang
+
+textures = "SamplerLUT1;SamplerLUT2"
+SamplerLUT1 = "../crt/shaders/guest/advanced/lut/trinitron-lut.png"
+SamplerLUT1_linear = "true"
+SamplerLUT1_wrap_mode = "clamp_to_border"
+SamplerLUT1_mipmap = "false"
+SamplerLUT2 = "../crt/shaders/guest/advanced/lut/inv-trinitron-lut.png"
+SamplerLUT2_linear = "true"
+SamplerLUT2_wrap_mode = "clamp_to_border"
+SamplerLUT2_mipmap = "false"
