@@ -30,7 +30,7 @@ filter_linear6 = true
 
 textures = "overlay"
 overlay = ../reshade/shaders/blendoverlay/shadowmask-4x4.png
-filter_overlay = linear
+overlay_linear = true
 
 parameters = "ScanlineSize;YIQAmount;BrightenLevel;BrightenAmount;GlowLevel;GlowTightness;LUTHeight;LUTWidth;OverlayMix"
 ScanlineSize = 3.0
