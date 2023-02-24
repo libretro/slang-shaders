@@ -7,7 +7,7 @@ shader1 = "../blurs/shaders/royale/blur11fast-vertical.slang"
 filter_linear1 = "true"
 scale_type1 = "source"
 scale1 = "0.5"
-mipmap1 = "true"
+mipmap_input1 = "true"
 
 shader2 = "../blurs/shaders/royale/blur11fast-horizontal.slang"
 filter_linear2 = "true"

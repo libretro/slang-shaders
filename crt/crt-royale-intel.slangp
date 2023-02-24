@@ -150,5 +150,5 @@ shader9 = "shaders/crt-royale/src/crt-royale-geometry-aa-last-pass-intel.slang"
 filter_linear9 = "true"
 scale_type9 = "viewport"
 mipmap_input9 = "true"
-texture_wrap_mode9 = "clamp_to_edge"
+wrap_mode9 = "clamp_to_edge"
 
