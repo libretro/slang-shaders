@@ -18,26 +18,26 @@ void main() {
 
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D first_pass;
+layout(set = 0, binding = 1) uniform sampler2D ntsc_pass;
 
-#include "includes/blooms.include.slang"
 #include "includes/functions.include.slang"
+#include "includes/blooms.include.slang"
 
 void main() {
     if (DO_BLOOM == 0.0) return;
     
-    vec3 bloomed = bloom(
-        first_pass,
+    
+    vec3 bloomed = bloom_gamma_power(
+        ntsc_pass,
         vTexCoord,
         params.OriginalSize,
         vec2(BLOOM_SIZE),
         BLOOM_QUALITY,
-        BLOOM_GAMMA,
+        BLOOM_GAMMA, 1.0,
         0.0,
         0.0
     );
-
-    bloomed = apply_fuzzy_main_pass(bloomed) * BLOOM_POWER;
+    bloomed = apply_fuzzy_main_pass(bloomed);
     FragColor = vec4(bloomed, 1.0);
     
 }

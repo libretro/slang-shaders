@@ -28,20 +28,36 @@
     It can be used with RGB shifting and image blurring to give the picture
     an ntsc look without dealing with specific encoding/decoding stuffs. 
 
-**Glowing Input/power:**
+**Glow/Blur:**
     Emulate the CRT glowing "feature", so that the brighter areas of
-    the image will light their surroundings.
+    the image will light their surroundings,
+    with options to switch to classic blur.
     
-    Input signal glow strength:
+    Input signal strength:
         The input signal gain
-    Sharpness (horizontal, vertical):
-        How much the glow will "spread".
-        When pushed to its maximum value, no blurring will occour.
-    Gamma:
+    Input gamma:
         Controls how much the signal has to be bright to produce the glow.
-    Glow to blur bias:
-        Modulates between glow (0.. brighter colors expands over darker ones)
-        versus blur (..1  all the colors are blurred)
+    Glow spread amount:
+        The higher, the more the bright colors will smoothly expand.
+        It emulates the natural antialiasing you see on CRTs on bright areas.
+    Sharpness (horizontal, vertical):
+        The lower, the blurrier the image.
+        When set to zero, his value is handled using "Glow spread amount"
+        When pushed to its maximum value, no blurring will occour.
+    Glow / blur bias:
+        Higher negative values -> more glow : brighter colors expands over darker ones.
+        Higher positive values -> means blur: all the colors are blurred.
+        0.0 means no blur, no glow.
+    Blur NTSC artifacts more
+        When NTSC artifacts emulation is enabled, this option will let you blur
+        them more, this would help to selectively blur things like waterfalls
+        in Sonic 2.
+    Blur less NTSC artifacts (min treshold)
+        In relation to the previous setting, this allow to blur only the most
+        prominent artifacts.
+    Show NTSC artifacts mask (debug)
+        This will help you to set the previous 2 values as it will show only
+        the artifacts that will modify the blur.
     
 **RGB Masks and/or Darklines:**
     Emulates CRT RGB phosphors (RGB Mask),
@@ -59,6 +75,8 @@
         If you have reddish tint, please double check that your monitor is
         running at native resolution and the operating system is not scaling
         the screen.
+        This option is disabled if a vertical game is detected 
+        (mame 2003 plus and fbneo cores)
     . Horizontal Gap between triads:
         In real displays, rgb triads are separated by a black space.
         You can emulate it by turning this feature on.
@@ -130,9 +148,11 @@
         and avoid graphical glitches.
         If you enable this feature, it is highly recommended to disable darklines.
         Darklines will still used when dealing with interlaced or flickering screens.
-        Type 0 allows you to configure strength and stagger
-        Type 1 produces tinner slotmasks, but with fixed stagger
-        Type 3 os fixed and produces heavier and thinner slotmasks without scanlies at all.
+        Type 0 allows you to configure strength and stagger.
+               The stagger height will be modulated by the scanline height.
+        Type 1 produces tinner slotmasks, but with fixed stagger.
+               The stagger height will be modulated by the scanline height.
+        Type 3 is fixed and produces heavier and thinner slotmasks without visible scanlines.
     Slotmask strength
         The strenght of the slotmask (available on type 1 and 2 only)
     . Offset
@@ -150,20 +170,25 @@
         Controls how much the bloom has to be wide.
     Quality:
         How much the shape of the bloomed picture will reflect the original one.
-    Input Gamma:
+    Input Gamma (threshold):
         Use this as a threshold to control how much a pixel has to be bright
         to produce a bloom effect.
+    Output Gamma (contour smoothness):
+        Lowering it will make the bloom contour more pronunced.
+        Handy to simulate well defined "Aura" effects.
     Power multiplier:
         Just apply a gain to the final bloom.
-    Output Gamma:
-        Play with it.
-    Strength on bright areas:
+    Modulate: Local exposure eye adaption strength
+        Simulate the process through which the pupil adapt itself to different
+        light conditions.
+    Modulate: Strength on bright areas (0 = aura)
         Since the light produced by the bloom effect is added to the underlying
-        image, it can produce burn effects on the already bright areas.
+        image, it can produce clipping effects on the already bright areas.
         This is actually an hack that will avoid to bloom them.
-        Don't use too low values.
-    Bypass:
+    Bypass/Solo:
         See how the bloomed image looks alone.
+        Use 1.0 to see naked bloom without any modulation applied
+        Use 2.0 to see naked bloom with modulation applied 
 
 **Curvature:**
     Emulates a curved CRT display.
@@ -185,6 +210,8 @@
       that will be filled by the game content
     - The blue channel represents the part of the bezel that will be filled by the game reflection.
     
+    Straight
+        Use a straight bezel instead of a curved one.
     Bezel color (red,green,blue) and contrast:
         Allows to choose the color of the monitor frame.
     Image zoom:
@@ -193,8 +220,11 @@
         Allows to shrink or expand the monitor frame to fit the game content.
     Image Border:
         Draws a black border around the game content.
-    Reflections zoom:
-        "Zoom" the reflections if they don't match the content.
+    Sharp reflections
+        Modulates from totally blurred to totally sharp reflection appearance.
+
+**Global shift/zoom image:**
+    Zoom and shift everything on screen, but background pictures.
         
 **Backgound image:**
     Draws an image on screen picked from the "textures" shader subdirectory,
@@ -214,7 +244,13 @@
     Rotate image mode
         This could be needed when dealing with vertical games.
         Use -1 to let the shader try to guess if the rotation is needed.
-    
+    Wrap mode:
+        What to do outside the image:
+        0  Mirrored repeat because so is configured in main .slangp.
+        1  Clamp to border and it means black.
+        2  Clamp to edge and means that it repeats the edge color.
+        3  Plain repeat without mirroring.
+
 **Ambient light leds:**
     Emulates the presence of led strips under the monitor that lights the
     surroundings according to the edges of the game content.
@@ -231,14 +267,17 @@
         How wide is the area illuminated.
     Led power:
         Leds post gain.
-    Note: To avoid burn-in effects, keep Light Falloff + Led power < 1.4
-
+        Note: To avoid burn-in effects, keep Light Falloff + Led power not too high.
+    Colorize Bezel
+        Allow to add an amount of the ambient light over the bezel frame
 
 **Aspect Ratio:**
     When using effects that need Retroarch aspect ratio option
     to be set to "full", you have to provide the source aspect
     ratio to the shader.
     Use -6 for MAME cores that pre-rotates the game (TATE mode)
+    With Mame 2003 plus and fbneo cores, koko-aio detects if the
+    game is rotated or not without any user intervention.
     
     Aspect Ratio Numerator:
         Setting non positive value here will switch to a predefined
@@ -275,4 +314,19 @@
     Dark lines period:
         You can blank single line or a group of them at once.
         See what performs better on your display.
+
+**Backdrop support:**
+    Some (not so much) old arcades used a mirror trick to overlay the
+    game content over an high definition printed image.<br>
+    koko-aio supports them but you will explicitely need to enable<br>
+    that feature in config.inc file, by uncommenting a string this way:<br>
+    //#define STATIC_SUPPORT_BACKDROP 1.0 <br>
+    becomes: <br>
+    #define STATIC_SUPPORT_BACKDROP 1.0 <br>
+    You can only combine the static backdrop with images <br>
+    that are painted over the screen.<br>
+    If you need to zoom the game content only, use the global zoom controls.
+
+
+
 

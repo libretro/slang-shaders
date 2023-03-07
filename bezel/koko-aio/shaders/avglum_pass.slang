@@ -5,8 +5,9 @@
 
 #include "config.inc"
 
-//The mipmap wideness needed by the reflection on the bezel.
-#define min_w 16 
+//The mipmap wideness needed by the highlights on the bezel.
+//the higher, the smoother.
+#define mip_lod 5
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -16,8 +17,7 @@ layout(location = 1) out float lod;
 
 void main() {
    gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord;
-   lod = log2(params.SourceSize.y / min_w);
+   vTexCoord = TexCoord;  
 }
 
 #pragma stage fragment
@@ -35,30 +35,58 @@ layout(set = 0, binding = 3) uniform sampler2D avglum_passFeedback;
 
 #include "includes/functions.include.slang"
 
+
+#define RGB_TO_GRAYSCALE = vec3(0.299, 0.587, 0.114)
 float get_avg_lum_from_mip() {
     vec3 mip = textureLod(first_pass, vec2(0.5,0.5),20.0).rgb;
     mip = apply_fuzzy_main_pass(mip);
-    return (mip.r+mip.g+mip.b)/3.0;
+    //return (mip.r+mip.g+mip.b)/3.0;
+    return rgb_to_gray(mip);
 }
 
+
+//0.1 seems like a good tradeoff that works well with bloom exposire and fullscreen zoom
+//...maybe bloom exposure works best at 0.05; you may consider another zone of smooth sampling.
+#define SMOOTHNESS_SPEED 0.1
+
 float get_avglum() {
-    bool coordinate_for_scene_detection = 
+    /* avglum alpha has 3 zones::
+     * 0.25 -> reduced sampling, used for to aid scene detection
+     * 0.75 -> smoothed_sampling, used to adapt fullscreen zoom
+     * anything else: continuous sampling
+     */
+
+
+    bool reduced_sampling_co =
             vTexCoord.x > 0.24 && vTexCoord.x < 0.26 &&
             vTexCoord.y > 0.24 && vTexCoord.y < 0.26 ;
-            
-    bool reduced_sample_time_is_now = (mod(params.FrameCount,AMBI_AVGLUM_DIVIDER) == 0);
 
-    if (!coordinate_for_scene_detection) return get_avg_lum_from_mip();
-    if (reduced_sample_time_is_now)      return get_avg_lum_from_mip();
-    if (coordinate_for_scene_detection && reduced_sample_time_is_now) return get_avg_lum_from_mip();
-    
-    /* Implicit else: we are in a coordinate that is not used for scene detection
-     * So just return the feedback of this pass to spare gpu cycles. */
-    return texture(avglum_passFeedback,vTexCoord).a;
+    bool smoothed_sampling_co =
+            vTexCoord.x > 0.74 && vTexCoord.x < 0.76 &&
+            vTexCoord.y > 0.74 && vTexCoord.y < 0.76 ;
+
+
+    if (reduced_sampling_co) {
+        //in the reduced sampling zone, only update at right time; else return the previous frame.
+        bool reduced_sample_time_is_now = (mod(params.FrameCount,AMBI_AVGLUM_DIVIDER) == 0);
+        if (reduced_sample_time_is_now)
+            return get_avg_lum_from_mip();
+        float avglum_feedback = texture(avglum_passFeedback,vTexCoord).a;
+        avglum_feedback = max(avglum_feedback, 0.0); // <- Sanitize input to avoid glitches when enabling the option runtime.
+        return avglum_feedback;
+    }
+
+    if (smoothed_sampling_co) {
+        return mix(texture(avglum_passFeedback,vTexCoord).a, get_avg_lum_from_mip(), SMOOTHNESS_SPEED);
+    }
+
+    //Outside specific areas, update continuously; this is used by bezel highlights.
+    return get_avg_lum_from_mip();
+
 }
 
 void main() {
-    /*Grab a mipmap from the previous pass.
+    /*Grab a mipmap from the first pass.
       Calculate the average luminance from the smallest mipmap and put into the alpha channel
       So that can be used:
       1 - continuously at coordinate 0.5,0.5
@@ -73,9 +101,8 @@ void main() {
     pixel_out.a = get_avglum();
     if (DO_BEZEL + DO_BLOOM > 0.0) {
         //Create a small mipmap to be used to light the bezel corners.
-        pixel_out.rgb = textureLod(first_pass, vTexCoord,lod).rgb;
+        pixel_out.rgb = textureLod(first_pass, vTexCoord, mip_lod).rgb;
     }
     FragColor = pixel_out;
 
-     
 }

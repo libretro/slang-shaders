@@ -43,14 +43,14 @@ vec3 hsv2rgb(vec3 c){
 	return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
 
+#define eps10 1.0e-10
 vec3 rgb2hsv(vec3 c){
    vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
    vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
    vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
 
    float d = q.x - min(q.w, q.y);
-   float e = 1.0e-10;
-   return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+   return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + eps10)), d / (q.x + eps10), q.x);
 }
 
 #define bandwidth_mhz_Y_ntsc 4.2
@@ -61,7 +61,7 @@ const mat3 mat3_RGB2YIQ = mat3(
    0.2989,  0.5959,  0.2115,
    0.5870, -0.2744, -0.5229,
    0.1140, -0.3216,  0.3114);
-      
+
 const mat3 mat3_YIQ2RGB = mat3(
    1.0,     1.0,     1.0,
    0.956,  -0.2720, -1.1060,
@@ -99,16 +99,12 @@ vec3 pixel_offset(vec3 pixel_cur,vec2 coord, sampler2D in_texture, vec4 sourcesi
 
 
 vec3 pixel_offset_wrap (vec2 coord) {
-   vec3 pixel_in;
    if ( DO_FXAA == 1.0)  {
-      pixel_in = texture(FXAA_pass, vTexCoord).rgb;
-      return pixel_offset(pixel_in, vTexCoord, FXAA_pass, global.FXAA_passSize);
+      return pixel_offset(texture(FXAA_pass, vTexCoord).rgb,  vTexCoord, FXAA_pass, global.FXAA_passSize);
    } else {
-      pixel_in = texture(first_pass, vTexCoord).rgb;
-      return pixel_offset(pixel_in, vTexCoord, first_pass, global.first_passSize);
+      return pixel_offset(texture(first_pass, vTexCoord).rgb, vTexCoord, first_pass, global.first_passSize);
    }
 }
-
 
 
 vec3 pixel_bleed_side_NTSC(vec3 pixel_in, vec2 co, float size, float side, sampler2D in_texture, vec4 sourcesize2) {
@@ -116,16 +112,21 @@ vec3 pixel_bleed_side_NTSC(vec3 pixel_in, vec2 co, float size, float side, sampl
    vec3 blur_YIQ = pixel_in * mat3_RGB2YIQ;    //Work in YIQ space
    float i = 0.0;
    for ( i=1 ; i <= size ; i++ ){
-      w=w/SAT_BLEED_FALLOFF;
+       w=w/SAT_BLEED_FALLOFF;
+      //w = w * exp(i*i*(1-SAT_BLEED_FALLOFF)*0.1);
       //w=clamp(w,0.0,1.0);
       vec3 smp_YIQ = texture(first_pass, co - side * vec2(sourcesize2.z*i,0.0)).rgb * mat3_RGB2YIQ;
       blur_YIQ.x = mix(blur_YIQ.x, smp_YIQ.x, w/bandwidth_mhz_Y_ntsc);   // Blur Y
       blur_YIQ.y = mix(blur_YIQ.y, smp_YIQ.y, w/bandwidth_mhz_I     );   // Blur I
       blur_YIQ.z = mix(blur_YIQ.z, smp_YIQ.z, w/bandwidth_mhz_Q     );   //  BlurQ
+      //Tried to optimize as follows to no avail:
+      //vec3 vec3_mix = vec3(w/bandwidth_mhz_Y_ntsc, w/bandwidth_mhz_I, w/bandwidth_mhz_Q);
+      //blur_YIQ = mix(blur_YIQ.xyz, smp_YIQ.xyz, vec3_mix);
    }
    //blur_YIQ.z/=i;
-   return vec3(blur_YIQ.x, blur_YIQ.y, blur_YIQ.z) * mat3_YIQ2RGB; //return to RGB colorspace
+   return blur_YIQ.xyz * mat3_YIQ2RGB; //return to RGB colorspace
 }
+
 vec3 pixel_bleed_side_PAL(vec3 pixel_in, vec2 co, float size, float side, sampler2D in_texture, vec4 sourcesize2) {
    float w = SAT_BLEED_STRENGTH;
    vec3 blur_YUV = pixel_in * mat3_RGB2YUV;    //Work in YIQ space
@@ -138,7 +139,7 @@ vec3 pixel_bleed_side_PAL(vec3 pixel_in, vec2 co, float size, float side, sample
       blur_YUV.y = mix(blur_YUV.y, smp_YUV.y, w/bandwidth_mhz_U     );   // Blur U
       blur_YUV.z = mix(blur_YUV.z, smp_YUV.z, w/bandwidth_mhz_V     );   // Blur V
    }
-   return vec3(blur_YUV.x, blur_YUV.y, blur_YUV.z) * mat3_YUV2RGB; //return to RGB colorspace
+   return blur_YUV.xyz * mat3_YUV2RGB; //return to RGB colorspace
 }
 
 #define SIDE_RIGHT 1
@@ -147,6 +148,8 @@ vec3 pixel_bleed_side_PAL(vec3 pixel_in, vec2 co, float size, float side, sample
 
 vec3 pixel_bleed(vec3 pixel_in, vec2 co, sampler2D in_texture, vec4 sourcesize2) {
    vec3 side_left ; vec3 side_right;
+   //Tried to unbranch the following, no gain (even worse) probably due to not using constants anymore.
+   //Just dont try again.
    if (SAT_BLEED_PAL == 1.0) {
       side_right = pixel_bleed_side_PAL(pixel_in, co, SAT_BLEED_SIZE_RIGHT, SIDE_RIGHT, in_texture, sourcesize2);
       side_left = pixel_bleed_side_PAL(pixel_in, co, SAT_BLEED_SIZE_LEFT, SIDE_LEFT, in_texture, sourcesize2);
@@ -154,47 +157,57 @@ vec3 pixel_bleed(vec3 pixel_in, vec2 co, sampler2D in_texture, vec4 sourcesize2)
       side_right = pixel_bleed_side_NTSC(pixel_in, co, SAT_BLEED_SIZE_RIGHT, SIDE_RIGHT, in_texture, sourcesize2);
       side_left = pixel_bleed_side_NTSC(pixel_in, co, SAT_BLEED_SIZE_LEFT, SIDE_LEFT, in_texture, sourcesize2);
    }
-   return mix(side_left,side_right,0.5);
+   //Clamping min to 0.0 is needed for nvidia to avoid bad graphical glitches, why? 
+   return max( mix(side_left,side_right,0.5), 0.0) ;  
 
 }
 void main() {
-   if (DO_SHIFT_RGB + DO_SAT_BLEED == 0.0) return;
-   
+   float pixel_alpha_ntsc_artifacts; // <- this holds ntsc artifacts needed by glow to modulate blur there.
+   vec3 pixel_out;
    //Handle case where both are needed:
    //First shift the right source, then pass it to bleed function.
    if (DO_SHIFT_RGB + DO_SAT_BLEED > 1.0) {
-      vec3 pixel_out = pixel_offset_wrap(vTexCoord);
+      pixel_out = pixel_offset_wrap(vTexCoord);
       if (DO_SAT_BLEED > 0.0) {      
          if ( DO_FXAA == 1.0)  {
             pixel_out = pixel_bleed(pixel_out, vTexCoord, FXAA_pass, global.FXAA_passSize);
+            pixel_alpha_ntsc_artifacts = texture(FXAA_pass, vTexCoord).a;
          } else {
             pixel_out = pixel_bleed(pixel_out, vTexCoord, first_pass, global.first_passSize);
+            pixel_alpha_ntsc_artifacts = texture(first_pass, vTexCoord).a;
          }
       }
-      FragColor = vec4(pixel_out,0.0);
-      return;
-   }
-   
-   //Handle case where only color shifting is requested
-   if (DO_SHIFT_RGB > 0.0) {
-      vec3 pixel_out = pixel_offset_wrap(vTexCoord);
-      FragColor = vec4(pixel_out,0.0);
-      return;
-   }
-   
-   //Handle case where only chroma bleed is requested
-   if (DO_SAT_BLEED > 0.0) {      
-      vec3 pixel_out;
+   } else
+      //Handle case where only color shifting is requested
+      if (DO_SHIFT_RGB > 0.0) {
+         pixel_out = pixel_offset_wrap(vTexCoord);
+   } else 
+      if (DO_SAT_BLEED > 0.0) {      
+         //Handle case where only chroma bleed is requested
+         if ( DO_FXAA == 1.0)  {
+            pixel_out = texture(FXAA_pass, vTexCoord).rgb;
+            pixel_alpha_ntsc_artifacts = texture(FXAA_pass, vTexCoord).a;
+            pixel_out = pixel_bleed(pixel_out, vTexCoord, FXAA_pass, global.FXAA_passSize);
+            
+         } else {
+            pixel_out = texture(first_pass, vTexCoord).rgb;
+            pixel_alpha_ntsc_artifacts = texture(first_pass, vTexCoord).a;
+            pixel_out = pixel_bleed(pixel_out, vTexCoord, first_pass, global.first_passSize);
+         }
+   } else
+      //Passthrough
       if ( DO_FXAA == 1.0)  {
          pixel_out = texture(FXAA_pass, vTexCoord).rgb;
-         pixel_out = pixel_bleed(pixel_out, vTexCoord, FXAA_pass, global.FXAA_passSize);
+         pixel_alpha_ntsc_artifacts = texture(FXAA_pass, vTexCoord).a;
       } else {
          pixel_out = texture(first_pass, vTexCoord).rgb;
-         pixel_out = pixel_bleed(pixel_out, vTexCoord, first_pass, global.first_passSize);
+         pixel_alpha_ntsc_artifacts = texture(first_pass, vTexCoord).a;
       }
-      FragColor = vec4(pixel_out,0.0);
-      return;
-   }
-   
 
+   //pre-gamma if needed by glow.
+   if (DO_IN_GLOW > 0.5) 
+      pixel_out = pow(pixel_out, vec3(IN_GLOW_GAMMA));
+
+   FragColor = vec4(pixel_out,pixel_alpha_ntsc_artifacts);
+   return;
 }

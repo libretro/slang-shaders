@@ -18,24 +18,113 @@ void main() {
 
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Source;
+layout(set = 0, binding = 1) uniform sampler2D Source;
+layout(set = 0, binding = 2) uniform sampler2D avglum_pass;
+layout(set = 0, binding = 3) uniform sampler2D first_pass;
+layout(set = 0, binding = 4) uniform sampler2D bloom_pass_finalFeedback;
 
+
+#include "includes/functions.include.slang"
 #include "includes/blooms.include.slang"
+
+#define offset 0.5890486225480862 // TAU/8.0/4.0*3.0
+
+//The curve shoulder to map scene luminance to bloom mix strength
+#define BLOOM_PUPIL_EXPOSURE_CURVE_SHOULDER 0.33
+
+//How big is the zone in which the luminance will be computed for puple temporal adaption (range 2..20)
+#define BLOOM_PUPIL_LUM_ZONE_W 7
+
+//The speed of the pupil adaption
+#define BLOOM_PUPIL_ADAPTION_SPEED 0.2
+
+
+float get_avg_lum_from_mip(sampler2D tex, vec2 co, float lod) {
+    vec3 mip = textureLod(first_pass, co, lod).rgb;
+    mip = apply_fuzzy_main_pass(mip);
+    //return (mip.r+mip.g+mip.b)/3.0;
+    float luminance_from_feedback = rgb_to_gray(mip);
+    float luminance_first_pass = texture(bloom_pass_finalFeedback,vTexCoord).a;
+    luminance_first_pass = max(luminance_first_pass, 0.0); // <- Sanitize input to avoid glitches when enabling the option runtime.
+    //temporal smooth.
+    //the defined emulated eye adaption speed needs to be divided 
+    //by the eye adaption strength (BLOOM_EYE_ADPT_SRT)
+
+    //The following makes the adaption speed more constant:
+        float eye_adaption_speed = BLOOM_PUPIL_ADAPTION_SPEED * ( luminance_first_pass / luminance_from_feedback ) ;
+
+    //The following is needed so that the speed is the same even for higher strength
+        eye_adaption_speed = (eye_adaption_speed / BLOOM_EYE_ADPT_SRT);
+        
+    //The following simulates pupil inertia
+    eye_adaption_speed = clamp(eye_adaption_speed, 1.0/BLOOM_EYE_INERTIA, 1.0);
+    
+    float luminance = mix(luminance_first_pass, luminance_from_feedback, eye_adaption_speed);
+    
+
+    
+    return luminance + eps;
+    
+  
+    
+}
+
+
 
 void main() {
     if (DO_BLOOM == 0.0) return;
-
+    
     vec3 bloomed = bloom(
         Source,
         vTexCoord,
         params.SourceSize,
         vec2(BLOOM_SIZE),
         BLOOM_QUALITY,
-        1.0,
-        0.589048621875,
+        offset,
         0.0
     );
+    
+    bloomed = pow(bloomed,vec3(BLOOM_GAMMA_OUT));
+    bloomed = pixel_push_luminance(bloomed, BLOOM_POWER);
+    
+    float fbloom_mix = BLOOM_MIX;
+    float bloom_mix_adapted = 1.0;
+    float over_white_correction = 1.0;
+    
+    
+    if (BLOOM_OVER_WHITE < 1.0) {
+        //Use mipmap available in avglum_pass to identify bright areas.
+        vec3 avglum = texture(avglum_pass,vTexCoord).rgb;
+        float b_brightness = max(avglum.b,max(avglum.r,avglum.g));
+        b_brightness *= 1-BLOOM_OVER_WHITE;
+        over_white_correction =1- b_brightness;
+    }
+    
+    bloomed*=BLOOM_POWER;
+    
+    //                                                  (Branching with (if BLOOM_EYE_ADPT_SRT == 0.0) does not gain anything.)
+    // Modulate exposure over time too.
+    //Smooth luminance with specified lod in this alpha channel
+    float zone_luminance = get_avg_lum_from_mip(first_pass, vTexCoord, BLOOM_PUPIL_LUM_ZONE_W);
+    float smoothed_avglum = zone_luminance * BLOOM_EYE_ADPT_SRT;
+    bloom_mix_adapted = max(0.0, BLOOM_MIX - smoothed_avglum);
+    
+    
+    if (BLOOM_BYPASS == 2.0) fbloom_mix = 1.0;
+    
+    
+    float pow_exp = BLOOM_PUPIL_EXPOSURE_CURVE_SHOULDER - smoothed_avglum * BLOOM_PUPIL_EXPOSURE_CURVE_SHOULDER;
+    pow_exp = max(0.0, pow_exp); //avoid negative exps.
+    bloom_mix_adapted = fbloom_mix * ( 1- pow(smoothed_avglum, pow_exp) );
+    
+    
+    if (BLOOM_BYPASS != 1.0)
+        bloomed = bloomed * bloom_mix_adapted * over_white_correction ;
+    
 
-    FragColor = vec4(pow(bloomed,vec3(BLOOM_GAMMA_OUT)),1.0);
-
+    
+    FragColor = vec4(bloomed, zone_luminance);   
+    
+    //FragColor = vec4(zone_luminance); //Use me to see luminosity zones
+    
 }
