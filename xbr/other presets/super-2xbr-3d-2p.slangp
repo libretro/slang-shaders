@@ -19,4 +19,5 @@ scale_y2 = "1.000000"
 
 shader3 = "shaders/super-xbr/custom-jinc2-sharper.slang"
 filter_linear3 = false
+scale_type3 = viewport
 

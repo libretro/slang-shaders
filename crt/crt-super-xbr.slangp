@@ -124,3 +124,4 @@ mipmap_input10 = "false"
 alias10 = ""
 float_framebuffer10 = "false"
 srgb_framebuffer10 = "true"
+scale_type10 = viewport

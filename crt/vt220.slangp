@@ -19,6 +19,7 @@ filter_linear2 = false
 shader3 = shaders/vt220/vt220.slang
 mipmap_input3 = true
 wrap_mode3 = mirrored_repeat
+scale_type3 = viewport
 
 parameters = "quality"
 quality = 1.0

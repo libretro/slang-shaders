@@ -1,6 +1,5 @@
 shaders = 1
 
 shader0 = shaders/omniscale-legacy.slang
-scale_type0 = source
+scale_type0 = viewport
 filter_linear0 = false
-scale0 = 5.0

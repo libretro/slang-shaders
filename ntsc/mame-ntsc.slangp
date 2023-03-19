@@ -7,3 +7,4 @@ scale0 = 1.0
 
 shader1 = shaders/mame-ntsc/mame-postproc.slang
 filter_linear1 = true
+scale_type1 = viewport

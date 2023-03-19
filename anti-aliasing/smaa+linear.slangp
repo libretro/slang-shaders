@@ -27,6 +27,7 @@ searchTex = shaders/smaa/SearchTex.png
 
 shader4 = ../stock.slang
 filter_linear4 = true
+scale_type4 = viewport
 
 parameters = "SMAA_EDT"
 SMAA_EDT = 0.0

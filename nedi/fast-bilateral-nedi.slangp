@@ -30,3 +30,4 @@ shader4 = "shaders/nedi-jinc.slang"
 filter_linear4 = false
 wrap_mode4 = "clamp_to_border"
 float_framebuffer4 = "false"
+scale_type4 = viewport

@@ -1,4 +1,4 @@
-shaders = "21"
+shaders = "22"
 
 shader0 = ../stock.slang
 alias0 = maximus_refpass
@@ -162,6 +162,9 @@ filter_linear20 = "true"
 wrap_mode20 = "clamp_to_border"
 scale_type20 = "source"
 scale20 = "1.0"
+
+shader21 = ../stock.slang
+scale_type21 = viewport
 
 crt_gamma = "1.7"
 lcd_gamma = "1.2"

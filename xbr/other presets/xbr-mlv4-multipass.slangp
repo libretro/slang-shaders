@@ -35,3 +35,4 @@ alias3 = "PASS3"
 shader4 = ../shaders/xbr-mlv4-multipass/xbr-mlv4-pass4.slang
 filter_linear4 = "false"
 float_framebuffer4 = "false"
+scale_type4 = viewport

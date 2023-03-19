@@ -25,3 +25,4 @@ filter_linear3 = true
 
 shader4 = ../stock.slang
 filter_linear4 = true
+scale_type4 = viewport

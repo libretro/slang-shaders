@@ -17,6 +17,7 @@ float_framebuffer2 = true
 
 shader3 = ../anti-aliasing/shaders/fxaa.slang
 filter_linear3 = true
+scale_type3 = viewport
 
 textures = "cubeMap;table"
 cubeMap = shaders/metacrt/basilica.png

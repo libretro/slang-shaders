@@ -6,5 +6,6 @@ scale_type0 = source
 scale_x0 = 2.0
 scale_y0 = 2.0
 
-shader1 = ../stock.slang
-filter_linear1 = true
+shader1 = ../cubic/bicubic.slang
+filter_linear1 = false
+scale_type1 = viewport

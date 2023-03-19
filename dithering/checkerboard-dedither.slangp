@@ -18,3 +18,4 @@ scale2 = 1.0
 
 shader3 = shaders/checkerboard-dedither/checkerboard-dedither-pass3.slang
 filter_linear3 = false
+scale_type3 = source

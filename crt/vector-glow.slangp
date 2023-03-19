@@ -38,6 +38,7 @@ srgb_framebuffer6 = "true"
 shader7 = "shaders/glow-trails/combine.slang"
 
 shader8 = "../misc/shaders/image-adjustment.slang"
+scale_type8 = viewport
 
 parameters = "mixfactor;threshold;trail_bright;glowFactor;haze_strength;luminance;bright"
 mixfactor = "0.18"

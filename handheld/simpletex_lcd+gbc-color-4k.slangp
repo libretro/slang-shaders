@@ -8,6 +8,7 @@ mipmap_input0 = "false"
 alias0 = ""
 float_framebuffer0 = "false"
 srgb_framebuffer0 = "false"
+scale_type0 = viewport
 
 textures = "BACKGROUND"
 BACKGROUND = "shaders/simpletex_lcd/png/4k/textured_paper.png"

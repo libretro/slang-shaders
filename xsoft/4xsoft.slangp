@@ -20,3 +20,4 @@ scale2 = 1.0
 
 shader3 = ../cubic/shaders/b-spline-y.slang
 filter_linear3 = false
+scale_type3 = viewport

@@ -8,3 +8,4 @@ scale0 = 1.0
 srgb_framebuffer0 = true
 
 filter_linear1 = true
+scale_type1 = viewport

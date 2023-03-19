@@ -44,3 +44,4 @@ srgb_framebuffer5 = true
 
 shader6 = "shaders/crt-lottes-multipass/scanpass-glow.slang"
 filter_linear6 = "true"
+scale_type6 = viewport

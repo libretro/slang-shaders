@@ -14,6 +14,7 @@ filter_linear3 = true
 
 shader4 = shaders/crtsim/present.slang
 filter_linear4 = true
+scale_type4 = viewport
 
 textures = "NTSCArtifactSampler;shadowMaskSampler"
 NTSCArtifactSampler = "shaders/crtsim/artifacts.png"

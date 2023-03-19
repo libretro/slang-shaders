@@ -47,4 +47,5 @@ scale_y6 = "1.000000"
 
 shader7 = "../shaders/support/stock.slang"
 filter_linear7 = true
+scale_type7 = viewport
 

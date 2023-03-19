@@ -38,3 +38,4 @@ alias5 = ds_hybrid_view_refpass
 
 shader6 = shaders/ds-hybrid-view.slang
 filter_linear6 = true
+scale_type0 = viewport

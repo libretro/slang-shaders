@@ -42,3 +42,4 @@ filter_linear7 = true
 
 shader8 = shaders/bigblur.slang
 filter_linear8 = true
+scale_type8 = viewport

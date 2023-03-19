@@ -31,6 +31,7 @@ srgb_framebuffer3 = true
 
 shader4 = shaders/phosphorlut/phosphorlut-pass1.slang
 filter_linear4 = true
+scale_type4 = viewport
 
 textures = "shadow;aperture;slot"
 shadow = shaders/phosphorlut/luts/shadowmask.png

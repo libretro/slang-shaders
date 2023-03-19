@@ -12,6 +12,7 @@ filter_linear1 = true
 
 shader2 = shaders/rewind.slang
 filter_linear2 = true
+scale_type2 = viewport
 
 textures = "rew;play"
 play = resources/play.png

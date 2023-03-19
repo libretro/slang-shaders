@@ -30,6 +30,7 @@ scale_y3 = "1.000000"
 shader4 = "../windowed/shaders/jinc2.slang"
 filter_linear4 = "false"
 wrap_mode4 = "clamp_to_edge"
+scale_type4 = viewport
 
 parameters = "JINC2_WINDOW_SINC;JINC2_SINC;JINC2_AR_STRENGTH"
 JINC2_WINDOW_SINC = 0.42

@@ -36,4 +36,5 @@ srgb_framebuffer5 = true
 
 shader6 = shaders/glow/resolve.slang
 filter_linear6 = true
+scale_type6 = viewport
 

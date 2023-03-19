@@ -10,6 +10,7 @@ scale_y0 = 1.0
 
 shader1 = shaders/hyllian/crt-hyllian-multipass/crt-hyllian-pass1.slang
 filter_linear1 = false
+scale_type1 = viewport
 
 # Uncomment these lines for a sharper variation
 #parameters = "SHARPNESS;SCANLINES_STRENGTH;BEAM_MIN_WIDTH"

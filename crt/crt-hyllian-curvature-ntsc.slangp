@@ -65,6 +65,7 @@ mipmap_input6 = "false"
 alias6 = ""
 float_framebuffer6 = "false"
 srgb_framebuffer6 = "false"
+scale_type6 = viewport
 parameters = "linearize;quality;ntsc_sat;BEAM_PROFILE;HFILTER_PROFILE;BEAM_MIN_WIDTH;BEAM_MAX_WIDTH;SCANLINES_STRENGTH;COLOR_BOOST;PHOSPHOR_LAYOUT;MASK_INTENSITY;CRT_ANTI_RINGING;InputGamma;OutputGamma;VSCANLINES;CRT_CURVATURE;CRT_warpX;CRT_warpY;CRT_cornersize;CRT_cornersmooth;GLOW_WHITEPOINT;GLOW_ROLLOFF;BLOOM_STRENGTH;OUTPUT_GAMMA;CURVATURE;warpX;warpY;cornersize;cornersmooth;noise_amt;shadowMask;maskDark;maskLight"
 BEAM_PROFILE = "0.000000"
 HFILTER_PROFILE = "1.000000"

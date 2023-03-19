@@ -17,6 +17,7 @@ mipmap_input1 = "false"
 alias1 = ""
 float_framebuffer1 = "false"
 srgb_framebuffer1 = "false"
+scale_type1 = viewport
 JINC2_WINDOW_SINC = "0.500000"
 JINC2_SINC = "0.880000"
 JINC2_AR_STRENGTH = "0.000000"

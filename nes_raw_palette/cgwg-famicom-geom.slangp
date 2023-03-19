@@ -23,3 +23,4 @@ filter_linear3 = false
 float_framebuffer3 = true
 
 shader4 = shaders/cgwg-famicom-geom/crt-geom-famicom.slang
+scale_type4 = viewport

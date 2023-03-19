@@ -2,6 +2,7 @@ shaders = 1
 
 shader0 = shaders/jinc2.slang
 filter_linear0 = false
+scale_type0 = viewport
 
 parameters = "JINC2_WINDOW_SINC;JINC2_SINC;JINC2_AR_STRENGTH"
 JINC2_WINDOW_SINC = 0.39

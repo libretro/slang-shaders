@@ -20,6 +20,7 @@ filter_linear2 = true
 
 shader3 = shaders/newpixie/newpixie-crt.slang
 filter_linear3 = true
+scale_type3 = viewport
 
 textures = "frametexture"
 frametexture = shaders/newpixie/crtframe.png

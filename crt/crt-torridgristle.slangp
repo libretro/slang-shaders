@@ -27,6 +27,7 @@ scale_type5 = source
 
 shader6 = shaders/torridgristle/Candy-Bloom.slang
 filter_linear6 = true
+scale_type6 = viewport
 
 textures = "overlay"
 overlay = ../reshade/shaders/blendoverlay/shadowmask-4x4.png

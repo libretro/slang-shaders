@@ -30,4 +30,5 @@ scale4 = 1.0
 
 shader5 = shaders/sgenpt-mix/sgenpt-mix-pass5.slang
 filter_linear5 = false
+scale_type5 = source
 

@@ -49,6 +49,7 @@ mipmap_input5 = "false"
 alias5 = ""
 float_framebuffer5 = "false"
 srgb_framebuffer5 = "false"
+scale_type5 = viewport
 parameters = "INPUT_GAMMA;BEAM_PROFILE;HFILTER_PROFILE;BEAM_MIN_WIDTH;BEAM_MAX_WIDTH;SCANLINES_STRENGTH;COLOR_BOOST;SHARPNESS_HACK;PHOSPHOR_LAYOUT;MASK_INTENSITY;CRT_ANTI_RINGING;InputGamma;OutputGamma;VSCANLINES;GLOW_WHITEPOINT;GLOW_ROLLOFF;BLOOM_STRENGTH;OUTPUT_GAMMA;CURVATURE;warpX;warpY;cornersize;cornersmooth;noise_amt;shadowMask;maskDark;maskLight"
 INPUT_GAMMA = "2.400000"
 BEAM_PROFILE = "0.000000"

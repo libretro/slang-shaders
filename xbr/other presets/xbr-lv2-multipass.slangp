@@ -10,6 +10,7 @@ scale_type1 = "source"
 scale1 = "1.000000"
 
 shader2 = ../shaders/xbr-lv2-multipass/xbr-lv2-pass1.slang
+scale_type2 = viewport
 
 filter_linear0 = "false"
 filter_linear1 = "false"

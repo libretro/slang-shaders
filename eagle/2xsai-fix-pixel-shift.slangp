@@ -14,6 +14,7 @@ shader1 = "../nnedi3/shaders/jinc2-cshift-rgb.slang"
 filter_linear1 = "false"
 wrap_mode1 = "clamp_to_border"
 mipmap_input1 = "false"
+scale_type1 = viewport
 alias1 = ""
 float_framebuffer1 = "false"
 srgb_framebuffer1 = "false"

@@ -7,3 +7,4 @@ scale0 = 4.0
 
 shader1 = ../stock.slang
 filter_linear1 = true
+scale_type1 = viewport

@@ -67,6 +67,7 @@ mipmap_input8 = "false"
 alias8 = ""
 float_framebuffer8 = "false"
 srgb_framebuffer8 = "false"
+scale_type8 = viewport
 parameters = "CD_HUD_DETAILS;INPUT_GAMMA;HFILTER_PROFILE;BEAM_MIN_WIDTH;BEAM_MAX_WIDTH;SCANLINES_STRENGTH;COLOR_BOOST;SHARPNESS_HACK;PHOSPHOR_LAYOUT;MASK_INTENSITY;InputGamma;OutputGamma;VSCANLINES;GLOW_WHITEPOINT;GLOW_ROLLOFF;BLOOM_STRENGTH;OUTPUT_GAMMA;CURVATURE;warpX;warpY;cornersize;cornersmooth;noise_amt;shadowMask;maskDark;maskLight"
 CD_HUD_DETAILS = "5.0"
 INPUT_GAMMA = "2.000000"

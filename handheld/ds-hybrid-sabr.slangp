@@ -14,3 +14,4 @@ alias1 = Ref
 
 shader2 = shaders/ds-hybrid-view.slang
 filter_linear2 = true
+scale_type0 = viewport

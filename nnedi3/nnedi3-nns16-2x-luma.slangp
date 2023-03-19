@@ -43,3 +43,4 @@ scale_y5 = 1.0
 
 shader6 = ../windowed/shaders/jinc2.slang
 filter_linear6 = false
+scale_type6 = viewport

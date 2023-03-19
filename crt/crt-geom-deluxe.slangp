@@ -17,6 +17,7 @@ alias3 = blur_texture
 shader4 = shaders/geom-deluxe/crt-geom-deluxe.slang
 filter_linear4 = true
 mipmap_input4 = true
+scale_type4 = viewport
 
 textures = "aperture;slot;delta"
 delta = shaders/geom-deluxe/masks/delta_2_4x1_rgb.png

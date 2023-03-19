@@ -2,6 +2,7 @@ shaders = 1
 
 shader0 = shaders/crt-geom.slang
 filter_linear0 = false
+scale_type0 = viewport
 
 CRTgamma = "2.2"
 CURVATURE = "1.0"

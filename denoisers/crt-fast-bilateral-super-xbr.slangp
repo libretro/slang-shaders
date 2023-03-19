@@ -40,6 +40,7 @@ shader5 = "../crt/shaders/hyllian/crt-hyllian.slang"
 filter_linear5 = "false"
 wrap_mode5 = "clamp_to_edge"
 float_framebuffer5 = "false"
+scale_type5 = viewport
 
 parameters = "JINC2_WINDOW_SINC;JINC2_SINC;JINC2_AR_STRENGTH"
 JINC2_WINDOW_SINC = 0.50

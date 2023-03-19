@@ -30,4 +30,5 @@ scale_y3 = "3.000000"
 shader4 = ../stock.slang
 filter_linear4 = "true"
 float_framebuffer4 = "false"
+scale_type4 = viewport
 
