@@ -381,7 +381,8 @@ void main()
 	float luma2 = length(color2)*0.57735;
 	
 	vec3 color = color1*sw(f,luma1) + color2*sw(1.0-f,luma2);
-	
+	if (params.OriginalSize.y >= 400.0) {color = (color1 + color2)/2.0;}
+
 	color = min(color, 1.0);
 	color = color * Mask(vTexCoord * global.OutputSize.xy, color);
 	float lum = color.r*0.3+color.g*0.6+color.b*0.1;
