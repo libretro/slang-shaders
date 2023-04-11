@@ -8,38 +8,38 @@ layout(push_constant) uniform Push
 } params;
 
 // Parameter lines go here:
-#pragma parameter blurx "Convergence X" 0.25 -4.0 4.0 0.05
-#pragma parameter blury "Convergence Y" -0.15 -4.0 4.0 0.05
+#pragma parameter blurx "Convergence X" 0.9 -4.0 4.0 0.05
+#pragma parameter blury "Convergence Y" 0.0 -4.0 4.0 0.05
 #pragma parameter warpx "Curvature X" 0.03 0.0 0.12 0.01
 #pragma parameter warpy "Curvature Y" 0.04 0.0 0.12 0.01
 #pragma parameter corner "Corner size" 0.01 0.0 0.10 0.01
 #pragma parameter smoothness "Border Smoothness" 400.0 25.0 600.0 5.0
 #pragma parameter scanlow "Beam low" 6.0 1.0 15.0 1.0
-#pragma parameter scanhigh "Beam high" 8.0 1.0 15.0 1.0
-#pragma parameter beamlow "Scanlines dark" 1.35 0.5 2.5 0.05 
-#pragma parameter beamhigh "Scanlines bright" 1.05 0.5 2.5 0.05 
-#pragma parameter brightboost1 "Bright boost dark pixels" 1.1 0.0 3.0 0.05
+#pragma parameter scanhigh "Beam high" 10.0 1.0 15.0 1.0
+#pragma parameter beamlow "Scanlines dark" 1.650.5 2.5 0.05 
+#pragma parameter beamhigh "Scanlines bright" 1.25 0.5 2.5 0.05 
+#pragma parameter brightboost1 "Bright boost dark pixels" 1.5 0.0 3.0 0.05
 #pragma parameter brightboost2 "Bright boost bright pixels" 1.05 0.0 3.0 0.05
 #pragma parameter Shadowmask "Mask Type" 7.0 -1.0 8.0 1.0 
 #pragma parameter masksize "Mask Size" 1.0 1.0 2.0 1.0
-#pragma parameter MaskDark "Mask dark" 0.5 0.0 2.0 0.1
+#pragma parameter MaskDark "Mask dark" 0.3 0.0 2.0 0.1
 #pragma parameter MaskLight "Mask light" 1.5 0.0 2.0 0.1
 #pragma parameter slotmask "Slot Mask Strength" 0.0 0.0 1.0 0.05
 #pragma parameter slotwidth "Slot Mask Width" 2.0 1.0 6.0 0.5
 #pragma parameter double_slot "Slot Mask Height: 2x1 or 4x1" 1.0 1.0 2.0 1.0
 #pragma parameter slotms "Slot Mask Size" 1.0 1.0 2.0 1.0
-#pragma parameter GAMMA_IN "Gamma In" 2.5 0.0 4.0 0.1
+#pragma parameter GAMMA_IN "Gamma In" 2.6 0.0 4.0 0.1
 #pragma parameter GAMMA_OUT "Gamma Out" 2.2 0.0 4.0 0.1
 #pragma parameter postbr "Post Brightness" 1.3 0.0 2.5 0.02
 #pragma parameter glow "Glow Strength" 0.05 0.0 0.5 0.01
 #pragma parameter Size "Glow Size" 1.0 0.1 4.0 0.05
-#pragma parameter sat "Saturation" 1.1 0.0 2.0 0.05
+#pragma parameter sat "Saturation" 1.3 0.0 2.0 0.05
 #pragma parameter contrast "Contrast, 1.0:Off" 1.0 0.00 2.00 0.05
-#pragma parameter nois "Noise" 0.0 0.0 32.0 1.0
-#pragma parameter WP "Color Temperature %" 0.0 -100.0 100.0 5.0 
+#pragma parameter nois "Noise" 8.0 0.0 32.0 1.0
+#pragma parameter WP "Color Temperature %" 30.0 -100.0 100.0 5.0 
 #pragma parameter inter "Interlacing Toggle" 1.0 0.0 1.0 1.0 
 #pragma parameter vignette "Vignette On/Off" 1.0 0.0 1.0 1.0
-#pragma parameter vpower "Vignette Power" 0.2 0.0 1.0 0.01
+#pragma parameter vpower "Vignette Power" 0.15 0.0 1.0 0.01
 #pragma parameter vstr "Vignette strength" 40.0 0.0 50.0 1.0
 #pragma parameter alloff "Switch off shader" 0.0 0.0 1.0 1.0
 
