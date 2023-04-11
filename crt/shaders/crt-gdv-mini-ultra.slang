@@ -24,9 +24,7 @@
 
 layout(push_constant) uniform Push
 {
-	vec4 SourceSize;
-	vec4 OriginalSize;
-	vec4 OutputSize;
+
 	float brightboost;
 	float sat;
 	float glow;
@@ -46,6 +44,10 @@ layout(push_constant) uniform Push
     float warpY;
     float gamma_out;
     float vignette;
+    float mono;
+	float R;
+	float G;
+	float B;
 } params;
 
 // Parameter lines go here:
@@ -105,7 +107,17 @@ layout(push_constant) uniform Push
 #pragma parameter vignette 			"Vignette On/Off" 0.0 0.0 1.0 1.0
 #define vignette 	params.vignette
 
+#pragma parameter mono "Mono Display On/Off" 0.0 0.0 1.0 1.0
+#define mono params.mono
 
+#pragma parameter R "Mono Red/Channel" 1.0 0.0 2.0 0.01
+#define R params.R
+
+#pragma parameter G "Mono Green/Channel" 1.0 0.0 2.0 0.01
+#define G params.G
+
+#pragma parameter B "Mono Blue/Channel" 1.0 0.0 2.0 0.01
+#define B params.B
 
 
 
@@ -114,6 +126,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	mat4 MVP;
 	vec4 FinalViewportSize;
 	vec4 OutputSize;
+    vec4 SourceSize;
+	vec4 OriginalSize;
 } global;
 
 #pragma stage vertex
@@ -141,6 +155,18 @@ float sw(float x, float l)
 	d = exp2(-bm*pow(d,b));
 	return d;
 }
+
+vec3 toGrayscale(vec3 color)
+{
+  float average = (color.r + color.g + color.b) / 3.0;
+  return vec3(average);
+}
+
+vec3 colorize(vec3 grayscale, vec3 color)
+{
+    return (grayscale * color);
+}
+
 
 // Shadow mask (1-4 from PD CRT Lottes shader).
 vec3 Mask(vec2 pos, vec3 c)
@@ -409,7 +435,7 @@ void main()
 	vec2 pos = Warp(vTexCoord);
 
 	// HSM Added
-	vec4 SourceSize = params.SourceSize;
+	vec4 SourceSize = global.SourceSize;
 
 	vec2 ps = SourceSize.zw;
 	vec2 OGL2Pos = pos * SourceSize.xy;
@@ -436,9 +462,13 @@ void main()
 	float f = fp.y;
 	float luma1 = length(color1)*0.57735;
 	float luma2 = length(color2)*0.57735;
+
 	
 	vec3 color = color1*sw(f,luma1) + color2*sw(1.0-f,luma2);
-	
+	vec4 OriginalSize = global.OriginalSize;
+
+	if (OriginalSize.y >= 400.0) {color = (color1 + color2)/2.0;}
+
 	color = min(color, 1.0);
 	color = color * Mask(vTexCoord * global.OutputSize.xy, color);
 	float lum = color.r*0.3+color.g*0.6+color.b*0.1;
@@ -449,5 +479,16 @@ void main()
 
 	color = saturation(color);
 	color*= vign(lum);
+
+
+    if (mono == 1.0)
+	{
+    vec3 col1 = toGrayscale (color);
+    vec3 c = vec3(R, G, B);
+    color = colorize (col1, c);
+    }
+
+    else color = color;
+
 	FragColor = vec4(color, 1.0);
 }
