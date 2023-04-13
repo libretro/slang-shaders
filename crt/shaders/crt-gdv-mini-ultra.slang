@@ -42,19 +42,31 @@ layout(push_constant) uniform Push
     float csize;
     float warpX;
     float warpY;
-    float gamma_out;
+    float gamma_out_red;
+    float gamma_out_green;
+    float gamma_out_blue;
     float vignette;
     float mono;
 	float R;
 	float G;
 	float B;
+	float green_boost;
 } params;
 
 // Parameter lines go here:
 #pragma parameter gdv_mini_title 	"[ GDV MINI - DariusG ]:" 0.0 0.0 1.0 1.0
 
-#pragma parameter gamma_out 		"Gamma out" 0.5 0.2 0.6 0.01
-#define gamma_out params.gamma_out
+#pragma parameter gamma_out_red 		"Gamma out Red" 2.5 1.0 4.0 0.1
+#define gamma_out_red params.gamma_out_red
+
+#pragma parameter gamma_out_green 		"Gamma out Green" 2.5 1.0 4.0 0.1
+#define gamma_out_green params.gamma_out_green
+
+#pragma parameter gamma_out_blue 		"Gamma out Blue" 2.5 1.0 4.0 0.1
+#define gamma_out_blue params.gamma_out_blue
+
+#pragma parameter green_boost "Green Boost" 1.2 1.0 2.0 0.02
+#define green_boost params.green_boost
 
 #pragma parameter brightboost 		"Bright boost" 1.0 0.5 2.0 0.05
 #define brightboost params.brightboost
@@ -62,13 +74,10 @@ layout(push_constant) uniform Push
 #pragma parameter sat 				"Saturation adjustment" 1.0 0.0 2.0 0.05
 #define sat params.sat
 
-#pragma parameter glow "Glow Strength" 0.08 0.0 0.5 0.01
+#pragma parameter glow "Glow Strength" 0.25 0.0 1.0 0.01
 #define glow params.glow
 
-#pragma parameter Size "Glow Size" 4.0 0.1 4.0 0.05
-#define Size params.Size
-
-#pragma parameter scanline          "Scanline Adjust" 8.0 1.0 12.0 1.0
+#pragma parameter scanline          "Scanline Adjust" 8.0 1.0 15.0 1.0
 #define scanline params.scanline
 
 #pragma parameter beam_min          "Scanline Dark" 1.7 0.5 3.0 0.05
@@ -392,40 +401,34 @@ vec3 saturation (vec3 textureColor)
 
 vec3 glow0 (vec2 texcoord, vec3 col)
 {
-   vec3 sum = vec3(0.0, 0.0, 0.0);
-   float blurSize = Size / 1024.0;
+   vec3 sum = vec3(0.0);
+   vec2 blurSize = vec2 (global.SourceSize.zw);
 
-   sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y)).rgb * 0.1;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y)).rgb * 0.16;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y)).rgb * 0.1;
+   vec3 c20 = texture(Source, vec2(texcoord.x - 2.0 * blurSize.x, texcoord.y)).rgb; c20*c20;
+   vec3 c10 = texture(Source, vec2(texcoord.x - blurSize.x,       texcoord.y)).rgb; c10*c10;
+   vec3 c11 = texture(Source, vec2(texcoord.x,                  texcoord.y)).rgb; c11*c11;
+   vec3 c12 = texture(Source, vec2(texcoord.x + blurSize.x,       texcoord.y)).rgb; c12*c12;
+   vec3 c21 = texture(Source, vec2(texcoord.x + 2.0 * blurSize.x, texcoord.y)).rgb; c21*c21;
 
-   //sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y - 2.0 * blurSize)) * 0.1;
-   sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y - blurSize)).rgb * 0.1;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y - 2.0 * blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y - blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y + blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y + 2.0 * blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y + blurSize)).rgb * 0.1;
+   vec3 c22 = texture(Source, vec2(texcoord.x - 2.0 * blurSize.x, texcoord.y - blurSize.y)).rgb; c22*c22;
+   vec3 c23 = texture(Source, vec2(texcoord.x - blurSize.x,       texcoord.y - 2.0 * blurSize.y)).rgb; c23*c23;
+   vec3 c13 = texture(Source, vec2(texcoord.x - blurSize.x,       texcoord.y - blurSize.y)).rgb; c13*c13;
+   vec3 c14 = texture(Source, vec2(texcoord.x + blurSize.x,       texcoord.y + blurSize.y)).rgb; c14*c14;
+   vec3 c24 = texture(Source, vec2(texcoord.x + blurSize.x,       texcoord.y + 2.0 * blurSize.y)).rgb; c24*c24;
+   vec3 c25 = texture(Source, vec2(texcoord.x + 2.0 * blurSize.x, texcoord.y + blurSize.y)).rgb; c25*c25;
    
-   //sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y + 2.0 * blurSize)) * 0.1;
-   //sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y + 2.0 * blurSize)) * 0.1;
+   vec3 c26 = texture(Source, vec2(texcoord.x - 2.0 * blurSize.x, texcoord.y + blurSize.y)).rgb; c26*c26;
+   vec3 c27 = texture(Source, vec2(texcoord.x - blurSize.x,       texcoord.y + 2.0 * blurSize.y)).rgb; c27*c27;
+   vec3 c15 = texture(Source, vec2(texcoord.x - blurSize.x,       texcoord.y + blurSize.y)).rgb; c15*c15;
+   vec3 c16 = texture(Source, vec2(texcoord.x + blurSize.x,       texcoord.y - blurSize.y)).rgb; c16*c16;
+   vec3 c28 = texture(Source, vec2(texcoord.x + blurSize.x,       texcoord.y - 2.0 * blurSize.y)).rgb; c28*c28;
+   vec3 c29 = texture(Source, vec2(texcoord.x + 2.0 * blurSize.x, texcoord.y - blurSize.y)).rgb; c29*c29;
    
-   sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y + blurSize)).rgb * 0.1;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y + 2.0 * blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y + blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y - blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y - 2.0 * blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y - blurSize)).rgb * 0.1;
-   
-   //sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize,  texcoord.y - 2.0 * blurSize)) * 0.1;
-
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y - 2.0 * blurSize)).rgb * 0.1;
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y - blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y + blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y + 2.0 * blurSize)).rgb * 0.1;
-  
+   vec3 c30 = texture(Source, vec2(texcoord.x,                  texcoord.y - 2.0 * blurSize.y)).rgb; c30*c30;
+   vec3 c17 = texture(Source, vec2(texcoord.x,                  texcoord.y - blurSize.y)).rgb; c17*c17;
+   vec3 c18 = texture(Source, vec2(texcoord.x,                  texcoord.y + blurSize.y)).rgb; c18*c18;
+   vec3 c31 = texture(Source, vec2(texcoord.x,                  texcoord.y + 2.0 * blurSize.y)).rgb; c31*c31;
+  	sum = (3.0*c11 + 2.5 *(c10+c12+c13+c14+c15+c16+c17+c18) + 1.5*(c20+c21+c22+c23+c24+c25+c26+c27+c28+c29+c30+c31))/45.0;
    return sum * glow; 
 }
 
@@ -473,7 +476,9 @@ void main()
 	color = color * Mask(vTexCoord * global.OutputSize.xy, color);
 	float lum = color.r*0.3+color.g*0.6+color.b*0.1;
 
-	color = pow(color, vec3(gamma_out, gamma_out, gamma_out));
+	color = pow(color, vec3(1.0/gamma_out_red,1.0,1.0));
+	color = pow(color, vec3(1.0,1.0/gamma_out_green,1.0));
+	color = pow(color, vec3(1.0,1.0,1.0/gamma_out_blue));
 	color += glow0(pC4,color);
 	color*= mix(1.0,brightboost,lum);
 
@@ -489,6 +494,6 @@ void main()
     }
 
     else color = color;
-
+    color *= vec3(1.0,green_boost,1.0);
 	FragColor = vec4(color, 1.0);
 }
