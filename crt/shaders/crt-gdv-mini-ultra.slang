@@ -51,6 +51,7 @@ layout(push_constant) uniform Push
 	float G;
 	float B;
 	float green_boost;
+	float thres;
 } params;
 
 // Parameter lines go here:
@@ -59,38 +60,41 @@ layout(push_constant) uniform Push
 #pragma parameter gamma_out_red 		"Gamma out Red" 2.5 1.0 4.0 0.1
 #define gamma_out_red params.gamma_out_red
 
-#pragma parameter gamma_out_green 		"Gamma out Green" 2.5 1.0 4.0 0.1
+#pragma parameter gamma_out_green 		"Gamma out Green" 1.9 1.0 4.0 0.1
 #define gamma_out_green params.gamma_out_green
 
-#pragma parameter gamma_out_blue 		"Gamma out Blue" 2.5 1.0 4.0 0.1
+#pragma parameter gamma_out_blue 		"Gamma out Blue" 2.2 1.0 4.0 0.1
 #define gamma_out_blue params.gamma_out_blue
 
 #pragma parameter green_boost "Green Boost" 1.2 1.0 2.0 0.02
 #define green_boost params.green_boost
 
-#pragma parameter brightboost 		"Bright boost" 1.0 0.5 2.0 0.05
+#pragma parameter brightboost 		"Bright boost" 1.2 0.5 2.0 0.05
 #define brightboost params.brightboost
 
-#pragma parameter sat 				"Saturation adjustment" 1.0 0.0 2.0 0.05
+#pragma parameter sat 				"Saturation adjustment" 1.2 0.0 2.0 0.05
 #define sat params.sat
 
-#pragma parameter glow "Glow Strength" 0.25 0.0 1.0 0.01
+#pragma parameter glow "Glow Strength" 0.2 0.0 1.0 0.01
 #define glow params.glow
 
-#pragma parameter scanline          "Scanline Adjust" 8.0 1.0 15.0 1.0
+#pragma parameter scanline          "Scanline Adjust" 10.0 1.0 15.0 1.0
 #define scanline params.scanline
 
-#pragma parameter beam_min          "Scanline Dark" 1.7 0.5 3.0 0.05
+#pragma parameter beam_min          "Scanline Dark" 1.5 0.5 3.0 0.05
 #define beam_min params.beam_min
 
-#pragma parameter beam_max          "Scanline Bright" 2.1 0.5 3.0 0.05
+#pragma parameter beam_max          "Scanline Bright" 2.0 0.5 3.0 0.05
 #define beam_max params.beam_max
 
-#pragma parameter h_sharp           "Horizontal Sharpness" 2.0 1.0 5.0 0.05
+#pragma parameter h_sharp           "Horizontal Sharpness" 2.5 1.0 5.0 0.05
 #define h_sharp params.h_sharp
 
-#pragma parameter shadowMask 		"CRT Mask: 0:CGWG, 1-4:Lottes, 5-6:Trinitron" 0.0 -1.0 11.0 1.0
+#pragma parameter shadowMask 		"CRT Mask: 0:CGWG, 1-4:Lottes, 5-6:Trinitron" 11.0 -1.0 11.0 1.0
 #define shadowMask params.shadowMask
+
+#pragma parameter thres "Mask Effect Threshold" 0.4 0.0 0.9 0.02
+#define thres params.thres 
 
 #pragma parameter masksize 			"CRT Mask Size (2.0 is nice in 4k)" 1.0 1.0 2.0 1.0
 #define masksize params.masksize
@@ -98,13 +102,13 @@ layout(push_constant) uniform Push
 #pragma parameter mcut 				"Mask 5-7-10 cutoff" 0.2 0.0 0.5 0.05
 #define mcut params.mcut
 
-#pragma parameter maskDark          "Lottes maskDark" 0.5 0.0 2.0 0.1
+#pragma parameter maskDark          "Lottes maskDark" 0.0 0.0 2.0 0.1
 #define maskDark params.maskDark
 
 #pragma parameter maskLight 		"Lottes maskLight" 1.5 0.0 2.0 0.1
 #define maskLight params.maskLight
 
-#pragma parameter CGWG              "CGWG Mask Str." 0.4 0.0 1.0 0.1
+#pragma parameter CGWG              "CGWG Mask Str." 1.0 0.0 1.0 0.1
 #define CGWG 		params.CGWG
 
 #pragma parameter warpX 			"CurvatureX (default 0.03)" 0.0 0.0 0.25 0.01
@@ -395,8 +399,8 @@ vec3 saturation (vec3 textureColor)
     float luminance = dot(textureColor.rgb, luminanceWeighting);
     vec3 greyScaleColor = vec3(luminance);
 
-    vec3 res = vec3(mix(greyScaleColor, textureColor.rgb, sat));
-    return res;
+    vec3 color1 = vec3(mix(greyScaleColor, textureColor.rgb, sat));
+    return color1;
 }
 
 vec3 glow0 (vec2 texcoord, vec3 col)
@@ -449,10 +453,10 @@ void main()
 	vec2 pC4 = floor(OGL2Pos) * ps + 0.5*ps;
 	
 	// Reading the texels
-	vec3 ul = texture(Source, pC4     ).xyz; ul*=ul;
-	vec3 ur = texture(Source, pC4 + dx).xyz; ur*=ur;
-	vec3 dl = texture(Source, pC4 + dy).xyz; dl*=dl;
-	vec3 dr = texture(Source, pC4 + ps).xyz; dr*=dr;
+	vec3 ul = texture(Source, pC4     ).xyz; 
+	vec3 ur = texture(Source, pC4 + dx).xyz; 
+	vec3 dl = texture(Source, pC4 + dy).xyz; 
+	vec3 dr = texture(Source, pC4 + ps).xyz;
 	
 	float lx = fp.x;        lx = pow(lx, h_sharp);
 	float rx = 1.0 - fp.x;  rx = pow(rx, h_sharp);
@@ -460,20 +464,25 @@ void main()
 	vec3 color1 = (ur*lx + ul*rx)/(lx+rx);
 	vec3 color2 = (dr*lx + dl*rx)/(lx+rx);
 
-// calculating scanlines
 	
 	float f = fp.y;
-	float luma1 = length(color1)*0.57735;
-	float luma2 = length(color2)*0.57735;
+	float luma1 = color1.r*0.3+color1.g*0.6+color1.b*0.1;
+	float luma2 = color2.r*0.3+color2.g*0.6+color2.b*0.1;
 
-	
+
+	color1 = (2.0*pow(color1,vec3(2.9))) - pow(color1,vec3(3.8));
+	color2 = (2.0*pow(color2,vec3(2.9))) - pow(color2,vec3(3.8));
+
+	color1 = color1 * mix(Mask(vTexCoord * global.OutputSize.xy, color1),vec3(1.0),luma1*thres);
+	color2 = color2 * mix(Mask(vTexCoord * global.OutputSize.xy, color2),vec3(1.0),luma2*thres);
+
+
 	vec3 color = color1*sw(f,luma1) + color2*sw(1.0-f,luma2);
 	vec4 OriginalSize = global.OriginalSize;
 
 	if (OriginalSize.y >= 400.0) {color = (color1 + color2)/2.0;}
 
 	color = min(color, 1.0);
-	color = color * Mask(vTexCoord * global.OutputSize.xy, color);
 	float lum = color.r*0.3+color.g*0.6+color.b*0.1;
 
 	color = pow(color, vec3(1.0/gamma_out_red,1.0,1.0));
