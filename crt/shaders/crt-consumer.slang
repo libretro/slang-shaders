@@ -8,37 +8,37 @@ layout(push_constant) uniform Push
 } params;
 
 // Parameter lines go here:
-#pragma parameter blurx "Convergence X" 0.9 -4.0 4.0 0.05
+#pragma parameter PRE_SCALE "Pre-Scale Sharpening" 1.2 1.0 4.0 0.1
+#pragma parameter blurx "Convergence X" 0.5 -4.0 4.0 0.05
 #pragma parameter blury "Convergence Y" 0.0 -4.0 4.0 0.05
-#pragma parameter warpx "Curvature X" 0.03 0.0 0.12 0.01
+#pragma parameter warpx "Curvature X" 0.02 0.0 0.12 0.01
 #pragma parameter warpy "Curvature Y" 0.04 0.0 0.12 0.01
 #pragma parameter corner "Corner size" 0.01 0.0 0.10 0.01
-#pragma parameter smoothness "Border Smoothness" 400.0 25.0 600.0 5.0
+#pragma parameter smoothness "Border Smoothness" 200.0 25.0 600.0 5.0
 #pragma parameter scanlow "Beam low" 6.0 1.0 15.0 1.0
-#pragma parameter scanhigh "Beam high" 10.0 1.0 15.0 1.0
-#pragma parameter beamlow "Scanlines dark" 1.650.5 2.5 0.05 
-#pragma parameter beamhigh "Scanlines bright" 1.25 0.5 2.5 0.05 
-#pragma parameter brightboost1 "Bright boost dark pixels" 1.5 0.0 3.0 0.05
-#pragma parameter brightboost2 "Bright boost bright pixels" 1.05 0.0 3.0 0.05
-#pragma parameter Shadowmask "Mask Type" 7.0 -1.0 8.0 1.0 
+#pragma parameter scanhigh "Beam high" 8.0 1.0 15.0 1.0
+#pragma parameter beamlow "Scanlines dark" 1.45.5 2.5 0.05 
+#pragma parameter beamhigh "Scanlines bright" 1.05 0.5 2.5 0.05 
+#pragma parameter brightboost1 "Bright boost dark pixels" 1.2 0.0 3.0 0.05
+#pragma parameter brightboost2 "Bright boost bright pixels" 1.0 0.0 3.0 0.05
+#pragma parameter Shadowmask "Mask Type" 0.0 -1.0 8.0 1.0 
 #pragma parameter masksize "Mask Size" 1.0 1.0 2.0 1.0
-#pragma parameter MaskDark "Mask dark" 0.3 0.0 2.0 0.1
+#pragma parameter MaskDark "Mask dark" 0.5 0.0 2.0 0.1
 #pragma parameter MaskLight "Mask light" 1.5 0.0 2.0 0.1
 #pragma parameter slotmask "Slot Mask Strength" 0.0 0.0 1.0 0.05
 #pragma parameter slotwidth "Slot Mask Width" 2.0 1.0 6.0 0.5
 #pragma parameter double_slot "Slot Mask Height: 2x1 or 4x1" 1.0 1.0 2.0 1.0
 #pragma parameter slotms "Slot Mask Size" 1.0 1.0 2.0 1.0
-#pragma parameter GAMMA_IN "Gamma In" 2.6 0.0 4.0 0.1
 #pragma parameter GAMMA_OUT "Gamma Out" 2.2 0.0 4.0 0.1
-#pragma parameter postbr "Post Brightness" 1.3 0.0 2.5 0.02
-#pragma parameter glow "Glow Strength" 0.05 0.0 0.5 0.01
+#pragma parameter postbr "Post Brightness" 1.0 0.0 2.5 0.02
+#pragma parameter glow "Glow Strength" 0.0 0.0 0.5 0.01
 #pragma parameter Size "Glow Size" 1.0 0.1 4.0 0.05
-#pragma parameter sat "Saturation" 1.3 0.0 2.0 0.05
+#pragma parameter sat "Saturation" 1.0 0.0 2.0 0.05
 #pragma parameter contrast "Contrast, 1.0:Off" 1.0 0.00 2.00 0.05
-#pragma parameter nois "Noise" 8.0 0.0 32.0 1.0
-#pragma parameter WP "Color Temperature %" 30.0 -100.0 100.0 5.0 
+#pragma parameter nois "Noise" 0.0 0.0 32.0 1.0
+#pragma parameter WP "Color Temperature %" 0.0 -100.0 100.0 5.0 
 #pragma parameter inter "Interlacing Toggle" 1.0 0.0 1.0 1.0 
-#pragma parameter vignette "Vignette On/Off" 1.0 0.0 1.0 1.0
+#pragma parameter vignette "Vignette On/Off" 0.0 0.0 1.0 1.0
 #pragma parameter vpower "Vignette Power" 0.15 0.0 1.0 0.01
 #pragma parameter vstr "Vignette strength" 40.0 0.0 50.0 1.0
 #pragma parameter alloff "Switch off shader" 0.0 0.0 1.0 1.0
@@ -67,7 +67,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float slotwidth;
     float double_slot;
     float slotms;
-    float GAMMA_IN;
     float GAMMA_OUT;
     float glow;
     float Size;
@@ -81,6 +80,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float vstr;
     float alloff;
     float postbr;
+    float PRE_SCALE;
 } global;
  
 #pragma stage vertex
@@ -398,12 +398,12 @@ const mat3 XYZ_to_D50 = mat3(
 
 void main()
 {
-    vec2 pos = Warp(vTexCoord.xy * (params.OutputSize.xy / params.SourceSize.xy) * (params.SourceSize.xy / params.OutputSize.xy));
+    vec2 pos = Warp(vTexCoord.xy);
     vec2 tex_size = params.SourceSize.xy;  
     if (global.inter < 0.5 && params.SourceSize.y > 400.0) tex_size *= 0.5;
 
-    vec2 pC4 = (pos + 0.5 / tex_size.xy);
-    vec2 fp = fract(pos * tex_size.xy);
+    vec2 pC4 = (pos + 0.5/params.SourceSize.xy);
+    vec2 fp = fract(pos * params.SourceSize.xy);
     if (global.inter > 0.5 && params.SourceSize.y > 400.0) fp.y = 1.0; 
     vec4 res = vec4(1.0, 1.0, 1.0, 1.0);
     
@@ -411,9 +411,24 @@ void main()
         res = texture(Source, pC4); 
     else
     {
-        vec3 sample1 = texture(Source, vec2(pC4.x + global.blurx / 1000.0, pC4.y - global.blury / 1000.0)).rgb;
-        vec3 sample2 = texture(Source, pC4).rgb;
-        vec3 sample3 = texture(Source, vec2(pC4.x - global.blurx / 1000.0, pC4.y + global.blury / 1000.0)).rgb;
+
+   vec2 texel = pos * tex_size;
+   vec2 texel_floored = floor(texel);
+
+   float scale = global.PRE_SCALE;
+   float region_range = 0.5 - 0.5 / scale;
+
+   // Figure out where in the texel to sample to get correct pre-scaled bilinear.
+   // Uses the hardware bilinear interpolator to avoid having to sample 4 times manually.
+
+   vec2 center_dist = fp - 0.5;
+   vec2 fpp = (center_dist - clamp(center_dist, -region_range, region_range)) * scale + 0.5;
+
+   vec2 mod_texel = texel_floored + fpp;
+   vec2 coords = mod_texel / params.SourceSize.xy;
+        vec3 sample1 = texture(Source, vec2(coords.x + global.blurx*params.SourceSize.z, coords.y - global.blury*params.SourceSize.w)).rgb;
+        vec3 sample2 = texture(Source, coords).rgb;
+        vec3 sample3 = texture(Source, vec2(coords.x - global.blurx*params.SourceSize.z, coords.y + global.blury*params.SourceSize.w )).rgb;
         
         vec3 color = vec3(sample1.r * 0.5  + sample2.r * 0.5, 
                           sample1.g * 0.25 + sample2.g * 0.5 + sample3.g * 0.25,
@@ -435,11 +450,11 @@ void main()
             color = vec3(mix(color, comp, m));
         }
 
-        color = pow(color, vec3(global.GAMMA_IN, global.GAMMA_IN, global.GAMMA_IN));
+        color = (2.0*pow(color,vec3(2.9))) - pow(color,vec3(3.8));
         
         float lum = color.r * 0.4 + color.g * 0.5 + color.b * 0.1;
         
-        float f = fp.y;
+        float f = center_dist.y;
         vec3 f1 = vec3(f, f, f); 
 
         color = color * sw(f1,color) + color * sw(1.0 - f1,color);
