@@ -14,7 +14,7 @@ layout(push_constant) uniform Push
 #pragma parameter warpx "Curvature X" 0.02 0.0 0.12 0.01
 #pragma parameter warpy "Curvature Y" 0.04 0.0 0.12 0.01
 #pragma parameter corner "Corner size" 0.01 0.0 0.10 0.01
-#pragma parameter smoothness "Border Smoothness" 200.0 25.0 600.0 5.0
+#pragma parameter smoothness "Border Smoothness" 400.0 100.0 600.0 5.0
 #pragma parameter scanlow "Beam low" 6.0 1.0 15.0 1.0
 #pragma parameter scanhigh "Beam high" 8.0 1.0 15.0 1.0
 #pragma parameter beamlow "Scanlines dark" 1.45.5 2.5 0.05 
@@ -400,11 +400,14 @@ void main()
 {
     vec2 pos = Warp(vTexCoord.xy);
     vec2 tex_size = params.SourceSize.xy;  
-    if (global.inter < 0.5 && params.SourceSize.y > 400.0) tex_size *= 0.5;
 
-    vec2 pC4 = (pos + 0.5/params.SourceSize.xy);
-    vec2 fp = fract(pos * params.SourceSize.xy);
-    if (global.inter > 0.5 && params.SourceSize.y > 400.0) fp.y = 1.0; 
+    vec2 pC4 = (pos + 0.5/tex_size);
+    vec2 fp = fract(pos * tex_size);
+
+    if (global.inter < 0.5 && tex_size.y > 400.0){ fp = fract(pos * tex_size/2.0);} 
+    
+    if (global.inter > 0.5 && tex_size.y > 400.0) fp.y = 0.5; 
+
     vec4 res = vec4(1.0, 1.0, 1.0, 1.0);
     
     if (global.alloff == 1.0) 
@@ -422,10 +425,12 @@ void main()
    // Uses the hardware bilinear interpolator to avoid having to sample 4 times manually.
 
    vec2 center_dist = fp - 0.5;
+
    vec2 fpp = (center_dist - clamp(center_dist, -region_range, region_range)) * scale + 0.5;
 
    vec2 mod_texel = texel_floored + fpp;
    vec2 coords = mod_texel / params.SourceSize.xy;
+
         vec3 sample1 = texture(Source, vec2(coords.x + global.blurx*params.SourceSize.z, coords.y - global.blury*params.SourceSize.w)).rgb;
         vec3 sample2 = texture(Source, coords).rgb;
         vec3 sample3 = texture(Source, vec2(coords.x - global.blurx*params.SourceSize.z, coords.y + global.blury*params.SourceSize.w )).rgb;
@@ -453,7 +458,7 @@ void main()
         color = (2.0*pow(color,vec3(2.9))) - pow(color,vec3(3.8));
         
         float lum = color.r * 0.4 + color.g * 0.5 + color.b * 0.1;
-        
+
         float f = center_dist.y;
         vec3 f1 = vec3(f, f, f); 
 
@@ -466,10 +471,10 @@ void main()
 
         color = pow(color,vec3(1.0 / global.GAMMA_OUT));
 
-        if (global.glow   != 0.0) color += glow0(pC4,color);
+        if (global.glow   != 0.0) color += glow0(coords,color);
         if (global.sat    != 1.0) color  = saturation(color);
         if (global.corner != 0.0) color *= corner0(pC4);
-        if (global.nois   != 0.0) color *= 1.0 + noise(pC4 * 2.0) / global.nois;
+        if (global.nois   != 0.0) color *= 1.0 + noise(coords * 2.0) / global.nois;
         color*=mix(1.0,global.postbr,lum);
         res = vec4(color, 1.0);
         if (global.contrast != 1.0) res = contrastMatrix(global.contrast) * res;
