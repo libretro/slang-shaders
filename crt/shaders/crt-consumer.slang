@@ -21,6 +21,10 @@ layout(push_constant) uniform Push
 #pragma parameter beamhigh "Scanlines bright" 1.05 0.5 2.5 0.05 
 #pragma parameter brightboost1 "Bright boost dark pixels" 1.2 0.0 3.0 0.05
 #pragma parameter brightboost2 "Bright boost bright pixels" 1.0 0.0 3.0 0.05
+#pragma parameter glow "Glow Strength" 0.0 0.0 0.5 0.01
+#pragma parameter Size "Glow Size" 1.0 0.1 4.0 0.05
+#pragma parameter nois "Add Noise" 0.0 0.0 32.0 1.0
+#pragma parameter postbr "Post Brightness" 1.0 0.0 2.5 0.02
 #pragma parameter Shadowmask "Mask Type" 0.0 -1.0 8.0 1.0 
 #pragma parameter masksize "Mask Size" 1.0 1.0 2.0 1.0
 #pragma parameter MaskDark "Mask dark" 0.5 0.0 2.0 0.1
@@ -30,12 +34,8 @@ layout(push_constant) uniform Push
 #pragma parameter double_slot "Slot Mask Height: 2x1 or 4x1" 1.0 1.0 2.0 1.0
 #pragma parameter slotms "Slot Mask Size" 1.0 1.0 2.0 1.0
 #pragma parameter GAMMA_OUT "Gamma Out" 2.2 0.0 4.0 0.1
-#pragma parameter postbr "Post Brightness" 1.0 0.0 2.5 0.02
-#pragma parameter glow "Glow Strength" 0.0 0.0 0.5 0.01
-#pragma parameter Size "Glow Size" 1.0 0.1 4.0 0.05
 #pragma parameter sat "Saturation" 1.0 0.0 2.0 0.05
 #pragma parameter contrast "Contrast, 1.0:Off" 1.0 0.00 2.00 0.05
-#pragma parameter nois "Noise" 0.0 0.0 32.0 1.0
 #pragma parameter WP "Color Temperature %" 0.0 -100.0 100.0 5.0 
 #pragma parameter inter "Interlacing Toggle" 1.0 0.0 1.0 1.0 
 #pragma parameter vignette "Vignette On/Off" 0.0 0.0 1.0 1.0
@@ -109,14 +109,12 @@ vec2 Warp(vec2 pos)
     return pos * 0.5 + 0.5;
 } 
 
-float sw(vec3 x, vec3 color)
+float sw(float y, float l)
 {
-    float scan = mix(global.scanlow, global.scanhigh, x.y);
-    vec3 tmp = mix(vec3(global.beamlow,  global.beamlow,  global.beamlow), 
-                   vec3(global.beamhigh, global.beamhigh, global.beamhigh), 
-                   color);
-    vec3 ex = x * tmp;
-    return exp2(-scan * ex.y * ex.y);
+    float beam = mix(global.scanlow, global.scanhigh, y);
+    float scan = mix(global.beamlow,  global.beamhigh, l);
+    float ex = y * scan;
+    return exp2(-beam * ex * ex);
 }
 
 vec3 mask(vec2 x, vec3 col, float l)
@@ -403,12 +401,9 @@ void main()
 
     vec2 pC4 = (pos + 0.5/tex_size);
     vec2 fp = fract(pos * tex_size);
+    if (global.inter < 0.5 && tex_size.y > 400.0){ fp.y = fract(pos.y * tex_size.y*0.5);} 
 
-    if (global.inter < 0.5 && tex_size.y > 400.0){ fp = fract(pos * tex_size/2.0);} 
-    
-    if (global.inter > 0.5 && tex_size.y > 400.0) fp.y = 0.5; 
-
-    vec4 res = vec4(1.0, 1.0, 1.0, 1.0);
+    vec4 res = vec4(1.0);
     
     if (global.alloff == 1.0) 
         res = texture(Source, pC4); 
@@ -457,12 +452,13 @@ void main()
 
         color = (2.0*pow(color,vec3(2.9))) - pow(color,vec3(3.8));
         
-        float lum = color.r * 0.4 + color.g * 0.5 + color.b * 0.1;
+        float lum = color.r * 0.3 + color.g * 0.6 + color.b * 0.1;
 
         float f = center_dist.y;
-        vec3 f1 = vec3(f, f, f); 
-
-        color = color * sw(f1,color) + color * sw(1.0 - f1,color);
+        
+        if (global.inter > 0.5 && tex_size.y > 400.0) color = color; 
+        else
+        {color = color * sw(f,lum) + color * sw (1.0-f,lum);}
         
         color *= mask((vTexCoord * params.OutputSize.xy) * 1.0001, color,lum);
         if (global.slotmask != 0.0) color *= SlotMask((vTexCoord * params.OutputSize.xy) * 1.0001, color);
