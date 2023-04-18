@@ -21,6 +21,10 @@ layout(push_constant) uniform Push
 #pragma parameter beamhigh "Scanlines bright" 1.05 0.5 2.5 0.05 
 #pragma parameter brightboost1 "Bright boost dark pixels" 1.2 0.0 3.0 0.05
 #pragma parameter brightboost2 "Bright boost bright pixels" 1.0 0.0 3.0 0.05
+#pragma parameter glow "Glow Strength" 0.0 0.0 0.5 0.01
+#pragma parameter Size "Glow Size" 1.0 0.1 4.0 0.05
+#pragma parameter nois "Add Noise" 0.0 0.0 32.0 1.0
+#pragma parameter postbr "Post Brightness" 1.0 0.0 2.5 0.02
 #pragma parameter Shadowmask "Mask Type" 0.0 -1.0 8.0 1.0 
 #pragma parameter masksize "Mask Size" 1.0 1.0 2.0 1.0
 #pragma parameter MaskDark "Mask dark" 0.5 0.0 2.0 0.1
@@ -30,12 +34,9 @@ layout(push_constant) uniform Push
 #pragma parameter double_slot "Slot Mask Height: 2x1 or 4x1" 1.0 1.0 2.0 1.0
 #pragma parameter slotms "Slot Mask Size" 1.0 1.0 2.0 1.0
 #pragma parameter GAMMA_OUT "Gamma Out" 2.2 0.0 4.0 0.1
-#pragma parameter postbr "Post Brightness" 1.0 0.0 2.5 0.02
-#pragma parameter glow "Glow Strength" 0.0 0.0 0.5 0.01
-#pragma parameter Size "Glow Size" 1.0 0.1 4.0 0.05
+#pragma parameter intensity "NTSC colors intensity" 1.0 0.0 1.0 0.05
 #pragma parameter sat "Saturation" 1.0 0.0 2.0 0.05
 #pragma parameter contrast "Contrast, 1.0:Off" 1.0 0.00 2.00 0.05
-#pragma parameter nois "Noise" 0.0 0.0 32.0 1.0
 #pragma parameter WP "Color Temperature %" 0.0 -100.0 100.0 5.0 
 #pragma parameter inter "Interlacing Toggle" 1.0 0.0 1.0 1.0 
 #pragma parameter vignette "Vignette On/Off" 0.0 0.0 1.0 1.0
@@ -81,6 +82,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float alloff;
     float postbr;
     float PRE_SCALE;
+    float intensity;
+
 } global;
  
 #pragma stage vertex
@@ -109,14 +112,12 @@ vec2 Warp(vec2 pos)
     return pos * 0.5 + 0.5;
 } 
 
-float sw(vec3 x, vec3 color)
+float sw(float y, float l)
 {
-    float scan = mix(global.scanlow, global.scanhigh, x.y);
-    vec3 tmp = mix(vec3(global.beamlow,  global.beamlow,  global.beamlow), 
-                   vec3(global.beamhigh, global.beamhigh, global.beamhigh), 
-                   color);
-    vec3 ex = x * tmp;
-    return exp2(-scan * ex.y * ex.y);
+    float beam = mix(global.scanlow, global.scanhigh, y);
+    float scan = mix(global.beamlow,  global.beamhigh, l);
+    float ex = y * scan;
+    return exp2(-beam * ex * ex);
 }
 
 vec3 mask(vec2 x, vec3 col, float l)
@@ -396,6 +397,62 @@ const mat3 XYZ_to_D50 = mat3(
           -1.4678519,  1.9161415, -0.2545973,
           -0.4685105,  0.0334540,  1.4216174);         
 
+/////NTSC COLOR CONVERSION
+
+vec3 DecodeGamma(vec3 color, float gamma)
+{
+    color = clamp(color, 0.0, 1.0);
+    color.r = (color.r <= 0.00313066844250063) ?
+    color.r * 12.92 : 1.055 * pow(color.r, 1.0 / gamma) - 0.055;
+    color.g = (color.g <= 0.00313066844250063) ?
+    color.g * 12.92 : 1.055 * pow(color.g, 1.0 / gamma) - 0.055;
+    color.b = (color.b <= 0.00313066844250063) ?
+    color.b * 12.92 : 1.055 * pow(color.b, 1.0 / gamma) - 0.055;
+
+    return color;
+}
+
+
+vec3 XYZtoSRGB(vec3 XYZ)
+{
+    const mat3x3 m = mat3x3(
+        3.2404542,-1.5371385,-0.4985314,
+        -0.9692660, 1.8760108, 0.0415560,
+        0.0556434,-0.2040259, 1.0572252);
+    return XYZ * m;
+}
+
+vec3 sRGB(vec3 c)
+ {
+     vec3 v = XYZtoSRGB(c);
+     v = DecodeGamma(v, 2.4); //Companding
+ 
+     return v;
+ }
+vec3 RGBtoXYZ(vec3 RGB)
+{
+    const mat3x3 m = mat3x3(
+        0.6068909, 0.1735011, 0.2003480,
+        0.2989164, 0.5865990, 0.1144845,
+        0.0000000, 0.0660957, 1.1162243);
+    return RGB * m;
+}
+
+// conversion from NTSC RGB Reference White D65 ( color space used by NA/Japan TV's ) to XYZ
+vec3 NTSC(vec3 c)
+ {
+     vec3 v = vec3(pow(c.r, 2.2), pow(c.g, 2.2), pow(c.b, 2.2)); //Inverse Companding
+     return RGBtoXYZ(v);
+ }
+
+// NTSC RGB to sRGB
+vec3 NTSCtoSRGB( vec3 c )
+ { 
+     return sRGB(NTSC( c )); 
+ }
+
+////NTSC COLOR CONVERSION
+
 void main()
 {
     vec2 pos = Warp(vTexCoord.xy);
@@ -403,12 +460,9 @@ void main()
 
     vec2 pC4 = (pos + 0.5/tex_size);
     vec2 fp = fract(pos * tex_size);
+    if (global.inter < 0.5 && tex_size.y > 400.0){ fp.y = fract(pos.y * tex_size.y*0.5);} 
 
-    if (global.inter < 0.5 && tex_size.y > 400.0){ fp = fract(pos * tex_size/2.0);} 
-    
-    if (global.inter > 0.5 && tex_size.y > 400.0) fp.y = 0.5; 
-
-    vec4 res = vec4(1.0, 1.0, 1.0, 1.0);
+    vec4 res = vec4(1.0);
     
     if (global.alloff == 1.0) 
         res = texture(Source, pC4); 
@@ -457,12 +511,13 @@ void main()
 
         color = (2.0*pow(color,vec3(2.9))) - pow(color,vec3(3.8));
         
-        float lum = color.r * 0.4 + color.g * 0.5 + color.b * 0.1;
+        float lum = color.r * 0.3 + color.g * 0.6 + color.b * 0.1;
 
         float f = center_dist.y;
-        vec3 f1 = vec3(f, f, f); 
-
-        color = color * sw(f1,color) + color * sw(1.0 - f1,color);
+        
+        if (global.inter > 0.5 && tex_size.y > 400.0) color = color; 
+        else
+        {color = color * sw(f,lum) + color * sw (1.0-f,lum);}
         
         color *= mask((vTexCoord * params.OutputSize.xy) * 1.0001, color,lum);
         if (global.slotmask != 0.0) color *= SlotMask((vTexCoord * params.OutputSize.xy) * 1.0001, color);
@@ -476,10 +531,13 @@ void main()
         if (global.corner != 0.0) color *= corner0(pC4);
         if (global.nois   != 0.0) color *= 1.0 + noise(coords * 2.0) / global.nois;
         color*=mix(1.0,global.postbr,lum);
+        color = mix(color.rgb, NTSCtoSRGB(color.rgb), global.intensity);
+
         res = vec4(color, 1.0);
         if (global.contrast != 1.0) res = contrastMatrix(global.contrast) * res;
         if (global.inter > 0.5 && params.SourceSize.y > 400.0 && fract(iTime) < 0.5) res = res * 0.95;
         res.rgb *= vign(lum);
+
     }
     
     FragColor = res;
