@@ -542,7 +542,7 @@ void main()
 
         float lum = color.r * 0.3 + color.g * 0.6 + color.b * 0.1;
 
-        float f = center_dist.y;
+        float f = center_dist.y+0.5; //fix excessive moire
         
         if (global.inter > 0.5 && tex_size.y > 400.0) color = color; 
         else
