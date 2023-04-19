@@ -5,26 +5,35 @@ layout(push_constant) uniform Push
     vec4 SourceSize;
     vec4 OutputSize;
     uint FrameCount;
+    float rg;
+    float rb;
+    float gr;
+    float gb;
+    float br;
+    float bg;
+    float Downscale;
 } params;
 
 // Parameter lines go here:
-#pragma parameter PRE_SCALE "Pre-Scale Sharpening" 1.2 1.0 4.0 0.1
-#pragma parameter blurx "Convergence X" 0.5 -4.0 4.0 0.05
-#pragma parameter blury "Convergence Y" 0.0 -4.0 4.0 0.05
-#pragma parameter warpx "Curvature X" 0.02 0.0 0.12 0.01
-#pragma parameter warpy "Curvature Y" 0.04 0.0 0.12 0.01
-#pragma parameter corner "Corner size" 0.01 0.0 0.10 0.01
-#pragma parameter smoothness "Border Smoothness" 400.0 100.0 600.0 5.0
+#pragma parameter PRE_SCALE "Pre-Scale Sharpening" 1.5 1.0 4.0 0.1
+#pragma parameter blurx "Convergence X" 0.25 -4.0 4.0 0.05
+#pragma parameter blury "Convergence Y" 0.1 -4.0 4.0 0.05
+#pragma parameter warpx "  Curvature X" 0.02 0.0 0.12 0.01
+#pragma parameter warpy "  Curvature Y" 0.04 0.0 0.12 0.01
+#pragma parameter corner "  Corner size" 0.01 0.0 0.10 0.01
+#pragma parameter smoothness "  Border Smoothness" 400.0 100.0 600.0 5.0
+#pragma parameter inter "Interlacing Toggle" 1.0 0.0 1.0 1.0
+#pragma parameter Downscale "Interlacing Downscale Scanlines" 2.0 1.0 8.0 1.0  
 #pragma parameter scanlow "Beam low" 6.0 1.0 15.0 1.0
 #pragma parameter scanhigh "Beam high" 8.0 1.0 15.0 1.0
 #pragma parameter beamlow "Scanlines dark" 1.45.5 2.5 0.05 
 #pragma parameter beamhigh "Scanlines bright" 1.05 0.5 2.5 0.05 
-#pragma parameter brightboost1 "Bright boost dark pixels" 1.2 0.0 3.0 0.05
-#pragma parameter brightboost2 "Bright boost bright pixels" 1.0 0.0 3.0 0.05
-#pragma parameter glow "Glow Strength" 0.0 0.0 0.5 0.01
-#pragma parameter Size "Glow Size" 1.0 0.1 4.0 0.05
-#pragma parameter nois "Add Noise" 0.0 0.0 32.0 1.0
-#pragma parameter postbr "Post Brightness" 1.0 0.0 2.5 0.02
+#pragma parameter brightboost1 "  Bright boost dark pixels" 1.2 0.0 3.0 0.05
+#pragma parameter brightboost2 "  Bright boost bright pixels" 1.0 0.0 3.0 0.05
+#pragma parameter glow "  Glow Strength" 0.0 0.0 1.0 0.02
+#pragma parameter Size "  Glow Size" 2.0 0.1 4.0 0.05
+#pragma parameter nois "  Add Noise" 0.0 0.0 32.0 1.0
+#pragma parameter postbr "  Post Brightness" 1.0 0.0 2.5 0.02
 #pragma parameter Shadowmask "Mask Type" 0.0 -1.0 8.0 1.0 
 #pragma parameter masksize "Mask Size" 1.0 1.0 2.0 1.0
 #pragma parameter MaskDark "Mask dark" 0.5 0.0 2.0 0.1
@@ -33,21 +42,32 @@ layout(push_constant) uniform Push
 #pragma parameter slotwidth "Slot Mask Width" 2.0 1.0 6.0 0.5
 #pragma parameter double_slot "Slot Mask Height: 2x1 or 4x1" 1.0 1.0 2.0 1.0
 #pragma parameter slotms "Slot Mask Size" 1.0 1.0 2.0 1.0
-#pragma parameter GAMMA_OUT "Gamma Out" 2.2 0.0 4.0 0.1
-#pragma parameter intensity "NTSC colors intensity" 1.0 0.0 1.0 0.05
-#pragma parameter sat "Saturation" 1.0 0.0 2.0 0.05
-#pragma parameter contrast "Contrast, 1.0:Off" 1.0 0.00 2.00 0.05
-#pragma parameter WP "Color Temperature %" 0.0 -100.0 100.0 5.0 
-#pragma parameter inter "Interlacing Toggle" 1.0 0.0 1.0 1.0 
+#pragma parameter GAMMA_OUT "  Gamma Out" 2.2 0.0 4.0 0.1
+#pragma parameter intensity "  NTSC colors intensity" 0.0 0.0 1.0 0.05
+#pragma parameter sat "  Saturation" 1.0 0.0 2.0 0.05
+#pragma parameter contrast "  Contrast, 1.0:Off" 1.0 0.00 2.00 0.05
+#pragma parameter WP "  Color Temperature %" 0.0 -100.0 100.0 5.0 
+#pragma parameter rg             "  Red-Green Tint"       0.0 -1.0 1.0 0.005
+#pragma parameter rb             "  Red-Blue Tint"        0.0 -1.0 1.0 0.005
+#pragma parameter gr             "  Green-Red Tint"       0.0 -1.0 1.0 0.005
+#pragma parameter gb             "  Green-Blue Tint"      0.0 -1.0 1.0 0.005
+#pragma parameter br             "  Blue-Red Tint"        0.0 -1.0 1.0 0.005
+#pragma parameter bg             "  Blue-Green Tint"      0.0 -1.0 1.0 0.005
 #pragma parameter vignette "Vignette On/Off" 0.0 0.0 1.0 1.0
 #pragma parameter vpower "Vignette Power" 0.15 0.0 1.0 0.01
 #pragma parameter vstr "Vignette strength" 40.0 0.0 50.0 1.0
 #pragma parameter alloff "Switch off shader" 0.0 0.0 1.0 1.0
 
+#define rg              params.rg
+#define rb              params.rb
+#define gr              params.gr
+#define gb              params.gb
+#define br              params.br
+#define bg              params.bg
+#define Downscale       params.Downscale
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
-
     float blurx;
     float blury;
     float warpx;
@@ -83,7 +103,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float postbr;
     float PRE_SCALE;
     float intensity;
-
+  
 } global;
  
 #pragma stage vertex
@@ -324,40 +344,40 @@ vec3 saturation(vec3 textureColor)
 vec3 glow0 (vec2 texcoord, vec3 col)
 {
    vec3 sum = vec3(0.0, 0.0, 0.0);
-   float blurSize = global.Size / 1024.0;
+   float blurSize = global.Size / params.OutputSize.y;
 
-   sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y)).rgb * 0.1;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y)).rgb * 0.16;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y)).rgb * 0.1;
+   sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y)).rgb * 0.02;
+   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y)).rgb * 0.03;
+   sum += texture(Source, vec2(texcoord.x,                  texcoord.y)).rgb * 0.04;
+   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y)).rgb * 0.03;
+   sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y)).rgb * 0.02;
 
-   //sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y - 2.0 * blurSize)) * 0.1;
-   sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y - blurSize)).rgb * 0.1;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y - 2.0 * blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y - blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y + blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y + 2.0 * blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y + blurSize)).rgb * 0.1;
+   //sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y - 2.0 * blurSize)) * 0.02;
+   sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y - blurSize)).rgb * 0.02;
+   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y - 2.0 * blurSize)).rgb * 0.03;
+   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y - blurSize)).rgb * 0.03;
+   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y + blurSize)).rgb * 0.03;
+   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y + 2.0 * blurSize)).rgb * 0.03;
+   sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y + blurSize)).rgb * 0.02;
    
-   //sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y + 2.0 * blurSize)) * 0.1;
-   //sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y + 2.0 * blurSize)) * 0.1;
+   //sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y + 2.0 * blurSize)) * 0.02;
+   //sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y + 2.0 * blurSize)) * 0.02;
    
-   sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y + blurSize)).rgb * 0.1;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y + 2.0 * blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y + blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y - blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y - 2.0 * blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y - blurSize)).rgb * 0.1;
+   sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y + blurSize)).rgb * 0.02;
+   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y + 2.0 * blurSize)).rgb * 0.03;
+   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y + blurSize)).rgb * 0.03;
+   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y - blurSize)).rgb * 0.03;
+   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y - 2.0 * blurSize)).rgb * 0.03;
+   sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y - blurSize)).rgb * 0.02;
    
-   //sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize,  texcoord.y - 2.0 * blurSize)) * 0.1;
+   //sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize,  texcoord.y - 2.0 * blurSize)) * 0.02;
 
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y - 2.0 * blurSize)).rgb * 0.1;
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y - blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y + blurSize)).rgb * 0.13;
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y + 2.0 * blurSize)).rgb * 0.1;
+   sum += texture(Source, vec2(texcoord.x,                  texcoord.y - 2.0 * blurSize)).rgb * 0.02;
+   sum += texture(Source, vec2(texcoord.x,                  texcoord.y - blurSize)).rgb * 0.03;
+   sum += texture(Source, vec2(texcoord.x,                  texcoord.y + blurSize)).rgb * 0.03;
+   sum += texture(Source, vec2(texcoord.x,                  texcoord.y + 2.0 * blurSize)).rgb * 0.02;
   
-   return sum * global.glow; 
+   return sum * global.glow/15.0; 
 }
 
 float noise(vec2 co)
@@ -453,6 +473,8 @@ vec3 NTSCtoSRGB( vec3 c )
 
 ////NTSC COLOR CONVERSION
 
+
+
 void main()
 {
     vec2 pos = Warp(vTexCoord.xy);
@@ -460,7 +482,7 @@ void main()
 
     vec2 pC4 = (pos + 0.5/tex_size);
     vec2 fp = fract(pos * tex_size);
-    if (global.inter < 0.5 && tex_size.y > 400.0){ fp.y = fract(pos.y * tex_size.y*0.5);} 
+    if (global.inter < 0.5 && tex_size.y > 400.0){ fp.y = fract(pos.y * tex_size.y*1.0/Downscale);} 
 
     vec4 res = vec4(1.0);
     
@@ -492,7 +514,7 @@ void main()
         vec3 color = vec3(sample1.r * 0.5  + sample2.r * 0.5, 
                           sample1.g * 0.25 + sample2.g * 0.5 + sample3.g * 0.25,
                           sample2.b * 0.5  + sample3.b * 0.5);
-       
+
         //COLOR TEMPERATURE FROM GUEST.R-DR.VENOM
         if (global.WP != 0.0)
         {
@@ -509,8 +531,15 @@ void main()
             color = vec3(mix(color, comp, m));
         }
 
+     mat3 hue = mat3 (1., rg,  rb,                 //red tint
+                      gr,  1., gb,                  //green tint
+                      br,  bg,  1.);                //blue tint
+
+        color = hue * color;
+
         color = (2.0*pow(color,vec3(2.9))) - pow(color,vec3(3.8));
-        
+        color = mix(color.rgb, NTSCtoSRGB(color.rgb), global.intensity);
+
         float lum = color.r * 0.3 + color.g * 0.6 + color.b * 0.1;
 
         float f = center_dist.y;
@@ -524,15 +553,15 @@ void main()
         
         color *= mix(global.brightboost1, global.brightboost2, max(max(color.r, color.g), color.b));    
 
-        color = pow(color,vec3(1.0 / global.GAMMA_OUT));
-
+    
         if (global.glow   != 0.0) color += glow0(coords,color);
+
+        color = pow(color,vec3(1.0 / global.GAMMA_OUT));
         if (global.sat    != 1.0) color  = saturation(color);
         if (global.corner != 0.0) color *= corner0(pC4);
         if (global.nois   != 0.0) color *= 1.0 + noise(coords * 2.0) / global.nois;
-        color*=mix(1.0,global.postbr,lum);
-        color = mix(color.rgb, NTSCtoSRGB(color.rgb), global.intensity);
 
+        color *= mix(1.0, global.postbr, lum);
         res = vec4(color, 1.0);
         if (global.contrast != 1.0) res = contrastMatrix(global.contrast) * res;
         if (global.inter > 0.5 && params.SourceSize.y > 400.0 && fract(iTime) < 0.5) res = res * 0.95;
