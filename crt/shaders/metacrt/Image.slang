@@ -6,6 +6,7 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
+	float flip_image;
 } params;
 
 #define vFragCoord vTexCoord.xy * params.OutputSize.xy
@@ -17,6 +18,8 @@ layout(push_constant) uniform Push
 #define iMouse vec3(0.0)
 #define vFragColor FragColor
 #define fragColor FragColor
+
+#pragma parameter flip_image "Flip Image (for hardware-rendered cores)" 0.0 0.0 1.0 1.0
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -31,7 +34,7 @@ layout(location = 0) out vec2 vTexCoord;
 void main()
 {
    gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord;
+   vTexCoord = (bool(params.flip_image)) ? vec2(TexCoord.x, 1.0 - TexCoord.y) : TexCoord.xy;
 }
 
 #pragma stage fragment
