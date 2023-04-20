@@ -28,6 +28,7 @@ layout(push_constant) uniform Push
 #pragma parameter scanhigh "Beam high" 8.0 1.0 15.0 1.0
 #pragma parameter beamlow "Scanlines dark" 1.45.5 2.5 0.05 
 #pragma parameter beamhigh "Scanlines bright" 1.05 0.5 2.5 0.05 
+#pragma parameter preserve "  Protect White On Masks" 0.98 0.0 1.0 0.01
 #pragma parameter brightboost1 "  Bright boost dark pixels" 1.2 0.0 3.0 0.05
 #pragma parameter brightboost2 "  Bright boost bright pixels" 1.0 0.0 3.0 0.05
 #pragma parameter glow "  Glow Strength" 0.0 0.0 1.0 0.02
@@ -36,7 +37,7 @@ layout(push_constant) uniform Push
 #pragma parameter postbr "  Post Brightness" 1.0 0.0 2.5 0.02
 #pragma parameter Shadowmask "Mask Type" 0.0 -1.0 8.0 1.0 
 #pragma parameter masksize "Mask Size" 1.0 1.0 2.0 1.0
-#pragma parameter MaskDark "Mask dark" 0.5 0.0 2.0 0.1
+#pragma parameter MaskDark "Mask dark" 0.2 0.0 2.0 0.1
 #pragma parameter MaskLight "Mask light" 1.5 0.0 2.0 0.1
 #pragma parameter slotmask "Slot Mask Strength" 0.0 0.0 1.0 0.05
 #pragma parameter slotwidth "Slot Mask Width" 2.0 1.0 6.0 0.5
@@ -103,7 +104,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float postbr;
     float PRE_SCALE;
     float intensity;
-  
+    float preserve;
 } global;
  
 #pragma stage vertex
@@ -548,7 +549,12 @@ void main()
         else
         {color = color * sw(f,lum) + color * sw (1.0-f,lum);}
         
-        color *= mask((vTexCoord * params.OutputSize.xy) * 1.0001, color,lum);
+        float lum1 = color.r * 0.3 + color.g * 0.6 + color.b * 0.1;
+
+        
+        color *= mix(mask((vTexCoord * params.OutputSize.xy) * 1.0001, color,lum1), vec3(1.0), lum1*global.preserve);
+        
+
         if (global.slotmask != 0.0) color *= SlotMask((vTexCoord * params.OutputSize.xy) * 1.0001, color);
         
         color *= mix(global.brightboost1, global.brightboost2, max(max(color.r, color.g), color.b));    
