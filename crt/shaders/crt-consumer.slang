@@ -13,6 +13,7 @@ layout(push_constant) uniform Push
     float bg;
     float Downscale;
     float quality;
+    float palette_fix;
 } params;
 
 // Parameter lines go here:
@@ -37,6 +38,7 @@ layout(push_constant) uniform Push
 #pragma parameter glow_str "  Glow intensity" 0.0 0.0001 1.0 0.05
 #pragma parameter nois "  Add Noise" 0.0 0.0 32.0 1.0
 #pragma parameter postbr "  Post Brightness" 1.0 0.0 2.5 0.02
+#pragma parameter palette_fix "Palette Fixes. Sega, PUAE Atari ST dark colors " 0.0 0.0 2.0 1.0
 #pragma parameter Shadowmask "Mask Type" 0.0 -1.0 8.0 1.0 
 #pragma parameter masksize "Mask Size" 1.0 1.0 2.0 1.0
 #pragma parameter MaskDark "Mask dark" 0.2 0.0 2.0 0.1
@@ -512,6 +514,11 @@ void main()
         vec3 color = vec3(sample1.r * 0.5  + sample2.r * 0.5, 
                           sample1.g * 0.25 + sample2.g * 0.5 + sample3.g * 0.25,
                           sample2.b * 0.5  + sample3.b * 0.5);
+        if (params.palette_fix != 0.0) 
+        {
+            if (params.palette_fix == 1.0) color = color* 1.0667;
+            else if (params.palette_fix == 2.0) color = color * 2.0;
+        }
 
         //COLOR TEMPERATURE FROM GUEST.R-DR.VENOM
         if (global.WP != 0.0)
