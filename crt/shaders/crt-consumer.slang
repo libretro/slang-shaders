@@ -12,6 +12,7 @@ layout(push_constant) uniform Push
     float br;
     float bg;
     float Downscale;
+    float quality;
 } params;
 
 // Parameter lines go here:
@@ -31,8 +32,9 @@ layout(push_constant) uniform Push
 #pragma parameter preserve "  Protect White On Masks" 0.98 0.0 1.0 0.01
 #pragma parameter brightboost1 "  Bright boost dark pixels" 1.2 0.0 3.0 0.05
 #pragma parameter brightboost2 "  Bright boost bright pixels" 1.0 0.0 3.0 0.05
-#pragma parameter glow "  Glow Strength" 0.0 0.0 1.0 0.02
-#pragma parameter Size "  Glow Size" 2.0 0.1 4.0 0.05
+#pragma parameter glow "  Glow pixels per axis" 4.0 1.0 4.0 1.0
+#pragma parameter quality "  Glow quality" 1.0 0.5 4.0 0.1
+#pragma parameter glow_str "  Glow intensity" 0.0 0.0001 1.0 0.05
 #pragma parameter nois "  Add Noise" 0.0 0.0 32.0 1.0
 #pragma parameter postbr "  Post Brightness" 1.0 0.0 2.5 0.02
 #pragma parameter Shadowmask "Mask Type" 0.0 -1.0 8.0 1.0 
@@ -91,7 +93,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float slotms;
     float GAMMA_OUT;
     float glow;
-    float Size;
+    float glow_str;
     float sat;
     float contrast;
     float nois;
@@ -342,44 +344,39 @@ vec3 saturation(vec3 textureColor)
     return res;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 vec3 glow0 (vec2 texcoord, vec3 col)
 {
-   vec3 sum = vec3(0.0, 0.0, 0.0);
-   float blurSize = global.Size / params.OutputSize.y;
 
-   sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y)).rgb * 0.02;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y)).rgb * 0.03;
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y)).rgb * 0.04;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y)).rgb * 0.03;
-   sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y)).rgb * 0.02;
+   // the more params.quality, the smaller the offset and better quality, less visible glow too
+     vec2 size = params.SourceSize.zw/params.quality;
+     
+     vec3 c01;
+     vec3 sum = vec3(0.0);
+   
+   // global.glow = pixels per axis, the more the slower!
 
-   //sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y - 2.0 * blurSize)) * 0.02;
-   sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y - blurSize)).rgb * 0.02;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y - 2.0 * blurSize)).rgb * 0.03;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y - blurSize)).rgb * 0.03;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y + blurSize)).rgb * 0.03;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y + 2.0 * blurSize)).rgb * 0.03;
-   sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y + blurSize)).rgb * 0.02;
-   
-   //sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y + 2.0 * blurSize)) * 0.02;
-   //sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y + 2.0 * blurSize)) * 0.02;
-   
-   sum += texture(Source, vec2(texcoord.x - 2.0 * blurSize, texcoord.y + blurSize)).rgb * 0.02;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y + 2.0 * blurSize)).rgb * 0.03;
-   sum += texture(Source, vec2(texcoord.x - blurSize,       texcoord.y + blurSize)).rgb * 0.03;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y - blurSize)).rgb * 0.03;
-   sum += texture(Source, vec2(texcoord.x + blurSize,       texcoord.y - 2.0 * blurSize)).rgb * 0.03;
-   sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize, texcoord.y - blurSize)).rgb * 0.02;
-   
-   //sum += texture(Source, vec2(texcoord.x + 2.0 * blurSize,  texcoord.y - 2.0 * blurSize)) * 0.02;
+    for (float x = -global.glow; x <= global.glow; x = x+1.0)
+     {
 
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y - 2.0 * blurSize)).rgb * 0.02;
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y - blurSize)).rgb * 0.03;
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y + blurSize)).rgb * 0.03;
-   sum += texture(Source, vec2(texcoord.x,                  texcoord.y + 2.0 * blurSize)).rgb * 0.02;
+   // multiply texture, the more far away the less pronounced
+        float factor = 1.0/global.glow;
+        for (float y = -global.glow; y <= global.glow; y = y+1.0)
+        {
+
+        vec2 offset = vec2(x, y) * size;
+
+         c01 = texture(Source, texcoord + offset).rgb*factor; c01 = c01*c01;
+          
+                sum += c01;
+        }
+    }
   
-   return sum * global.glow/15.0; 
+    return (global.glow_str * sum / (global.glow * global.glow )) ;
 }
+    
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 float noise(vec2 co)
 {
@@ -560,9 +557,10 @@ void main()
         color *= mix(global.brightboost1, global.brightboost2, max(max(color.r, color.g), color.b));    
 
     
-        if (global.glow   != 0.0) color += glow0(coords,color);
 
         color = pow(color,vec3(1.0 / global.GAMMA_OUT));
+                if (global.glow   != 0.0) color += glow0(coords,color);
+
         if (global.sat    != 1.0) color  = saturation(color);
         if (global.corner != 0.0) color *= corner0(pC4);
         if (global.nois   != 0.0) color *= 1.0 + noise(coords * 2.0) / global.nois;
