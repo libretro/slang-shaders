@@ -29,7 +29,7 @@ layout(push_constant) uniform Push
 
 #pragma parameter mask "Mask Layout" 0.0 0.0 19.0 1.0
 #pragma parameter mask_weight "Mask Weight" 0.5 0.0 1.0 0.01
-#pragma parameter imageSize "Simulated Image Height" 224.0 144.0 260.0 1.0
+#pragma parameter imageSize "Simulated Image Height" 224.0 144.0 288.0 1.0
 
 #define freq             0.500000
 #define offset           0.000000
