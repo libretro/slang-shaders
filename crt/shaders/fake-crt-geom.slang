@@ -16,7 +16,9 @@ layout(push_constant) uniform Push
   float cgwg;
   float boost;
   float SHARPNESS;
-  float SPEEDUP;
+  float SPEEDUP;	
+  float WP;
+
 } params;
 
 // Parameter lines go here:
@@ -40,6 +42,9 @@ layout(push_constant) uniform Push
 
 #pragma parameter boost "Bright boost " 1.00 1.00 2.00 0.02
 #define boost params.boost
+
+#pragma parameter WP "Color Temperature" 0.0 -0.25 0.25 0.01
+#define WP params.WP
 
 #pragma parameter SPEEDUP "Speed-up. Warp,Gamma,Corner disabled" 0.0 0.0 1.0 1.0
 #define SPEEDUP params.SPEEDUP
@@ -157,6 +162,7 @@ void main()
     vec3 color = scanline(pos.y, res);
     if (SPEEDUP == 0.0) color = pow( color, out_gamma); else color;
     if (SPEEDUP == 0.0 ) color = color*corner(tc);
+	color.rgb *= vec3(1.0+WP,1.0,1.0-WP);
 
     FragColor = vec4(color,1.0) ;
 
