@@ -18,6 +18,7 @@ layout(push_constant) uniform Push
   float SHARPNESS;
   float SPEEDUP;	
   float WP;
+  float sat;
 
 } params;
 
@@ -28,10 +29,10 @@ layout(push_constant) uniform Push
 #pragma parameter warpY "warpY" 0.04 0.0 0.125 0.01
 #define warpY params.warpY
 
-#pragma parameter corner_round "Corner Roundness" 0.030 0.005 0.100 0.005
+#pragma parameter corner_round "Corner Roundness" 0.020 0.005 0.100 0.01
 #define corner_round params.corner_round
 
-#pragma parameter SHARPNESS "Blurriness" 0.5 0.0 0.5 0.01
+#pragma parameter SHARPNESS "   Blurriness" 0.5 0.0 0.5 0.01
 #define SHARPNESS params.SHARPNESS
 
 #pragma parameter SCANLINE "Scanline Intensity" 0.60 0.0 1.0 0.05
@@ -40,10 +41,13 @@ layout(push_constant) uniform Push
 #pragma parameter cgwg "CGWG mask brightness " 0.6 0.0 1.0 0.1
 #define cgwg params.cgwg
 
-#pragma parameter boost "Bright boost " 1.00 1.00 2.00 0.02
+#pragma parameter boost "   Bright boost " 1.00 1.00 2.00 0.02
 #define boost params.boost
 
-#pragma parameter WP "Color Temperature" 0.0 -0.25 0.25 0.01
+#pragma parameter sat "   Saturation" 1.0 0.0 2.0 0.05
+#define sat params.sat
+
+#pragma parameter WP "   Color Temperature" 0.0 -0.25 0.25 0.01
 #define WP params.WP
 
 #pragma parameter SPEEDUP "Speed-up. Warp,Gamma,Corner disabled" 0.0 0.0 1.0 1.0
@@ -163,6 +167,12 @@ void main()
     if (SPEEDUP == 0.0) color = pow( color, out_gamma); else color;
     if (SPEEDUP == 0.0 ) color = color*corner(tc);
 	color.rgb *= vec3(1.0+WP,1.0,1.0-WP);
+
+    vec3 lumweight=vec3(0.3,0.6,0.1);
+	float gray = dot(color,lumweight);
+    vec3 graycolour = vec3(gray);
+    color = vec3(mix(graycolour,color,sat));
+
 
     FragColor = vec4(color,1.0) ;
 
