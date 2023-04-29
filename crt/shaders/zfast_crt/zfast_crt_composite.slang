@@ -54,7 +54,7 @@ layout(location = 1) out float maskFade;
 void main()
 {
     gl_Position = global.MVP * Position;
-    vTexCoord = TexCoord;
+    vTexCoord = TexCoord*1.0001;
     maskFade = 0.3333*MASK_FADE;
 }
 
@@ -86,14 +86,14 @@ void main()
     float SCANAMOUNT = mix(HIGHSCANAMOUNT1,HIGHSCANAMOUNT2,lum);
     float scanLine =  SCANAMOUNT * sin(2.0*pi*pos.y*params.SourceSize.y);
     
-    float whichmask = fract(gl_FragCoord.x*-0.4999);
+    float whichmask = fract((pos.x*params.OutputSize.x)*0.4999);
     float mask = 1.0 + float(whichmask < 0.5) * -MASK_DARK;
 
     //Gamma-like 
-    colour*=mix(2.0,1.0,lum);    
+    colour*=mix(1.5,1.0,lum);    
     
-    colour = vec3(mix(graycolour,colour.rgb,sat));
+    colour = vec3(mix(graycolour,colour,sat));
 
-    colour.rgb *= mix(mask*(1.0-scanLine), 1.0-scanLine, dot(colour.rgb,vec3(maskFade)));
+    colour.rgb *= mix(mask*(1.0-scanLine), 1.0-scanLine, dot(colour,vec3(maskFade)));
     FragColor.rgb = colour.rgb;
 }
