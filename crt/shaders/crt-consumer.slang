@@ -48,7 +48,6 @@ layout(push_constant) uniform Push
 #pragma parameter double_slot "Slot Mask Height: 2x1 or 4x1" 1.0 1.0 2.0 1.0
 #pragma parameter slotms "Slot Mask Size" 1.0 1.0 2.0 1.0
 #pragma parameter GAMMA_OUT "  Gamma Out" 2.2 0.0 4.0 0.1
-#pragma parameter intensity "  NTSC colors intensity" 0.0 0.0 1.0 0.05
 #pragma parameter sat "  Saturation" 1.0 0.0 2.0 0.05
 #pragma parameter contrast "  Contrast, 1.0:Off" 1.0 0.00 2.00 0.05
 #pragma parameter WP "  Color Temperature %" 0.0 -100.0 100.0 5.0 
@@ -107,7 +106,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float alloff;
     float postbr;
     float PRE_SCALE;
-    float intensity;
     float preserve;
 } global;
  
@@ -417,61 +415,6 @@ const mat3 XYZ_to_D50 = mat3(
           -1.4678519,  1.9161415, -0.2545973,
           -0.4685105,  0.0334540,  1.4216174);         
 
-/////NTSC COLOR CONVERSION
-
-vec3 DecodeGamma(vec3 color, float gamma)
-{
-    color = clamp(color, 0.0, 1.0);
-    color.r = (color.r <= 0.00313066844250063) ?
-    color.r * 12.92 : 1.055 * pow(color.r, 1.0 / gamma) - 0.055;
-    color.g = (color.g <= 0.00313066844250063) ?
-    color.g * 12.92 : 1.055 * pow(color.g, 1.0 / gamma) - 0.055;
-    color.b = (color.b <= 0.00313066844250063) ?
-    color.b * 12.92 : 1.055 * pow(color.b, 1.0 / gamma) - 0.055;
-
-    return color;
-}
-
-
-vec3 XYZtoSRGB(vec3 XYZ)
-{
-    const mat3x3 m = mat3x3(
-        3.2404542,-1.5371385,-0.4985314,
-        -0.9692660, 1.8760108, 0.0415560,
-        0.0556434,-0.2040259, 1.0572252);
-    return XYZ * m;
-}
-
-vec3 sRGB(vec3 c)
- {
-     vec3 v = XYZtoSRGB(c);
-     v = DecodeGamma(v, 2.4); //Companding
- 
-     return v;
- }
-vec3 RGBtoXYZ(vec3 RGB)
-{
-    const mat3x3 m = mat3x3(
-        0.6068909, 0.1735011, 0.2003480,
-        0.2989164, 0.5865990, 0.1144845,
-        0.0000000, 0.0660957, 1.1162243);
-    return RGB * m;
-}
-
-// conversion from NTSC RGB Reference White D65 ( color space used by NA/Japan TV's ) to XYZ
-vec3 NTSC(vec3 c)
- {
-     vec3 v = vec3(pow(c.r, 2.2), pow(c.g, 2.2), pow(c.b, 2.2)); //Inverse Companding
-     return RGBtoXYZ(v);
- }
-
-// NTSC RGB to sRGB
-vec3 NTSCtoSRGB( vec3 c )
- { 
-     return sRGB(NTSC( c )); 
- }
-
-////NTSC COLOR CONVERSION
 
 
 
@@ -542,8 +485,7 @@ void main()
 
         color = hue * color;
 
-        color = (2.0*pow(color,vec3(2.9))) - pow(color,vec3(3.8));
-        color = mix(color.rgb, NTSCtoSRGB(color.rgb), global.intensity);
+        color = (2.0*pow(color,vec3(2.8))) - pow(color,vec3(3.6));
 
         float lum = color.r * 0.3 + color.g * 0.6 + color.b * 0.1;
 
@@ -566,7 +508,7 @@ void main()
     
 
         color = pow(color,vec3(1.0 / global.GAMMA_OUT));
-                if (global.glow   != 0.0) color += glow0(coords,color);
+                if (global.glow_str != 0.0) color += glow0(coords,color);
 
         if (global.sat    != 1.0) color  = saturation(color);
         if (global.corner != 0.0) color *= corner0(pC4);
