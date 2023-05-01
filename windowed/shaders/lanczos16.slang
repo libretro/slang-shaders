@@ -60,7 +60,7 @@ layout(location = 4) out vec4 t4;
 void main()
 {
    gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord * 1.000001;
+   vTexCoord = TexCoord * 1.0001;
    vec2 ps = params.SourceSize.zw;
    float dx = ps.x;
    float dy = ps.y;
