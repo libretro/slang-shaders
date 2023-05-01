@@ -33,7 +33,7 @@ void main()
 {
    gl_Position = global.MVP * Position;
    vTexCoord = TexCoord*1.0001;
-   omega = vec2(pi * params.OutputSize.x, 2.0 * pi * params.SourceSize.y);
+   omega = vec2(pi * params.OutputSize.x, 1.999 * pi * params.SourceSize.y);
 }
 
 #pragma stage fragment
