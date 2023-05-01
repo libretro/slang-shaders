@@ -6,16 +6,13 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float SCANLINE_BASE_BRIGHTNESS;
 	float SCANLINE_SINE_COMP_A;
 	float SCANLINE_SINE_COMP_B;
 } params;
 
-#pragma parameter SCANLINE_BASE_BRIGHTNESS "Scanline Base Brightness" 0.95 0.0 1.0 0.01
 #pragma parameter SCANLINE_SINE_COMP_A "Scanline Sine Comp A" 0.0 0.0 0.10 0.01
 #pragma parameter SCANLINE_SINE_COMP_B "Scanline Sine Comp B" 0.15 0.0 1.0 0.05
 
-#define SCANLINE_BASE_BRIGHTNESS params.SCANLINE_BASE_BRIGHTNESS
 #define SCANLINE_SINE_COMP_A params.SCANLINE_SINE_COMP_A
 #define SCANLINE_SINE_COMP_B params.SCANLINE_SINE_COMP_B
 
@@ -36,7 +33,6 @@ void main()
 {
    gl_Position = global.MVP * Position;
    vTexCoord = TexCoord*1.0001;
-   
    omega = vec2(pi * params.OutputSize.x, 2.0 * pi * params.SourceSize.y);
 }
 
@@ -50,7 +46,6 @@ void main()
 {
    vec2 sine_comp = vec2(SCANLINE_SINE_COMP_A, SCANLINE_SINE_COMP_B);
    vec3 res = texture(Source, vTexCoord).xyz;
-   vec3 scanline = res * (SCANLINE_BASE_BRIGHTNESS + dot(sine_comp * sin(vTexCoord * omega), vec2(1.0, 1.0)));
-   FragColor = vec4(scanline.x, scanline.y, scanline.z, 1.0);
+   vec3 scanline = res * ((1.0-SCANLINE_SINE_COMP_B*0.5) + dot(sine_comp * sin(vTexCoord * omega), vec2(1.0, 1.0)));
+   FragColor = vec4(scanline, 1.0);
 }
-
