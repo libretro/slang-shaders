@@ -101,7 +101,7 @@ void main()
     float SCANAMOUNT = mix(HIGHSCANAMOUNT1,HIGHSCANAMOUNT2,lum);
     float scanLine =  SCANAMOUNT * sin(pos.y*omega);
     
-    float whichmask = fract((pos.x*params.OutputSize.x)*0.4999);
+    float whichmask = fract((vTexCoord.x*params.OutputSize.x)*0.4999);
     float mask = 1.0 + float(whichmask < 0.5) * -MASK_DARK;
     colour = vec3(mix(graycolour,colour,sat));
 
