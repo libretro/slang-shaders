@@ -19,16 +19,17 @@ layout(push_constant) uniform Push
     vec4 OriginalSize;
     vec4 OutputSize;
     uint FrameCount;
-float pi, blurx, blury, HIGHSCANAMOUNT1, HIGHSCANAMOUNT2, MASK_DARK, MASK_FADE, sat;
+float pi, blurx, blury, HIGHSCANAMOUNT1, HIGHSCANAMOUNT2, MASK_DARK, MASK_FADE, sat, SEGA;
 } params;
 
 #pragma parameter blurx "Convergence X-Axis" 0.45 -1.0 2.0 0.05
-#pragma parameter blury "Convergence Y-Axis" -0.25 -1.0 1.0 0.05
+#pragma parameter blury "Convergence Y-Axis" -0.25 -1.0 2.0 0.05
 #pragma parameter HIGHSCANAMOUNT1 "Scanline Amount (Low)" 0.3 0.0 1.0 0.05
 #pragma parameter HIGHSCANAMOUNT2 "Scanline Amount (High)" 0.2 0.0 1.0 0.05
 #pragma parameter MASK_DARK "Mask Effect Amount" 0.25 0.0 1.0 0.05
 #pragma parameter MASK_FADE "Mask/Scanline Fade" 0.8 0.0 1.0 0.05
 #pragma parameter sat "Saturation" 1.1 0.0 3.0 0.05
+#pragma parameter SEGA "Sega Brightness Fix" 0.0 0.0 1.0 1.0
 
 #define pi 3.14159
 #define blurx params.blurx
@@ -39,6 +40,7 @@ float pi, blurx, blury, HIGHSCANAMOUNT1, HIGHSCANAMOUNT2, MASK_DARK, MASK_FADE, 
 #define MASK_DARK params.MASK_DARK
 #define MASK_FADE params.MASK_FADE
 #define sat params.sat
+#define SEGA params.SEGA
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -49,51 +51,62 @@ layout(std140, set = 0, binding = 0) uniform UBO
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out float maskFade;
+layout(location = 1) out float omega;
+layout(location = 2) out vec2 blur;
 
 void main()
 {
     gl_Position = global.MVP * Position;
     vTexCoord = TexCoord*1.0001;
-    maskFade = 0.3333*MASK_FADE;
+    omega = 2.0*pi*params.SourceSize.y;
+    blur = vec2(blurx/1000.0,blury/1000.0);
 }
-
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in float maskFade;
+layout(location = 1) in float omega;
+layout(location = 2) in vec2 blur;
+
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
+vec2 Warp(vec2 pos)
+{
+    pos  = 2.0*pos - 1.0;    
+    pos *= vec2(1.0 + (pos.y*pos.y) * 0.02, 
+                1.0 + (pos.x*pos.x) * 0.04);
+    
+    return pos*0.5 + 0.5;
+}
+
 void main()
 {
-    vec2 pos = vTexCoord.xy;
+    vec2 pos = Warp(vTexCoord.xy);
+  
+    vec3 sample1 = texture(Source,vec2(pos.x + blur.x, pos.y - blur.y)).rgb;
+    vec3 sample2 = texture(Source,pos).rgb*0.5;
+    vec3 sample3 = texture(Source,vec2(pos.x - blur.x, pos.y + blur.y)).rgb;
     
-    vec3 sample1 = texture(Source,vec2(pos.x + blurx/1000.0, pos.y - blury/1000.0)).rgb;
-    vec3 sample2 = texture(Source,pos).rgb;
-    vec3 sample3 = texture(Source,vec2(pos.x - blurx/1000.0, pos.y + blury/1000.0)).rgb;
+    vec3 colour = vec3 (sample1.r*0.5  + sample2.r, 
+                        sample1.g*0.25 + sample2.g + sample3.g*0.25,
+                                         sample2.b + sample3.b*0.5);
     
-    vec3 colour = vec3 (sample1.r*0.5+sample2.r*0.5, sample1.g*0.25 + sample2.g*0.5 + sample3.g*0.25, sample2.b*0.5 + sample3.b*0.5);
-    float lum = colour.r*0.4 + colour.g*0.4 + colour.b*0.2;
-    
-    vec3 lumweight=vec3(0.3,0.6,0.1);
-    float gray = dot(colour,lumweight);
-    vec3 graycolour = vec3(gray);
+    vec3 lumweight=vec3(0.22,0.7,0.08);
+    float lum = dot(colour,lumweight);
+    vec3 graycolour = vec3(lum);
 
     //Gamma-like
-    colour*=mix(0.4,1.0,lum);    
+    colour*=mix(0.8,1.0,lum);    
     
     float SCANAMOUNT = mix(HIGHSCANAMOUNT1,HIGHSCANAMOUNT2,lum);
-    float scanLine =  SCANAMOUNT * sin(2.0*pi*pos.y*params.SourceSize.y);
+    float scanLine =  SCANAMOUNT * sin(pos.y*omega);
     
     float whichmask = fract((pos.x*params.OutputSize.x)*0.4999);
     float mask = 1.0 + float(whichmask < 0.5) * -MASK_DARK;
-
-    //Gamma-like 
-    colour*=mix(1.5,1.0,lum);    
-    
     colour = vec3(mix(graycolour,colour,sat));
 
-    colour.rgb *= mix(mask*(1.0-scanLine), 1.0-scanLine, dot(colour,vec3(maskFade)));
+    colour *= mix(mask*(1.0-scanLine), 1.0-scanLine, dot(lum, MASK_FADE));
+
+    if (SEGA == 1.0) colour *= 1.0625;
     FragColor.rgb = colour.rgb;
 }
