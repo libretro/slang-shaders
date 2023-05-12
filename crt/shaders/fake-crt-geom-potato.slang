@@ -12,6 +12,7 @@ layout(push_constant) uniform Push
   float SCANLINE;
   float cgwg;
   float boost;
+  float gamma;
 } params;
 
 // Parameter lines go here:
@@ -24,6 +25,9 @@ layout(push_constant) uniform Push
 
 #pragma parameter cgwg "CGWG mask brightness " 0.7 0.0 1.0 0.1
 #define cgwg params.cgwg
+
+#pragma parameter gamma "Gamma Fix (slower)" 1.0 0.0 1.0 1.0
+#define gamma params.gamma
 
 #define pi 3.141592654
 	
@@ -66,13 +70,14 @@ void main()
 {
 	vec2 pos = vTexCoord.xy;
 	vec3 res = texture(Source, pos).rgb;
-
+	if (gamma == 1.0)  res *=res;
 	if (params.OriginalSize.y < 400.0)
     res *= SCANLINE * sin(fract(vTexCoord.y*params.SourceSize.y)*3.141529) +(1.0-SCANLINE);
 	else res;
 
 // apply the mask
 	res *= Mask(pos.x*params.OutputSize.x * 1.0001);
+	if (gamma == 1.0)  res = sqrt(res);
 	res *= boost;
 
     FragColor = vec4(res,1.0);
