@@ -34,7 +34,7 @@ layout(push_constant) uniform Push
 #pragma parameter SCALE "Scanlines downscale"  1.0 1.0 4.0 1.0
 #pragma parameter MSK1 "   Mask Brightness Dark" 0.3 0.0 1.0 0.05
 #pragma parameter MSK2 "   Mask Brightness Bright" 0.6 0.0 1.0 0.05
-#pragma parameter MSK_SIZE "   Mask Size" 0.5 0.0 1.0 0.1666
+#pragma parameter MSK_SIZE "   Mask Size" 0.5002 0.0 1.0 0.1666
 #pragma parameter FADE "   Mask/Scanlines fade" 0.2 0.0 1.0 0.05
 #pragma parameter PRESERVE "Protect Bright Colors" 0.2 0.0 1.0 0.01
 #pragma parameter SAT "Saturation" 1.2 0.0 2.0 0.05
