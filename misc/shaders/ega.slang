@@ -6,15 +6,21 @@ layout(push_constant) uniform Push
   vec4 OriginalSize;
   vec4 OutputSize;
   uint FrameCount;
-
+  float palette;
 } params;
+
+#pragma parameter palette "Choose palette CGA/EGA" 2.0 1.0 2.0 1.0
+#define palette params.palette
 
 #define _ 0.0
 #define o (1./3.)
 #define b (2./3.)
 #define B 1.0
 
-#define color_enhance 1.0
+#define O (1./4.)
+
+
+#define color_enhance 1.4
 #define SourceSize params.SourceSize
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -42,7 +48,10 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 // Color lookup table (RGBI palette with brown fix)
 const vec3 rgbi_palette[19] = 
 {
-  vec3(_, _, _),
+  vec3(_, _, _),   // cga
+  vec3(o, B, B),   // cga cyan
+  vec3(B, o, B),   // cga pink
+  vec3(B, B, B),   // cga white
   vec3(_, _, b),
   vec3(_, b, _),
   vec3(_, b, _),
@@ -56,15 +65,20 @@ const vec3 rgbi_palette[19] =
   vec3(o, o, o),
   vec3(o, o, B),
   vec3(o, B, o),
-  vec3(o, B, B),
   vec3(B, o, o),
-  vec3(B, o, B),
   vec3(B, B, o),
-  vec3(B, B, B),
+ 
 };
 
-
+const vec3 cga_palette[4] = 
+{
+  vec3(_, _, _),   // cga
+  vec3(o, B, B),   // cga cyan
+  vec3(B, o, B),   // cga pink
+  vec3(B, B, B),   // cga white
+};
 // Came off the wikipedia(R) article for Ordered_Dithering
+
 const int dithertable[16] = 
 {
 	 1, 9, 3,11,
@@ -80,7 +94,9 @@ vec3 nearest_rgbi (vec3 original)
   float dst;
   float min_dst = 2.0;
   int idx = 0;
-  for (int i=0; i<19; i++) 
+
+  int set; if (palette == 2.0)set = 19; else if (palette == 1.0) set = 4;
+  for (int i=0; i<set; i++) 
   {
     dst = distance(original, rgbi_palette[i]);
     if (dst < min_dst) 
@@ -89,7 +105,9 @@ vec3 nearest_rgbi (vec3 original)
       idx = i;
      }
   }
-  return rgbi_palette[idx];
+  if (palette == 2.0) return rgbi_palette[idx];
+  else if (palette == 1.0) return cga_palette[idx];
+  else return vec3(1.0);
 }
 
 
@@ -128,5 +146,10 @@ void main()
       color *= 255.0;
       color += ohyes;
       color /= 255.0;
-  FragColor = vec4(nearest_rgbi(color*color_enhance), 1.0);
+     
+
+      vec3 final = nearest_rgbi(color*color_enhance);
+ 
+
+  FragColor = vec4(final, 1.0);
 }
