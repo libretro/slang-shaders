@@ -12,7 +12,7 @@ layout(push_constant) uniform Push
 #pragma parameter palette "Choose palette Hercules/CGA/EGA" 2.0 0.0 2.0 1.0
 #define palette params.palette
 
-#pragma parameter color_enhance "Color Enchance" 2.0 1.0 4.0 0.05
+#pragma parameter color_enhance "Color Enchance" 1.4 1.0 4.0 0.05
 #define color_enhance params.color_enhance
 
 #define _ 0.0
