@@ -6,21 +6,21 @@ layout(push_constant) uniform Push
   vec4 OriginalSize;
   vec4 OutputSize;
   uint FrameCount;
-  float palette;
+  float palette, color_enhance;
 } params;
 
-#pragma parameter palette "Choose palette CGA/EGA" 2.0 1.0 2.0 1.0
+#pragma parameter palette "Choose palette Hercules/CGA/EGA" 2.0 0.0 2.0 1.0
 #define palette params.palette
+
+#pragma parameter color_enhance "Color Enchance" 2.0 1.0 4.0 0.05
+#define color_enhance params.color_enhance
 
 #define _ 0.0
 #define o (1./3.)
 #define b (2./3.)
 #define B 1.0
 
-#define O (1./4.)
 
-
-#define color_enhance 1.4
 #define SourceSize params.SourceSize
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -49,9 +49,9 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 const vec3 rgbi_palette[19] = 
 {
   vec3(_, _, _),   // cga
+  vec3(B, B, B),   // cga white
   vec3(o, B, B),   // cga cyan
   vec3(B, o, B),   // cga pink
-  vec3(B, B, B),   // cga white
   vec3(_, _, b),
   vec3(_, b, _),
   vec3(_, b, _),
@@ -77,8 +77,16 @@ const vec3 cga_palette[4] =
   vec3(B, o, B),   // cga pink
   vec3(B, B, B),   // cga white
 };
-// Came off the wikipedia(R) article for Ordered_Dithering
 
+const vec3 simcga_palette[2] = 
+{
+  vec3(_, _, _),   // black
+  vec3(o, b, o),   // green
+
+};
+
+
+// Came off the wikipedia(R) article for Ordered_Dithering
 const int dithertable[16] = 
 {
 	 1, 9, 3,11,
@@ -95,7 +103,7 @@ vec3 nearest_rgbi (vec3 original)
   float min_dst = 2.0;
   int idx = 0;
 
-  int set; if (palette == 2.0)set = 19; else if (palette == 1.0) set = 4;
+  int set; if (palette == 2.0)set = 19; else if (palette == 1.0) set = 4;else if (palette == 1.0) set = 2;
   for (int i=0; i<set; i++) 
   {
     dst = distance(original, rgbi_palette[i]);
@@ -107,7 +115,8 @@ vec3 nearest_rgbi (vec3 original)
   }
   if (palette == 2.0) return rgbi_palette[idx];
   else if (palette == 1.0) return cga_palette[idx];
-  else return vec3(1.0);
+  else if (palette == 0.0) return simcga_palette[idx];
+ 
 }
 
 
@@ -116,7 +125,7 @@ float modu(float x, float y)
 	return x - y * floor(x/y);
 }
 
-//fragment
+
 void main()
 {
   vec3 color = texture(Source, vTexCoord.xy).rgb;
