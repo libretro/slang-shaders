@@ -155,7 +155,6 @@ void main()
     vec3 lumweight=vec3(0.213,0.715,0.072);
     float lum = dot(color,lumweight);
 
-	color = pow(color,vec3(INGAMMA));
  
 //APPLY MASK 
          float MSK  = mix(MSK1,MSK2,lum);       
@@ -165,9 +164,10 @@ void main()
          float SCANLINE = mix(SCANLINE1,SCANLINE2,lum);
 //INTERLACING MODE FIX SCANLINES
     if (INTERLACE > 0.0 && global.OriginalSize.y > 400.0 ) scan; else
-         scan=  SCANLINE * sin(fract(vTexCoord.y*SourceSize.y/SCALE)*3.141529) +(1.0-SCANLINE);
+         color *=  SCANLINE * sin(fract(vTexCoord.y*SourceSize.y/SCALE)*3.141529) +(1.0-SCANLINE);
+    color = pow(color,vec3(INGAMMA));
 
-         color *=mix(scan*mask, scan, dot(color, vec3(FADE)));
+         color =mix(color, color*mask, dot(color, vec3(FADE)));
     
     color *= mix(1.0,BOOST,lum);
     color *= vec3(1.0+WPR,     1.0-WPR/2.0, 1.0-WPR/2.0);
