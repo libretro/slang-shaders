@@ -16,13 +16,13 @@ layout(push_constant) uniform Push
 
 // Parameter lines go here:
 
-#pragma parameter boost "Bright boost " 1.00 1.00 2.00 0.02
+#pragma parameter boost "Bright boost " 1.20 1.00 2.00 0.02
 #define boost params.boost
 
-#pragma parameter SCANLINE "Scanline Intensity" 0.70 0.0 1.0 0.05
+#pragma parameter SCANLINE "Scanline Intensity" 0.50 0.0 1.0 0.05
 #define SCANLINE params.SCANLINE
 
-#pragma parameter cgwg "Mask Intensity " 0.8 0.0 1.0 0.05
+#pragma parameter cgwg "Mask Intensity " 0.3 0.0 1.0 0.05
 #define cgwg params.cgwg
 
 
@@ -63,12 +63,15 @@ void main()
 
 	vec3 res = texture(Source, pos).rgb;
 
-	res *=res;
     res *= SCANLINE * sin(fract(p.y)*pi) +(1.0-SCANLINE);
-
-// apply the mask
-	res *= cgwg * sin(fract(pos.x*0.5*params.OutputSize.x)*pi) +(1.0-cgwg);
-    res = sqrt(res);
+    
+    //scanlines will misalign if res*res is run before scanlines applied.
+    res *= res;
+    
+    // apply the mask
+	res *= cgwg*(sin(pos.x*params.OutputSize.x*pi))+1.0-cgwg ;
+   
+        res = sqrt(res);
 	res *= boost;
 
     FragColor = vec4(res,1.0);
