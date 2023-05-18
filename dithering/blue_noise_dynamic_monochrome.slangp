@@ -1,0 +1,20 @@
+shaders = "1"
+shader0 = "shaders/blue_noise_dynamic.slang"
+filter_linear0 = "false"
+scale_type0 = viewport
+
+parameters = "COLOR_DEPTH;DITHER_TUNE;MONOCHROME;EGA_PALETTE"
+COLOR_DEPTH = "2.0"
+DITHER_TUNE = "0.0"
+MONOCHROME = "1.0"
+EGA_PALETTE = "0.0"
+
+textures = "BlueNoiseTexture0;BlueNoiseTexture1;BlueNoiseTexture2;BlueNoiseTexture3;BlueNoiseTexture4;BlueNoiseTexture5;BlueNoiseTexture6;BlueNoiseTexture7"
+BlueNoiseTexture0 = shaders/blue-noise/LDR_RGB1_0.png
+BlueNoiseTexture1 = shaders/blue-noise/LDR_RGB1_1.png
+BlueNoiseTexture2 = shaders/blue-noise/LDR_RGB1_2.png
+BlueNoiseTexture3 = shaders/blue-noise/LDR_RGB1_3.png
+BlueNoiseTexture4 = shaders/blue-noise/LDR_RGB1_4.png
+BlueNoiseTexture5 = shaders/blue-noise/LDR_RGB1_5.png
+BlueNoiseTexture6 = shaders/blue-noise/LDR_RGB1_6.png
+BlueNoiseTexture7 = shaders/blue-noise/LDR_RGB1_7.png
