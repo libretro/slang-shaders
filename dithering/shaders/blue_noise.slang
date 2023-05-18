@@ -26,6 +26,7 @@ layout(push_constant) uniform Push
 	uint FrameCount;
 	float COLOR_DEPTH;
 	float DITHER_TUNE;
+	float MONOCHROME;
 	float EGA_PALETTE;
 } params;
 
@@ -36,6 +37,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter COLOR_DEPTH "Color depth in Bits"            1.0 1.0 8.0 1.0
 #pragma parameter DITHER_TUNE "Tune dithering"                 0.0 -64.0 64.0 1.0
+#pragma parameter MONOCHROME "Monochrome"                      0.0 0.0 1.0 1.0
 #pragma parameter EGA_PALETTE "EGA palette"                    0.0 0.0 1.0 1.0
 
 
@@ -59,7 +61,11 @@ layout(set = 0, binding = 3) uniform sampler2D BlueNoiseTexture;
 vec4 DitherPattern(vec4 col, vec2 coord)
 {
     vec4 color = texelFetch(BlueNoiseTexture,ivec2(coord),0);
+    if (params.MONOCHROME == 1.0)
+        color.rgb = color.rrr;
+
     vec3 threshold = color.rgb;
+        
     float multiplier = pow(2.0,8.0 - params.COLOR_DEPTH) - 1.0;
     
     threshold = threshold - 0.5;
@@ -79,13 +85,17 @@ vec2 magnify(in vec2 uv, in vec2 res)
     uv *= res; 
     return (saturateA(fract(uv) / saturateA(fwidth(uv))) + floor(uv) - 0.5) / res.xy;
 }
+
 vec4 textureAA(in vec2 uv){
     vec2 texSize = textureSize(Source,0);
     vec2 st = uv*texSize.xy;
 
     vec2 ist = floor(st);
     vec4 col = texture(Source, uv);
-    
+
+    if (params.MONOCHROME == 1.0)
+        col.rgb = vec3(col.r + col.g + col.b) / 3.0;    
+
     col = DitherPattern(col , ist + 0.5);
     return col;
 }

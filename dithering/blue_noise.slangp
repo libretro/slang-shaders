@@ -9,4 +9,4 @@ DITHER_TUNE = "0.0"
 EGA_PALETTE = "0.0"
 
 textures = "BlueNoiseTexture"
-BlueNoiseTexture = shaders/blue-noise/LDR_RGBA_0.png
+BlueNoiseTexture = shaders/blue-noise/LDR_RGB1_0.png

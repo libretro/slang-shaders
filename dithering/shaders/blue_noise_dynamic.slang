@@ -56,36 +56,39 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D BlueNoiseTexture0;
-layout(set = 0, binding = 4) uniform sampler2D BlueNoiseTexture1;
-layout(set = 0, binding = 5) uniform sampler2D BlueNoiseTexture2;
-layout(set = 0, binding = 6) uniform sampler2D BlueNoiseTexture3;
-layout(set = 0, binding = 7) uniform sampler2D BlueNoiseTexture4;
-layout(set = 0, binding = 8) uniform sampler2D BlueNoiseTexture5;
-layout(set = 0, binding = 9) uniform sampler2D BlueNoiseTexture6;
-layout(set = 0, binding = 10) uniform sampler2D BlueNoiseTexture7;
 
 vec4 DitherPattern(vec4 col, vec2 coord)
 {
-    float count = floor(fract(params.FrameCount / 7.0) * 7.0);
+    float count = floor(fract(params.FrameCount / 11.0) * 11.0);
     vec2 texSize = vec2(textureSize(BlueNoiseTexture0,0));
-    coord = fract(coord / texSize) * texSize;
+    
+    coord = fract(coord/ texSize) * texSize;
     vec4 color;
+
     if (count == 0.0)
         color = texelFetch(BlueNoiseTexture0,ivec2(coord),0);
     else if (count == 1.0)
-        color = texelFetch(BlueNoiseTexture1,ivec2(coord),0);
+        color = texelFetch(BlueNoiseTexture0,ivec2(coord.y,coord.x),0).brga;
     else if (count == 2.0)
-        color = texelFetch(BlueNoiseTexture2,ivec2(coord),0);    
+        color = texelFetch(BlueNoiseTexture0,ivec2(coord),0).gbra;    
     else if (count == 3.0)
-        color = texelFetch(BlueNoiseTexture3,ivec2(coord),0);
+        color = texelFetch(BlueNoiseTexture0,ivec2(coord.y,coord.x),0).rbga;
     else if (count == 4.0)
-        color = texelFetch(BlueNoiseTexture4,ivec2(coord),0); 
+        color = texelFetch(BlueNoiseTexture0,ivec2(coord),0).bgra; 
     else if (count == 5.0)
-        color = texelFetch(BlueNoiseTexture5,ivec2(coord),0);
+        color = texelFetch(BlueNoiseTexture0,ivec2(coord.y,coord.x),0).grba;
     else if (count == 6.0)
-        color = texelFetch(BlueNoiseTexture6,ivec2(coord),0); 
+        color = texelFetch(BlueNoiseTexture0,ivec2(texSize - coord),0);
     else if (count == 7.0)
-        color = texelFetch(BlueNoiseTexture7,ivec2(coord),0); 
+        color = texelFetch(BlueNoiseTexture0,ivec2(texSize.y - coord.y,texSize.x - coord.x),0).brga;
+    else if (count == 8.0)
+        color = texelFetch(BlueNoiseTexture0,ivec2(texSize - coord),0).gbra;    
+    else if (count == 9.0)
+        color = texelFetch(BlueNoiseTexture0,ivec2(texSize.y - coord.y,texSize.x - coord.x),0).rbga;
+    else if (count == 10.0)
+        color = texelFetch(BlueNoiseTexture0,ivec2(texSize - coord),0).bgra; 
+    else if (count == 11.0)
+        color = texelFetch(BlueNoiseTexture0,ivec2(texSize.y - coord.y,texSize.x - coord.x),0).grba;
 
     if (params.MONOCHROME == 1.0)
         color.rgb = color.rrr;
@@ -110,6 +113,7 @@ vec2 magnify(in vec2 uv, in vec2 res)
     uv *= res; 
     return (saturateA(fract(uv) / saturateA(fwidth(uv))) + floor(uv) - 0.5) / res.xy;
 }
+
 vec4 textureAA(in vec2 uv){
     vec2 texSize = textureSize(Source,0);
     vec2 st = uv*texSize.xy;
