@@ -61,10 +61,10 @@ layout(push_constant) uniform Push
 #pragma parameter scanline          "Scanline Adjust" 8.0 1.0 12.0 1.0
 #define scanline params.scanline
 
-#pragma parameter beam_min          "Scanline Dark" 1.7 0.5 3.0 0.05
+#pragma parameter beam_min          "Scanline Dark" 1.35 0.5 3.0 0.05
 #define beam_min params.beam_min
 
-#pragma parameter beam_max          "Scanline Bright" 2.1 0.5 3.0 0.05
+#pragma parameter beam_max          "Scanline Bright" 1.05 0.5 3.0 0.05
 #define beam_max params.beam_max
 
 #pragma parameter h_sharp           "Horizontal Sharpness" 2.0 1.0 5.0 0.05
@@ -97,7 +97,7 @@ layout(push_constant) uniform Push
 #pragma parameter vignette 			"Vignette On/Off" 0.0 0.0 1.0 1.0
 #define vignette 	params.vignette
 
-
+#define lumweight vec3(0.22,0.7,0.08)
 
 
 
@@ -125,13 +125,12 @@ layout(location = 1) in float maskFade;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 1) uniform sampler2D Source;
 
-float sw(float x, float l)
+float sw (float y, float l)
 {
-	float d = x;
-	float bm = scanline;
-	float b = mix(beam_min,beam_max,l);
-	d = exp2(-bm*pow(d,b));
-	return d;
+    float scan = mix(scanline-2.0, scanline, y);
+    float tmp = mix(beam_min, beam_max, l);
+    float ex = y*tmp;
+    return exp2(-scan*ex*ex);
 }
 
 // Shadow mask (1-4 from PD CRT Lottes shader).
@@ -314,8 +313,8 @@ mat3 vign( float l )
     vec2 vpos = vTexCoord;
 
     vpos *= 1.0 - vpos.xy;
-    float vig = vpos.x * vpos.y * 40.0;
-    vig = min(pow(vig, 0.2), 1.0); 
+    float vig = vpos.x * vpos.y * 45.0;
+    vig = min(pow(vig, 0.15), 1.0); 
     if (vignette == 0.0) vig=1.0;
    
     return mat3(vig, 0, 0,
@@ -363,31 +362,29 @@ void main()
 	vec2 pC4 = floor(OGL2Pos) * ps + 0.5*ps;
 	
 	// Reading the texels
-	vec3 ul = texture(Source, pC4     ).xyz; ul*=ul;
-	vec3 ur = texture(Source, pC4 + dx).xyz; ur*=ur;
-	vec3 dl = texture(Source, pC4 + dy).xyz; dl*=dl;
-	vec3 dr = texture(Source, pC4 + ps).xyz; dr*=dr;
+	vec3 ul = texture(Source, pC4     ).xyz; 
+	vec3 ur = texture(Source, pC4 + dx).xyz; 
+	vec3 dl = texture(Source, pC4 + dy).xyz; 
+	vec3 dr = texture(Source, pC4 + ps).xyz; 
 	
 	float lx = fp.x;        lx = pow(lx, h_sharp);
 	float rx = 1.0 - fp.x;  rx = pow(rx, h_sharp);
 	
 	vec3 color1 = (ur*lx + ul*rx)/(lx+rx);
 	vec3 color2 = (dr*lx + dl*rx)/(lx+rx);
+	color1 *=color1; color2 *=color2;
 
 // calculating scanlines
 	
-	float f = fp.y;
-	float luma1 = length(color1)*0.57735;
-	float luma2 = length(color2)*0.57735;
+	float f = fp.y; if (params.OriginalSize.y > 400.0) f=1.0;
+	float luma1 = dot(color1,lumweight);
+	float luma2 = dot(color2,lumweight);
 	
 	vec3 color = color1*sw(f,luma1) + color2*sw(1.0-f,luma2);
-	if (params.OriginalSize.y >= 400.0) {color = (color1 + color2)/2.0;}
-
-	color = min(color, 1.0);
 	color = color * Mask(vTexCoord * global.OutputSize.xy, color);
-	float lum = color.r*0.3+color.g*0.6+color.b*0.1;
+	float lum = dot(color,lumweight);
 
-	color = pow(color, vec3(gamma_out, gamma_out, gamma_out));
+	color = pow(color, vec3(gamma_out));
 	color*= mix(1.0,brightboost,lum);
 
 	color = saturation(color);
