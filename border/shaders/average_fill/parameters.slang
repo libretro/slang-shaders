@@ -1,7 +1,7 @@
 // See compose.slang for copyright and other information.
 
 // clang-format off
-#pragma parameter DUAL_FILTER_SETTINGS "=== Average fill v1.0 settings ===" 0.0 0.0 1.0 1.0
+#pragma parameter AVERAGE_FILL_SETTINGS "=== Average fill v1.0 settings ===" 0.0 0.0 1.0 1.0
 #pragma parameter OS_CROP_TOP "Overscan crop top" 16.0 0.0 1024.0 1.0
 #pragma parameter OS_CROP_BOTTOM "Overscan crop bottom" 16.0 0.0 1024.0 1.0
 #pragma parameter OS_CROP_LEFT "Overscan crop left" 0.0 0.0 1024.0 1.0
