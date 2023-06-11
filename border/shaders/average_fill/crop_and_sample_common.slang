@@ -1,3 +1,5 @@
+// See compose.slang for copyright and other information.
+
 layout(push_constant) uniform Push {
     vec4 InputSize;
     vec4 OriginalSize;

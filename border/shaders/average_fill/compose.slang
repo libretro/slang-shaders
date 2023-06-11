@@ -1,5 +1,28 @@
 #version 450
 
+/*
+    Average fill v1.0 by fishku
+    Copyright (C) 2023
+    Public domain license (CC0)
+
+    This shader preset allows cropping the image on any side, and filling the
+    cropped area with the average color of an adjustable area next to it.
+    This is useful for certain games that do not render a full image to maintain
+    the overall aspect ratio and to avoid burn-in.
+
+    In case the image is cropped on multiple sides, different blend modes for
+    the corner are available. Simply change the parameter for the "corner blend
+    mode".
+    The available corner blend modes are:
+    0 = Draw horizontal bars on top
+    1 = Draw vertical bars on top
+    2 = Blend bars by weighted averaging
+    3 = Smooth angle-based blending
+
+    Changelog:
+    v1.0: Initial release.
+*/
+
 #include "parameters.slang"
 
 layout(push_constant) uniform Push {
@@ -71,7 +94,7 @@ vec3 blend_corner(vec3 a,            // The first color to blend
             // This makes the angle work out to be correct in all cases when
             // carefully choosing argument ordering.
             const float angle = atan(abs(delta.y), abs(delta.x)) / (PI * 0.5);
-            // Smoothstep makes the transition even smoother.
+            // Smoothstep makes the transition perceptually smoother.
             return mix(a, b, smoothstep(0.0, 1.0, angle));
     }
 }
