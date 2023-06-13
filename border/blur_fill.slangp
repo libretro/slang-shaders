@@ -1,4 +1,4 @@
-shaders = 3
+shaders = 10
 
 shader0 = ../blurs/shaders/kawase/linearize.slang
 scale_type0 = source
@@ -8,14 +8,71 @@ float_framebuffer0 = true
 alias0 = "Input"
 
 shader1 = shaders/blur_fill/render_sampling_areas.slang
-scale_type1 = viewport
-scale_x1 = 1.0
-scale_y1 = 1.0
+scale_type1 = source
+scale_x1 = 2.0
+scale_y1 = 2.0
 float_framebuffer1 = true
 
-shader2 = ../blurs/shaders/kawase/delinearize.slang
+shader2 = ../blurs/shaders/dual_filter/downsample.slang
 filter_linear2 = true
-scale_type2 = viewport
-scale_x2 = 1.0
-scale_y2 = 1.0
+scale_type2 = source
+scale_x2 = 0.5
+scale_y2 = 0.5
 float_framebuffer2 = true
+wrap_mode2 = mirrored_repeat
+
+shader3 = ../blurs/shaders/dual_filter/downsample.slang
+filter_linear3 = true
+scale_type3 = source
+scale_x3 = 0.5
+scale_y3 = 0.5
+float_framebuffer3 = true
+wrap_mode3 = mirrored_repeat
+
+shader4 = ../blurs/shaders/dual_filter/downsample.slang
+filter_linear4 = true
+scale_type4 = source
+scale_x4 = 0.5
+scale_y4 = 0.5
+float_framebuffer4 = true
+wrap_mode4 = mirrored_repeat
+
+shader5 = ../blurs/shaders/dual_filter/upsample.slang
+filter_linear5 = true
+scale_type5 = source
+scale_x5 = 2.0
+scale_y5 = 2.0
+float_framebuffer5 = true
+wrap_mode5 = mirrored_repeat
+
+shader6 = ../blurs/shaders/dual_filter/upsample.slang
+filter_linear6 = true
+scale_type6 = source
+scale_x6 = 2.0
+scale_y6 = 2.0
+float_framebuffer6 = true
+wrap_mode6 = mirrored_repeat
+
+shader7 = ../blurs/shaders/dual_filter/upsample.slang
+filter_linear7 = true
+scale_type7 = source
+scale_x7 = 2.0
+scale_y7 = 2.0
+float_framebuffer7 = true
+wrap_mode7 = mirrored_repeat
+alias7 = "Blurred"
+
+shader8 = shaders/blur_fill/compose.slang
+filter_linear8 = true
+scale_type8 = viewport
+scale_x8 = 1.0
+scale_y8 = 1.0
+float_framebuffer8 = true
+mipmap_input8 = true
+
+shader9 = ../blurs/shaders/kawase/delinearize.slang
+filter_linear9 = true
+scale_type9 = viewport
+scale_x9 = 1.0
+scale_y9 = 1.0
+float_framebuffer9 = true

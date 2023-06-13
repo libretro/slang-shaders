@@ -1,6 +1,7 @@
 #version 450
 
 #include "parameters.slang"
+#include "scaling.slang"
 
 layout(push_constant) uniform Push {
     vec4 InputSize;
@@ -114,7 +115,7 @@ vec3 sample_mirrored_frame(sampler2D tex, vec2 coord, vec4 input_extrema) {
 }
 
 void main() {
-    const vec2 pixel_coord = vTexCoord * param.InputSize.xy;
+    const vec2 pixel_coord = vp_to_blurred(vTexCoord) * param.InputSize.xy;
     FragColor = vec4(
         sample_mirrored_frame(Input, pixel_coord,
                               vec4(param.OS_CROP_LEFT, param.OS_CROP_TOP,
