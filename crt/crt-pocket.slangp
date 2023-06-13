@@ -1,0 +1,10 @@
+shaders = "2"
+feedback_pass = "0"
+shader0 = "../misc/shaders/chromaticity.slang"
+scale_type0 = source
+filter_linear0 = "false"
+shader1 = "shaders/crt-pocket.slang"
+filter_linear1 = "true"
+
+
+
