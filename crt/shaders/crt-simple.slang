@@ -1,8 +1,17 @@
 #version 450
 
-// Simple scanlines with curvature and mask effects lifted from crt-geom
-// original by hunterk, edited by DariusG
-
+/*
+ *  CRT-simple shader
+ * 
+ *  Copyright (C) 2011 DOLLS. Based on cgwg's CRT shader.
+ *  ported and improved by DariusG @2023
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by the Free
+ *  Software Foundation; either version 2 of the License, or (at your option)
+ *  any later version.
+ *
+ *
+ */
 layout(push_constant) uniform Push
 {
 	vec4 SourceSize;
