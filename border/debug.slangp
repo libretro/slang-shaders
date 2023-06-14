@@ -1,0 +1,12 @@
+shaders = 2
+
+shader0  = ../stock.slang
+scale_type0 = source
+scale0 = 1.0
+alias0 = "Input"
+
+shader1 = shaders/blur_fill/debug_scaling.slang
+scale_type1 = viewport
+scale_x1 = 1.0
+scale_y1 = 1.0
+wrap_mode1 = clamp_to_border
