@@ -9,8 +9,8 @@ alias0 = "Input"
 
 shader1 = shaders/blur_fill/render_sampling_areas.slang
 scale_type1 = viewport
-scale_x1 = 1.0
-scale_y1 = 1.0
+scale_x1 = 0.1
+scale_y1 = 0.1
 float_framebuffer1 = true
 alias1 = "Tiled"
 

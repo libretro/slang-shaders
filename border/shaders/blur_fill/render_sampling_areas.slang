@@ -6,6 +6,7 @@ layout(push_constant) uniform Push {
     vec4 InputSize;
     vec4 OriginalSize;
     vec4 OutputSize;
+    vec4 FinalViewportSize;
     uint FrameCount;
     float OS_CROP_TOP;
     float OS_CROP_BOTTOM;
@@ -15,6 +16,7 @@ layout(push_constant) uniform Push {
     float SAMPLE_SIZE;
     float BLUR_EXTEND_H;
     float BLUR_EXTEND_V;
+    float MIRROR_BLUR;
     float FORCE_ASPECT_RATIO;
     float ASPECT_H;
     float ASPECT_V;
@@ -53,8 +55,11 @@ int argmin(vec4 i) {
 // Returns a coordinate in [0, w) when repeating that interval and mirroring,
 // and sampling at x.
 float mirrored_repeat(float w, float x) {
-    const int period = int(x / w);
     const float phase = mod(x, w);
+    if (param.MIRROR_BLUR < 0.5) {
+        return phase;
+    }
+    const int period = int(x / w);
     return period % 2 == 1 != x > 0.0 ? phase : w - phase;
 }
 

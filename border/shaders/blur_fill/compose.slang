@@ -17,6 +17,7 @@ layout(push_constant) uniform Push {
     vec4 TiledSize;
     vec4 OriginalSize;
     vec4 OutputSize;
+    vec4 FinalViewportSize;
     uint FrameCount;
     float OS_CROP_TOP;
     float OS_CROP_BOTTOM;
@@ -56,7 +57,7 @@ layout(set = 0, binding = 3) uniform sampler2D Tiled;
 layout(set = 0, binding = 4) uniform sampler2D Blurred;
 
 void main() {
-    const vec2 pixel_coord = vTexCoord * param.InputSize.xy;
+    const vec2 pixel_coord = o2i(vTexCoord) * param.InputSize.xy;
 
     const vec4 input_extrema = vec4(param.OS_CROP_LEFT, param.OS_CROP_TOP,
                                     param.InputSize.x - param.OS_CROP_RIGHT,
@@ -65,25 +66,21 @@ void main() {
         any(greaterThanEqual(pixel_coord, input_extrema.zw))) {
         if (param.BLUR_RADIUS > 0.0) {
             // Sample blur.
-            FragColor =
-                vec4(texture(Blurred, blurred_to_vp(vTexCoord)).rgb, 1.0);
+            FragColor = vec4(texture(Blurred, vTexCoord).rgb, 1.0);
         } else {
             // Sample tiled pattern.
             // Do a sharp (nearest neighbor) resampling.
-            FragColor = vec4(texture(Tiled, (floor(blurred_to_vp(vTexCoord) *
-                                                   param.TiledSize.xy) +
-                                             0.5) *
-                                                param.TiledSize.zw)
-                                 .rgb,
-                             1.0);
+            FragColor = vec4(
+                texture(Tiled, (floor(vTexCoord * param.TiledSize.xy) + 0.5) *
+                                   param.TiledSize.zw)
+                    .rgb,
+                1.0);
         }
     } else {
         // Sample original.
         // Do a sharp (nearest neighbor) resampling.
-        FragColor =
-            vec4(texture(Input, (floor(vTexCoord * param.InputSize.xy) + 0.5) *
-                                    param.InputSize.zw)
-                     .rgb,
-                 1.0);
+        FragColor = vec4(
+            texture(Input, (floor(pixel_coord) + 0.5) * param.InputSize.zw).rgb,
+            1.0);
     }
 }

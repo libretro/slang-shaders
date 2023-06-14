@@ -22,24 +22,27 @@ vec2 scale_o2i() {
                                         param.ASPECT_H
                                   : eff_input_res.y);
 
-    if (param.OutputSize.x / eff_aspect.x < param.OutputSize.y / eff_aspect.y) {
+    if (param.FinalViewportSize.x / eff_aspect.x <
+        param.FinalViewportSize.y / eff_aspect.y) {
         // Scale will be limited by width. Calc x scale, then derive y scale
         // using aspect ratio.
-        const float scale_x = param.FORCE_INTEGER_SCALING > 0.5
-                                  ? floor(param.OutputSize.x / eff_input_res.x)
-                                  : param.OutputSize.x / eff_input_res.x;
+        const float scale_x =
+            param.FORCE_INTEGER_SCALING > 0.5
+                ? floor(param.FinalViewportSize.x / eff_input_res.x)
+                : param.FinalViewportSize.x / eff_input_res.x;
         const float scale_y = (scale_x * eff_input_res.x * eff_aspect.y) /
                               (eff_input_res.y * eff_aspect.x);
-        return param.OutputSize.xy * param.InputSize.zw /
+        return param.FinalViewportSize.xy * param.InputSize.zw /
                vec2(scale_x, scale_y);
     } else {
         // Scale will be limited by height.
-        const float scale_y = param.FORCE_INTEGER_SCALING > 0.5
-                                  ? floor(param.OutputSize.y / eff_input_res.y)
-                                  : param.OutputSize.y / eff_input_res.y;
+        const float scale_y =
+            param.FORCE_INTEGER_SCALING > 0.5
+                ? floor(param.FinalViewportSize.y / eff_input_res.y)
+                : param.FinalViewportSize.y / eff_input_res.y;
         const float scale_x = (scale_y * eff_input_res.y * eff_aspect.x) /
                               (eff_input_res.x * eff_aspect.y);
-        return param.OutputSize.xy * param.InputSize.zw /
+        return param.FinalViewportSize.xy * param.InputSize.zw /
                vec2(scale_x, scale_y);
     }
 }
@@ -57,14 +60,4 @@ vec2 o2i(vec2 x) {
                            param.OS_CROP_BOTTOM)
             : vec2(0.49999);
     return (x - 0.49999) * scale_o2i() + center_in;
-}
-
-#define AREA_RENDER_PASS_SCALE 2.0
-
-vec2 vp_to_blurred(vec2 coord) {
-    return (coord - 0.5) * AREA_RENDER_PASS_SCALE + 0.5;
-}
-
-vec2 blurred_to_vp(vec2 coord) {
-    return (coord - 0.5) / AREA_RENDER_PASS_SCALE + 0.5;
 }
