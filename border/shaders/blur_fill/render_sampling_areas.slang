@@ -1,10 +1,11 @@
 #version 450
 
+// See compose.slang for copyright and other information.
+
 #include "parameters.slang"
 
 layout(push_constant) uniform Push {
     vec4 InputSize;
-    vec4 OriginalSize;
     vec4 OutputSize;
     vec4 FinalViewportSize;
     uint FrameCount;
@@ -52,8 +53,8 @@ int argmin(vec4 i) {
     return -int(min(ma));
 }
 
-// Returns a coordinate in [0, w) when repeating that interval and mirroring,
-// and sampling at x.
+// Returns a coordinate in [0, w) when repeating that interval (and optionally
+// mirroring).
 float mirrored_repeat(float w, float x) {
     const float phase = mod(x, w);
     if (param.MIRROR_BLUR < 0.5) {
@@ -85,8 +86,9 @@ float extend_bottom(vec2 coord, vec4 input_extrema) {
 
 // This function samples in a very specific way which is the foundation for
 // blurring later.
-// - If the sample coordinate is outside of the cropped input, black is
-// returned.
+// - If the sample coordinate is outside of the cropped input, Either black is
+// returned if blur extension is turned off, or a repeated pattern from the
+// sampling frame band is returned.
 // - If the coordinate is inside the cropped input and within the frame band
 // given by SAMPLE_SIZE, the original texture sample is returned.
 // - If the coordinate is further inside than the frame band, a mirrored
@@ -141,7 +143,7 @@ vec3 sample_mirrored_frame(sampler2D tex, vec2 coord, vec4 input_extrema) {
                 // In frame band
                 return texture(tex, coord * param.InputSize.zw).rgb;
             }
-            // Innermost -- mirrored repeat sampling
+            // Innermost -- mirrored repeat sampling from nearest side
             const vec4 distances =
                 vec4(coord.x - inner_extrema.x, inner_extrema.z - coord.x,
                      coord.y - inner_extrema.y, inner_extrema.w - coord.y);

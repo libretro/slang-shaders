@@ -1,7 +1,7 @@
 shaders = 10
 
 parameters = "BLUR_RADIUS"
-BLUR_RADIUS = 2.0
+BLUR_RADIUS = 4.0
 
 shader0 = ../blurs/shaders/kawase/linearize.slang
 scale_type0 = source
@@ -12,8 +12,8 @@ alias0 = "Input"
 
 shader1 = shaders/blur_fill/render_sampling_areas.slang
 scale_type1 = viewport
-scale_x1 = 0.2
-scale_y1 = 0.2
+scale_x1 = 0.1
+scale_y1 = 0.1
 float_framebuffer1 = true
 alias1 = "Tiled"
 

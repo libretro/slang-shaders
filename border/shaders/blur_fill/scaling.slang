@@ -1,5 +1,7 @@
 #include "parameters.slang"
 
+// See compose.slang for copyright and other information.
+
 // Pixels in input coord. space
 vec2 eff_input_res() {
     if (param.CENTER_CROP > 0.5) {
@@ -21,7 +23,6 @@ vec2 scale_o2i() {
                                         param.InputSize.x * param.ASPECT_V /
                                         param.ASPECT_H
                                   : eff_input_res.y);
-
     if (param.FinalViewportSize.x / eff_aspect.x <
         param.FinalViewportSize.y / eff_aspect.y) {
         // Scale will be limited by width. Calc x scale, then derive y scale
@@ -30,7 +31,7 @@ vec2 scale_o2i() {
             param.FORCE_INTEGER_SCALING > 0.5
                 ? floor(param.FinalViewportSize.x / eff_input_res.x)
                 : param.FinalViewportSize.x / eff_input_res.x;
-        const float scale_y = (scale_x * eff_input_res.x * eff_aspect.y) /
+        const float scale_y = scale_x * eff_input_res.x * eff_aspect.y /
                               (eff_input_res.y * eff_aspect.x);
         return param.FinalViewportSize.xy * param.InputSize.zw /
                vec2(scale_x, scale_y);
@@ -40,7 +41,7 @@ vec2 scale_o2i() {
             param.FORCE_INTEGER_SCALING > 0.5
                 ? floor(param.FinalViewportSize.y / eff_input_res.y)
                 : param.FinalViewportSize.y / eff_input_res.y;
-        const float scale_x = (scale_y * eff_input_res.y * eff_aspect.x) /
+        const float scale_x = scale_y * eff_input_res.y * eff_aspect.x /
                               (eff_input_res.x * eff_aspect.y);
         return param.FinalViewportSize.xy * param.InputSize.zw /
                vec2(scale_x, scale_y);

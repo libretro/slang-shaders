@@ -5,6 +5,27 @@
     Copyright (C) 2023
     Public domain license (CC0)
 
+    This shader preset allows cropping the image on any side, and filling the
+    cropped area with a blurred version of the input image borders.
+    This is useful for certain games that do not render a full image to maintain
+    the overall aspect ratio and to avoid burn-in.
+
+    The preset also allows you to extend the original content to a larger
+    screen. It's recommended to set the video scaling options as follows:
+    - Turn integer scaling OFF
+    - Set aspect ratio to FULL
+    The shader will then take over and handle the proper scaling and aspect
+    ratio of the input.
+
+    The preset comes in three variants which differ only in the strength of the
+    blur.
+    Since the blur strength in the dual filter blur depends on the input
+    resolution, and because there is currently no mechanism to set resolution
+    based on user parameters, the three variants provide different sampling
+    resolutions which affect the strength of the blur.
+    Additionally to the resolution, a blur radius parameter controls the
+    strength of the blur.
+
     Changelog:
     v1.0: Initial release.
 */
