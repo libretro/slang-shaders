@@ -1,7 +1,6 @@
 #version 450
 
 #include "parameters.slang"
-#include "scaling.slang"
 
 layout(push_constant) uniform Push {
     vec4 InputSize;
@@ -12,11 +11,18 @@ layout(push_constant) uniform Push {
     float OS_CROP_BOTTOM;
     float OS_CROP_LEFT;
     float OS_CROP_RIGHT;
+    float CENTER_CROP;
     float SAMPLE_SIZE;
     float BLUR_EXTEND_H;
     float BLUR_EXTEND_V;
+    float FORCE_ASPECT_RATIO;
+    float ASPECT_H;
+    float ASPECT_V;
+    float FORCE_INTEGER_SCALING;
 }
 param;
+
+#include "scaling.slang"
 
 layout(std140, set = 0, binding = 0) uniform UBO { mat4 MVP; }
 global;

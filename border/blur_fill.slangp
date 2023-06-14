@@ -12,6 +12,7 @@ scale_type1 = source
 scale_x1 = 2.0
 scale_y1 = 2.0
 float_framebuffer1 = true
+alias1 = "Tiled"
 
 shader2 = ../blurs/shaders/dual_filter/downsample.slang
 filter_linear2 = true

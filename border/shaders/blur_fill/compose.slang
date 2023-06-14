@@ -9,11 +9,12 @@
     v1.0: Initial release.
 */
 
+#include "../../../blurs/shaders/dual_filter/parameters.slang"
 #include "parameters.slang"
-#include "scaling.slang"
 
 layout(push_constant) uniform Push {
     vec4 InputSize;
+    vec4 TiledSize;
     vec4 OriginalSize;
     vec4 OutputSize;
     uint FrameCount;
@@ -21,9 +22,18 @@ layout(push_constant) uniform Push {
     float OS_CROP_BOTTOM;
     float OS_CROP_LEFT;
     float OS_CROP_RIGHT;
+    float CENTER_CROP;
     float SAMPLE_SIZE;
+    float FORCE_ASPECT_RATIO;
+    float ASPECT_H;
+    float ASPECT_V;
+    float FORCE_INTEGER_SCALING;
+    // From dual filter blur
+    float BLUR_RADIUS;
 }
 param;
+
+#include "scaling.slang"
 
 layout(std140, set = 0, binding = 0) uniform UBO { mat4 MVP; }
 global;
@@ -42,7 +52,8 @@ void main() {
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Input;
-layout(set = 0, binding = 3) uniform sampler2D Blurred;
+layout(set = 0, binding = 3) uniform sampler2D Tiled;
+layout(set = 0, binding = 4) uniform sampler2D Blurred;
 
 void main() {
     const vec2 pixel_coord = vTexCoord * param.InputSize.xy;
@@ -52,8 +63,20 @@ void main() {
                                     param.InputSize.y - param.OS_CROP_BOTTOM);
     if (any(lessThan(pixel_coord, input_extrema.xy)) ||
         any(greaterThanEqual(pixel_coord, input_extrema.zw))) {
-        // Sample blur.
-        FragColor = vec4(texture(Blurred, blurred_to_vp(vTexCoord)).rgb, 1.0);
+        if (param.BLUR_RADIUS > 0.0) {
+            // Sample blur.
+            FragColor =
+                vec4(texture(Blurred, blurred_to_vp(vTexCoord)).rgb, 1.0);
+        } else {
+            // Sample tiled pattern.
+            // Do a sharp (nearest neighbor) resampling.
+            FragColor = vec4(texture(Tiled, (floor(blurred_to_vp(vTexCoord) *
+                                                   param.TiledSize.xy) +
+                                             0.5) *
+                                                param.TiledSize.zw)
+                                 .rgb,
+                             1.0);
+        }
     } else {
         // Sample original.
         // Do a sharp (nearest neighbor) resampling.
