@@ -19,4 +19,6 @@
 #pragma parameter ASPECT_H "Horizontal aspect ratio before crop" 4.0 1.0 100.0 1.0
 #pragma parameter ASPECT_V "Vertical aspect ratio before crop" 3.0 1.0 100.0 1.0
 #pragma parameter FORCE_INTEGER_SCALING "Force integer scaling" 1.0 0.0 1.0 1.0
+
+#pragma parameter FILL_GAMMA "Background fill gamma adjustment" 1.4 0.5 2.0 0.1
 // clang-format on

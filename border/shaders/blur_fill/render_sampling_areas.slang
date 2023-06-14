@@ -6,9 +6,7 @@
 
 layout(push_constant) uniform Push {
     vec4 InputSize;
-    vec4 OutputSize;
     vec4 FinalViewportSize;
-    uint FrameCount;
     float OS_CROP_TOP;
     float OS_CROP_BOTTOM;
     float OS_CROP_LEFT;

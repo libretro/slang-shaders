@@ -36,10 +36,7 @@
 layout(push_constant) uniform Push {
     vec4 InputSize;
     vec4 TiledSize;
-    vec4 OriginalSize;
-    vec4 OutputSize;
     vec4 FinalViewportSize;
-    uint FrameCount;
     float OS_CROP_TOP;
     float OS_CROP_BOTTOM;
     float OS_CROP_LEFT;
@@ -50,6 +47,7 @@ layout(push_constant) uniform Push {
     float ASPECT_H;
     float ASPECT_V;
     float FORCE_INTEGER_SCALING;
+    float FILL_GAMMA;
     // From dual filter blur
     float BLUR_RADIUS;
 }
@@ -87,15 +85,19 @@ void main() {
         any(greaterThanEqual(pixel_coord, input_extrema.zw))) {
         if (param.BLUR_RADIUS > 0.0) {
             // Sample blur.
-            FragColor = vec4(texture(Blurred, vTexCoord).rgb, 1.0);
+            FragColor = vec4(
+                pow(texture(Blurred, vTexCoord).rgb, vec3(param.FILL_GAMMA)),
+                1.0);
         } else {
             // Sample tiled pattern.
             // Do a sharp (nearest neighbor) resampling.
-            FragColor = vec4(
-                texture(Tiled, (floor(vTexCoord * param.TiledSize.xy) + 0.5) *
-                                   param.TiledSize.zw)
-                    .rgb,
-                1.0);
+            FragColor =
+                vec4(pow(texture(Tiled,
+                                 (floor(vTexCoord * param.TiledSize.xy) + 0.5) *
+                                     param.TiledSize.zw)
+                             .rgb,
+                         vec3(param.FILL_GAMMA)),
+                     1.0);
         }
     } else {
         // Sample original.
