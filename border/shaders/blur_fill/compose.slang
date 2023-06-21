@@ -27,6 +27,7 @@
     strength of the blur.
 
     Changelog:
+    v1.2: Fix scaling bugs.
     v1.1: Fix bug with glcore driver.
     v1.0: Initial release.
 */

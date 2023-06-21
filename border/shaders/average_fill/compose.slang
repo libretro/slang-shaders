@@ -27,6 +27,7 @@
     3 = Smooth angle-based blending
 
     Changelog:
+    v1.2: Fix scaling bugs.
     v1.1: Add extension modes from blur fill; Add average gamma adjustment.
     v1.0: Initial release.
 */

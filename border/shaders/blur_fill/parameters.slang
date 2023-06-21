@@ -1,7 +1,7 @@
 // See compose.slang for copyright and other information.
 
 // clang-format off
-#pragma parameter BLUR_FILL_SETTINGS "=== Blur fill v1.1 settings ===" 0.0 0.0 1.0 1.0
+#pragma parameter BLUR_FILL_SETTINGS "=== Blur fill v1.2 settings ===" 0.0 0.0 1.0 1.0
 #pragma parameter OS_CROP_TOP "Overscan crop top" 0.0 0.0 1024.0 1.0
 #pragma parameter OS_CROP_BOTTOM "Overscan crop bottom" 0.0 0.0 1024.0 1.0
 #pragma parameter OS_CROP_LEFT "Overscan crop left" 0.0 0.0 1024.0 1.0
