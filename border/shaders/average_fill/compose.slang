@@ -116,7 +116,7 @@ vec3 blend_corner(vec3 a,      // The first color to blend
 }
 
 void main() {
-    const vec2 pixel_coord = o2i(vTexCoord) * param.InputSize.xy;
+    const vec2 pixel_coord = o2i(vTexCoord);
     if (pixel_coord.x < param.OS_CROP_LEFT) {
         if (param.EXTEND_H < 0.5) {
             FragColor = vec4(0.0, 0.0, 0.0, 1.0);
@@ -131,8 +131,7 @@ void main() {
             // Top left corner
             const vec3 top = textureLod(Top, vec2(0.5), BIG_NUMBER).rgb;
             const vec2 content_corner =
-                i2o(vec2(param.OS_CROP_LEFT, param.OS_CROP_TOP) *
-                    param.InputSize.zw);
+                i2o(vec2(param.OS_CROP_LEFT, param.OS_CROP_TOP));
             const vec2 viewport_corner = vec2(0.0, 0.0);
             FragColor =
                 vec4(blend_corner(left, top,
@@ -154,10 +153,8 @@ void main() {
             }
             // Bottom left corner
             const vec3 bottom = textureLod(Bottom, vec2(0.5), BIG_NUMBER).rgb;
-            const vec2 content_corner =
-                i2o(vec2(param.OS_CROP_LEFT,
-                         param.InputSize.y - param.OS_CROP_BOTTOM) *
-                    param.InputSize.zw);
+            const vec2 content_corner = i2o(vec2(
+                param.OS_CROP_LEFT, param.InputSize.y - param.OS_CROP_BOTTOM));
             const vec2 viewport_corner = vec2(0.0, 1.0);
             FragColor =
                 vec4(blend_corner(left, bottom,
@@ -209,10 +206,8 @@ void main() {
             }
             // Top right corner
             const vec3 top = textureLod(Top, vec2(0.5), BIG_NUMBER).rgb;
-            const vec2 content_corner =
-                i2o(vec2(param.InputSize.x - param.OS_CROP_RIGHT,
-                         param.OS_CROP_TOP) *
-                    param.InputSize.zw);
+            const vec2 content_corner = i2o(vec2(
+                param.InputSize.x - param.OS_CROP_RIGHT, param.OS_CROP_TOP));
             const vec2 viewport_corner = vec2(1.0, 0.0);
             FragColor =
                 vec4(blend_corner(right, top,
@@ -236,8 +231,7 @@ void main() {
             const vec3 bottom = textureLod(Bottom, vec2(0.5), BIG_NUMBER).rgb;
             const vec2 content_corner =
                 i2o(vec2(param.InputSize.x - param.OS_CROP_RIGHT,
-                         param.InputSize.y - param.OS_CROP_BOTTOM) *
-                    param.InputSize.zw);
+                         param.InputSize.y - param.OS_CROP_BOTTOM));
             const vec2 viewport_corner = vec2(1.0, 1.0);
             FragColor =
                 vec4(blend_corner(right, bottom,

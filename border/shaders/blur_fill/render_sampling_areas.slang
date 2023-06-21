@@ -216,7 +216,7 @@ vec3 sample_mirrored_frame(sampler2D tex, vec2 coord, vec4 input_extrema) {
 }
 
 void main() {
-    const vec2 pixel_coord = o2i(vTexCoord) * param.InputSize.xy;
+    const vec2 pixel_coord = o2i(vTexCoord);
     FragColor = vec4(
         sample_mirrored_frame(Input, pixel_coord,
                               vec4(param.OS_CROP_LEFT, param.OS_CROP_TOP,
