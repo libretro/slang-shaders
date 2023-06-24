@@ -1,7 +1,7 @@
 #version 450
 
 /*
-    Average fill v1.2 by fishku
+    Average fill v1.3 by fishku
     Copyright (C) 2023
     Public domain license (CC0)
 
@@ -27,6 +27,7 @@
     3 = Smooth angle-based blending
 
     Changelog:
+    v1.3: Fix scaling bugs.
     v1.2: Fix scaling bugs.
     v1.1: Add extension modes from blur fill; Add average gamma adjustment.
     v1.0: Initial release.

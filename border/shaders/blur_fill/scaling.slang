@@ -13,26 +13,25 @@ vec2 scale_o2i() {
     // Integer aspect ratio after cropping.
     // lambda_1 * input_pixels.x, lambda_2 * input_pixels.y,
     // possibly corrected for forced aspect ratio
-    const vec2 eff_aspect = param.FORCE_ASPECT_RATIO < 0.5
-                                ? eff_input_res
-                                : vec2(eff_input_res.x * param.ASPECT_H,
-                                       eff_input_res.y * param.ASPECT_V);
+    const vec2 eff_aspect =
+        param.InputSize.yx *
+        (param.FORCE_ASPECT_RATIO < 0.5
+             ? param.FinalViewportSize.xy
+             : (param.ASPECT_H < 0.5 || param.ASPECT_V < 0.5
+                    ? param.InputSize.xy
+                    : vec2(param.ASPECT_H, param.ASPECT_V)));
     float scale_x, scale_y;
-    if (param.FinalViewportSize.x * eff_aspect.y <
-        param.FinalViewportSize.y * eff_aspect.x) {
+    if (param.FinalViewportSize.x * eff_input_res.y * eff_aspect.y <
+        param.FinalViewportSize.y * eff_input_res.x * eff_aspect.x) {
         // Scale will be limited by width. Calc x scale, then derive y scale
         // using aspect ratio.
         scale_x = param.FinalViewportSize.x / eff_input_res.x;
         if (param.FORCE_INTEGER_SCALING > 0.5) {
             scale_x = max(1.0, floor(scale_x));
         }
-        if (param.FORCE_ASPECT_RATIO < 0.5) {
-            scale_y = scale_x;
-        } else {
-            scale_y = scale_x * param.ASPECT_V / param.ASPECT_H;
-            if (param.FORCE_INTEGER_SCALING > 0.5) {
-                scale_y = max(1.0, floor(scale_y));
-            }
+        scale_y = scale_x * eff_aspect.y / eff_aspect.x;
+        if (param.FORCE_INTEGER_SCALING > 0.5) {
+            scale_y = max(1.0, floor(scale_y));
         }
     } else {
         // Scale will be limited by height.
@@ -40,13 +39,9 @@ vec2 scale_o2i() {
         if (param.FORCE_INTEGER_SCALING > 0.5) {
             scale_y = max(1.0, floor(scale_y));
         }
-        if (param.FORCE_ASPECT_RATIO < 0.5) {
-            scale_x = scale_y;
-        } else {
-            scale_x = scale_y * param.ASPECT_H / param.ASPECT_V;
-            if (param.FORCE_INTEGER_SCALING > 0.5) {
-                scale_x = max(1.0, floor(scale_x));
-            }
+        scale_x = scale_y * eff_aspect.x / eff_aspect.y;
+        if (param.FORCE_INTEGER_SCALING > 0.5) {
+            scale_x = max(1.0, floor(scale_x));
         }
     }
     return param.FinalViewportSize.xy / vec2(scale_x, scale_y);
