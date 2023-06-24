@@ -80,7 +80,7 @@ filter_linear10 = true
 scale_type10 = viewport
 scale10 = 1.0
 float_framebuffer10 = true
-mipmap_input10 = true
+wrap_mode10 = mirrored_repeat
 
 shader11 = ../blurs/shaders/kawase/delinearize.slang
 filter_linear11 = true
