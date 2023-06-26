@@ -20,8 +20,8 @@
     https://www.youtube.com/watch?v=d6tp43wZqps
     by t3ssel8r
 
-    For sharpness = 1.0 and using gamma-correct blending, results are
-    practically identical to the "pixellate" shader.
+    With sharpness = 1.0, using gamma-correct blending, and disabling subpixel
+    anti-aliasing, results are identical to the "pixellate" shader.
 
     Changelog:
     v1.0: Initial release.
@@ -31,7 +31,7 @@
 #pragma parameter PIX_AA_SETTINGS "=== Pixel AA v1.0 settings ===" 0.0 0.0 1.0 1.0
 #pragma parameter PIX_AA_SHARP "Pixel AA sharpening amount" 1.0 1.0 4.0 0.05
 #pragma parameter PIX_AA_GAMMA "Enable gamma-correct blending" 1.0 0.0 1.0 1.0
-#pragma parameter PIX_AA_SUBPX "Enable subpixel sampling" 0.0 0.0 1.0 1.0
+#pragma parameter PIX_AA_SUBPX "Enable subpixel AA" 0.0 0.0 1.0 1.0
 #pragma parameter PIX_AA_SUBPX_BGR "Use BGR subpx. instead of RGB" 0.0 0.0 1.0 1.0
 // clang-format on
 
