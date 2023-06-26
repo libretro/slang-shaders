@@ -20,8 +20,8 @@
     https://www.youtube.com/watch?v=d6tp43wZqps
     by t3ssel8r
 
-    With sharpness = 1.0, using gamma-correct blending, and disabling subpixel
-    anti-aliasing, results are identical to the "pixellate" shader.
+    With sharpness = 1.0, using the same gamma-correct blending, and disabling
+    subpixel anti-aliasing, results are identical to the "pixellate" shader.
 
     Changelog:
     v1.0: Initial release.
