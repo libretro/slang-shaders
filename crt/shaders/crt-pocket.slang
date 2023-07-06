@@ -1,96 +1,90 @@
 #version 450
 
-
 layout(push_constant) uniform Push
 {
-
-    float SHARPNESSX,SHARPNESSY,WARPX,WARPY,CORNER_ROUND,BORDER,SHADOWMASK,MASKLOW,MASKHIGH,DOTMASK_STRENGTH,
-MASKDARK,MASKLIGHT,GAMMAIN,GAMMAOUT,SAT,SCANLOW,SCANHIGH,MINSCAN,VIGNETTE,VPOWER,VSTR,TEMP,SEGA,
-BLACK,GLOW,SIZE,quality,nois,BGR,INTERLACE;
-} params;
-
-// Parameter lines go here:
-#pragma parameter SHARPNESSX "   Horizontal Sharpness"  0.25 0.0 1.0 0.05
-#pragma parameter SHARPNESSY "   Vertical Sharpness"  0.7 0.0 1.0 0.05
-#pragma parameter WARPX "Curvature Horizontal" 0.03 0.0 0.2 0.01
-#pragma parameter WARPY "Curvature Vertical" 0.05 0.0 0.2 0.01
-#pragma parameter CORNER_ROUND "Corner Roundness" 0.02 0.005 0.2 0.01
-#pragma parameter BORDER "Border Smoothness" 400.0 100.0 1000.0 25.0
-#pragma parameter INTERLACE "Interlace On/Off" 1.0 0.0 1.0 1.0
-#pragma parameter SCANLOW "   Scanline Low Brightness" 0.15 0.01 1.0 0.05
-#pragma parameter SCANHIGH "   Scanline High Brightness" 0.20 0.01 1.0 0.05
-#pragma parameter MINSCAN "   Scanline Min Brightness" 0.04 0.01 1.0 0.01
-#pragma parameter SHADOWMASK "Mask Type, CGWG, Lottes 1-4" 5.0 -1.0 5.0 1.0
-#pragma parameter BGR "RGB/BGR subpixels" 1.0 0.0 1.0 1.0 
-#pragma parameter MASKLOW "Mask Strength Low" 1.0 0.0 1.0 0.05
-#pragma parameter MASKHIGH "Mask Strength High" 0.75 0.0 1.0 0.05
-#pragma parameter DOTMASK_STRENGTH "CGWG Dot Mask Strength" 0.3 0.0 1.0 0.05
-#pragma parameter MASKDARK "Lottes Mask Dark" 0.5 0.0 2.0 0.1
-#pragma parameter MASKLIGHT "Lottes Mask Light" 1.5 0.0 2.0 0.1
-#pragma parameter GAMMAIN "   Gamma In" 2.4 1.0 4.0 0.05
-#pragma parameter GAMMAOUT "   Gamma Out" 2.25 1.0 4.0 0.05
-#pragma parameter BLACK "   Black Level" 0.0 -0.20 0.20 0.01 
-#pragma parameter TEMP "   Color Temperature in Kelvins"  9311.0 1031.0 12047.0 72.0
-#pragma parameter SAT "   Saturation" 1.0 0.0 2.0 0.01
-#pragma parameter SEGA "   SEGA Lum Fix" 0.0 0.0 1.0 1.0
-#pragma parameter GLOW "   Glow Strength" 0.12 0.0 1.0 0.01
-#pragma parameter quality "   Glow Size" 1.0 0.0 1.5 0.05
-#pragma parameter VIGNETTE "Vignette On/Off" 1.0 0.0 1.0 1.0
-#pragma parameter VPOWER "Vignette Power" 0.1 0.0 1.0 0.01
-#pragma parameter VSTR "Vignette Strength" 45.0 0.0 50.0 1.0
-#pragma parameter nois "Noise strength" 0.4 0.0 1.0 0.01
-
-#define SHARPNESSX params.SHARPNESSX
-#define SHARPNESSY params.SHARPNESSY
-#define WARPX params.WARPX
-#define WARPY params.WARPY
-#define CORNER_ROUND params.CORNER_ROUND
-#define BORDER params.BORDER
-#define SHADOWMASK params.SHADOWMASK
-#define MASKLOW params.MASKLOW
-#define MASKHIGH params.MASKHIGH
-#define DOTMASK_STRENGTH params.DOTMASK_STRENGTH
-#define MASKDARK params.MASKDARK
-#define MASKLIGHT params.MASKLIGHT
-#define GAMMAIN params.GAMMAIN
-#define GAMMAOUT params.GAMMAOUT
-#define SAT params.SAT
-#define SCANLOW params.SCANLOW
-#define SCANHIGH params.SCANHIGH
-#define MINSCAN params.MINSCAN
-#define VIGNETTE params.VIGNETTE
-#define VPOWER params.VPOWER
-#define VSTR params.VSTR
-#define TEMP params.TEMP
-#define SEGA params.SEGA
-#define BLACK params.BLACK
-#define GLOW params.GLOW
-#define SIZE params.SIZE
-#define quality params.quality
-#define nois params.nois
-#define BGR params.BGR
-#define INTERLACE params.INTERLACE
-
-
-#define CURVATURE        
-#define PI 3.141592654
+	vec4 SourceSize;
+	vec4 OriginalSize;
+	vec4 OutputSize;
+	uint FrameCount;
+	float gammain,gammaout,warpX,warpY,vignette,vign,corners,beam1,beam2,
+    scanline1,scanline2,interlace,progress,boost1,boost2,sat,flick;
+    } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
-        vec4 SourceSize;
-        vec4 OriginalSize;
-        vec4 OutputSize;
-        uint FrameCount;
-	mat4 MVP;
+    mat4 MVP;
+    float DOTMASK_STRENGTH,maskDark,maskLight,shadowMask,bgr,maskl,maskh,gl,
+    ntsc,TEMP;
 } global;
 
-#define SourceSize global.SourceSize
-#define OriginalSize global.OriginalSize
-#define OutputSize global.OutputSize
-#define mod_factor vTexCoord.x * OutputSize.x/OriginalSize.x*SourceSize.x 
-#define scale vec4(SourceSize.xy/OriginalSize.xy,OriginalSize.xy/SourceSize.xy)
-#define filterWidth (OriginalSize.y / OutputSize.y) / 3.0
-        
+#pragma parameter warpX "Curvature X" 0.03 0.00 0.20 0.01 
+#define warpX params.warpX
+#pragma parameter warpY "Curvature Y" 0.05 0.00 0.20 0.01
+#define warpY params.warpY
+#pragma parameter corners "Corners cut On/Off" 1.0 0.0 1.0 1.0
+#define corners params.corners
+#pragma parameter vignette "Vignette On/Off" 1.0 0.0 1.0 1.0
+#define vignette params.vignette
+#pragma parameter vign "Vignette Strength" 0.10 0.0 0.50 0.01
+#define vign params.vign
+#pragma parameter shadowMask "Mask Style 0:cgwg,1-4:Lottes,5:Sin" 1.0 0.0 5.0 1.0
+#define shadowMask global.shadowMask
+#pragma parameter maskl "Mask Low" 0.9 0.0 1.0 0.05
+#define maskl global.maskl
+#pragma parameter maskh "Mask High" 0.6 0.0 1.0 0.05
+#define maskh global.maskh
+#pragma parameter bgr "RGB/BGR subpixels" 1.0 0.0 1.0 1.0
+#define bgr global.bgr
+#pragma parameter DOTMASK_STRENGTH "CGWG Dot Mask Strength" 0.7 0.0 1.0 0.05
+#define DOTMASK_STRENGTH global.DOTMASK_STRENGTH
+#pragma parameter maskDark "Lottes maskDark" 0.3 0.0 2.0 0.1
+#define maskDark global.maskDark
+#pragma parameter maskLight "Lottes maskLight" 1.5 0.0 2.0 0.1
+#define maskLight global.maskLight
+#pragma parameter interlace "Interlace On/Off" 1.0 0.0 1.0 1.0
+#define interlace params.interlace
+#pragma parameter progress "Force 240p" 0.0 0.0 1.0 1.0  
+#define progress params.progress
+#pragma parameter flick "Flicker Strength" 4.0 0.0 10.0 0.1
+#define flick params.flick
+#pragma parameter beam1 "Scanline Beam Low" 6.0 1.0 15.0 0.5
+#define beam1 params.beam1
+#pragma parameter beam2 "Scanline Beam High" 8.0 1.0 15.0 0.5
+#define beam2 params.beam2
+#pragma parameter scanline1 "Scanline Low" 1.35 0.5 3.0 0.05
+#define scanline1 params.scanline1
+#pragma parameter scanline2 "Scanline High" 1.05 0.5 3.0 0.05
+#define scanline2 params.scanline2
+#pragma parameter ntsc "NTSC Colors" 1.0 0.0 1.0 1.0
+#define ntsc global.ntsc
+#pragma parameter TEMP "Color Temperature in Kelvins"  9311.0 1031.0 12047.0 72.0
+#define TEMP global.TEMP
+#pragma parameter gammain "Gamma In" 2.45 1.0 4.0 0.05
+#define gammain params.gammain
+#pragma parameter gammaout "Gamma Out" 2.25 1.0 4.0 0.05
+#define gammaout params.gammaout
+#pragma parameter sat "Saturation" 1.0 0.0 2.0 0.01
+#define sat params.sat
+#pragma parameter boost1 "Boost Dark Colors" 1.45 1.0 2.0 0.05
+#define boost1 params.boost1
+#pragma parameter boost2 "Boost Bright Colors" 1.25 1.0 2.0 0.05
+#define boost2 params.boost2
+#pragma parameter gl "Glow Strength" 0.15 0.0 1.0 0.01
+#define gl global.gl
+
+
+#define pi 3.141592
+#define SourceSize params.SourceSize
+#define OutputSize params.OutputSize
+#define FrameCount params.FrameCount
+#define OriginalSize params.OriginalSize
+#define timer float(FrameCount*2.0)
+#define flicker sin(timer)*flick/1000.0
+#define mod_factor vTexCoord.x * SourceSize.x * OutputSize.x / SourceSize.x
+
+
+
+
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
@@ -98,160 +92,248 @@ layout(location = 0) out vec2 vTexCoord;
 
 void main()
 {
-	gl_Position = global.MVP * Position;
-	vTexCoord = TexCoord * 1.0001;
+   gl_Position = global.MVP * Position;
+   vTexCoord = TexCoord*1.0001;
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-
-layout(set = 0, binding = 1) uniform sampler2D Source;
-
-
-#define iTimer (float(global.FrameCount) / 60.0)
+layout(set = 0, binding = 2) uniform sampler2D Source;
 
 
-vec2 curve(vec2 pos)
+
+vec3 Mask(vec2 pos){
+  vec3 mask=vec3(maskDark,maskDark,maskDark);
+ if (shadowMask == 0.0)
+{
+   float mask = 1.0 - DOTMASK_STRENGTH;
+   //Output pixels are alternately tinted green and magenta
+   vec3 dotMaskWeights = mix(vec3(1.0, mask, 1.0),
+                          vec3(mask, 1.0, mask),
+                          floor(mod(mod_factor, 2.0)));
+   return dotMaskWeights;
+}
+
+// Very compressed TV style shadow mask.
+    else if (shadowMask == 1.0) {
+    float line=maskLight;
+    float odd=0.0;
+    if(fract(pos.x/6.0)<0.5)odd=1.0;
+    if(fract((pos.y+odd)/2.0)<0.5)line=maskDark;  
+    pos.x=fract(pos.x/3.0);
+   
+    if(pos.x<0.333)     bgr == 1.0? mask.b=maskLight : mask.r=maskLight;
+    else if(pos.x<0.666)mask.g=maskLight;
+    else                bgr == 1.0? mask.r=maskLight : mask.b=maskLight;
+    mask*=line;  
+  } 
+
+// Aperture-grille.
+  else if (shadowMask == 2.0) {
+    pos.x=fract(pos.x/3.0);
+
+    if(pos.x<0.333)     bgr == 1.0? mask.b=maskLight : mask.r=maskLight;
+    else if(pos.x<0.666)mask.g=maskLight;
+    else                bgr == 1.0? mask.r=maskLight : mask.b=maskLight;
+  } 
+
+// Stretched VGA style shadow mask (same as prior shaders).
+  else if (shadowMask == 3.0) {
+    pos.x+=pos.y*3.0;
+    pos.x=fract(pos.x/6.0);
+
+    if(pos.x<0.333)     bgr == 1.0? mask.b=maskLight : mask.r=maskLight;
+    else if(pos.x<0.666)mask.g=maskLight;
+    else                bgr == 1.0? mask.r=maskLight : mask.b=maskLight;
+  }
+
+// VGA style shadow mask.
+  else if (shadowMask == 4.0) {
+    pos.xy=floor(pos.xy*vec2(1.0,0.5));
+    pos.x+=pos.y*3.0;
+    pos.x=fract(pos.x/6.0);
+
+    if(pos.x<0.333)     bgr == 1.0? mask.b=maskLight : mask.r=maskLight;
+    else if(pos.x<0.666)mask.g=maskLight;
+    else                bgr == 1.0? mask.r=maskLight : mask.b=maskLight;
+  }
+
+  else if (shadowMask == 5.0)
+  {
+    float MaskR = sin(OutputSize.x*vTexCoord.x*pi*1.0+pi*0.00000+vTexCoord.y*OutputSize.y*pi*0.5)*0.5+0.5;
+    float MaskG = sin(OutputSize.x*vTexCoord.x*pi*1.0+pi*1.33333+vTexCoord.y*OutputSize.y*pi*0.5)*0.5+0.5;
+    float MaskB = sin(OutputSize.x*vTexCoord.x*pi*1.0+pi*0.66667+vTexCoord.y*OutputSize.y*pi*0.5)*0.5+0.5;
+    
+    vec3 Mask; bgr == 1.0? Mask = vec3(MaskB,MaskG,MaskR) : Mask = vec3(MaskR,MaskG,MaskB) ;
+    
+    Mask = min(Mask*2.0,1.0);
+    
+    return vec3(Mask);
+}
+
+  return mask;
+}
+
+
+
+//Lanczos filter
+float sinc(float x)
+{
+    return sin(x * pi) / (x * pi); 
+}
+
+float lanczosWeight(float d, float n)
+{
+    return (d == 0.0) ? (1.0) : (d*d < n*n ? sinc(d) * sinc(d / n) : 0.0);
+}
+
+vec3 Lanczos3(vec2 uv, vec2 InvResolution)
+{
+    vec2 center = uv - (mod(uv / InvResolution, 1.0)-0.5) * InvResolution;// texel center
+    vec2 offset = (uv - center)/InvResolution;// relevant texel position in the range -0.5～+0.5
+    
+    vec3 col = vec3(0.0);
+    float weight = 0.0;
+ //loop   
+    for(int x = -2; x < 3; x++)
+    {
+        for(int y = -1; y < 2; y++)
+        {
+        
+            float wx = lanczosWeight(float(x)-offset.x, 2.0);
+            float wy = lanczosWeight(float(y)-offset.y, 1.0);
+            float w = wx * wy;
+        
+        col +=  w * texture(Source, center + vec2(x,y) * InvResolution).rgb;
+        weight += w;
+        }
+    }
+    col /= weight;
+    
+    return col;
+}
+
+// Distortion of scanlines
+vec2 Warp(vec2 pos)
 {
     pos  = pos*2.0-1.0;    
-    pos *= vec2(1.0 + (pos.y*pos.y)*WARPX, 
-        1.0 + (pos.x*pos.x)*WARPY);
-    
+    pos *= vec2(1.0 + (pos.y*pos.y)*warpX, 1.0 + (pos.x*pos.x)*warpY);
     return pos*0.5 + 0.5;
 }
 
-float corner(vec2 coord)
+//Vignette
+mat3 vignet()
 {
-                coord *= scale.xy;
-                coord = (coord - vec2(0.5)) * 1.0 + vec2(0.5);
-                coord = min(coord, vec2(1.0)-coord) * vec2(1.0, OriginalSize.y/OriginalSize.x);
-                vec2 cdist = vec2(CORNER_ROUND);
-                coord = (cdist - min(coord,cdist));
-                float dist = sqrt(dot(coord,coord));
-                return clamp((cdist.x-dist)*BORDER,0.0, 1.0);
-}  
+    vec2 vpos = vTexCoord;
 
-
-
-float CalcScanLineWeight(float dist, float scan)
-{
-    return max(1.0-dist*dist/scan, MINSCAN);
-}
-
-float ScanLine(float dy, float l)
-{
-    float scan = mix(SCANLOW, SCANHIGH, l);
-    float scanLineWeight = CalcScanLineWeight(dy, scan);
-    scanLineWeight += CalcScanLineWeight(dy-filterWidth, scan);
-    scanLineWeight += CalcScanLineWeight(dy+filterWidth, scan);
-    scanLineWeight *= 0.3333333;
-    return scanLineWeight;
-}
-
-
-// Shadow mask.
-vec3 Mask(vec2 pos)
-{
-   vec3 mask = vec3(MASKDARK, MASKDARK, MASKDARK);
-   
-   // Very compressed TV style shadow mask.
-   if (SHADOWMASK == 1.0)
-   {
-      float line = MASKLIGHT;
-      float odd  = 0.0;
-
-      if (fract(pos.x/6.0) < 0.5)
-         odd = 1.0;
-      if (fract((pos.y + odd)/2.0) < 0.5)
-         line = MASKDARK;
-
-      pos.x = fract(pos.x/3.0);
-    
-      if      (pos.x < 0.333) (BGR == 1.0) ? mask.b = MASKLIGHT : mask.r = MASKLIGHT;
-      else if (pos.x < 0.666) mask.g = MASKLIGHT;
-      else                    (BGR == 1.0) ? mask.r = MASKLIGHT : mask.b = MASKLIGHT;
-      mask*=line;  
-   } 
-
-   // Aperture-grille.
-   else if (SHADOWMASK == 2.0)
-   {
-      pos.x = fract(pos.x/3.0);
-
-      if      (pos.x < 0.333) (BGR == 1.0) ? mask.b = MASKLIGHT : mask.r = MASKLIGHT;
-      else if (pos.x < 0.666) mask.g = MASKLIGHT;
-      else                   (BGR == 1.0) ? mask.r = MASKLIGHT : mask.b = MASKLIGHT;
-   } 
-
-   // Stretched VGA style shadow mask (same as prior shaders).
-   else if (SHADOWMASK == 3.0)
-   {
-      pos.x += pos.y*3.0;
-      pos.x  = fract(pos.x/6.0);
-
-      if      (pos.x < 0.333) (BGR == 1.0) ? mask.b = MASKLIGHT : mask.r = MASKLIGHT;
-      else if (pos.x < 0.666) mask.g = MASKLIGHT;
-      else                    (BGR == 1.0) ? mask.r = MASKLIGHT : mask.b = MASKLIGHT;
-   }
-
-   // VGA style shadow mask.
-   else if (SHADOWMASK == 4.0)
-   {
-      pos.xy = floor(pos.xy*vec2(1.0, 0.5));
-      pos.x += pos.y*3.0;
-      pos.x  = fract(pos.x/6.0);
-
-      if      (pos.x < 0.333) (BGR == 1.0) ? mask.b = MASKLIGHT : mask.r = MASKLIGHT;
-      else if (pos.x < 0.666) mask.g = MASKLIGHT;
-      else                    (BGR == 1.0) ? mask.r = MASKLIGHT : mask.b = MASKLIGHT;
-   }
-   else if (SHADOWMASK == 5.0)
-    {
-        float line = MASKLIGHT;
-        float odd  = 0.0;
-
-        if (fract(pos.x/4.0) < 0.5)
-            odd = 1.0;
-        if (fract((pos.y + odd)/2.0) < 0.5)
-            line = MASKDARK;
-
-        pos.x = fract(pos.x/2.0);
-    
-        if  (pos.x < 0.5) {mask.r = MASKLIGHT; mask.b = MASKLIGHT;}
-        else  mask.g = MASKLIGHT;   
-        mask*=line;  
-    } 
-
-
-
-   else if (SHADOWMASK == -1.0) mask = vec3(1.0);
-   return mask;
-}
-
-mat3 vign()
-{
-    vec2 vpos = vTexCoord * SourceSize.xy/OriginalSize.xy;
-    vpos *= 1.0 - vpos;    
-
-    float vig = vpos.x * vpos.y * VSTR;
-
-    vig = min(pow(vig, VPOWER), 1.0); 
-    
-    if (VIGNETTE == 0.0) vig=1.0;
+    vpos *= 1.0 - vpos.xy;
+    float vig = vpos.x * vpos.y * 50.0;
+    vig = min(pow(vig, vign), 1.0); 
+    if (vignette == 0.0) vig=1.0;
    
     return mat3(vig, 0, 0,
                  0,   vig, 0,
                  0,    0, vig);
 }
 
+float sw(float y, float l)
+{
+    float scan = mix(beam1, beam2, y);
+    float tmp = mix(scanline1, scanline2, l);
+    float ex = y*tmp;
+    return exp2(-scan*ex*ex);
+}
+
+
+vec3 glow(vec2 pos)
+{
+    vec3 col = vec3(0.0);
+    float x = SourceSize.z;
+    float y = SourceSize.w;
+    float w1 = 0.15;
+    float w2 = 0.05;
+    col += w1*texture(Source,pos+vec2(x,0.0)).rgb;
+    col += w1*texture(Source,pos+vec2(x,y)).rgb;
+    col += w1*texture(Source,pos+vec2(x,-y)).rgb;
+    col += w1*texture(Source,pos+vec2(-x,0.0)).rgb;
+    col += w1*texture(Source,pos+vec2(-x,y)).rgb;
+    col += w1*texture(Source,pos+vec2(-x,-y)).rgb;
+    col += w1*texture(Source,pos+vec2(0.0,y)).rgb;
+    col += w1*texture(Source,pos+vec2(0.0,-y)).rgb;
+
+    col += w2*texture(Source,pos+vec2(2.0*x,0.0)).rgb;
+    col += w2*texture(Source,pos+vec2(2.0*x,y)).rgb;
+    col += w2*texture(Source,pos+vec2(2.0*x,-y)).rgb;
+    col += w2*texture(Source,pos+vec2(-2.0*x,0.0)).rgb;
+    col += w2*texture(Source,pos+vec2(-2.0*x,y)).rgb;
+    col += w2*texture(Source,pos+vec2(-2.0*x,-y)).rgb;
+    col += w1*texture(Source,pos+vec2(0.0,2.0*y)).rgb;
+    col += w1*texture(Source,pos+vec2(0.0,-2.0*y)).rgb;
+    return col*gl;
+}
+
+vec3 DecodeGamma(vec3 color, float gamma)
+{
+    color = clamp(color, 0.0, 1.0);
+    color.r = (color.r <= 0.00313066844250063) ?
+    color.r * 12.92 : 1.055 * pow(color.r, 1.0 / gamma) - 0.055;
+    color.g = (color.g <= 0.00313066844250063) ?
+    color.g * 12.92 : 1.055 * pow(color.g, 1.0 / gamma) - 0.055;
+    color.b = (color.b <= 0.00313066844250063) ?
+    color.b * 12.92 : 1.055 * pow(color.b, 1.0 / gamma) - 0.055;
+
+    return color;
+}
+
+
+
+
+vec3 RGBtoXYZ(vec3 RGB)
+{
+    const mat3x3 m = mat3x3(
+        0.6068909, 0.1735011, 0.2003480,
+        0.2989164, 0.5865990, 0.1144845,
+        0.0000000, 0.0660957, 1.1162243);
+    return RGB * m;
+}
+
+ vec3 NTSC(vec3 c)
+ {
+     vec3 v = vec3(pow(c.r, 2.2), pow(c.g, 2.2), pow(c.b, 2.2)); //Inverse Companding
+     return RGBtoXYZ(v);
+ }
+
+vec3 XYZtoSRGB(vec3 XYZ)
+{
+    const mat3x3 m = mat3x3(
+        3.2404542,-1.5371385,-0.4985314,
+       -0.9692660, 1.8760108, 0.0415560,
+        0.0556434,-0.2040259, 1.0572252);
+    return XYZ * m;
+}
+
+vec3 sRGB(vec3 c)
+ {
+     vec3 v = XYZtoSRGB(c);
+     v = DecodeGamma(v, 2.4); //Companding
+ 
+     return v;
+ }
+
+
+// NTSC RGB to sRGB
+vec3 NTSCtoSRGB( vec3 c )
+ { 
+     return sRGB(NTSC( c )); 
+ }
+
 float saturate(float v) 
     { 
         return clamp(v, 0.0, 1.0);       
     }
 
-// https://www.shadertoy.com/view/lsSXW1
-vec3 ColorTemperatureToRGB(float temperatureInKelvins)
+vec3 ColorTemp(float temperatureInKelvins)
 {
     vec3 retColor;
     temperatureInKelvins = clamp(temperatureInKelvins, 1000.0, 40000.0) / 100.0;
@@ -278,112 +360,49 @@ vec3 ColorTemperatureToRGB(float temperatureInKelvins)
     return retColor;
 }
 
-
-vec3 glow0 (vec2 uv)
-{
-   vec3 sum = vec3(0.0);
-   float x = uv.x;
-   float y = uv.y;
-   float xx = SourceSize.z*quality;
-   float yy = SourceSize.w*quality;
-
-   sum += texture(Source, vec2(x-xx,y)).rgb*0.1;
-   sum += texture(Source,vec2(x-xx,y-yy)).rgb*0.1;
-   sum += texture(Source,vec2(x,y-yy)).rgb*0.1;
-   sum += texture(Source,vec2(x+xx,y-yy)).rgb*0.1;
-   sum += texture(Source,vec2(x+xx,y)).rgb*0.1;
-   sum += texture(Source,vec2(x+xx,y+yy)).rgb*0.1;
-   sum += texture(Source,vec2(x, y-yy)).rgb*0.1;
-   sum += texture(Source,vec2(x+xx,y+yy)).rgb*0.1;
-
-   sum += texture(Source,vec2(x-2.0*xx,y)).rgb*0.05;
-   sum += texture(Source,vec2(x-2.0*xx,y-yy)).rgb*0.05;
-   sum += texture(Source,vec2(x-xx,y-2.0*yy)).rgb*0.05;
-   sum += texture(Source,vec2(x,y-2.0*yy)).rgb*0.05;
-   sum += texture(Source,vec2(x+xx,y-2.0*yy)).rgb*0.05;
-   sum += texture(Source,vec2(x+2.0*xx,y-yy)).rgb*0.05;
-   sum += texture(Source,vec2(x+2.0*xx,y)).rgb*0.05;
-   sum += texture(Source,vec2(x+2.0*xx,y+yy)).rgb*0.05;
-   sum += texture(Source,vec2(x+xx,y+2.0*yy)).rgb*0.05;
-   sum += texture(Source,vec2(x,y+2.0*yy)).rgb*0.05;
-   sum += texture(Source,vec2(x-xx,y+2.0*yy)).rgb*0.05;
-   sum += texture(Source,vec2(x-2.0*xx,y-yy)).rgb*0.05;
-
-   return sum * GLOW; 
-}
-
-float noise(vec2 co)
-{
-return fract(sin(iTimer * dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
-}
-
 void main()
 {
+    vec2 pos = Warp(vTexCoord);
+    vec2 uv = pos * vec2(0.5, 2.0);
+    vec2 InvResolution = SourceSize.zw;
 
-// FILTER
-        vec2 stepxy = SourceSize.zw;
-     if (OriginalSize.y > 400.0 && INTERLACE == 0.0) stepxy.y *=2.0;
+    float f = fract(pos.y*SourceSize.y)+0.5;
+    float f2 = fract(pos.y*SourceSize.y);
 
-    vec2 texCoord = curve(vTexCoord.xy*(SourceSize.xy/OriginalSize.xy))*(OriginalSize.xy/SourceSize.xy.xy);
+//handle interlacing
+if (OriginalSize.y > 400.0 && interlace == 1.0) 
+    {
+    f = fract(pos.y*SourceSize.y/2.0)+0.5;
+    f2 = fract(pos.y*SourceSize.y/2.0);
+    sin(timer) > 0.0 ? f=f : f=f2;
+    }
+if (OriginalSize.y > 400.0 && interlace == 0.0 && progress == 1.0)
+    {
+    f = fract(pos.y*SourceSize.y/2.0)+0.5;
+    }
+
     
-    vec2 pos = texCoord.xy + stepxy * 0.5;
-    vec2 OGL2Pos = texCoord * SourceSize.xy;
-    vec2 pC4 = floor(OGL2Pos) + 0.5;
-    vec2 coord = pC4 / SourceSize.xy;
-    vec2 f = fract(pos / stepxy);
-    if (OriginalSize.y > 400.0 && INTERLACE == 1.0) f = vec2(1.0);
-    else if (OriginalSize.y > 400.0 && INTERLACE == 0.0) f;
+    vec3 res = Lanczos3(pos,InvResolution);
+    if (ntsc == 1.0) res = NTSCtoSRGB(res);
+    res *= ColorTemp(TEMP);
 
-    float x = mix(texCoord.x,coord.x,SHARPNESSX);
-    float y = mix(texCoord.y,coord.y,SHARPNESSY);
-    vec4 color = texture(Source,vec2(x,y)); 
+    float lumscan = max(max(res.r,res.g),res.b);
+    float lumsat  = dot(vec3(0.22,0.7,0.08),res);
+    res = pow(res,vec3(gammain));
+    res = res*sw(f,lumscan) + res*sw(1.0-f,lumscan)+ res*sw(1.0+f,lumscan);
+    float msk = mix(maskl,maskh,lumscan);
+    res *= mix(vec3(1.0),Mask(floor(vTexCoord.xy * OutputSize.xy + vec2(0.5))),msk);
 
-    float lum2 = dot(color.rgb,vec3(0.29,0.60,0.11));
+    res *= mix(boost1,boost2,lumsat);
+    res = pow(res,vec3(1.0/gammaout));
+    res *= vignet();
+    res += flicker;
 
-//gamma in    
-    color = pow(color, vec4(GAMMAIN));
-    
-//Color temp    
-    color.rgb *= ColorTemperatureToRGB(TEMP);
-    
-    float lum = max(max(color.r,color.g),color.b);
-// noise    
-    color.rgb *= mix(1.0 + noise(texCoord)*nois,1.0,lum);
-//scanlines
-float ss = ScanLine(f.y, lum)+ScanLine(1.0-f.y, lum);
-    color *= ss;
-//mask
-    float mask = 1.0 - DOTMASK_STRENGTH;
-    vec3 dotMaskWeights = mix(vec3(1.0, mask, 1.0),
-                             vec3(mask, 1.0, mask),
-                             floor(mod(mod_factor, 2.0)));
-    float msk = mix(MASKLOW,MASKHIGH,lum2);
+    vec2 corn = min(pos,vec2(1.0)-pos); // This is used to mask corners
+    corn.x = 0.0001/corn.x;             
+    res +=glow(pos);
+    if (corners == 1.0 && corn.y <= corn.x || corn.x < 0.0001 ) res = vec3(0.0);
+    res = mix(vec3(lumsat),res,sat);
 
- if (SHADOWMASK == 0.0) 
-   {
-      color.rgb *= mix(vec3(1.0),dotMaskWeights, msk);
-   }
-   else 
-   {
-
-      color.rgb *= mix(vec3(1.0),Mask(floor(1.000001 * vTexCoord.xy*OutputSize.xy + vec2(0.5,0.5))), msk);
-   }
-
-//gamma out
-    color = pow(color, vec4(1.0/GAMMAOUT));  
-//glow    
-    color.rgb += glow0(pos);
-//saturation
-    color.rgb = mix(vec3(lum2)*ss,color.rgb, SAT);
-//black level    
-    color.rgb -= vec3(BLACK);
-    color.rgb *= vec3(1.0)/vec3(1.0-BLACK);
-//corner    
-    color *= corner(texCoord);
-
-    if (SEGA == 1.0) color.rgb *= 1.0625;
-
-// vignette    
-    color.rgb *= vign();
-    FragColor = color;
+    FragColor = vec4(res,1.0);
 }
