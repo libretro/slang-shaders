@@ -57,7 +57,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define scanline2 params.scanline2
 #pragma parameter ntsc "NTSC Colors" 1.0 0.0 1.0 1.0
 #define ntsc global.ntsc
-#pragma parameter TEMP "Color Temperature in Kelvins"  9311.0 1031.0 12047.0 72.0
+#pragma parameter TEMP "Color Temperature in Kelvins"  8591.0 1031.0 12047.0 72.0
 #define TEMP global.TEMP
 #pragma parameter gammain "Gamma In" 2.45 1.0 4.0 0.05
 #define gammain params.gammain
