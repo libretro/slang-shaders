@@ -14,7 +14,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
     float DOTMASK_STRENGTH,maskDark,maskLight,shadowMask,bgr,maskl,maskh,gl,
-    ntsc,TEMP;
+    ntsc,TEMP,size;
 } global;
 
 #pragma parameter warpX "Curvature X" 0.03 0.00 0.20 0.01 
@@ -29,6 +29,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define vign params.vign
 #pragma parameter shadowMask "Mask Style 0:cgwg,1-4:Lottes,5:Sin" 1.0 0.0 5.0 1.0
 #define shadowMask global.shadowMask
+#pragma parameter size "Mask Size" 1.0 1.0 2.0 1.0
+#define size global.size
 #pragma parameter maskl "Mask Low" 0.9 0.0 1.0 0.05
 #define maskl global.maskl
 #pragma parameter maskh "Mask High" 0.6 0.0 1.0 0.05
@@ -80,7 +82,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define OriginalSize params.OriginalSize
 #define timer float(FrameCount*2.0)
 #define flicker sin(timer)*flick/1000.0
-#define mod_factor vTexCoord.x * SourceSize.x * OutputSize.x / SourceSize.x
+#define mod_factor vTexCoord.x * SourceSize.x * OutputSize.x/size / SourceSize.x
 
 
 
@@ -366,19 +368,19 @@ void main()
     vec2 uv = pos * vec2(0.5, 2.0);
     vec2 InvResolution = SourceSize.zw;
 
-    float f = fract(pos.y*SourceSize.y)+0.5;
+    float f = fract(0.5+pos.y*SourceSize.y);
     float f2 = fract(pos.y*SourceSize.y);
 
 //handle interlacing
 if (OriginalSize.y > 400.0 && interlace == 1.0) 
     {
-    f = fract(pos.y*SourceSize.y/2.0)+0.5;
-    f2 = fract(pos.y*SourceSize.y/2.0);
+    f = fract(0.5+pos.y*SourceSize.y/2.0);
+    f2 = fract((pos.y-0.5)*SourceSize.y/2.0);
     sin(timer) > 0.0 ? f=f : f=f2;
     }
 if (OriginalSize.y > 400.0 && interlace == 0.0 && progress == 1.0)
     {
-    f = fract(pos.y*SourceSize.y/2.0)+0.5;
+    f = fract(0.5+pos.y*SourceSize.y/2.0);
     }
 
     
@@ -389,9 +391,9 @@ if (OriginalSize.y > 400.0 && interlace == 0.0 && progress == 1.0)
     float lumscan = max(max(res.r,res.g),res.b);
     float lumsat  = dot(vec3(0.22,0.7,0.08),res);
     res = pow(res,vec3(gammain));
-    res = res*sw(f,lumscan) + res*sw(1.0-f,lumscan)+ res*sw(1.0+f,lumscan);
+    res = res*sw(f,lumscan) + res*sw(abs(1.0-f),lumscan);
     float msk = mix(maskl,maskh,lumscan);
-    res *= mix(vec3(1.0),Mask(floor(vTexCoord.xy * OutputSize.xy + vec2(0.5))),msk);
+    res *= mix(vec3(1.0),Mask(floor(vTexCoord.xy * OutputSize.xy/size + vec2(0.5))),msk);
 
     res *= mix(boost1,boost2,lumsat);
     res = pow(res,vec3(1.0/gammaout));
