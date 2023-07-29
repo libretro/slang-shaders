@@ -1,7 +1,7 @@
 #version 450
 
 /*
-    Average fill v1.4 by fishku
+    Average fill v1.5 by fishku
     Copyright (C) 2023
     Public domain license (CC0)
 
@@ -27,6 +27,7 @@
     3 = Smooth angle-based blending
 
     Changelog:
+    v1.5: Optimize. Update to new Pixel AA version.
     v1.4: Add anti-aliased interpolation for non-integer scaling.
     v1.3: Fix scaling bugs.
     v1.2: Fix scaling bugs.
@@ -34,6 +35,7 @@
     v1.0: Initial release.
 */
 
+#include "../../../interpolation/shaders/pixel_aa/shared.slang"
 #include "parameters.slang"
 
 layout(push_constant) uniform Push {
@@ -69,14 +71,24 @@ global;
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
+layout(location = 1) out vec2 tx_coord;
+layout(location = 2) out vec2 tx_per_px;
+layout(location = 3) out vec2 tx_to_uv;
 
 void main() {
     gl_Position = global.MVP * Position;
     vTexCoord = TexCoord;
+    const vec2 scale_o2i = scale_o2i();
+    tx_coord = (vTexCoord - 0.49999) * scale_o2i + get_input_center();
+    tx_per_px = scale_o2i * param.FinalViewportSize.zw;
+    tx_to_uv = param.InputSize.zw;
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
+layout(location = 1) in vec2 tx_coord;
+layout(location = 2) in vec2 tx_per_px;
+layout(location = 3) in vec2 tx_to_uv;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Input;
 layout(set = 0, binding = 3) uniform sampler2D Top;
@@ -122,20 +134,14 @@ vec3 blend_corner(vec3 a,      // The first color to blend
     }
 }
 
-#include "../../../interpolation/shaders/pixel_aa/shared.slang"
-
 void main() {
-    const vec2 scale_o2i = scale_o2i();
-    const vec2 pixel_coord =
-        (vTexCoord - 0.49999) * scale_o2i + get_input_center();
-
-    if (pixel_coord.x < param.OS_CROP_LEFT) {
+    if (tx_coord.x < param.OS_CROP_LEFT) {
         if (param.EXTEND_H < 0.5) {
             FragColor = vec4(0.0, 0.0, 0.0, 1.0);
             return;
         }
         const vec3 left = textureLod(Left, vec2(0.5), BIG_NUMBER).rgb;
-        if (pixel_coord.y < param.OS_CROP_TOP) {
+        if (tx_coord.y < param.OS_CROP_TOP) {
             if (param.EXTEND_V < 0.5) {
                 FragColor = vec4(0.0, 0.0, 0.0, 1.0);
                 return;
@@ -155,7 +161,7 @@ void main() {
                                   viewport_corner - content_corner),
                      1.0);
             FragColor.rgb = pow(FragColor.rgb, vec3(param.FILL_GAMMA));
-        } else if (pixel_coord.y < param.InputSize.y - param.OS_CROP_BOTTOM) {
+        } else if (tx_coord.y < param.InputSize.y - param.OS_CROP_BOTTOM) {
             // Left bar
             FragColor = vec4(pow(left, vec3(param.FILL_GAMMA)), 1.0);
         } else {
@@ -179,8 +185,8 @@ void main() {
                      1.0);
             FragColor.rgb = pow(FragColor.rgb, vec3(param.FILL_GAMMA));
         }
-    } else if (pixel_coord.x < param.InputSize.x - param.OS_CROP_RIGHT) {
-        if (pixel_coord.y < param.OS_CROP_TOP) {
+    } else if (tx_coord.x < param.InputSize.x - param.OS_CROP_RIGHT) {
+        if (tx_coord.y < param.OS_CROP_TOP) {
             if (param.EXTEND_V < 0.5) {
                 FragColor = vec4(0.0, 0.0, 0.0, 1.0);
                 return;
@@ -188,41 +194,22 @@ void main() {
             // Top bar
             FragColor = vec4(textureLod(Top, vec2(0.5), BIG_NUMBER).rgb, 1.0);
             FragColor.rgb = pow(FragColor.rgb, vec3(param.FILL_GAMMA));
-        } else if (pixel_coord.y < param.InputSize.y - param.OS_CROP_BOTTOM) {
+        } else if (tx_coord.y < param.InputSize.y - param.OS_CROP_BOTTOM) {
             // Uncropped
             if (param.FORCE_INTEGER_SCALING > 0.5) {
                 // Do a perfectly sharp (nearest neighbor) sampling.
-                FragColor = vec4(texture(Input, (floor(pixel_coord) + 0.5) *
-                                                    param.InputSize.zw)
-                                     .rgb,
-                                 1.0);
+                FragColor = vec4(
+                    texture(Input, (floor(tx_coord) + 0.5) * param.InputSize.zw)
+                        .rgb,
+                    1.0);
             } else {
                 // Do a sharp anti-aliased interpolation.
                 // Do not correct for gamma additionally because the input is
                 // already in linear color space.
-                if (param.PIX_AA_SUBPX < 0.5) {
-                    const vec2 tx_size = get_texel_size(pixel_coord) *
-                                         scale_o2i * param.InputSize.zw;
-                    FragColor =
-                        vec4(sample_aa(Input, pixel_coord, param.InputSize.zw,
-                                       false, param.PIX_AA_SHARP, tx_size),
-                             1.0);
-                } else {
-                    for (int i = -1; i < 2; ++i) {
-                        const vec2 subpix_coord =
-                            pixel_coord +
-                            vec2((param.PIX_AA_SUBPX_BGR < 0.5 ? i : -i) / 3.0,
-                                 0.0) *
-                                param.FinalViewportSize.zw * param.InputSize.xy;
-                        const vec2 tx_size = get_texel_size(subpix_coord) *
-                                             scale_o2i * param.InputSize.zw /
-                                             vec2(3.0, 1.0);
-                        FragColor[i + 1] = sample_aa(
-                            Input, subpix_coord, param.InputSize.zw, false,
-                            param.PIX_AA_SHARP, tx_size)[i + 1];
-                    }
-                    FragColor[3] = 1.0;
-                }
+                FragColor = pixel_aa(
+                    Input, tx_per_px, tx_to_uv, tx_coord, param.PIX_AA_SHARP,
+                    /* gamma_correct = */ false, param.PIX_AA_SUBPX > 0.5,
+                    param.PIX_AA_SUBPX_BGR > 0.5);
             }
         } else {
             if (param.EXTEND_V < 0.5) {
@@ -240,7 +227,7 @@ void main() {
             return;
         }
         const vec3 right = textureLod(Right, vec2(0.5), BIG_NUMBER).rgb;
-        if (pixel_coord.y < param.OS_CROP_TOP) {
+        if (tx_coord.y < param.OS_CROP_TOP) {
             if (param.EXTEND_V < 0.5) {
                 FragColor = vec4(0.0, 0.0, 0.0, 1.0);
                 return;
@@ -260,7 +247,7 @@ void main() {
                                   viewport_corner - content_corner),
                      1.0);
             FragColor.rgb = pow(FragColor.rgb, vec3(param.FILL_GAMMA));
-        } else if (pixel_coord.y < param.InputSize.y - param.OS_CROP_BOTTOM) {
+        } else if (tx_coord.y < param.InputSize.y - param.OS_CROP_BOTTOM) {
             // Right bar
             FragColor = vec4(pow(right, vec3(param.FILL_GAMMA)), 1.0);
         } else {

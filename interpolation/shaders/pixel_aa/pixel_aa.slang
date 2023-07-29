@@ -24,7 +24,7 @@
     subpixel anti-aliasing, results are identical to the "pixellate" shader.
 
     Changelog:
-    v1.2: Optimize and simplify algorithm; Fix subpixel sampling bug.
+    v1.2: Optimize and simplify algorithm. Fix subpixel sampling bug.
     v1.1: Better subpixel sampling.
     v1.0: Initial release.
 */

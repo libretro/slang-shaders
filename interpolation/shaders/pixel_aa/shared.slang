@@ -80,7 +80,6 @@ vec4 pixel_aa(sampler2D tex, vec2 tx_per_px, vec2 tx_to_uv, vec2 tx_coord,
                                    sharpness, gamma_correct)[i + 1];
         }
         return vec4(res, 1.0);
-
     } else {
         return vec4(sample_aa(tex, tx_per_px, tx_to_uv, tx_coord, sharpness,
                               gamma_correct),
