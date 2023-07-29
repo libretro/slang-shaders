@@ -63,24 +63,22 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main() {
     if (param.PIX_AA_SUBPX < 0.5) {
-        FragColor =
-            vec4(sample_aa(Source, pix_coord, param.SourceSize.zw,
-                           param.PIX_AA_GAMMA > 0.5, param.PIX_AA_SHARP),
-                 1.0);
+        FragColor = vec4(
+            sample_aa(Source, param.SourceSize, param.OutputSize, pix_coord,
+                      param.PIX_AA_GAMMA > 0.5, param.PIX_AA_SHARP),
+            1.0);
     } else {
         // Subpixel sampling: Shift the sampling by 1/3rd of an output pixel,
         // assuming that the output size is at monitor resolution.
         for (int i = -1; i < 2; ++i) {
-            const vec2 subpix_coord =
-                pix_coord +
-                vec2((param.PIX_AA_SUBPX_BGR < 0.5 ? i : -i) / 3.0, 0.0) *
-                    param.OutputSize.zw * param.SourceSize.xy;
-            // With subpixel sampling, the sampling area is effectively reduced
-            // to a third.
-            const vec2 tx_size = get_texel_size(subpix_coord) / vec2(3.0, 1.0);
+            const vec2 subpix_offset =
+                vec2((param.PIX_AA_SUBPX_BGR < 0.5 ? i : -i) / 3.0, 0.0);
+            const vec2 subpix_coord = pix_coord + subpix_offset *
+                                                      param.OutputSize.zw *
+                                                      param.SourceSize.xy;
             FragColor[i + 1] = sample_aa(
-                Source, subpix_coord, param.SourceSize.zw,
-                param.PIX_AA_GAMMA > 0.5, param.PIX_AA_SHARP, tx_size)[i + 1];
+                Source, param.SourceSize, param.OutputSize, subpix_coord,
+                param.PIX_AA_GAMMA > 0.5, param.PIX_AA_SHARP)[i + 1];
         }
         FragColor[3] = 1.0;
     }
