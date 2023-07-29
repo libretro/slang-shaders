@@ -27,7 +27,7 @@
     strength of the blur.
 
     Changelog:
-    v1.6: Optimize. Update to new Pixel AA version.
+    v1.6: Optimize. Update to new Pixel AA version. Tune default blur strength.
     v1.5: Add anti-aliased interpolation for non-integer scaling.
     v1.4: Fix scaling bugs.
     v1.3: Reduce shimmering artifacts.
@@ -36,8 +36,11 @@
     v1.0: Initial release.
 */
 
-#include "../../../blurs/shaders/dual_filter/parameters.slang"
+// clang-format off
 #include "parameters.slang"
+#include "../../../blurs/shaders/dual_filter/parameters.slang"
+#include "../../../interpolation/shaders/pixel_aa/shared.slang"
+// clang-format on
 
 layout(push_constant) uniform Push {
     vec4 InputSize;
@@ -99,8 +102,6 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Input;
 layout(set = 0, binding = 3) uniform sampler2D Tiled;
 layout(set = 0, binding = 4) uniform sampler2D Blurred;
-
-#include "../../../interpolation/shaders/pixel_aa/shared.slang"
 
 void main() {
     if (any(lessThan(tx_coord, input_extrema.xy)) ||

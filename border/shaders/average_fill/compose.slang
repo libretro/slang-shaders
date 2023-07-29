@@ -35,8 +35,10 @@
     v1.0: Initial release.
 */
 
-#include "../../../interpolation/shaders/pixel_aa/shared.slang"
+// clang-format off
 #include "parameters.slang"
+#include "../../../interpolation/shaders/pixel_aa/shared.slang"
+// clang-format on
 
 layout(push_constant) uniform Push {
     vec4 InputSize;
