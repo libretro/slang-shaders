@@ -1,7 +1,7 @@
 shaders = 12
 
 parameters = "SIGMA;BLUR_RADIUS"
-SIGMA = 2.0
+SIGMA = 1.5
 BLUR_RADIUS = 3.0
 
 shader0 = ../blurs/shaders/kawase/linearize.slang
@@ -27,8 +27,8 @@ wrap_mode2 = mirrored_repeat
 shader3 = shaders/blur_fill/render_sampling_areas.slang
 filter_linear3 = true
 scale_type3 = source
-scale_x3 = 1.0
-scale_y3 = 1.0
+scale_x3 = 0.8
+scale_y3 = 0.8
 float_framebuffer3 = true
 alias3 = "Tiled"
 
