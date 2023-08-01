@@ -6,6 +6,6 @@ scale_type0 = source
 scale_x0 = 2.0
 scale_y0 = 2.0
 
-shader1 = ../cubic/bicubic.slang
+shader1 = ../cubic/shaders/bicubic.slang
 filter_linear1 = false
 scale_type1 = viewport

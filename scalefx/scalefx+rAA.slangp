@@ -42,6 +42,6 @@ filter_linear7 = false
 scale_type7 = source
 scale7 = 1.0
 
-shader8 = ../bicubic/bicubic.slang
+shader8 = ../cubic/shaders/bicubic.slang
 filter_linear8 = false
 scale_type0 = viewport

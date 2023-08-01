@@ -116,7 +116,7 @@ scale_x19 = "1.000000"
 scale_type_y19 = "source"
 scale_y19 = "1.000000"
 
-shader20 = ../../../shaders/hyllian/crt-super-xbr/custom-bicubic-X.slang
+shader20 = ../../../shaders/hyllian/crt-super-xbr/custom-bicubic-x.slang
 filter_linear20 = "false"
 wrap_mode20 = "clamp_to_border"
 mipmap_input20 = "false"
