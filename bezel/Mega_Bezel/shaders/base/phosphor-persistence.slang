@@ -25,7 +25,7 @@
 */
 
 #include "common/globals.inc"
-#include "params-0-screen-scale.inc"
+#include "common/params-0-screen-scale.inc"
 #include "common/common-functions.inc"
 
 //---------------------------------------------------------------------------------------------------
