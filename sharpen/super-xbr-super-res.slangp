@@ -6,23 +6,23 @@ alias0 = diff_refpass
 shader1 = ../stock.slang
 alias1 = XbrSource
 
-shader2 = "../xbr/shaders/super-xbr/super-xbr-pass0.slang"
+shader2 = "../edge-enhancement/xbr/shaders/super-xbr/super-xbr-pass0.slang"
 filter_linear2 = "false"
 scale_type2 = "source"
 scale2 = "1.000000"
 
-shader3 = "../xbr/shaders/super-xbr/super-xbr-pass1.slang"
+shader3 = "../edge-enhancement/xbr/shaders/super-xbr/super-xbr-pass1.slang"
 filter_linear3 = "false"
 scale_type3 = "source"
 scale3 = "2.000000"
 
-shader4 = "../xbr/shaders/super-xbr/super-xbr-pass2.slang"
+shader4 = "../edge-enhancement/xbr/shaders/super-xbr/super-xbr-pass2.slang"
 filter_linear4 = "false"
 scale_type4 = "source"
 scale4 = "1.000000"
 alias4 = "REF"
 
-shader5 = "../cubic/shaders/cubic.slang"
+shader5 = "../interpolation/cubic/shaders/cubic.slang"
 filter_linear5 = "false"
 scale_type5 = "source"
 scale5 = "0.500000"
@@ -47,6 +47,6 @@ filter_linear9 = "false"
 scale_type9 = "source"
 scale9 = "1.000000"
 
-shader10 = "../xbr/shaders/super-xbr/custom-jinc2-sharper.slang"
+shader10 = "../edge-enhancement/xbr/shaders/super-xbr/custom-jinc2-sharper.slang"
 filter_linear10 = "false"
 scale_type10 = viewport

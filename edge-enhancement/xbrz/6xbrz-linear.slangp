@@ -5,6 +5,6 @@ filter_linear0 = false
 scale_type0 = source
 scale0 = 6.0
 
-shader1 = ../stock.slang
+shader1 = ../../stock.slang
 filter_linear1 = true
 scale_type1 = viewport

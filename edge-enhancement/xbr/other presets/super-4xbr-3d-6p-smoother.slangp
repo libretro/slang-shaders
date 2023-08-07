@@ -1,6 +1,6 @@
 shaders = "8"
 
-shader0 = ../../stock.slang
+shader0 = ../../../stock.slang
 alias0 = super4xbr3d_refpass
 
 shader1 = "shaders/super-xbr/super-4xbr-3d-pass0.slang"

@@ -3,7 +3,7 @@
 shaders = "3"
 shader0 = "../../crt/shaders/tvout-tweaks.slang"
 shader1 = "../../misc/shaders/image-adjustment.slang"
-shader2 = "../../windowed/shaders/jinc2.slang"
+shader2 = "../../interpolation/shaders/jinc2.slang"
 shader3 = "../../misc/shaders/interlacing.slang"
 
 scale_type_x0 = "source"

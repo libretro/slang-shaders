@@ -1,6 +1,6 @@
 shaders = 3
 
-shader0 = ../stock.slang
+shader0 = ../../stock.slang
 alias0 = xbrz_fs_refpass
 
 shader1 = shaders/xbrz-freescale-multipass/xbrz-freescale-pass0.slang

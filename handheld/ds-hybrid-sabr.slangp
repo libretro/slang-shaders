@@ -6,7 +6,7 @@ shaders = 3
 shader0 = ../stock.slang
 alias0 = ds_hybrid_view_refpass
 
-shader1 = ../sabr/shaders/sabr-v3.0.slang
+shader1 = ../edge-enhancement/sabr/shaders/sabr-v3.0.slang
 filter_linear1 = false
 scale_type1 = source
 scale1 = 2.0
