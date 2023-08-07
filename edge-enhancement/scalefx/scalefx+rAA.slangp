@@ -1,6 +1,6 @@
 shaders = 9
 
-shader0 = ../stock.slang
+shader0 = ../../stock.slang
 alias0 = refpass
 filter_linear0 = "false"
 
@@ -32,16 +32,16 @@ filter_linear5 = false
 scale_type5 = source
 scale5 = 3.0
 
-shader6 = ../anti-aliasing/shaders/reverse-aa-post3x/reverse-aa-post3x-pass0.slang
+shader6 = ../../anti-aliasing/shaders/reverse-aa-post3x/reverse-aa-post3x-pass0.slang
 filter_linear6 = false
 scale_type6 = source
 scale6 = 1.0
 
-shader7 = ../anti-aliasing/shaders/reverse-aa-post3x/reverse-aa-post3x-pass1.slang
+shader7 = ../../anti-aliasing/shaders/reverse-aa-post3x/reverse-aa-post3x-pass1.slang
 filter_linear7 = false
 scale_type7 = source
 scale7 = 1.0
 
-shader8 = ../cubic/shaders/bicubic.slang
+shader8 = ../../interpolation/cubic/shaders/bicubic.slang
 filter_linear8 = false
 scale_type0 = viewport

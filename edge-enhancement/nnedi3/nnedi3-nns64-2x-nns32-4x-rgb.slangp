@@ -36,6 +36,6 @@ scale_type5 = source
 scale_x5 = 1.0
 scale_y5 = 1.0
 
-shader6 = ../windowed/shaders/jinc2.slang
+shader6 = ../../interpolation/shaders/jinc2.slang
 filter_linear6 = false
 scale_type6 = viewport

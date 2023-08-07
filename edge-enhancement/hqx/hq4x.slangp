@@ -1,6 +1,6 @@
 shaders = 5
 
-shader0 = ../stock.slang
+shader0 = ../../stock.slang
 alias0 = hqx_refpass
 shader1 = shaders/pass1.slang
 shader2 = shaders/hq4x.slang
@@ -13,13 +13,13 @@ filter_linear2 = false
 scale_type2 = source
 scale2 = 4.0
 
-shader3 = ../cubic/shaders/b-spline-x.slang
+shader3 = ../../interpolation/cubic/shaders/b-spline-x.slang
 filter_linear3 = false
 scale_type_x3 = viewport
 scale_type_y3 = source
 scale3 = 1.0
 
-shader4 = ../cubic/shaders/b-spline-y.slang
+shader4 = ../../interpolation/cubic/shaders/b-spline-y.slang
 filter_linear4 = false
 
 textures = LUT

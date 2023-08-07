@@ -1,5 +1,5 @@
 shaders = "5"
-shader0 = ../denoisers/shaders/fast-bilateral.slang
+shader0 = ../../denoisers/shaders/fast-bilateral.slang
 filter_linear0 = false
 scale_type0 = source
 shader1 = "shaders/nedi-pass0.slang"

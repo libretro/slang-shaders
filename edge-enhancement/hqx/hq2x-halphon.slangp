@@ -1,10 +1,10 @@
 shaders = 3
 
-shader0 = ../stock.slang
+shader0 = ../../stock.slang
 alias0 = hqx_refpass
 
 shader1 = shaders/hq2x-halphon.slang
-shader2 = ../stock.slang
+shader2 = ../../stock.slang
 
 filter_linear1 = false
 scale_type1 = source

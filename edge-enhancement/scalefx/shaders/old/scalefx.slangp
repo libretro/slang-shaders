@@ -1,6 +1,6 @@
 shaders = 5
 
-shader0 = ../../../stock.slang
+shader0 = ../../../../stock.slang
 alias0 = scalefx_old_refpass
 
 shader1 = scalefx-pass0.slang

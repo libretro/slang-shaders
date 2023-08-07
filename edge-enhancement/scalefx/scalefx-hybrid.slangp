@@ -1,6 +1,6 @@
 shaders = 6
 
-shader0 = ../stock.slang
+shader0 = ../../stock.slang
 alias0 = refpass
 filter_linear0 = "false"
 
