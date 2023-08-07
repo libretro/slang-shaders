@@ -230,7 +230,7 @@ void main()
                        // Second:
                        //     P 
                        //   Ⓐ B C .
-                       // Q D E F R
+                       // Q D 🄴 🅵 🆁
                        //   🅶 🅷 I
                        //     S
          if (all_eq3(H,G,F,R) && none_eq2(H,D,src(srcX+2.,srcY-1.))) L=M;
@@ -247,7 +247,7 @@ void main()
       if (notsame(B,I) && notsame(B,G) && notsame(B,E)) {
                        //     P 
                        //   🅰 🅱 C
-                       // Q D E F R
+                       // Q D 🄴 🅵 🆁
                        //   Ⓖ H I .
                        //     S
          if (all_eq3(B,A,F,R) && none_eq2(B,D,src(srcX+2.,srcY+1.))) J=K;
