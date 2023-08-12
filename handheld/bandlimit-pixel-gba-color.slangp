@@ -1,7 +1,7 @@
 shaders = 3
 shader0 = shaders/color/gba-color.slang
 shader1 = ../linear/linearize.slang
-shader2 = ../interpolation/shaders/bandlimit-pixel.slang
+shader2 = ../pixel-art-scaling/shaders/bandlimit-pixel.slang
 
 filter_linear1 = false 
 scale_type1 = source

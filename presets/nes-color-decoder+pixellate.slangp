@@ -1,6 +1,6 @@
 shaders = "2"
 shader0 = ../nes_raw_palette/shaders/nes-color-decoder.slang
-shader1 = ../interpolation/shaders/pixellate.slang
+shader1 = ../pixel-art-scaling/shaders/pixellate.slang
 
 filter_linear0 = "false"
 scale_type0 = "source"

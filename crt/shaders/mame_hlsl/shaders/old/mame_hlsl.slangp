@@ -13,7 +13,7 @@ scale_type1 = source
 scale1 = 1.0
 filter_linear1 = true
 
-shader2 = ../../../../../interpolation/shaders/sharp-bilinear.slang
+shader2 = ../../../../../pixel-art-scaling/shaders/sharp-bilinear.slang
 alias2 = PrescalePass
 scale_type2 = source
 filter_linear2 = true

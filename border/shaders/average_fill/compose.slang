@@ -37,7 +37,7 @@
 
 // clang-format off
 #include "parameters.slang"
-#include "../../../interpolation/shaders/pixel_aa/shared.slang"
+#include "../../../pixel-art-scaling/shaders/pixel_aa/shared.slang"
 // clang-format on
 
 layout(push_constant) uniform Push {
