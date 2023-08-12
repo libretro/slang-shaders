@@ -22,7 +22,7 @@ scale_type4 = "source"
 scale4 = "1.000000"
 alias4 = "REF"
 
-shader5 = "../interpolation/cubic/shaders/cubic.slang"
+shader5 = "../interpolation/shaders/cubic.slang"
 filter_linear5 = "false"
 scale_type5 = "source"
 scale5 = "0.500000"

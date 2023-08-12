@@ -5,6 +5,6 @@ filter_linear0 = false
 scale_type0 = source
 scale0 = 2.0
 
-shader1 = ../interpolation/cubic/shaders/bicubic.slang
+shader1 = ../interpolation/shaders/bicubic.slang
 filter_linear1 = false
 scale_type1 = viewport
