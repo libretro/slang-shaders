@@ -1,10 +1,11 @@
 // See compose.slang for copyright and other information.
 
+#include "../../../misc/shaders/scaling.slang"
+#include "parameters.slang"
+
 layout(push_constant) uniform Push {
     vec4 InputSize;
-    vec4 OriginalSize;
-    vec4 OutputSize;
-    uint FrameCount;
+    uint Rotation;
     float OS_CROP_TOP;
     float OS_CROP_BOTTOM;
     float OS_CROP_LEFT;
@@ -23,10 +24,13 @@ layout(location = 0) out vec2 vTexCoord;
 
 void main() {
     gl_Position = global.MVP * Position;
-    vTexCoord =
-        mix(vec2(EFF_CROP_LEFT, EFF_CROP_TOP) * param.InputSize.zw,
-            1.0 - vec2(EFF_CROP_RIGHT, EFF_CROP_BOTTOM) * param.InputSize.zw,
-            TexCoord);
+    const vec4 rotated_crop =
+        get_rotated_crop(vec4(param.OS_CROP_TOP, param.OS_CROP_LEFT,
+                              param.OS_CROP_BOTTOM, param.OS_CROP_RIGHT),
+                         param.Rotation);
+    const vec4 effective_corners =
+        get_effective_corners(rotated_crop, param.InputSize, param.SAMPLE_SIZE);
+    vTexCoord = mix(effective_corners.xy, effective_corners.zw, TexCoord);
 }
 
 #pragma stage fragment

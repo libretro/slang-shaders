@@ -1,7 +1,7 @@
 #version 450
 
 /*
-    Blur fill v1.6 by fishku
+    Blur fill v1.7 by fishku
     Copyright (C) 2023
     Public domain license (CC0)
 
@@ -27,6 +27,7 @@
     strength of the blur.
 
     Changelog:
+    v1.7: Refactor for new scaling library. Add rotation support.
     v1.6: Optimize. Update to new Pixel AA version. Tune default blur strength.
     v1.5: Add anti-aliased interpolation for non-integer scaling.
     v1.4: Fix scaling bugs.
@@ -39,23 +40,28 @@
 // clang-format off
 #include "parameters.slang"
 #include "../../../blurs/shaders/dual_filter/parameters.slang"
-#include "../../../pixel-art-scaling/shaders/pixel_aa/shared.slang"
+#include "../../../pixel-art-scaling/shaders/pixel_aa/parameters.slang"
 // clang-format on
+
+#include "../../../misc/shaders/scaling.slang"
+#include "../../../pixel-art-scaling/shaders/pixel_aa/shared.slang"
 
 layout(push_constant) uniform Push {
     vec4 InputSize;
     vec4 TiledSize;
-    vec4 FinalViewportSize;
+    vec4 OutputSize;
+    uint Rotation;
     float OS_CROP_TOP;
     float OS_CROP_BOTTOM;
     float OS_CROP_LEFT;
     float OS_CROP_RIGHT;
-    float CENTER_CROP;
+    float CENTER_AFTER_CROPPING;
     float SAMPLE_SIZE;
     float FORCE_ASPECT_RATIO;
     float ASPECT_H;
     float ASPECT_V;
-    float FORCE_INTEGER_SCALING;
+    float FORCE_INTEGER_SCALING_H;
+    float FORCE_INTEGER_SCALING_V;
     float FILL_GAMMA;
     // From dual filter blur
     float BLUR_RADIUS;
@@ -65,8 +71,6 @@ layout(push_constant) uniform Push {
     float PIX_AA_SUBPX_BGR;
 }
 param;
-
-#include "scaling.slang"
 
 layout(std140, set = 0, binding = 0) uniform UBO { mat4 MVP; }
 global;
@@ -78,18 +82,24 @@ layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec2 tx_coord;
 layout(location = 2) out vec2 tx_per_px;
 layout(location = 3) out vec2 tx_to_uv;
-layout(location = 4) out vec4 input_extrema;
+layout(location = 4) out vec4 input_corners;
 
 void main() {
     gl_Position = global.MVP * Position;
     vTexCoord = TexCoord;
-    const vec2 scale_o2i = scale_o2i();
-    tx_coord = (vTexCoord - 0.49999) * scale_o2i + get_input_center();
-    tx_per_px = scale_o2i * param.FinalViewportSize.zw;
+    const vec4 crop = vec4(param.OS_CROP_TOP, param.OS_CROP_LEFT,
+                           param.OS_CROP_BOTTOM, param.OS_CROP_RIGHT);
+    const vec2 scale_o2i = get_scale_o2i(
+        param.InputSize.xy, param.OutputSize.xy, crop, param.Rotation,
+        param.CENTER_AFTER_CROPPING, param.FORCE_ASPECT_RATIO,
+        vec2(param.ASPECT_H, param.ASPECT_V),
+        vec2(param.FORCE_INTEGER_SCALING_H, param.FORCE_INTEGER_SCALING_V),
+        /* output_size_is_final_viewport_size = */ false);
+    tx_coord = o2i(vTexCoord, param.InputSize.xy, crop, param.Rotation,
+                   param.CENTER_AFTER_CROPPING, scale_o2i);
+    tx_per_px = scale_o2i * param.OutputSize.zw;
     tx_to_uv = param.InputSize.zw;
-    input_extrema = vec4(param.OS_CROP_LEFT, param.OS_CROP_TOP,
-                         param.InputSize.x - param.OS_CROP_RIGHT,
-                         param.InputSize.y - param.OS_CROP_BOTTOM);
+    input_corners = get_input_corners(param.InputSize.xy, crop, param.Rotation);
 }
 
 #pragma stage fragment
@@ -97,15 +107,15 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec2 tx_coord;
 layout(location = 2) in vec2 tx_per_px;
 layout(location = 3) in vec2 tx_to_uv;
-layout(location = 4) in vec4 input_extrema;
+layout(location = 4) in vec4 input_corners;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Input;
 layout(set = 0, binding = 3) uniform sampler2D Tiled;
 layout(set = 0, binding = 4) uniform sampler2D Blurred;
 
 void main() {
-    if (any(lessThan(tx_coord, input_extrema.xy)) ||
-        any(greaterThanEqual(tx_coord, input_extrema.zw))) {
+    if (any(lessThan(tx_coord, input_corners.xy)) ||
+        any(greaterThanEqual(tx_coord, input_corners.zw))) {
         if (param.BLUR_RADIUS > 0.0) {
             // Sample blur.
             FragColor = vec4(
@@ -113,7 +123,7 @@ void main() {
                 1.0);
         } else {
             // Sample tiled pattern.
-            // Do a sharp (nearest neighbor) resampling.
+            // Do a perfectly sharp (nearest neighbor) resampling.
             FragColor =
                 vec4(pow(texture(Tiled,
                                  (floor(vTexCoord * param.TiledSize.xy) + 0.5) *
@@ -124,7 +134,8 @@ void main() {
         }
     } else {
         // Sample original.
-        if (param.FORCE_INTEGER_SCALING > 0.5) {
+        if (param.FORCE_INTEGER_SCALING_H > 0.5 &&
+            param.FORCE_INTEGER_SCALING_V > 0.5) {
             // Do a perfectly sharp (nearest neighbor) sampling.
             FragColor = vec4(
                 texture(Input, (floor(tx_coord) + 0.5) * param.InputSize.zw)
@@ -137,7 +148,7 @@ void main() {
             FragColor = pixel_aa(
                 Input, tx_per_px, tx_to_uv, tx_coord, param.PIX_AA_SHARP,
                 /* gamma_correct = */ false, param.PIX_AA_SUBPX > 0.5,
-                param.PIX_AA_SUBPX_BGR > 0.5);
+                param.PIX_AA_SUBPX_BGR > 0.5, param.Rotation);
         }
     }
 }

@@ -2,28 +2,29 @@
 
 // See compose.slang for copyright and other information.
 
+#include "../../../misc/shaders/scaling.slang"
 #include "parameters.slang"
 
 layout(push_constant) uniform Push {
     vec4 InputSize;
     vec4 FinalViewportSize;
+    uint Rotation;
     float OS_CROP_TOP;
     float OS_CROP_BOTTOM;
     float OS_CROP_LEFT;
     float OS_CROP_RIGHT;
-    float CENTER_CROP;
+    float CENTER_AFTER_CROPPING;
     float SAMPLE_SIZE;
-    float BLUR_EXTEND_H;
-    float BLUR_EXTEND_V;
+    float EXTEND_H;
+    float EXTEND_V;
     float MIRROR_BLUR;
     float FORCE_ASPECT_RATIO;
     float ASPECT_H;
     float ASPECT_V;
-    float FORCE_INTEGER_SCALING;
+    float FORCE_INTEGER_SCALING_H;
+    float FORCE_INTEGER_SCALING_V;
 }
 param;
-
-#include "scaling.slang"
 
 layout(std140, set = 0, binding = 0) uniform UBO { mat4 MVP; }
 global;
@@ -32,14 +33,29 @@ global;
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
+layout(location = 1) out vec2 tx_coord;
+layout(location = 2) out vec4 input_corners;
 
 void main() {
     gl_Position = global.MVP * Position;
     vTexCoord = TexCoord;
+    const vec4 crop = vec4(param.OS_CROP_TOP, param.OS_CROP_LEFT,
+                           param.OS_CROP_BOTTOM, param.OS_CROP_RIGHT);
+    const vec2 scale_o2i = get_scale_o2i(
+        param.InputSize.xy, param.FinalViewportSize.xy, crop, param.Rotation,
+        param.CENTER_AFTER_CROPPING, param.FORCE_ASPECT_RATIO,
+        vec2(param.ASPECT_H, param.ASPECT_V),
+        vec2(param.FORCE_INTEGER_SCALING_H, param.FORCE_INTEGER_SCALING_V),
+        /* output_size_is_final_viewport_size = */ true);
+    tx_coord = o2i(vTexCoord, param.InputSize.xy, crop, param.Rotation,
+                   param.CENTER_AFTER_CROPPING, scale_o2i);
+    input_corners = get_input_corners(param.InputSize.xy, crop, param.Rotation);
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
+layout(location = 1) in vec2 tx_coord;
+layout(location = 2) in vec4 input_corners;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -62,24 +78,24 @@ float mirrored_repeat(float w, float x) {
     return period % 2 == 1 != x > 0.0 ? phase : w - phase;
 }
 
-float extend_left(vec2 coord, vec4 input_extrema) {
-    return input_extrema.x +
-           mirrored_repeat(param.SAMPLE_SIZE, coord.x - input_extrema.x);
+float extend_left(vec2 coord, vec4 input_corners) {
+    return input_corners.x +
+           mirrored_repeat(param.SAMPLE_SIZE, coord.x - input_corners.x);
 }
 
-float extend_right(vec2 coord, vec4 input_extrema) {
-    return input_extrema.z -
-           mirrored_repeat(param.SAMPLE_SIZE, input_extrema.z - coord.x);
+float extend_right(vec2 coord, vec4 input_corners) {
+    return input_corners.z -
+           mirrored_repeat(param.SAMPLE_SIZE, input_corners.z - coord.x);
 }
 
-float extend_top(vec2 coord, vec4 input_extrema) {
-    return input_extrema.y +
-           mirrored_repeat(param.SAMPLE_SIZE, coord.y - input_extrema.y);
+float extend_top(vec2 coord, vec4 input_corners) {
+    return input_corners.y +
+           mirrored_repeat(param.SAMPLE_SIZE, coord.y - input_corners.y);
 }
 
-float extend_bottom(vec2 coord, vec4 input_extrema) {
-    return input_extrema.w -
-           mirrored_repeat(param.SAMPLE_SIZE, input_extrema.w - coord.y);
+float extend_bottom(vec2 coord, vec4 input_corners) {
+    return input_corners.w -
+           mirrored_repeat(param.SAMPLE_SIZE, input_corners.w - coord.y);
 }
 
 // This function samples in a very specific way which is the foundation for
@@ -92,123 +108,128 @@ float extend_bottom(vec2 coord, vec4 input_extrema) {
 // - If the coordinate is further inside than the frame band, a mirrored
 // repeating sample is returned. The side of the frame that is sampled is given
 // by the one that is closest to the sampled point.
-vec3 sample_mirrored_frame(sampler2D tex, vec2 coord, vec4 input_extrema) {
-    if (coord.x < input_extrema.x) {
-        if (param.BLUR_EXTEND_H < 0.5) {
+vec3 sample_mirrored_frame(sampler2D tex, vec2 tx_coord, vec4 input_corners) {
+    const vec2 extend_fill =
+        get_rotated_size(vec2(param.EXTEND_H, param.EXTEND_V), param.Rotation);
+    if (tx_coord.x < input_corners.x) {
+        if (extend_fill.x < 0.5) {
             return vec3(0.0);
         }
-        if (coord.y < input_extrema.y) {
+        if (tx_coord.y < input_corners.y) {
             // Top left corner extension
-            if (param.BLUR_EXTEND_V < 0.5) {
+            if (extend_fill.y < 0.5) {
                 return vec3(0.0);
             }
-            return texture(tex, vec2(extend_left(coord, input_extrema),
-                                     extend_top(coord, input_extrema)) *
+            return texture(tex, vec2(extend_left(tx_coord, input_corners),
+                                     extend_top(tx_coord, input_corners)) *
                                     param.InputSize.zw)
                 .rgb;
-        } else if (coord.y < input_extrema.w) {
+        } else if (tx_coord.y < input_corners.w) {
             // Left extension
-            return texture(tex,
-                           vec2(extend_left(coord, input_extrema), coord.y) *
-                               param.InputSize.zw)
+            return texture(tex, vec2(extend_left(tx_coord, input_corners),
+                                     tx_coord.y) *
+                                    param.InputSize.zw)
                 .rgb;
         } else {
             // Bottom left corner extension
-            if (param.BLUR_EXTEND_V < 0.5) {
+            if (extend_fill.y < 0.5) {
                 return vec3(0.0);
             }
-            return texture(tex, vec2(extend_left(coord, input_extrema),
-                                     extend_bottom(coord, input_extrema)) *
+            return texture(tex, vec2(extend_left(tx_coord, input_corners),
+                                     extend_bottom(tx_coord, input_corners)) *
                                     param.InputSize.zw)
                 .rgb;
         }
-    } else if (coord.x < input_extrema.z) {
-        if (coord.y < input_extrema.y) {
-            if (param.BLUR_EXTEND_V < 0.5) {
+    } else if (tx_coord.x < input_corners.z) {
+        if (tx_coord.y < input_corners.y) {
+            if (extend_fill.y < 0.5) {
                 return vec3(0.0);
             }
             // Top extension
-            return texture(tex,
-                           vec2(coord.x, extend_top(coord, input_extrema)) *
-                               param.InputSize.zw)
+            return texture(tex, vec2(tx_coord.x,
+                                     extend_top(tx_coord, input_corners)) *
+                                    param.InputSize.zw)
                 .rgb;
-        } else if (coord.y < input_extrema.w) {
-            const vec4 inner_extrema =
-                input_extrema + vec4(param.SAMPLE_SIZE, param.SAMPLE_SIZE,
+        } else if (tx_coord.y < input_corners.w) {
+            const vec4 inner_corners =
+                input_corners + vec4(param.SAMPLE_SIZE, param.SAMPLE_SIZE,
                                      -param.SAMPLE_SIZE, -param.SAMPLE_SIZE);
-            if (any(lessThan(coord, inner_extrema.xy)) ||
-                any(greaterThanEqual(coord, inner_extrema.zw))) {
+            if (any(lessThan(tx_coord, inner_corners.xy)) ||
+                any(greaterThanEqual(tx_coord, inner_corners.zw))) {
                 // In frame band
-                return texture(tex, coord * param.InputSize.zw).rgb;
+                return texture(tex, tx_coord * param.InputSize.zw).rgb;
             }
             // Innermost -- mirrored repeat sampling from nearest side
-            const vec4 distances =
-                vec4(coord.x - inner_extrema.x, inner_extrema.z - coord.x,
-                     coord.y - inner_extrema.y, inner_extrema.w - coord.y);
+            const vec4 distances = vec4(
+                tx_coord.x - inner_corners.x, inner_corners.z - tx_coord.x,
+                tx_coord.y - inner_corners.y, inner_corners.w - tx_coord.y);
             switch (argmin(distances)) {
                 case 0:
                     // left
-                    return texture(tex, vec2(extend_left(coord, input_extrema),
-                                             coord.y) *
-                                            param.InputSize.zw)
+                    return texture(tex,
+                                   vec2(extend_left(tx_coord, input_corners),
+                                        tx_coord.y) *
+                                       param.InputSize.zw)
                         .rgb;
                 case 1:
                     // right
-                    return texture(tex, vec2(extend_right(coord, input_extrema),
-                                             coord.y) *
-                                            param.InputSize.zw)
+                    return texture(tex,
+                                   vec2(extend_right(tx_coord, input_corners),
+                                        tx_coord.y) *
+                                       param.InputSize.zw)
                         .rgb;
                 case 2:
                     // top
-                    return texture(tex, vec2(coord.x,
-                                             extend_top(coord, input_extrema)) *
-                                            param.InputSize.zw)
+                    return texture(tex,
+                                   vec2(tx_coord.x,
+                                        extend_top(tx_coord, input_corners)) *
+                                       param.InputSize.zw)
                         .rgb;
                 case 3:
                 default:
                     // bottom
-                    return texture(tex,
-                                   vec2(coord.x,
-                                        extend_bottom(coord, input_extrema)) *
-                                       param.InputSize.zw)
+                    return texture(tex, vec2(tx_coord.x,
+                                             extend_bottom(tx_coord,
+                                                           input_corners)) *
+                                            param.InputSize.zw)
                         .rgb;
             }
         } else {
-            if (param.BLUR_EXTEND_V < 0.5) {
+            if (extend_fill.y < 0.5) {
                 return vec3(0.0);
             }
             // Bottom extension
-            return texture(tex,
-                           vec2(coord.x, extend_bottom(coord, input_extrema)) *
-                               param.InputSize.zw)
+            return texture(tex, vec2(tx_coord.x,
+                                     extend_bottom(tx_coord, input_corners)) *
+                                    param.InputSize.zw)
                 .rgb;
         }
     } else {
-        if (param.BLUR_EXTEND_H < 0.5) {
+        if (extend_fill.x < 0.5) {
             return vec3(0.0);
         }
-        if (coord.y < input_extrema.y) {
+        if (tx_coord.y < input_corners.y) {
             // Top right corner extension
-            if (param.BLUR_EXTEND_V < 0.5) {
+            if (extend_fill.y < 0.5) {
                 return vec3(0.0);
             }
-            return texture(tex, vec2(extend_right(coord, input_extrema),
-                                     extend_top(coord, input_extrema)) *
+            return texture(tex, vec2(extend_right(tx_coord, input_corners),
+                                     extend_top(tx_coord, input_corners)) *
                                     param.InputSize.zw)
                 .rgb;
-        } else if (coord.y < input_extrema.w) {
+        } else if (tx_coord.y < input_corners.w) {
             // Right extension
-            return texture(tex,
-                           vec2(extend_right(coord, input_extrema), coord.y) *
-                               param.InputSize.zw)
+            return texture(tex, vec2(extend_right(tx_coord, input_corners),
+                                     tx_coord.y) *
+                                    param.InputSize.zw)
                 .rgb;
         } else {
             // Bottom right corner extension
-            if (param.BLUR_EXTEND_V < 0.5) {
+            if (extend_fill.y < 0.5) {
                 return vec3(0.0);
             }
-            return texture(tex, vec2(extend_right(coord, input_extrema),
-                                     extend_bottom(coord, input_extrema)) *
+            return texture(tex, vec2(extend_right(tx_coord, input_corners),
+                                     extend_bottom(tx_coord, input_corners)) *
                                     param.InputSize.zw)
                 .rgb;
         }
@@ -216,11 +237,6 @@ vec3 sample_mirrored_frame(sampler2D tex, vec2 coord, vec4 input_extrema) {
 }
 
 void main() {
-    const vec2 pixel_coord = o2i(vTexCoord);
-    FragColor = vec4(
-        sample_mirrored_frame(Source, pixel_coord,
-                              vec4(param.OS_CROP_LEFT, param.OS_CROP_TOP,
-                                   param.InputSize.x - param.OS_CROP_RIGHT,
-                                   param.InputSize.y - param.OS_CROP_BOTTOM)),
-        1.0);
+    FragColor =
+        vec4(sample_mirrored_frame(Source, tx_coord, input_corners), 1.0);
 }

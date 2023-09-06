@@ -1,13 +1,5 @@
 // See pixel_aa.slang for copyright and other information.
 
-// clang-format off
-#pragma parameter PIX_AA_SETTINGS "=== Pixel AA v1.2 settings ===" 0.0 0.0 1.0 1.0
-#pragma parameter PIX_AA_SHARP "Pixel AA sharpening amount" 1.5 0.0 2.0 0.05
-#pragma parameter PIX_AA_GAMMA "Enable gamma-correct blending" 1.0 0.0 1.0 1.0
-#pragma parameter PIX_AA_SUBPX "Enable subpixel AA" 0.0 0.0 1.0 1.0
-#pragma parameter PIX_AA_SUBPX_BGR "Use BGR subpx. instead of RGB" 0.0 0.0 1.0 1.0
-// clang-format on
-
 // Similar to smoothstep, but has a configurable slope at x = 0.5.
 // Original smoothstep has a slope of 1.5 at x = 0.5
 #define INSTANTIATE_SLOPESTEP(T)                               \
@@ -66,13 +58,17 @@ vec3 sample_aa(sampler2D tex, vec2 tx_per_px, vec2 tx_to_uv, vec2 tx_coord,
 // interpolation.
 vec4 pixel_aa(sampler2D tex, vec2 tx_per_px, vec2 tx_to_uv, vec2 tx_coord,
               float sharpness, bool gamma_correct, bool sample_subpx,
-              bool subpx_bgr) {
+              bool subpx_bgr, uint rotation) {
     if (sample_subpx) {
         // Subpixel sampling: Shift the sampling by 1/3rd of an output pixel for
         // each subpixel, assuming that the output size is at monitor
         // resolution.
+        // Compensate for possible rotation of the screen in certain cores.
+        const vec2 rotation_correction[] = {vec2(1.0, 0.0), vec2(0.0, 1.0),
+                                            vec2(-1.0, 0.0), vec2(0.0, -1.0)};
         const vec2 sub_tx_offset =
-            vec2(tx_per_px.x / 3.0 * (subpx_bgr ? -1.0 : 1.0), 0.0);
+            tx_per_px / 3.0 *
+            rotation_correction[(rotation + int(subpx_bgr) * 2) % 4];
         vec3 res;
         for (int i = -1; i < 2; ++i) {
             res[i + 1] = sample_aa(tex, tx_per_px, tx_to_uv,
