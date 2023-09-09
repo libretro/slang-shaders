@@ -4,9 +4,7 @@
     Public domain license (CC0)
 
     This file acts like a library and should be included in another shader to be
-   used. The different parameters can be defined before including. If they are
-   not, default parameter names are used. For example usages, see the
-   border/blur_fill shaders.
+    used. For example usages, see the border/blur_fill shaders.
 
     It's recommended to use these functions in the vertex shader pass, and pass
     the data to the fragment pass.
