@@ -1,5 +1,3 @@
-#version 450
-
 // cleanEdge pixel art scaling and rotation algo
 // ported to slang by hunterk
 // based on https://gist.githubusercontent.com/torcado194/e2794f5a4b22049ac0a41f972d14c329/raw/3221e8d66e885d6221db2bd4d4d4fd7546254cd6/cleanEdge-shadertoy.glsl
@@ -29,34 +27,6 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 ***/ 
 
-layout(push_constant) uniform Push
-{
-	vec4 SourceSize;
-	vec4 OriginalSize;
-	vec4 OutputSize;
-	uint FrameCount;
-	float simthresh, linewidth, rotation, ce_zoom, ce_x_off, ce_y_off, ce_mode;
-} params;
-
-#pragma parameter linewidth "Line Width" 1.0 0.01 2.0 0.1
-float lineWidth = params.linewidth;
-
-// +/-3.14 = 180 degrees; +/-6.28 = 360 degrees
-#pragma parameter rotation "Rotation" 0.0 -6.28 6.28 0.01
-
-#pragma parameter ce_zoom "Zoom" 1.0 0.0 2.0 0.01
-#pragma parameter ce_x_off "X Offset" 0.0 -1.0 1.0 0.002
-#pragma parameter ce_y_off "Y Offset" 0.0 -1.0 1.0 0.002
-
-//how close two colors should be to be considered "similar".
-// can group shapes of visually similar colors, but creates
-// some artifacting and should be kept as low as possible.
-#pragma parameter simthresh "Similarity Threshold" 0.0 0.0 1.0 0.01
-float similarThreshold = params.simthresh;
-
-#pragma parameter ce_mode "cleanEdge Effect Toggle (debug)" 1.0 0.0 1.0 1.0
-bool mode = bool(params.ce_mode);
-
 #define iChannel0 Source
 #define fragColor FragColor
 
@@ -84,9 +54,9 @@ void main()
    // avoid rounding errors
    size = params.SourceSize.xy+0.0001;
 	v_px = (TexCoord.xy-0.5)*size;
-	v_px *= params.ce_zoom;
-	v_px += vec2(params.ce_x_off, params.ce_y_off) * size;
-	v_px = rotate(v_px.xy, params.rotation) + 0.5*size;
+	v_px *= ZOOM;
+	v_px += vec2(X_OFF, Y_OFF) * size;
+	v_px = rotate(v_px.xy, ROTATION) + 0.5*size;
 }
 
 #pragma stage fragment

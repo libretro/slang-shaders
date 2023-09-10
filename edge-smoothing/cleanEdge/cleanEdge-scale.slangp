@@ -1,6 +1,6 @@
 shaders = 1
 
-shader0 = shaders/cleanEdge.slang
+shader0 = shaders/cleanEdge-scale.slang
 filter_linear0 = false
 #scale_type0 = source
 scale_type0 = viewport
