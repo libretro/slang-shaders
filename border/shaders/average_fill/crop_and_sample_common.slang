@@ -1,16 +1,18 @@
 // See compose.slang for copyright and other information.
 
-#include "../../../misc/shaders/scaling.slang"
+#include "../../../misc/shaders/crop_and_scale/crop_and_scale.slang"
 #include "parameters.slang"
 
 layout(push_constant) uniform Push {
     vec4 InputSize;
     uint Rotation;
+    // Own settings
+    float SAMPLE_SIZE;
+    // From crop and scale, cropping section
     float OS_CROP_TOP;
     float OS_CROP_BOTTOM;
     float OS_CROP_LEFT;
     float OS_CROP_RIGHT;
-    float SAMPLE_SIZE;
 }
 param;
 

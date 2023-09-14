@@ -1,5 +1,5 @@
 /*
-    Scaling library v1.0 by fishku
+    Cropping and scaling library v1.1 by fishku
     Copyright (C) 2023
     Public domain license (CC0)
 
@@ -15,10 +15,12 @@
     - Forcing of a certain aspect ratio
     - Forcing of either vert. or horiz. integer scaling, or both
     - Rotation support (0, 90, 180, 270 degrees).
+    - Overscaling
 
     Refactored from the version that used to be in the blur_fill shader.
 
     Changelog:
+    v1.1: Add overscaling option. Unify parameters.
     v1.0: Initial conversion from blur_fill release. Add rotation support.
 */
 
@@ -69,7 +71,7 @@ vec2 get_input_center(vec2 input_size, vec4 crop, uint rotation,
 // Scaling from unit output to pixel input space.
 vec2 get_scale_o2i(vec2 input_size, vec2 output_size, vec4 crop, uint rotation,
                    float center_after_cropping, float force_aspect_ratio,
-                   vec2 aspect, vec2 force_integer_scaling,
+                   vec2 aspect, vec2 force_integer_scaling, float overscale,
                    bool output_size_is_final_viewport_size) {
     crop = get_rotated_crop(crop, rotation);
     if (output_size_is_final_viewport_size) {
@@ -96,7 +98,9 @@ vec2 get_scale_o2i(vec2 input_size, vec2 output_size, vec4 crop, uint rotation,
         output_size.y / (input_size.y * aspect.y)) {
         // Scale will be limited by width. Calc x scale, then derive y scale
         // using aspect ratio.
-        scale_x = output_size.x / input_size.x;
+        scale_x = mix(output_size.x / input_size.x,
+                      output_size.y * aspect.x / (input_size.y * aspect.y),
+                      overscale);
         if (force_integer_scaling.x > 0.5 && scale_x > 1.0) {
             scale_x = floor(scale_x);
         }
@@ -106,7 +110,9 @@ vec2 get_scale_o2i(vec2 input_size, vec2 output_size, vec4 crop, uint rotation,
         }
     } else {
         // Scale will be limited by height.
-        scale_y = output_size.y / input_size.y;
+        scale_y = mix(output_size.y / input_size.y,
+                      output_size.x * aspect.y / (input_size.x * aspect.x),
+                      overscale);
         if (force_integer_scaling.y > 0.5 && scale_y > 1.0) {
             scale_y = floor(scale_y);
         }
@@ -131,11 +137,12 @@ vec2 o2i(vec2 x, vec2 input_size, vec4 crop, uint rotation,
 // Version that computes scale.
 vec2 o2i(vec2 x, vec2 input_size, vec2 output_size, vec4 crop, uint rotation,
          float center_after_cropping, float force_aspect_ratio, vec2 aspect,
-         vec2 force_integer_scaling, bool output_size_is_final_viewport_size) {
+         vec2 force_integer_scaling, float overscale,
+         bool output_size_is_final_viewport_size) {
     return o2i(x, input_size, crop, rotation, center_after_cropping,
                get_scale_o2i(input_size, output_size, crop, rotation,
                              center_after_cropping, force_aspect_ratio, aspect,
-                             force_integer_scaling,
+                             force_integer_scaling, overscale,
                              output_size_is_final_viewport_size));
 }
 
@@ -152,12 +159,13 @@ vec2 i2o(vec2 x, vec2 input_size, vec4 crop, uint rotation,
 // Version that computes scale.
 vec2 i2o(vec2 x, vec2 input_size, vec2 output_size, vec4 crop, uint rotation,
          float center_after_cropping, float force_aspect_ratio, vec2 aspect,
-         vec2 force_integer_scaling, bool output_size_is_final_viewport_size) {
+         vec2 force_integer_scaling, float overscale,
+         bool output_size_is_final_viewport_size) {
     return (x - get_input_center(input_size, crop, rotation,
                                  center_after_cropping)) /
                get_scale_o2i(input_size, output_size, crop, rotation,
                              center_after_cropping, force_aspect_ratio, aspect,
-                             force_integer_scaling,
+                             force_integer_scaling, overscale,
                              output_size_is_final_viewport_size) +
            0.49999;
 }

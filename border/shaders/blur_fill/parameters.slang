@@ -3,20 +3,7 @@
 // clang-format off
 #pragma parameter BLUR_FILL_SETTINGS "=== Blur fill v1.7 settings ===" 0.0 0.0 1.0 1.0
 
-#pragma parameter SCALING_SETTINGS "= Scaling parameters =" 0.0 0.0 1.0 1.0
-#pragma parameter FORCE_ASPECT_RATIO "Force aspect ratio" 1.0 0.0 1.0 1.0
-#pragma parameter ASPECT_H "Horizontal aspect ratio before crop (0 = unchanged)" 0.0 0.0 256.0 1.0
-#pragma parameter ASPECT_V "Vertical aspect ratio before crop (0 = unchanged)" 0.0 0.0 256.0 1.0
-#pragma parameter FORCE_INTEGER_SCALING_H "Force integer scaling horizontally" 0.0 0.0 1.0 1.0
-#pragma parameter FORCE_INTEGER_SCALING_V "Force integer scaling vertically" 1.0 0.0 1.0 1.0
-
-#pragma parameter CROPPING_SETTINGS "= Cropping parameters =" 0.0 0.0 1.0 1.0
-#pragma parameter OS_CROP_TOP "Overscan crop top" 0.0 0.0 1024.0 1.0
-#pragma parameter OS_CROP_BOTTOM "Overscan crop bottom" 0.0 0.0 1024.0 1.0
-#pragma parameter OS_CROP_LEFT "Overscan crop left" 0.0 0.0 1024.0 1.0
-#pragma parameter OS_CROP_RIGHT "Overscan crop right" 0.0 0.0 1024.0 1.0
-
-#pragma parameter CENTER_AFTER_CROPPING "Center cropped area" 1.0 0.0 1.0 1.0
+#include "../../../misc/shaders/crop_and_scale/parameters.slang"
 
 #pragma parameter OTHER_SETTINGS "= Other parameters =" 0.0 0.0 1.0 1.0
 #pragma parameter EXTEND_H "Extend the fill horizontally" 0.0 0.0 1.0 1.0
