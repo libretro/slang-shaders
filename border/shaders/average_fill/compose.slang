@@ -1,7 +1,7 @@
 #version 450
 
 /*
-    Average fill v1.6 by fishku
+    Average fill v1.7 by fishku
     Copyright (C) 2023
     Public domain license (CC0)
 
@@ -27,6 +27,7 @@
     3 = Smooth angle-based blending
 
     Changelog:
+    v1.7: Add overscale option from crop and scale library.
     v1.6: Refactor for new scaling library. Add rotation support.
     v1.5: Optimize. Update to new Pixel AA version.
     v1.4: Add anti-aliased interpolation for non-integer scaling.

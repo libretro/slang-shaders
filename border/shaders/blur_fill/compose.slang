@@ -1,7 +1,7 @@
 #version 450
 
 /*
-    Blur fill v1.7 by fishku
+    Blur fill v1.8 by fishku
     Copyright (C) 2023
     Public domain license (CC0)
 
@@ -27,6 +27,7 @@
     strength of the blur.
 
     Changelog:
+    v1.8: Add overscale option from crop and scale library.
     v1.7: Refactor for new scaling library. Add rotation support.
     v1.6: Optimize. Update to new Pixel AA version. Tune default blur strength.
     v1.5: Add anti-aliased interpolation for non-integer scaling.
