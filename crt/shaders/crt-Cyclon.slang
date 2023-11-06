@@ -32,7 +32,7 @@ layout(push_constant) uniform Push
 } params;
 
 // Parameter lines go here:
-#pragma parameter SCANLINE "Scanline Weight" 0.25 0.15 0.6 0.05
+#pragma parameter SCANLINE "Scanline Weight" 0.3 0.15 0.6 0.05
 #pragma parameter INTERLACE "Interlacing On/Off" 1.0 0.0 1.0 1.0
 #pragma parameter bogus_msk " [ MASK SETTINGS ] " 0.0 0.0 0.0 0.0
 #pragma parameter M_TYPE "Mask Type: -1:None, 0:CGWG, 1:RGB" 0.0 -1.0 1.0 1.0
@@ -45,7 +45,7 @@ layout(push_constant) uniform Push
 #pragma parameter bogus_con " [ CONVERGENCE SETTINGS ] " 0.0 0.0 0.0 0.0
 #pragma parameter C_STR "Convergence Overall Strength" 0.0 0.0 1.0 0.05
 #pragma parameter CONV_R "Convergence Red X-Axis" 0.0 -1.0 1.0 0.05
-#pragma parameter CONV_G "Convergence Green Y-axis" 0.0 -1.0 1.0 0.05
+#pragma parameter CONV_G "Convergence Green X-axis" 0.0 -1.0 1.0 0.05
 #pragma parameter CONV_B "Convergence Blue X-Axis" 0.0 -1.0 1.0 0.05
 #pragma parameter bogus_geom " [ GEOMETRY SETTINGS ] " 0.0 0.0 0.0 0.0
 #pragma parameter WARPX "Curvature Horizontal" 0.032 0.00 0.25 0.01
@@ -201,26 +201,26 @@ vec3 inv_gamma(vec3 col, vec3 power)
     return col;
 }
 
-// standard 6774k
-mat3 PAL = mat3(
-1.1515,  -0.1099, -0.0033,
-0.0914,  0.9177,  -0.0043,
-0.0039,  -0.0071, 1.0901
-);
+// standard 6500k
+mat3 PAL = mat3(                    
+1.0278  ,   -0.0825 ,   0.0508  ,
+0.0092  ,   0.9788  ,   0.0150  ,
+0.0040  ,   0.0005  ,   1.3144  );
 
-// standard 6774k
-mat3 NTSC = mat3(
-0.8870,  0.0451,  0.0566,
--0.0800, 1.0368,  0.0361,
-0.0053,  -0.1196, 1.2320
-);
+// standard 6500k
+mat3 NTSC = mat3(                   
+0.8895  ,   0.0197  ,   0.0885  ,
+-0.0144 ,   0.9801  ,   0.0409  ,
+0.0181  ,   -0.0353 ,   1.3413  );
 
-// standard 9300k
-mat3 NTSC_J = mat3(
-0.8800,  0.0020,  0.1054,
--0.0071, 0.9351,  0.0658,
-0.0198,  -0.0797, 1.3533
-);
+
+// standard 8500k
+mat3 NTSC_J = mat3(                 
+1.0243  ,   -0.1346 ,   0.1448  ,
+0.0728  ,   0.8770  ,   0.0639  ,
+0.0242  ,   -0.0479 ,   1.6923  );
+
+
 
 
 vec3 slot(vec2 pos)
@@ -280,7 +280,6 @@ if (PAL_NTSC != 0.0){
     }
     vec2 bpos = pos;
     vec2 dx = vec2(SourceSize.z,0.0);
-    vec2 dy = vec2(0.0,OutputSize.w);
 
     vec2 ogl2 = pos*SourceSize.xy;
     vec2 i = floor(pos*SourceSize.xy) + 0.5;
@@ -291,13 +290,13 @@ if (PAL_NTSC != 0.0){
     vec3 res0 = texture(Source,pos).rgb;
     vec3 resr = texture(Source,pos + dx*CONV_R).rgb;
     vec3 resb = texture(Source,pos + dx*CONV_B).rgb;
-    vec3 resg = texture(Source,pos + dy*CONV_G).rgb;
+    vec3 resg = texture(Source,pos + dx*CONV_G).rgb;
 
     vec3 res = vec3(  res0.r*(1.0-C_STR) +  resr.r*C_STR,
                       res0.g*(1.0-C_STR) +  resg.g*C_STR,
                       res0.b*(1.0-C_STR) +  resb.b*C_STR 
                    );
-    
+ 
     float l = dot(vec3(BR_DEP),res);
     
     if(EXT_GAMMA != 1.0) res *= res;
