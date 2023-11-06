@@ -23,7 +23,7 @@ layout(push_constant) uniform Push
    float NOISE;
    float SEGA;
    float INGAMMA;
-   float OUTGAMMA,WPR,WPG,WPB,BOOST;
+   float OUTGAMMA,WPR,WPG,WPB,BOOST, BOOSTD;
 } params;
 
 #pragma parameter SIZE "   Soft Pixel Size" 0.5 0.125 4.0 0.125
@@ -31,21 +31,22 @@ layout(push_constant) uniform Push
 #pragma parameter SCANLINE1 "Scanline Strength Dark" 0.75 0.0 1.0 0.05
 #pragma parameter SCANLINE2 "Scanline Strength Bright" 0.4 0.0 1.0 0.05
 #pragma parameter INTERLACE "Interlace Mode" 1.0 0.0 1.0 1.0
-#pragma parameter SCALE "Scanlines downscale"  1.0 1.0 4.0 1.0
+#pragma parameter SCALE "Scanlines downscale"  1.0 1.0 2.0 1.0
 #pragma parameter MSK1 "   Mask Brightness Dark" 0.3 0.0 1.0 0.05
 #pragma parameter MSK2 "   Mask Brightness Bright" 0.6 0.0 1.0 0.05
-#pragma parameter MSK_SIZE "   Mask Size" 0.5002 0.0 1.0 0.1666
+#pragma parameter MSK_SIZE "   Mask Size" 0.5002 0.5002 1.0 0.1666
 #pragma parameter FADE "   Mask/Scanlines fade" 0.2 0.0 1.0 0.05
-#pragma parameter PRESERVE "Protect Bright Colors" 0.2 0.0 1.0 0.01
-#pragma parameter SAT "Saturation" 1.2 0.0 2.0 0.05
+#pragma parameter PRESERVE "Protect Bright Colors" 0.7 0.0 1.0 0.01
+#pragma parameter SAT "Saturation" 1.0 0.0 2.0 0.05
 #pragma parameter INGAMMA "Gamma In" 2.4 1.0 4.0 0.05
 #pragma parameter OUTGAMMA "Gamma Out" 2.25 1.0 4.0 0.05
 #pragma parameter SEGA "Brightness Fix 1.0:Sega, 2:Amiga/ST" 0.0 0.0 2.0 1.0
-#pragma parameter NOISE "Add Noise" 0.1 0.0 1.0 0.01
-#pragma parameter WPR "  Shift to Red" 0.1 -0.25 0.25 0.01
-#pragma parameter WPG "  Shift to Green" -0.1 -0.25 0.25 0.01
-#pragma parameter WPB "  Shift to Blue" 0.1 -0.25 0.25 0.01
+#pragma parameter NOISE "Add Noise" 0.0 0.0 1.0 0.01
+#pragma parameter WPR "  Shift to Red" 0.0 -0.25 0.25 0.01
+#pragma parameter WPG "  Shift to Green" 0.0 -0.25 0.25 0.01
+#pragma parameter WPB "  Shift to Blue" 0.0 -0.25 0.25 0.01
 #pragma parameter BOOST "  Bright Boost" 1.3 1.0 2.0 0.05
+#pragma parameter BOOSTD "  Dark Boost" 1.45 1.0 2.0 0.05
 
 #define OUTGAMMA params.OUTGAMMA
 #define INGAMMA params.INGAMMA
@@ -68,6 +69,7 @@ layout(push_constant) uniform Push
 #define WPG params.WPG
 #define WPB params.WPB
 #define BOOST params.BOOST
+#define BOOSTD params.BOOSTD
 
 
 
@@ -95,7 +97,7 @@ void main()
 {
 	gl_Position = global.MVP * Position;
 	vTexCoord = TexCoord * 1.0001;
-   omega = vec2(pi * OutputSize.x, pi * SourceSize.y/SCALE);
+    omega = vec2(pi * OutputSize.x, pi * SourceSize.y/SCALE);
 }
 
 #pragma stage fragment
@@ -152,7 +154,7 @@ void main()
 						    col.b*(1.0-BLUR)               + colr.b*BLUR);
 
   
-    vec3 lumweight=vec3(0.213,0.715,0.072);
+    vec3 lumweight=vec3(0.3,0.6,0.1);
     float lum = dot(color,lumweight);
 
  
@@ -169,7 +171,7 @@ void main()
 
          color =mix(color*mask, color, dot(color, vec3(FADE)));
     
-    color *= mix(1.0,BOOST,lum);
+    color *= mix(BOOSTD,BOOST,lum);
     color *= vec3(1.0+WPR,     1.0-WPR/2.0, 1.0-WPR/2.0);
     color *= vec3(1.0-WPG/2.0, 1.0+WPG,     1.0-WPG/2.0);
     color *= vec3(1.0-WPB/2.0, 1.0-WPB/2.0, 1.0+WPB);
