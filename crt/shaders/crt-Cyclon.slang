@@ -32,13 +32,13 @@ layout(push_constant) uniform Push
 } params;
 
 // Parameter lines go here:
-#pragma parameter SCANLINE "Scanline Weight" 0.3 0.15 0.6 0.05
+#pragma parameter SCANLINE "Scanline Weight" 0.25 0.15 0.6 0.05
 #pragma parameter INTERLACE "Interlacing On/Off" 1.0 0.0 1.0 1.0
 #pragma parameter bogus_msk " [ MASK SETTINGS ] " 0.0 0.0 0.0 0.0
-#pragma parameter M_TYPE "Mask Type: -1:None, 0:CGWG, 1:RGB" 0.0 -1.0 1.0 1.0
+#pragma parameter M_TYPE "Mask Type: -1:None, 0:CGWG, 1:RGB" 1.0 -1.0 1.0 1.0
 #pragma parameter MSIZE "Mask Size" 1.0 1.0 2.0 1.0
-#pragma parameter SLOT "Slot Mask On/Off" 0.0 0.0 1.0 1.0
-#pragma parameter SLOTW "Slot Mask Width" 2.0 2.0 3.0 1.0
+#pragma parameter SLOT "Slot Mask On/Off" 1.0 0.0 1.0 1.0
+#pragma parameter SLOTW "Slot Mask Width" 3.0 2.0 3.0 1.0
 #pragma parameter BGR "Subpixels BGR/RGB" 0.0 0.0 1.0 1.0
 #pragma parameter Maskl "Mask Brightness Dark" 0.3 0.0 1.0 0.05
 #pragma parameter Maskh "Mask Brightness Bright" 0.75 0.0 1.0 0.05
@@ -191,7 +191,7 @@ vec3 scanlineWeights(float distance, vec3 color)
 
     }
 
-#define pwr vec3(1.0/((-0.8*SCANLINE+1.0)*(-0.8*(1.0-CGWG)+1.0))-1.2)
+#define pwr vec3(1.0/((-1.0*SCANLINE+1.0)*(-0.8*CGWG+1.0))-1.2)
 // Returns gamma corrected output, compensated for scanline+mask embedded gamma
 vec3 inv_gamma(vec3 col, vec3 power)
 {
@@ -203,23 +203,21 @@ vec3 inv_gamma(vec3 col, vec3 power)
 
 // standard 6500k
 mat3 PAL = mat3(                    
-1.0278  ,   -0.0825 ,   0.0508  ,
-0.0092  ,   0.9788  ,   0.0150  ,
-0.0040  ,   0.0005  ,   1.3144  );
+1.0740  ,   -0.0574 ,   -0.0119 ,
+0.0384  ,   0.9699  ,   -0.0059 ,
+-0.0079 ,   0.0204  ,   0.9884  );
 
 // standard 6500k
 mat3 NTSC = mat3(                   
-0.8895  ,   0.0197  ,   0.0885  ,
--0.0144 ,   0.9801  ,   0.0409  ,
-0.0181  ,   -0.0353 ,   1.3413  );
-
+0.9318  ,   0.0412  ,   0.0217  ,
+0.0135  ,   0.9711  ,   0.0148  ,
+0.0055  ,   -0.0143 ,   1.0085  );
 
 // standard 8500k
-mat3 NTSC_J = mat3(                 
-1.0243  ,   -0.1346 ,   0.1448  ,
-0.0728  ,   0.8770  ,   0.0639  ,
-0.0242  ,   -0.0479 ,   1.6923  );
-
+mat3 NTSC_J = mat3(                    
+0.9501  ,   -0.0431 ,   0.0857  ,
+0.0265  ,   0.9278  ,   0.0432  ,
+0.0011  ,   -0.0206 ,   1.3153  );
 
 
 
@@ -304,6 +302,8 @@ if (PAL_NTSC != 0.0){
     if (c_space == 1.0) res *= PAL;
     if (c_space == 2.0) res *= NTSC;
     if (c_space == 3.0) res *= NTSC_J;
+    res /= vec3(0.24,0.69,0.07);
+    res *= vec3(0.3,0.6,0.1); 
     res = clamp(res,0.0,1.0);
     }
     float s = fract(bpos.y*SourceSize.y-0.5);
