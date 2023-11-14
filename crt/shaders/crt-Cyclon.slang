@@ -44,10 +44,10 @@ layout(push_constant) uniform Push
 #pragma parameter bogus_geom " [ GEOMETRY SETTINGS ] " 0.0 0.0 0.0 0.0
 #pragma parameter bzl "Bezel Type" 1.0 0.0 3.0 1.0
 #pragma parameter ambient "Ambient Light" 0.3 0.0 1.0 0.05
-#pragma parameter zoomx "Zoom Image X" -0.04 -1.0 1.0 0.005
-#pragma parameter zoomy "Zoom Image Y" -0.05 -1.0 1.0 0.005
-#pragma parameter centerx "Image Center X" 0.4 -5.0 5.0 0.05 
-#pragma parameter centery "Image Center Y" 0.2 -5.0 5.0 0.05
+#pragma parameter zoomx "Zoom Image X" 0.0 -1.0 1.0 0.005
+#pragma parameter zoomy "Zoom Image Y" -0.02 -1.0 1.0 0.005
+#pragma parameter centerx "Image Center X" 2.0 -5.0 5.0 0.05 
+#pragma parameter centery "Image Center Y" 3.0 -5.0 5.0 0.05
 #pragma parameter WARPX "Curvature Horizontal" 0.02 0.00 0.25 0.01
 #pragma parameter WARPY "Curvature Vertical" 0.01 0.00 0.25 0.01
 #pragma parameter vig "Vignette On/Off" 1.0 0.0 1.0 1.0
