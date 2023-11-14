@@ -26,13 +26,12 @@ any later version.
 
 layout(push_constant) uniform Push
 {
-
  float SCANLINE,INTERLACE,M_TYPE,MSIZE,SLOT,SLOTW,BGR,Maskl,Maskh,C_STR,CONV_R,CONV_G,CONV_B,
-  		WARPX,WARPY,CORNER,B_SMOOTH,PAL_NTSC,BR_DEP,c_space,EXT_GAMMA;
+  		WARPX,WARPY,BR_DEP,c_space,EXT_GAMMA;
 } params;
 
 // Parameter lines go here:
-#pragma parameter SCANLINE "Scanline Weight" 0.25 0.15 0.6 0.05
+#pragma parameter SCANLINE "Scanline Weight" 0.3 0.2 0.6 0.05
 #pragma parameter INTERLACE "Interlacing On/Off" 1.0 0.0 1.0 1.0
 #pragma parameter bogus_msk " [ MASK SETTINGS ] " 0.0 0.0 0.0 0.0
 #pragma parameter M_TYPE "Mask Type: -1:None, 0:CGWG, 1:RGB" 1.0 -1.0 1.0 1.0
@@ -43,21 +42,24 @@ layout(push_constant) uniform Push
 #pragma parameter Maskl "Mask Brightness Dark" 0.3 0.0 1.0 0.05
 #pragma parameter Maskh "Mask Brightness Bright" 0.75 0.0 1.0 0.05
 #pragma parameter bogus_con " [ CONVERGENCE SETTINGS ] " 0.0 0.0 0.0 0.0
-#pragma parameter C_STR "Convergence Overall Strength" 0.0 0.0 1.0 0.05
+#pragma parameter C_STR "Convergence Overall Strength" 0.0 0.0 0.5 0.05
 #pragma parameter CONV_R "Convergence Red X-Axis" 0.0 -1.0 1.0 0.05
 #pragma parameter CONV_G "Convergence Green X-axis" 0.0 -1.0 1.0 0.05
 #pragma parameter CONV_B "Convergence Blue X-Axis" 0.0 -1.0 1.0 0.05
 #pragma parameter bogus_geom " [ GEOMETRY SETTINGS ] " 0.0 0.0 0.0 0.0
-#pragma parameter WARPX "Curvature Horizontal" 0.032 0.00 0.25 0.01
-#pragma parameter WARPY "Curvature Vertical" 0.042 0.00 0.25 0.01
-#pragma parameter CORNER "Corner Round" 0.02 0.0 0.25 0.01
-#pragma parameter B_SMOOTH "Border Smoothness" 300.0 100.0 1000.0 25.0
-#pragma parameter PAL_NTSC "PAL-NTSC Aspect: Amiga,MD-SNES" 0.0 0.0 2.0 1.0
+#pragma parameter bzl "Bezel On/Off" 1.0 0.0 1.0 1.0
+#pragma parameter zoomx "Zoom Image X" -0.04 -1.0 1.0 0.005
+#pragma parameter zoomy "Zoom Image Y" -0.05 -1.0 1.0 0.005
+#pragma parameter centerx "Image Center X" 0.4 -3.0 3.0 0.05 
+#pragma parameter centery "Image Center Y" 0.2 -3.0 3.0 0.05
+#pragma parameter WARPX "Curvature Horizontal" 0.01 0.00 0.25 0.01
+#pragma parameter WARPY "Curvature Vertical" 0.01 0.00 0.25 0.01
+#pragma parameter vig "Vignette On/Off" 1.0 0.0 1.0 1.0
 #pragma parameter bogus_col " [ COLOR SETTINGS ] " 0.0 0.0 0.0 0.0
-#pragma parameter BR_DEP "Scan/Mask Brightness Dependence" 0.266 0.0 0.333 0.01
+#pragma parameter BR_DEP "Scan/Mask Brightness Dependence" 0.2 0.0 0.333 0.01
 #pragma parameter c_space "Color Space: sRGB,PAL,NTSC-U,NTSC-J" 0.0 0.0 3.0 1.0
 #pragma parameter EXT_GAMMA "External Gamma In (Glow etc)" 0.0 0.0 1.0 1.0
-#pragma parameter SATURATION "Saturation" 1.0 0.0 2.0 0.01
+#pragma parameter SATURATION "Saturation" 1.0 0.0 2.0 0.05
 #pragma parameter BRIGHTNESS "Brightness, Sega fix:1.06" 1.0 0.0 2.0 0.01
 #pragma parameter BLACK  "Black Level" 0.0 -0.20 0.20 0.01 
 #pragma parameter RG "Green <-to-> Red Hue" 0.0 -0.25 0.25 0.01
@@ -65,9 +67,27 @@ layout(push_constant) uniform Push
 #pragma parameter GB "Blue <-to-> Green Hue" 0.0 -0.25 0.25 0.01
 #pragma parameter POTATO "Potato Boost(Simple Gamma, adjust Mask)" 0.0 0.0 1.0 1.0
 
+  
+#define pi 3.1415926535897932384626433
+
+layout(std140, set = 0, binding = 0) uniform UBO
+{
+	mat4 MVP;
+    float BLACK, RG, RB, GB, POTATO,SATURATION,BRIGHTNESS,bzl,zoomx,zoomy,centerx,centery,vig;
+    vec4 SourceSize;
+	vec4 OriginalSize;
+	vec4 OutputSize;
+	uint FrameCount;
+} global;
+
+#define SourceSize  global.SourceSize
+#define OriginalSize global.OriginalSize
+#define OutputSize   global.OutputSize
+#define FrameCount global.FrameCount
+
 #define M_TYPE   params.M_TYPE
 #define BGR      params.BGR
-#define MSIZE 	 params.MSIZE
+#define MSIZE    params.MSIZE
 #define Maskl    params.Maskl
 #define Maskh    params.Maskh     
 #define C_STR    params.C_STR    
@@ -85,21 +105,7 @@ layout(push_constant) uniform Push
 #define B_SMOOTH    params.B_SMOOTH  
 #define BR_DEP      params.BR_DEP   
 #define EXT_GAMMA   params.EXT_GAMMA   
-#define PAL_NTSC    params.PAL_NTSC   
-
-
-#define pi 3.1415926535897932384626433
-
-layout(std140, set = 0, binding = 0) uniform UBO
-{
-	mat4 MVP;
-    float BLACK, RG, RB, GB, POTATO,SATURATION,BRIGHTNESS;
-    vec4 SourceSize;
-	vec4 OriginalSize;
-	vec4 OutputSize;
-	uint FrameCount;
-} global;
-
+#define PAL_NTSC    params.PAL_NTSC 
 #define RG global.RG   
 #define RB global.RB   
 #define GB global.GB   
@@ -107,10 +113,12 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define POTATO global.POTATO
 #define SATURATION  global.SATURATION   
 #define BRIGHTNESS  global.BRIGHTNESS  
-#define SourceSize  global.SourceSize
-#define OriginalSize global.OriginalSize
-#define OutputSize   global.OutputSize
-#define FrameCount global.FrameCount
+#define bzl global.bzl
+#define zoomx global.zoomx
+#define zoomy global.zoomy
+#define centerx global.centerx
+#define centery global.centery
+#define vig global.vig
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -131,10 +139,11 @@ layout(location = 0) out vec4 FragColor;
 layout(location = 1) in vec2 scale;
 
 layout(set = 0, binding = 1) uniform sampler2D Source;
+layout(set = 0, binding = 2) uniform sampler2D bezel;
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
-
+#define blck (1.0)/(1.0-BLACK);
 
 
 vec3 Mask(vec2 pos, float CGWG)
@@ -160,20 +169,17 @@ if (M_TYPE == 1.0){
     else{
     float m = fract(pos.x*0.3333);
 
-    if (m<0.3333) BGR == 0.0 ? mask.b = 1.0 : mask.r = 1.0;
+    if (m<0.3333) mask.rgb = (BGR == 0.0) ? vec3(mask.r, mask.g, 1.0) : vec3(1.0, mask.g, mask.b);
     else if (m<0.6666)         mask.g = 1.0;
-    else          BGR == 0.0 ? mask.r = 1.0 : mask.b = 1.0;
+    else          mask.rgb = (BGR == 0.0) ? vec3(1.0, mask.g, mask.b) : vec3(mask.r, mask.g, 1.0);
     return mask;
     }
 }
-
     else return vec3(1.0);
 
 }
 
-
-
-vec3 scanlineWeights(float distance, vec3 color)
+float scanlineWeights(float distance, vec3 color, float x)
     {
     // "wid" controls the width of the scanline beam, for each RGB
     // channel The "weights" lines basically specify the formula
@@ -185,10 +191,9 @@ vec3 scanlineWeights(float distance, vec3 color)
     // independent of its width. That is, for a narrower beam
     // "weights" should have a higher peak at the center of the
     // scanline than for a wider beam.
-    vec3 wid = SCANLINE + 0.15 * pow(color, vec3(3.0));
-    vec3 weights = vec3(distance / wid);
+    float wid = SCANLINE + 0.15 * dot(color, vec3(0.25-0.8*x));   //0.8 vignette strength
+    float weights = distance / wid;
     return 0.4 * exp(-weights * weights ) / wid;
-
     }
 
 #define pwr vec3(1.0/((-1.0*SCANLINE+1.0)*(-0.8*CGWG+1.0))-1.2)
@@ -219,8 +224,6 @@ mat3 NTSC_J = mat3(
 0.0265  ,   0.9278  ,   0.0432  ,
 0.0011  ,   -0.0206 ,   1.3153  );
 
-
-
 vec3 slot(vec2 pos)
 {
     float h = fract(pos.x/SLOTW);
@@ -234,10 +237,7 @@ if (odd == 0.0)
 
 else if (odd == 1.0)
     {if (h<0.5) return vec3(1.5); else return vec3(0.5);}
-
-
 }
-
 
 vec2 Warp(vec2 pos)
 {
@@ -248,62 +248,57 @@ vec2 Warp(vec2 pos)
     return pos;
 }
 
-float corner(vec2 coord)
-{
-        coord = min(coord, vec2(1.0)-coord) * vec2(1.0, 0.75);
-        vec2 cdist = vec2(CORNER);
-             coord = cdist - min(coord,cdist);
-        float dist = sqrt(dot(coord,coord));
-        
-        return clamp((cdist.x-dist)*B_SMOOTH,0.0, 1.0);
-}  
-
-
 void main()
 {   
 
+// Hue matrix inside main() to avoid GLES error
 mat3 hue = mat3(
     1.0, -RG, -RB,
     RG, 1.0, -GB,
     RB, GB, 1.0
 );
+// zoom in and center screen for bezel
+    vec2 pos = Warp((vTexCoord*vec2(1.0-zoomx,1.0-zoomy)-vec2(centerx,centery)/100.0));
+    vec4 bez = texture(bezel,vTexCoord*SourceSize.xy/OriginalSize.xy);    
+    bez.rgb = mix(bez.rgb, vec3(0.15),0.8);
 
-    vec2 pos = Warp(vTexCoord*scale); vec2 cpos=pos;
-    pos /=scale; // blurry
-
-if (PAL_NTSC != 0.0){
-    if(PAL_NTSC == 1.0) pos.y /=1.2; // Amiga 256 to 200
-    pos.y += 0.005; // re-center
-    if(PAL_NTSC == 2.0) pos.y /=1.0714; // MD-SNES 240 to 224
-    }
     vec2 bpos = pos;
-    vec2 dx = vec2(SourceSize.z,0.0);
-
+    vec2 ps = SourceSize.zw;
+    vec2 dx = vec2(ps.x,0.0);
+// Quilez
     vec2 ogl2 = pos*SourceSize.xy;
     vec2 i = floor(pos*SourceSize.xy) + 0.5;
     float f = ogl2.y - i.y;
-    pos.y = (i.y + 4.0*f*f*f)*SourceSize.w; // smooth
-    pos.x = mix(pos.x, i.x*SourceSize.z, 0.2);
+    pos.y = (i.y + 4.0*f*f*f)*ps.y; // smooth
+    pos.x = mix(pos.x, i.x*ps.x, 0.2);
 
-    vec3 res0 = texture(Source,pos).rgb;
-    vec3 resr = texture(Source,pos + dx*CONV_R).rgb;
-    vec3 resb = texture(Source,pos + dx*CONV_B).rgb;
-    vec3 resg = texture(Source,pos + dx*CONV_G).rgb;
+// Convergence
+    vec3  res0 = texture(Source,pos).rgb;
+    float resr = texture(Source,pos + dx*CONV_R).r;
+    float resb = texture(Source,pos + dx*CONV_B).b;
+    float resg = texture(Source,pos + dx*CONV_G).g;
 
-    vec3 res = vec3(  res0.r*(1.0-C_STR) +  resr.r*C_STR,
-                      res0.g*(1.0-C_STR) +  resg.g*C_STR,
-                      res0.b*(1.0-C_STR) +  resb.b*C_STR 
+    vec3 res = vec3(  res0.r*(1.0-C_STR) +  resr*C_STR,
+                      res0.g*(1.0-C_STR) +  resg*C_STR,
+                      res0.b*(1.0-C_STR) +  resb*C_STR 
                    );
- 
+// Vignette
+    float x = 0.0;
+    if (vig == 1.0){
+    x = vTexCoord.x*scale.x-0.5;
+    x = x*x;}
+
     float l = dot(vec3(BR_DEP),res);
-    
+ 
+ // Color Spaces   
     if(EXT_GAMMA != 1.0) res *= res;
     if (c_space != 0.0) {
     if (c_space == 1.0) res *= PAL;
     if (c_space == 2.0) res *= NTSC;
     if (c_space == 3.0) res *= NTSC_J;
+// Apply CRT-like luminances
     res /= vec3(0.24,0.69,0.07);
-    res *= vec3(0.3,0.6,0.1); 
+    res *= vec3(0.29,0.6,0.11); 
     res = clamp(res,0.0,1.0);
     }
     float s = fract(bpos.y*SourceSize.y-0.5);
@@ -313,26 +308,33 @@ if (PAL_NTSC != 0.0){
         s = fract(bpos.y*SourceSize.y/2.0-0.5);
         if (INTERLACE == 1.0) s = mod(float(FrameCount),2.0) < 1.0 ? s: s+0.5;
     }
-
-    vec3 weight  = scanlineWeights(s, res);
-    vec3 weight2 = scanlineWeights(1.0-s, res);
-
+// Calculate CRT-Geom scanlines weight and apply
+    float weight  = scanlineWeights(s, res, x);
+    float weight2 = scanlineWeights(1.0-s, res, x);
     res *= weight + weight2;
-    vec2 xy = vTexCoord*OutputSize.xy*scale/MSIZE;
-    
-    float CGWG = mix(Maskl, Maskh, l);
-   
-    res *= Mask(xy, CGWG);
-    if (SLOT == 1.0) res *= mix(slot(xy/2.0),vec3(1.0),CGWG);
-    if (POTATO == 0.0) res = inv_gamma(res,pwr);
-    else res = sqrt(res);
 
+// Masks
+    vec2 xy = vTexCoord*OutputSize.xy*scale/MSIZE;    
+    float CGWG = mix(Maskl, Maskh, l);
+    res *= Mask(xy, CGWG);
+// Apply slot mask on top of Trinitron-like mask
+    if (SLOT == 1.0) res *= mix(slot(xy/2.0),vec3(1.0),CGWG);
+    
+    if (POTATO == 0.0) res = inv_gamma(res,pwr);
+    else {res = sqrt(res); res *= mix(1.3,1.1,l);}
+
+// Saturation
     float lum = dot(vec3(0.29,0.60,0.11),res);
     res = mix(vec3(lum),res,SATURATION);
+
+// Brightness, Hue and Black Level
     res *= BRIGHTNESS;
     res *= hue;
     res -= vec3(BLACK);
-    res *= vec3(1.0)/vec3(1.0-BLACK);
-    if (CORNER !=0.0) res *= corner(cpos);
+    res *= blck;
+// Apply bezel code, adapted from New-Pixie
+    if (bzl >0.0)
+    res.rgb = mix(res.rgb, mix(max(res.rgb, 0.0), pow( abs(bez.rgb), vec3( 1.4 ) ), bez.w * bez.w), vec3( 1.0 ) );
+
     FragColor = vec4(res,1.0);
 }
