@@ -3,50 +3,73 @@
 
 layout(push_constant) uniform Push
 {
-	vec4 OutputSize;
-	vec4 OriginalSize;
-	vec4 SourceSize;
-	uint FrameCount;
+	
     float SAT,BLACK,TEMP,SEGA,BRIGHTNESS,postbr,contrast,
-    gamma_out_red,gamma_out_green,gamma_out_blue,
-    gamma_in, mono, R,G,B;
+    gamma_out, gamma_in, mono, R,G,B, CS, RG,RB,GB,r_out,g_out,b_out, postdk;
 } params;
 
-#pragma parameter TEMP "Color Temperature in Kelvins"  9311.0 1031.0 12047.0 72.0
-#define TEMP params.TEMP
-#pragma parameter SAT "Saturation" 1.0 0.0 2.0 0.01
-#define SAT params.SAT
-#pragma parameter BRIGHTNESS "Brightness" 1.0 0.0 2.0 0.01
-#define BRIGHTNESS params.BRIGHTNESS
-#pragma parameter contrast "Contrast" 1.0 0.00 2.00 0.01
-#define contrast params.contrast
-#pragma parameter BLACK "Black Level" 0.0 -0.20 0.20 0.01 
-#define BLACK params.BLACK
-#pragma parameter SEGA "SEGA Lum Fix" 0.0 0.0 1.0 1.0
-#define SEGA params.SEGA
-#pragma parameter postbr "Post Brightness" 1.0 0.0 2.5 0.01
-#define postbr params.postbr
+
+
+#pragma parameter CS "Colors: sRGB, PAL, NTSC-U, NTSC-J" 0.0 0.0 3.0 1.0
+#pragma parameter TEMP "Color Temperature in Kelvins (NTSC-J 9300)"  6863.0 1031.0 12047.0 72.0
 #pragma parameter gamma_in "Gamma In" 2.4 1.0 4.0 0.05
-#define gamma_in params.gamma_in
-#pragma parameter gamma_out_red "Gamma out Red" 2.2 1.0 4.0 0.05
-#define gamma_out_red params.gamma_out_red
-#pragma parameter gamma_out_green "Gamma out Green" 2.2 1.0 4.0 0.05
-#define gamma_out_green params.gamma_out_green
-#pragma parameter gamma_out_blue "Gamma out Blue" 2.2 1.0 4.0 0.05
-#define gamma_out_blue params.gamma_out_blue
+#pragma parameter RG "Green <-to-> Red Hue" 0.0 -0.25 0.25 0.01
+#pragma parameter RB "Blue <-to-> Red Hue"  0.0 -0.25 0.25 0.01
+#pragma parameter GB "Blue <-to-> Green Hue" 0.0 -0.25 0.25 0.01
+#pragma parameter r_out "CRT Red Vibrancy" 0.29 0.0 1.0 0.01
+#pragma parameter g_out "CRT Green Vibrancy" 0.62 0.0 1.0 0.01
+#pragma parameter b_out "CRT Blue Vibrancy" 0.09 0.0 1.0 0.01
+#pragma parameter BRIGHTNESS "Brightness" 1.0 0.0 2.0 0.01
+#pragma parameter contrast "Contrast" 1.0 0.00 2.00 0.01
+#pragma parameter SAT "Saturation" 1.0 0.0 2.0 0.01
+#pragma parameter BLACK  "Black Level" 0.0 -0.20 0.20 0.01 
+#pragma parameter SEGA "SEGA Lum Fix" 0.0 0.0 1.0 1.0
+#pragma parameter postbr "Bright Boost" 1.0 1.0 2.0 0.05
+#pragma parameter postdk "Dark Boost" 1.0 1.0 2.0 0.05
+#pragma parameter gamma_out "Gamma out" 2.2 1.0 4.0 0.05
 #pragma parameter mono "Mono Display On/Off" 0.0 0.0 1.0 1.0
-#define mono params.mono
 #pragma parameter R "Mono Red/Channel" 1.0 0.0 2.0 0.01
-#define R params.R
 #pragma parameter G "Mono Green/Channel" 1.0 0.0 2.0 0.01
-#define G params.G
 #pragma parameter B "Mono Blue/Channel" 1.0 0.0 2.0 0.01
+
+
+#define CS params.CS
+#define RG params.RG
+#define RB params.RB
+#define GB params.GB
+#define r_out params.r_out
+#define g_out params.g_out
+#define b_out params.b_out
+#define TEMP params.TEMP
+#define SAT params.SAT
+#define BRIGHTNESS params.BRIGHTNESS
+#define contrast params.contrast
+#define BLACK params.BLACK
+#define SEGA params.SEGA
+#define postbr params.postbr
+#define postdk params.postdk
+#define gamma_in params.gamma_in
+#define gamma_out params.gamma_out
+#define mono params.mono
+#define R params.R
+#define G params.G
 #define B params.B
+
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
    mat4 MVP;
+    vec4 OutputSize;
+    vec4 OriginalSize;
+    vec4 SourceSize;
+    uint FrameCount;
 } global;
+
+
+#define OutputSize global.OutputSize
+#define OriginalSize global.OriginalSize
+#define SourceSize global.SourceSize
+#define FrameCount global.FrameCount
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -63,6 +86,44 @@ void main()
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
+
+#if defined GL_ES
+
+mat3 PAL = mat3(                    
+0.7954  ,   0.1881  ,   0.0053  ,
+-0.0310 ,   1.0343  ,   -0.0044 ,
+-0.0236 ,   0.1383  ,   0.8927  );
+
+mat3 NTSC = mat3(                   
+0.6837  ,   0.2635  ,   0.0336  ,
+-0.0499 ,   1.0323  ,   0.0139  ,
+-0.0119 ,   0.1071  ,   0.9111  );
+
+mat3 NTSC_J = mat3(                 
+0.8642  ,   0.1253  ,   0.0030  ,
+0.0545  ,   0.9513  ,   -0.0029 ,
+-0.0214 ,   0.1554  ,   0.8750  );
+
+#else
+// standard 6500k
+mat3 PAL = mat3(                    
+1.0740  ,   -0.0574 ,   -0.0119 ,
+0.0384  ,   0.9699  ,   -0.0059 ,
+-0.0079 ,   0.0204  ,   0.9884  );
+
+// standard 6500k
+mat3 NTSC = mat3(                   
+0.9318  ,   0.0412  ,   0.0217  ,
+0.0135  ,   0.9711  ,   0.0148  ,
+0.0055  ,   -0.0143 ,   1.0085  );
+
+// standard 6500k
+mat3 NTSC_J = mat3(                 
+1.0185  ,   -0.0144 ,   -0.0029 ,
+0.0732  ,   0.9369  ,   -0.0059 ,
+-0.0318 ,   -0.0080 ,   1.0353  );
+#endif
+
 
 float saturate(float v) 
     { 
@@ -109,7 +170,9 @@ mat4 contrastMatrix(float contr)
 
 vec3 toGrayscale(vec3 color)
 {
-  float average = dot(vec3(0.22,0.71,0.07),color);
+
+  float average = dot(vec3(0.3,0.59,0.11),color);
+  if (CS == 0.0) average = dot(vec3(0.22,0.71,0.07),color);
   return vec3(average);
 }
 
@@ -119,35 +182,91 @@ vec3 colorize(vec3 grayscale, vec3 color)
 }
 
 
+vec3 huePreserveClipDesaturate(float r, float g, float b)
+{
+   float l = (.299 * r) + (0.587 * g) + (0.114 * b);
+   bool ovr = false;
+   float ratio = 1.0;
+
+   if ((r > 1.0) || (g > 1.0) || (b > 1.0))
+   {
+      ovr = true;
+      float max = r;
+      if (g > max) max = g;
+      if (b > max) max = b;
+      ratio = 1.0 / max;
+   }
+
+   if (ovr)
+   {
+      r -= 1.0;
+      g -= 1.0;
+      b -= 1.0;
+      r *= ratio;
+      g *= ratio;
+      b *= ratio;
+      r += 1.0;
+      g += 1.0;
+      b += 1.0;
+   }
+
+   r = clamp(r, 0.0, 1.0);
+   g = clamp(g, 0.0, 1.0);
+   b = clamp(b, 0.0, 1.0);
+
+   return vec3(r, g, b);
+}
+
 
 void main()
 {
+mat3 hue = mat3(
+    1.0, -RG, -RB,
+    RG, 1.0, -GB,
+    RB, GB, 1.0
+);
+
    vec3 col = texture(Source,vTexCoord).rgb;
    col *= BRIGHTNESS;
-   col = (contrastMatrix(contrast) * vec4(col,1.0)).rgb;  
+   
+   col = pow((col+0.099)/1.099, vec3(gamma_in));
 //color temperature  
    col *= ColorTemp(TEMP);
 
-//saturation
-   float l = dot(col, vec3(0.3,0.6,0.1));
-   col = mix(vec3(l), col, SAT); 
-   col = pow(col, vec3(gamma_in));
-//black level    
    
+if (CS != 0.0){
+    if (CS == 1.0) col *= PAL;
+    if (CS == 2.0) col *= NTSC;
+    if (CS == 3.0) col *= NTSC_J;
+    col /= vec3(0.24,0.69,0.07);
+    col *= vec3(r_out,g_out,b_out); 
+    col = clamp(col,0.0,2.0);
+}
    if (SEGA == 1.0) col *= 1.0625;
-    col *= mix(1.0,postbr,l);
-    col = pow(col, vec3(1.0/gamma_out_red,1.0,1.0));
-    col = pow(col, vec3(1.0,1.0/gamma_out_green,1.0));
-    col = pow(col, vec3(1.0,1.0,1.0/gamma_out_blue));
-     col -= vec3(BLACK);
+
+    col = pow(1.099*col, vec3(1.0/gamma_out))-0.099;
+   
+    col -= vec3(BLACK);
     col*= vec3(1.0)/vec3(1.0-BLACK);
     
+//saturation
+vec3 lumw = vec3(0.3,0.59,0.11);
+if (CS == 0.0) lumw = vec3(0.2124,0.7011, 0.0866);   
+float l = dot(col, lumw);
+    
+   col = mix(vec3(l), col, SAT); 
     if (mono == 1.0)
     {
     vec3 col1 = toGrayscale (col);
     vec3 c = vec3(R, G, B);
     col = colorize (col1, c);
     }
+   //col *= hue;
+
+col *= mix(postdk,postbr,l);
+col = (contrastMatrix(contrast) * vec4(col,1.0)).rgb;  
+
+   col = huePreserveClipDesaturate(col.r, col.g, col.b);
 
    FragColor = vec4(col,1.0);
 }
