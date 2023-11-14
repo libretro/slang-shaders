@@ -60,7 +60,7 @@ layout(push_constant) uniform Push
 #pragma parameter c_space "Color Space: sRGB,PAL,NTSC-U,NTSC-J" 0.0 0.0 3.0 1.0
 #pragma parameter EXT_GAMMA "External Gamma In (Glow etc)" 0.0 0.0 1.0 1.0
 #pragma parameter SATURATION "Saturation" 1.0 0.0 2.0 0.05
-#pragma parameter BRIGHTNESS "Brightness, Sega fix:1.06" 1.0 0.0 2.0 0.01
+#pragma parameter BRIGHTNESS_ "Brightness, Sega fix:1.06" 1.0 0.0 2.0 0.01
 #pragma parameter BLACK  "Black Level" 0.0 -0.20 0.20 0.01 
 #pragma parameter RG "Green <-to-> Red Hue" 0.0 -0.25 0.25 0.01
 #pragma parameter RB "Blue <-to-> Red Hue"  0.0 -0.25 0.25 0.01
@@ -73,7 +73,7 @@ layout(push_constant) uniform Push
 layout(std140, set = 0, binding = 0) uniform UBO
 {
 	mat4 MVP;
-    float BLACK, RG, RB, GB, POTATO,SATURATION,BRIGHTNESS,bzl,zoomx,zoomy,centerx,centery,vig;
+    float BLACK, RG, RB, GB, POTATO,SATURATION,BRIGHTNESS_,bzl,zoomx,zoomy,centerx,centery,vig;
     vec4 SourceSize;
 	vec4 OriginalSize;
 	vec4 OutputSize;
@@ -112,7 +112,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define BLACK global.BLACK
 #define POTATO global.POTATO
 #define SATURATION  global.SATURATION   
-#define BRIGHTNESS  global.BRIGHTNESS  
+#define BRIGHTNESS_  global.BRIGHTNESS_  
 #define bzl global.bzl
 #define zoomx global.zoomx
 #define zoomy global.zoomy
@@ -328,7 +328,7 @@ mat3 hue = mat3(
     res = mix(vec3(lum),res,SATURATION);
 
 // Brightness, Hue and Black Level
-    res *= BRIGHTNESS;
+    res *= BRIGHTNESS_;
     res *= hue;
     res -= vec3(BLACK);
     res *= blck;
