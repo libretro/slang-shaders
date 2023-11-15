@@ -42,8 +42,8 @@ layout(push_constant) uniform Push
 #pragma parameter Maskl "Mask Brightness Dark" 0.3 0.0 1.0 0.05
 #pragma parameter Maskh "Mask Brightness Bright" 0.75 0.0 1.0 0.05
 #pragma parameter bogus_geom " [ GEOMETRY SETTINGS ] " 0.0 0.0 0.0 0.0
-#pragma parameter bzl "Bezel Type" 1.0 0.0 3.0 1.0
-#pragma parameter ambient "Ambient Light" 0.3 0.0 1.0 0.05
+#pragma parameter bzl "Bezel Type" 1.0 0.0 2.0 1.0
+#pragma parameter ambient "Ambient Light" 0.25 0.0 1.0 0.05
 #pragma parameter zoomx "Zoom Image X" 0.0 -1.0 1.0 0.005
 #pragma parameter zoomy "Zoom Image Y" -0.02 -1.0 1.0 0.005
 #pragma parameter centerx "Image Center X" 2.0 -5.0 5.0 0.05 
@@ -143,7 +143,6 @@ layout(location = 1) in vec2 scale;
 layout(set = 0, binding = 1) uniform sampler2D Source;
 layout(set = 0, binding = 2) uniform sampler2D bezel;
 layout(set = 0, binding = 3) uniform sampler2D bezel2;
-layout(set = 0, binding = 4) uniform sampler2D bezel3;
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -266,7 +265,6 @@ mat3 hue = mat3(
     vec4 bez = vec4(0.0);
     if (bzl == 1.0) bez = texture(bezel,vTexCoord*SourceSize.xy/OriginalSize.xy);   
     if (bzl == 2.0) bez = texture(bezel2,vTexCoord*SourceSize.xy/OriginalSize.xy);   
-    if (bzl == 3.0) bez = texture(bezel3,vTexCoord*SourceSize.xy/OriginalSize.xy);   
 
     bez.rgb = mix(bez.rgb, vec3(ambient),0.5);
 
