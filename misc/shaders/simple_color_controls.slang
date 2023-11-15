@@ -87,24 +87,6 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-#if defined GL_ES
-
-mat3 PAL = mat3(                    
-0.7954  ,   0.1881  ,   0.0053  ,
--0.0310 ,   1.0343  ,   -0.0044 ,
--0.0236 ,   0.1383  ,   0.8927  );
-
-mat3 NTSC = mat3(                   
-0.6837  ,   0.2635  ,   0.0336  ,
--0.0499 ,   1.0323  ,   0.0139  ,
--0.0119 ,   0.1071  ,   0.9111  );
-
-mat3 NTSC_J = mat3(                 
-0.8642  ,   0.1253  ,   0.0030  ,
-0.0545  ,   0.9513  ,   -0.0029 ,
--0.0214 ,   0.1554  ,   0.8750  );
-
-#else
 // standard 6500k
 mat3 PAL = mat3(                    
 1.0740  ,   -0.0574 ,   -0.0119 ,
@@ -122,7 +104,6 @@ mat3 NTSC_J = mat3(
 1.0185  ,   -0.0144 ,   -0.0029 ,
 0.0732  ,   0.9369  ,   -0.0059 ,
 -0.0318 ,   -0.0080 ,   1.0353  );
-#endif
 
 
 float saturate(float v) 
