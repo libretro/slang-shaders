@@ -13,7 +13,3 @@ bezel_wrap_mode = "clamp_to_border"
 bezel2 = "shaders/crt-consumer/bezel2.png"
 bezel2_linear = true
 bezel2_wrap_mode = "clamp_to_border"
-
-bezel3 = "shaders/crt-consumer/bezel3.png"
-bezel3_linear = true
-bezel3_wrap_mode = "clamp_to_border"
