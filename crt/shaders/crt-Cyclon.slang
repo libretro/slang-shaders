@@ -263,8 +263,8 @@ mat3 hue = mat3(
 // zoom in and center screen for bezel
     vec2 pos = Warp((vTexCoord*vec2(1.0-zoomx,1.0-zoomy)-vec2(centerx,centery)/100.0));
     vec4 bez = vec4(0.0);
-    if (bzl == 1.0) bez = texture(bezel,vTexCoord*SourceSize.xy/OriginalSize.xy);   
-    if (bzl == 2.0) bez = texture(bezel2,vTexCoord*SourceSize.xy/OriginalSize.xy);   
+    if (bzl == 1.0) bez = texture(bezel,vTexCoord*SourceSize.xy/OriginalSize.xy*0.97+vec2(0.015,0.015));   
+    if (bzl == 2.0) bez = texture(bezel2,vTexCoord*SourceSize.xy/OriginalSize.xy*0.93+vec2(0.035,0.025));   
 
     bez.rgb = mix(bez.rgb, vec3(ambient),0.5);
 
