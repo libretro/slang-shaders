@@ -1,7 +1,5 @@
 #version 450
 
-// Simple scanlines with curvature and mask effects lifted from crt-geom
-// original by hunterk, edited by DariusG
 
 layout(push_constant) uniform Push
 {
@@ -9,22 +7,17 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-  float SCANLINE;
-  float cgwg;
-  float boost;
+    float SIZE;
 } params;
 
 // Parameter lines go here:
 
-#pragma parameter boost "Bright boost " 1.20 1.00 2.00 0.02
-#define boost params.boost
+#pragma parameter SIZE "Mask Type " 2.0 2.00 3.00 1.0
+#define SIZE params.SIZE
 
-#pragma parameter SCANLINE "Scanline Intensity" 0.50 0.0 1.0 0.05
-#define SCANLINE params.SCANLINE
-
-#pragma parameter cgwg "Mask Intensity " 0.3 0.0 1.0 0.05
-#define cgwg params.cgwg
-
+#define OriginalSize params.OriginalSize
+#define OutputSize params.OutputSize
+#define SourceSize params.SourceSize
 
 #define pi 3.141592654
 	
@@ -37,42 +30,75 @@ layout(std140, set = 0, binding = 0) uniform UBO
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out vec2 p;
+layout(location = 1) out  vec2 scale;
+layout(location = 2) out  float fragpos;
+layout(location = 3) out  vec2 warpp;
+layout(location = 4) out  vec2 dbwarp;
 
 void main()
 {
 	gl_Position = global.MVP * Position;
 	vTexCoord = TexCoord * 1.0001;
-        p = vTexCoord * params.SourceSize.xy;
+    scale = SourceSize.xy/OriginalSize.xy;
+    warpp = vTexCoord.xy*scale;
+    dbwarp = warpp*2.0-1.0;
+    fragpos = warpp.x*OutputSize.x*pi*2.0/SIZE;
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-layout(location = 1) in vec2 p;
+layout(location = 1) in  vec2 scale;
+layout(location = 2) in  float fragpos;
+layout(location = 3) in  vec2 warpp;
+layout(location = 4) in  vec2 dbwarp;
 
 layout(set = 0, binding = 1) uniform sampler2D Source;
 
-
-///////////////////////////////////////////////////////////////////////////////////////////////
-
+vec2 Warp(vec2 pos)
+{
+    pos = dbwarp;
+    pos *= vec2(1.0+pos.y*pos.y*0.03, 1.0+pos.x*pos.x*0.04);
+    pos = pos*0.5+0.5;
+    return pos;
+}
 
 void main()
 {
-	vec2 pos = vTexCoord.xy;
+vec2 pos = Warp(warpp);
+vec2 corn = min(pos, 1.0-pos);    // This is used to mask the rounded
+  corn.x = 0.0002/corn.x;         // corners later on
+  pos /= scale;
 
-	vec3 res = texture(Source, pos).rgb;
-
-    res *= SCANLINE * sin(fract(p.y)*pi) +(1.0-SCANLINE);
-    
-    //scanlines will misalign if res*res is run before scanlines applied.
-    res *= res;
-    
-    // apply the mask
-	res *= cgwg*(sin(pos.x*params.OutputSize.x*pi))+1.0-cgwg ;
+float y = pos.y*SourceSize.y;
+float gl2pos = floor(y) + 0.5;
+float near = gl2pos*SourceSize.w;
+float dy = y - gl2pos;
+      dy = dy*dy*dy*4.0*SourceSize.w;
    
-        res = sqrt(res);
-	res *= boost;
+vec2 p = vec2(pos.x, near+dy);
 
-    FragColor = vec4(res,1.0);
-} 
+vec3 res = texture(Source,p).rgb;
+
+vec3 clean = res;
+float w = dot(vec3(0.15),res);
+
+// vignette  
+float x = (warpp.x-0.5);  // range -0.5 to 0.5, 0.0 being center of screen
+      x = x*x;   
+res *= (0.25+x)*sin((y-0.25)*pi*2.0)+(0.75-x);
+res *= 0.15*sin(fragpos)+0.85;
+
+res = mix(res,clean, w);
+
+res *= vec3(1.0,0.85,1.2);
+
+
+float lum = dot(vec3(0.29,0.6,0.11),res);
+res = mix(vec3(lum),res, 1.1);
+
+res *= mix(1.25,1.0,w);
+if (corn.y <= corn.x || corn.x < 0.0001 )res = vec3(0.0);
+
+FragColor.rgb = res;   
+}
