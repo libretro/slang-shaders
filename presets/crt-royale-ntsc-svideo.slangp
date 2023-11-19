@@ -131,7 +131,7 @@ scale7 = "1.0"
 srgb_framebuffer7 = "true"
 
 # Pass 8: Horizontally blur the input for halation and refractive diffusion.
-# Note: Using a one-pass 9x11 blur is about 1% slower.
+# Note: Using a one-pass 9x9 blur is about 1% slower.
 shader8 = "../blurs/shaders/royale/blur9fast-horizontal.slang"
 alias8 = "HALATION_BLUR"
 filter_linear8 = "true"
@@ -177,7 +177,7 @@ filter_linear9 = "true"
 scale_type_x9 = "absolute"
 scale_x9 = "64"
 scale_type_y9 = "viewport"
-scale_y9 = "0.0625" # Safe for >= 341.335 horizontal triads at viewport size
+scale_y9 = "0.0625" # Safe for >= 341.333 horizontal triads at viewport size
 #srgb_framebuffer9 = "false" # mask_texture is already assumed linear
 
 # Pass 10: Lanczos-resize the phosphor mask horizontally.  scale_x10 = scale_y7.
