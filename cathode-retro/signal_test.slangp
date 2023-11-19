@@ -1,0 +1,39 @@
+shaders = 7
+
+shader0 = shaders/cathode-retro/cathode-retro-util-copy.slang
+alias0 = g_sourceTexture
+filter_linear0 = true
+
+shader1 = shaders/cathode-retro/cathode-retro-generator-gen-phase.slang
+float_framebuffer1 = true
+alias1 = g_scanlinePhases
+scale_type_y1 = absolute
+scale_y1 = 1.0
+filter_linear1 = true
+
+shader2 = shaders/cathode-retro/cathode-retro-generator-rgb-to-svideo-or-composite.slang
+float_framebuffer2 = true
+scale_type_y2 = absolute
+scale_y2 = 224.0
+alias2 = YIQ_tex
+
+shader3 = shaders/cathode-retro/cathode-retro-generator-apply-artifacts.slang
+filter_linear3 = true
+float_framebuffer3 = true
+
+shader4 = shaders/cathode-retro/cathode-retro-decoder-composite-to-svideo.slang
+filter_linear4 = true
+float_framebuffer4 = true
+
+shader5 = shaders/cathode-retro/cathode-retro-decoder-svideo-to-modulated-chroma.slang
+float_framebuffer5 = true
+alias5 = g_modulatedChromaTexture
+
+# output is black whenever this shader is in the mix, but it's clearly necessary
+shader6 = stock.slang
+#shaders/cathode-retro/cathode-retro-decoder-svideo-to-rgb.slang
+float_framebuffer6 = true
+alias6 = g_currentFrameTexture
+
+shader7 = shaders/cathode-retro/cathode-retro-decoder-filter-rgb.slang
+float_framebuffer7 = true
