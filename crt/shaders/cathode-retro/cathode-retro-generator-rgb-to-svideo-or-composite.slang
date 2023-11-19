@@ -1,5 +1,12 @@
 #version 450
 
+/*
+   A port of DeadlyRedCube's Cathode-Retro shader to slang format
+   based on a snapshot from https://github.com/DeadlyRedCube/Cathode-Retro circa Nov. 2023
+   ported by hunterk
+   license: MIT
+*/
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // This shader takes an RGB image and turns it into either an S-Video or Composite signal (Based on whether g_compositeBlend is 0 or 1).
 //  We might also be generating a PAIR of these, using two different sets of phase inputs (if g_scanlinePhases is a two-component input),

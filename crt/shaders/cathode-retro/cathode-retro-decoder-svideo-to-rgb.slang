@@ -1,5 +1,12 @@
 #version 450
 
+/*
+   A port of DeadlyRedCube's Cathode-Retro shader to slang format
+   based on a snapshot from https://github.com/DeadlyRedCube/Cathode-Retro circa Nov. 2023
+   ported by hunterk
+   license: MIT
+*/
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // This signal takes an input S-Video signal and converts it into a set of YIQ color space values.
 //

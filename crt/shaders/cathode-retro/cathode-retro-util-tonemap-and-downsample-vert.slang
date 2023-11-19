@@ -1,5 +1,12 @@
 #version 450
 
+/*
+   A port of DeadlyRedCube's Cathode-Retro shader to slang format
+   based on a snapshot from https://github.com/DeadlyRedCube/Cathode-Retro circa Nov. 2023
+   ported by hunterk
+   license: MIT
+*/
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // This shader does a tonemap and 1D downsample of a texture, which is intended to be for the diffusion emulation in
 //  the CRT side of the whole Cathode Retro process. It's worth noting that in practice we're not doing a true 2x

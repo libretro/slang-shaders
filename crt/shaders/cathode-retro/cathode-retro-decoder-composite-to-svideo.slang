@@ -1,5 +1,12 @@
 #version 450
 
+/*
+   A port of DeadlyRedCube's Cathode-Retro shader to slang format
+   based on a snapshot from https://github.com/DeadlyRedCube/Cathode-Retro circa Nov. 2023
+   ported by hunterk
+   license: MIT
+*/
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // This shader takes a composite signal (like you'd get via a console's composite input) and separates out the luma
 //  from the chroma so it is effectively an SVideo signal. I tried all sorts of wacky hijinks to filter these things

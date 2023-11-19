@@ -1,5 +1,12 @@
 #version 450
 
+/*
+   A port of DeadlyRedCube's Cathode-Retro shader to slang format
+   based on a snapshot from https://github.com/DeadlyRedCube/Cathode-Retro circa Nov. 2023
+   ported by hunterk
+   license: MIT
+*/
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Downsample an input image by 2x along a given axis by using a lanczos filter.
 
