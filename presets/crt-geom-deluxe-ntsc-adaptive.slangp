@@ -1,35 +1,47 @@
-shaders = 7
+shaders = 9
 
-shader0 = ../ntsc/shaders/ntsc-adaptive/ntsc-pass1.slang
-scale_type0 = source
-scale_x0 = 4.0
-filter_linear0 = false
-scale_y0 = 1.0
-float_framebuffer0 = true
+shader0 = ../stock.slang
+alias0 = PrePass0
 
-shader1 = ../ntsc/shaders/ntsc-adaptive/ntsc-pass2.slang
-scale_type1 = source
-scale_x1 = 0.5
+shader1 = ../crt/shaders/guest/advanced/ntsc/ntsc-pass1.slang
+alias1 = NPass1
+scale_type_x1 = source
+scale_type_y1 = source
+scale_x1 = 4.0
 scale_y1 = 1.0
-filter_linear1 = true
+float_framebuffer1 = true
+filter_linear1 = false
 
-shader2 = ../crt/shaders/geom-deluxe/phosphor_apply.slang
-alias2 = internal1
+shader2 = ../crt/shaders/guest/advanced/ntsc/ntsc-pass2.slang
+filter_linear2 = true
+float_framebuffer2 = true
+scale_type2 = source
+scale_x2 = 0.5
+scale_y2 = 1.0
 
-shader3 = ../crt/shaders/geom-deluxe/phosphor_update.slang
-alias3 = phosphor
+shader3 = ../crt/shaders/guest/advanced/ntsc/ntsc-pass3.slang
+filter_linear3 = true
+scale_type3 = source
+scale_x3 = 1.0
+scale_y3 = 1.0
 
-shader4 = ../crt/shaders/geom-deluxe/gaussx.slang
-filter_linear4 = true
-alias4 = internal2
+shader4 = ../crt/shaders/geom-deluxe/phosphor_apply.slang
+alias4 = internal1
 
-shader5 = ../crt/shaders/geom-deluxe/gaussy.slang
-filter_linear5 = true
-alias5 = blur_texture
+shader5 = ../crt/shaders/geom-deluxe/phosphor_update.slang
+alias5 = phosphor
 
-shader6 = ../crt/shaders/geom-deluxe/crt-geom-deluxe.slang
+shader6 = ../crt/shaders/geom-deluxe/gaussx.slang
 filter_linear6 = true
-mipmap_input6 = true
+alias6 = internal2
+
+shader7 = ../crt/shaders/geom-deluxe/gaussy.slang
+filter_linear7 = true
+alias7 = blur_texture
+
+shader8 = ../crt/shaders/geom-deluxe/crt-geom-deluxe.slang
+filter_linear8 = true
+mipmap_input8 = true
 
 # ntsc-adaptive
 # These settings are meant to get correct looking transparencies and
