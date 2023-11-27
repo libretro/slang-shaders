@@ -37,8 +37,8 @@
 //  of S-Video-like signal. It's 2 components if we have no temporal artifact reduction (we're not blending two
 //  versions of the same frame), 4 if we do. This sampler should be set up for linear filtering and clamped addressing.
 //DECLARE_TEXTURE2D(g_sourceTexture, g_sampler);
-layout(set = 0, binding = 2) uniform sampler2D g_sourceTexture;
-//#define g_sourceTexture YIQ_tex
+layout(set = 0, binding = 2) uniform sampler2D IQ_separate;
+#define g_sourceTexture IQ_separate
 
 // This is a 2- or 4-component texture that contains the chroma portions of the signal modulated with the carrier
 //  quadrature (basically, it's float4(chromaA * sin, chromaA * cos, chromaB * sin, chromaB * cos).
@@ -86,7 +86,7 @@ layout(set = 0, binding = 3) uniform sampler2D g_modulatedChromaTexture;
   uint g_inputWidth = uint(params.SourceSize.x);
 
   // The width of the output RGB image (should be the width of the input signal minus the side padding)
-  uint g_outputWidth = uint(params.FinalViewportSize.x);
+  uint g_outputWidth = uint(params.OutputSize.x) - uint(global.sig_pad);
 
 
 const float k_pi = 3.141592653;
@@ -130,7 +130,7 @@ void main()
   // Adjust our components, first Y to account for the signal's black/white level (and user-chosen brightness), then IQ
   //  for saturation (Which should also include the signal's brightness scale)
   Y = (Y - g_blackLevel) / (g_whiteLevel - g_blackLevel) * g_brightness;
-  IQ *= float4(g_saturation, g_saturation, g_saturation, g_saturation);
+  IQ *= vec4(g_saturation, g_saturation, g_saturation, g_saturation);
 
   // we have 1 or 2 components of Y, and 2 or 4 of IQ. Blend them together based on our temporal aliasing reduction to
   //  get our final decoded YIQ values.

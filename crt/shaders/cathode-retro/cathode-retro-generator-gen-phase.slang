@@ -41,10 +41,10 @@
 
   // A seed for the noise used to generate the scanline-by-scanline picture instability. Must match the simiarly-named
   //  value in cathode-retro-generator-rgb-to-svideo-or-composite.
-  uint g_noiseSeed = uint(params.noise_seed * float(params.FrameCount));
+  uint g_noiseSeed = uint(mod(params.FrameCount, 13637));
 
   // The width of the signal texture that is being generated, in texels.
-  uint g_signalTextureWidth = uint(params.SourceSize.x);
+  uint g_signalTextureWidth = uint(params.OriginalSize.x);
 
   // The number of scanlines for this field of video.
   uint g_scanlineCount = (params.OriginalSize.y < 400.) ? uint(params.OriginalSize.y) : uint(params.OriginalSize.y * 0.5);

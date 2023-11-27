@@ -52,7 +52,7 @@ layout(set = 0, binding = 3) uniform sampler2D g_scanlinePhases;
 
   // A seed for the noise used to generate the scanline-by-scanline picture instability. Must match the simiarly-named value in
   //  GeneratePhaseTexture.
-  uint g_noiseSeed = uint(params.noise_seed * float(params.FrameCount));
+  uint g_noiseSeed = uint(mod(params.FrameCount, 13637));
 
     // the number of output texels to pad on either side of the signal texture (so that filtering won't have visible artifacts on the left
     //  and right sides).
@@ -108,13 +108,13 @@ void main()
   vec2 phase = scanlinePhase + signalTexelIndex.x / float(g_outputTexelsPerColorburstCycle);
 
   // Now we need to encode our IQ component in the carrier wave at the correct phase. This is QAM modulation.
-  float2 s, c;
+  vec2 s, c;
   sincos(2.0 * pi * phase, s, c);
 
-  vec2 luma = float2(Y, Y);
+  vec2 luma = vec2(Y, Y);
   vec2 chroma = s * I - c * Q;
 
-  if (g_compositeBlend > 0)
+  if (g_compositeBlend > 0.5)
   {
     // We are outputting a composite signal so combine luma and chroma and output it into our expected 1- or 2-channel texture.
     FragColor = (luma + chroma).xyxy;

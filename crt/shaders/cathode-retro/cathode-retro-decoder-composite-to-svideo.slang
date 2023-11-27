@@ -67,7 +67,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
-  vec2 inputTexDim = params.SourceSize.xy;
+  vec2 inputTexDim = params.OriginalSize.xy;
 
   // Doing a box filter (an average) at exactly the colorburst cycle length is a *very* effective and efficient way to
   //  remove the chroma information completely, leaving with just the luma.

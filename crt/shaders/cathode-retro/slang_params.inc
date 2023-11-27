@@ -33,7 +33,7 @@ layout(push_constant) uniform Push
 #pragma parameter minlum "Minimum Luminance" 1.0 0.0 1.0 0.01
 #pragma parameter colorpower "Color Power" 1.0 0.0 2.0 0.01
 #pragma parameter noise_seed "Noise Seed" 247.0 179.0 313.0 1.0
-#pragma parameter cb_samples "Samples Per Color Burst Cyle" 2.0 0.0 100.0 1.0
+#pragma parameter cb_samples "Samples Per Color Burst Cyle" 2.0 1.0 100.0 1.0
 #pragma parameter cb_first_start "Color Burst Phase First Scanline" 0.0 0.0 100.0 1.0
 #pragma parameter cb_last_start "CB Phase Prev Frame First Scanline" 1.0 0.0 100.0 1.0
 #pragma parameter cb_phase_inc "Color Burst Phase Increment" 1.66666 0.0 3.0 0.01
@@ -86,19 +86,19 @@ layout(push_constant) uniform Push
       c = cos(angle);
     }
 
-    void sincos(float2 angle, out float2 s, out vec2 c)
+    void sincos(vec2 angle, out vec2 s, out vec2 c)
     {
       s = sin(angle);
       c = cos(angle);
     }
 
-    void sincos(float3 angle, out float3 s, out vec3 c)
+    void sincos(vec3 angle, out vec3 s, out vec3 c)
     {
       s = sin(angle);
       c = cos(angle);
     }
 
-    void sincos(float4 angle, out float4 s, out vec4 c)
+    void sincos(vec4 angle, out vec4 s, out vec4 c)
     {
       s = sin(angle);
       c = cos(angle);
@@ -124,7 +124,7 @@ layout(location = 0) out vec2 vTexCoord;
 void main()
 {
    gl_Position = global.MVP * Position;//vec4(Position.x * 2.0 - 1.0, Position.y * 2.0 - 1.0, 0.0, 1.0);//
-   vTexCoord = vec2(TexCoord.x, TexCoord.y);//vec2(Position.x, 1.0 - Position.y);//
+   vTexCoord = vec2(TexCoord.x, TexCoord.y) * 1.0001;//vec2(Position.x, 1.0 - Position.y);//
 }
 
 #pragma stage fragment

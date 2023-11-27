@@ -6,17 +6,21 @@ filter_linear0 = true
 
 shader1 = shaders/cathode-retro/cathode-retro-util-downsample-2x-horz.slang
 filter_linear1 = true
+scale_x1 = 0.5
 
 shader2 = shaders/cathode-retro/cathode-retro-util-downsample-2x-vert.slang
 filter_linear2 = true
+scale_y2 = 0.5
 
-shader3 = stock.slang
+shader3 = ../stock.slang
 
 shader4 = shaders/cathode-retro/cathode-retro-util-tonemap-and-downsample-horz.slang
 filter_linear4 = true
+scale_x4 = 0.5
 
 shader5 = shaders/cathode-retro/cathode-retro-util-tonemap-and-downsample-vert.slang
 filter_linear5 = true
+scale_y5 = 0.5
 alias5 = g_sourceTex
 
 shader6 = shaders/cathode-retro/cathode-retro-util-gaussian-blur-horz.slang

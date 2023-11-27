@@ -29,8 +29,8 @@ layout(set = 0, binding = 2) uniform sampler2D g_currentFrameTexture;
 // This is the previous frame's texture (i.e. last frame's g_currentFrameTexture).
 // This sampler should be set up with linear texture sampling and should be set to clamp (no wrapping).
 //DECLARE_TEXTURE2D(g_previousFrameTexture, g_previousFrameSampler);
-layout(set = 0, binding = 3) uniform sampler2D PassFeedback0;
-#define g_previousFrameTexture PassFeedback0
+layout(set = 0, binding = 3) uniform sampler2D PassFeedback14;
+#define g_previousFrameTexture PassFeedback14
 
 // This texture is the output of the GenerateScreenTexture shader, containing the (scaled, tiled, and antialiased) mask
 //  texture in the rgb channels and the edge-of-screen mask value in the alpha channel. It is expected to have been

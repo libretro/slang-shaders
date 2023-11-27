@@ -34,8 +34,8 @@
 //  signal. It's 2 components if we have no temporal artifact reduction (we're not blending two versions of the same frame), 4 if we do.
 // This sampler should be set up for linear filtering and clamped addressing (no wrapping).
 //DECLARE_TEXTURE2D(g_sourceTexture, g_sourceSampler);
-layout(set = 0, binding = 2) uniform sampler2D g_sourceTexture;
-//#define g_sourceTexture YIQ_tex
+layout(set = 0, binding = 2) uniform sampler2D IQ_separate;
+#define g_sourceTexture IQ_separate
 
 // This is a 1- or 2-component texture that contains the colorburst phase offsets for each scanline. It's 1 component if we have no
 //  temporal artifact reduction, and 2 if we do.
