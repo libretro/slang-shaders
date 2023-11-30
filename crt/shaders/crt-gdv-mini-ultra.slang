@@ -46,10 +46,10 @@ layout(push_constant) uniform Push
     float gamma_out_green;
     float gamma_out_blue;
     float vignette;
-    float mono;
-	float R;
-	float G;
-	float B;
+    float gdv_mono;
+	float gdv_R;
+	float gdv_G;
+	float gdv_B;
 	float thres;
 } params;
 
@@ -91,10 +91,10 @@ layout(push_constant) uniform Push
 #pragma parameter warpX 			"CurvatureX (default 0.03)" 0.0 0.0 0.25 0.01
 #define warpX        params.warpX     
 
-#pragma parameter warpY 			"CurvatureY (default 0.04)" 0.0 0.0 0.25 0.01
+#pragma parameter warpY 			"CurvatureY (default 0.04)" 0.05 0.0 0.25 0.01
 #define warpY        params.warpY     
 
-#pragma parameter vignette 			"Vignette On/Off" 0.0 0.0 1.0 1.0
+#pragma parameter vignette 			"Vignette On/Off" 1.0 0.0 1.0 1.0
 #define vignette 	params.vignette
 
 #pragma parameter gamma_out_red 		"  Gamma out Red" 2.2 1.0 4.0 0.1
@@ -112,21 +112,21 @@ layout(push_constant) uniform Push
 #pragma parameter sat 				"  Saturation adjustment" 1.2 0.0 2.0 0.05
 #define sat params.sat
 
-#pragma parameter glow "Glow Strength" 0.2 0.0 1.0 0.01
+#pragma parameter glow "Glow Strength" 0.35 0.0 1.0 0.01
 #define glow params.glow
 
 
-#pragma parameter mono "Mono Display On/Off" 0.0 0.0 1.0 1.0
-#define mono params.mono
+#pragma parameter gdv_mono "Mono Display On/Off" 0.0 0.0 1.0 1.0
+#define gdv_mono params.gdv_mono
 
-#pragma parameter R "Mono Red/Channel" 1.0 0.0 2.0 0.01
-#define R params.R
+#pragma parameter gdv_R "Mono Red/Channel" 1.0 0.0 2.0 0.01
+#define gdv_R params.gdv_R
 
-#pragma parameter G "Mono Green/Channel" 1.0 0.0 2.0 0.01
-#define G params.G
+#pragma parameter gdv_G "Mono Green/Channel" 1.0 0.0 2.0 0.01
+#define gdv_G params.gdv_G
 
-#pragma parameter B "Mono Blue/Channel" 1.0 0.0 2.0 0.01
-#define B params.B
+#pragma parameter gdv_B "Mono Blue/Channel" 1.0 0.0 2.0 0.01
+#define gdv_B params.gdv_B
 
 
 
@@ -492,10 +492,10 @@ void main()
 	color*= vign(lum);
 
 
-    if (mono == 1.0)
+    if (gdv_mono == 1.0)
 	{
     vec3 col1 = toGrayscale (color);
-    vec3 c = vec3(R, G, B);
+    vec3 c = vec3(gdv_R, gdv_G, gdv_B);
     color = colorize (col1, c);
     }
 
