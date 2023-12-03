@@ -48,57 +48,41 @@ layout(push_constant) uniform Push
 
 // Parameter lines go here:
 #pragma parameter gdv_mini_title 	"[ GDV MINI - DariusG ]:" 0.0 0.0 1.0 1.0
-
-#pragma parameter gamma_out 		"Gamma out" 0.5 0.2 0.6 0.01
-#define gamma_out params.gamma_out
-
 #pragma parameter brightboost 		"Bright boost" 1.0 0.5 2.0 0.05
-#define brightboost params.brightboost
-
 #pragma parameter sat 				"Saturation adjustment" 1.0 0.0 2.0 0.05
-#define sat params.sat
-
 #pragma parameter scanline          "Scanline Adjust" 8.0 1.0 12.0 1.0
-#define scanline params.scanline
-
 #pragma parameter beam_min          "Scanline Dark" 1.35 0.5 3.0 0.05
-#define beam_min params.beam_min
-
 #pragma parameter beam_max          "Scanline Bright" 1.05 0.5 3.0 0.05
-#define beam_max params.beam_max
-
 #pragma parameter h_sharp           "Horizontal Sharpness" 2.0 1.0 5.0 0.05
-#define h_sharp params.h_sharp
-
+#pragma parameter gamma_out 		"Gamma out" 0.5 0.2 0.6 0.01
 #pragma parameter shadowMask 		"CRT Mask: 0:CGWG, 1-4:Lottes, 5-6:Trinitron" 0.0 -1.0 10.0 1.0
-#define shadowMask params.shadowMask
-
 #pragma parameter masksize 			"CRT Mask Size (2.0 is nice in 4k)" 1.0 1.0 2.0 1.0
-#define masksize params.masksize
-
 #pragma parameter mcut 				"Mask 5-7-10 cutoff" 0.2 0.0 0.5 0.05
-#define mcut params.mcut
-
 #pragma parameter maskDark          "Lottes maskDark" 0.5 0.0 2.0 0.1
-#define maskDark params.maskDark
-
 #pragma parameter maskLight 		"Lottes maskLight" 1.5 0.0 2.0 0.1
-#define maskLight params.maskLight
-
-#pragma parameter CGWG              "CGWG Mask Str." 0.4 0.0 1.0 0.1
-#define CGWG 		params.CGWG
-
+#pragma parameter CGWG              "CGWG Mask Str." 0.3 0.0 1.0 0.1
 #pragma parameter warpX 			"CurvatureX (default 0.03)" 0.0 0.0 0.25 0.01
-#define warpX        params.warpX     
-
 #pragma parameter warpY 			"CurvatureY (default 0.04)" 0.0 0.0 0.25 0.01
-#define warpY        params.warpY     
-
 #pragma parameter vignette 			"Vignette On/Off" 0.0 0.0 1.0 1.0
+
+#define gamma_out params.gamma_out
+#define brightboost params.brightboost
+#define sat params.sat
+#define scanline params.scanline
+#define beam_min params.beam_min
+#define beam_max params.beam_max
+#define h_sharp params.h_sharp
+#define shadowMask params.shadowMask
+#define masksize params.masksize
+#define mcut params.mcut
+#define maskDark params.maskDark
+#define maskLight params.maskLight
+#define CGWG 		params.CGWG
+#define warpX        params.warpX     
+#define warpY        params.warpY     
 #define vignette 	params.vignette
 
-#define lumweight vec3(0.22,0.7,0.08)
-
+#define lumweight vec3(0.3,0.6,0.1)
 
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -125,10 +109,10 @@ layout(location = 1) in float maskFade;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 1) uniform sampler2D Source;
 
-float sw (float y, float l)
+float sw (float y, float l,float v)
 {
     float scan = mix(scanline-2.0, scanline, y);
-    float tmp = mix(beam_min, beam_max, l);
+    float tmp = mix(beam_min+v, beam_max+v, l);
     float ex = y*tmp;
     return exp2(-scan*ex*ex);
 }
@@ -331,63 +315,52 @@ vec2 Warp(vec2 pos)
 	return pos*0.5 + 0.5;
 }
 
-vec3 saturation (vec3 textureColor)
-{
-    float lum=length(textureColor.rgb)*0.5775;
-
-    vec3 luminanceWeighting = vec3(0.3,0.6,0.1);
-    if (lum<0.5) luminanceWeighting.rgb=(luminanceWeighting.rgb*luminanceWeighting.rgb)+(luminanceWeighting.rgb*luminanceWeighting.rgb);
-
-    float luminance = dot(textureColor.rgb, luminanceWeighting);
-    vec3 greyScaleColor = vec3(luminance);
-
-    vec3 res = vec3(mix(greyScaleColor, textureColor.rgb, sat));
-    return res;
-}
-
 
 void main()
 {
-	vec2 pos = Warp(vTexCoord);
+	vec2 pos = Warp(vTexCoord);	
 
-	// HSM Added
-	vec4 SourceSize = params.SourceSize;
-
-	vec2 ps = SourceSize.zw;
-	vec2 OGL2Pos = pos * SourceSize.xy;
+	vec2 OGL2Pos = pos * params.SourceSize.xy;
 	vec2 fp = fract(OGL2Pos);
+	vec2 ps = params.SourceSize.zw;
 	vec2 dx = vec2(ps.x,0.0);
 	vec2 dy = vec2(0.0, ps.y);
 
-	vec2 pC4 = floor(OGL2Pos) * ps + 0.5*ps;
-	
+	vec2 pC4 = floor(OGL2Pos) * ps + 0.5*ps;	
+	float f = fp.y; if (params.OriginalSize.y > 400.0) f=1.0;
+	vec3 color;
+
 	// Reading the texels
 	vec3 ul = texture(Source, pC4     ).xyz; 
-	vec3 ur = texture(Source, pC4 + dx).xyz; 
+	vec3 ur = texture(Source, pC4 - dx).xyz; 
 	vec3 dl = texture(Source, pC4 + dy).xyz; 
-	vec3 dr = texture(Source, pC4 + ps).xyz; 
+	vec3 dr = texture(Source, pC4 + vec2(-ps.x,ps.y)).xyz; 
 	
 	float lx = fp.x;        lx = pow(lx, h_sharp);
 	float rx = 1.0 - fp.x;  rx = pow(rx, h_sharp);
 	
-	vec3 color1 = (ur*lx + ul*rx)/(lx+rx);
-	vec3 color2 = (dr*lx + dl*rx)/(lx+rx);
+	vec3 color1 = (ur*rx + ul*lx)/(lx+rx);  
+	vec3 color2 = (dr*rx + dl*lx)/(lx+rx);	
 	color1 *=color1; color2 *=color2;
 
 // calculating scanlines
-	
-	float f = fp.y; if (params.OriginalSize.y > 400.0) f=1.0;
-	float luma1 = dot(color1,lumweight);
-	float luma2 = dot(color2,lumweight);
-	
-	vec3 color = color1*sw(f,luma1) + color2*sw(1.0-f,luma2);
-	color = color * Mask(vTexCoord * global.OutputSize.xy, color);
-	float lum = dot(color,lumweight);
+	float lum = dot (color1, lumweight);
+	float lum2 = dot (color2, lumweight);
+
+
+  float v = 0.0;
+  // vignette
+  if (vignette > 0.0){  
+  v = (vTexCoord.x-0.5);  // range -0.5 to 0.5, 0.0 being center of screen
+  v = v*v;    	     // curved response: higher values (more far from center) get higher results.
+}
+    color = color1*sw(f, lum,v) + color2*sw(1.0-f, lum2,v); 
+	color = color*Mask(vTexCoord*params.OutputSize.xy, color);
 
 	color = pow(color, vec3(gamma_out));
+	float s = dot(lumweight,color);
 	color*= mix(1.0,brightboost,lum);
+	color = mix(vec3(s),color,sat);
 
-	color = saturation(color);
-	color*= vign(lum);
-	FragColor = vec4(color, 1.0);
-}
+    FragColor.rgb = color;
+} 
