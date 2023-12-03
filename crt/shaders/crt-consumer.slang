@@ -19,23 +19,23 @@ layout(push_constant) uniform Push
 // Parameter lines go here:
 #pragma parameter PRE_SCALE "Pre-Scale Sharpening" 1.5 1.0 4.0 0.1
 #pragma parameter blurx "Convergence X" 0.25 -4.0 4.0 0.05
-#pragma parameter blury "Convergence Y" 0.1 -4.0 4.0 0.05
-#pragma parameter warpx "  Curvature X" 0.02 0.0 0.12 0.01
+#pragma parameter blury "Convergence Y" -0.1 -4.0 4.0 0.05
+#pragma parameter warpx "  Curvature X" 0.03 0.0 0.12 0.01
 #pragma parameter warpy "  Curvature Y" 0.04 0.0 0.12 0.01
-#pragma parameter corner "  Corner size" 0.01 0.0 0.10 0.01
+#pragma parameter corner "  Corner size" 0.03 0.0 0.10 0.01
 #pragma parameter smoothness "  Border Smoothness" 400.0 100.0 600.0 5.0
 #pragma parameter inter "Interlacing Toggle" 1.0 0.0 1.0 1.0
 #pragma parameter Downscale "Interlacing Downscale Scanlines" 2.0 1.0 8.0 1.0  
 #pragma parameter scanlow "Beam low" 6.0 1.0 15.0 1.0
 #pragma parameter scanhigh "Beam high" 8.0 1.0 15.0 1.0
-#pragma parameter beamlow "Scanlines dark" 1.45.5 2.5 0.05 
+#pragma parameter beamlow "Scanlines dark" 1.45 0.5 2.5 0.05 
 #pragma parameter beamhigh "Scanlines bright" 1.05 0.5 2.5 0.05 
 #pragma parameter preserve "  Protect White On Masks" 0.98 0.0 1.0 0.01
-#pragma parameter brightboost1 "  Bright boost dark pixels" 1.2 0.0 3.0 0.05
+#pragma parameter brightboost1 "  Bright boost dark pixels" 1.25 0.0 3.0 0.05
 #pragma parameter brightboost2 "  Bright boost bright pixels" 1.0 0.0 3.0 0.05
-#pragma parameter glow "  Glow pixels per axis" 4.0 1.0 4.0 1.0
-#pragma parameter quality "  Glow quality" 1.0 0.5 4.0 0.1
-#pragma parameter glow_str "  Glow intensity" 0.0 0.0001 1.0 0.05
+#pragma parameter glow "  Glow pixels per axis" 3.0 1.0 6.0 1.0
+#pragma parameter quality "  Glow quality" 1.0 0.25 4.0 0.05
+#pragma parameter glow_str "  Glow intensity" 0.3 0.0001 2.0 0.05
 #pragma parameter nois "  Add Noise" 0.0 0.0 32.0 1.0
 #pragma parameter postbr "  Post Brightness" 1.0 0.0 2.5 0.02
 #pragma parameter palette_fix "Palette Fixes. Sega, PUAE Atari ST dark colors " 0.0 0.0 2.0 1.0
@@ -47,7 +47,7 @@ layout(push_constant) uniform Push
 #pragma parameter slotwidth "Slot Mask Width" 2.0 1.0 6.0 0.5
 #pragma parameter double_slot "Slot Mask Height: 2x1 or 4x1" 1.0 1.0 2.0 1.0
 #pragma parameter slotms "Slot Mask Size" 1.0 1.0 2.0 1.0
-#pragma parameter GAMMA_OUT "  Gamma Out" 2.2 0.0 4.0 0.1
+#pragma parameter GAMMA_OUT "  Gamma Out" 2.25 0.0 4.0 0.05
 #pragma parameter sat "  Saturation" 1.0 0.0 2.0 0.05
 #pragma parameter contrast "  Contrast, 1.0:Off" 1.0 0.00 2.00 0.05
 #pragma parameter WP "  Color Temperature %" 0.0 -100.0 100.0 5.0 
