@@ -4,12 +4,8 @@ shader0 = shaders/crt-Cyclon.slang
 filter_linear0 = true
 scale_type0 = viewport
 
-textures = "bezel;bezel2;bezel3"
+textures = "bezel"
 
 bezel = "shaders/crt-consumer/bezel.png"
 bezel_linear = true
 bezel_wrap_mode = "clamp_to_border"
-
-bezel2 = "shaders/crt-consumer/bezel2.png"
-bezel2_linear = true
-bezel2_wrap_mode = "clamp_to_border"
