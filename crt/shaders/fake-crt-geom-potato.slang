@@ -30,34 +30,27 @@ layout(std140, set = 0, binding = 0) uniform UBO
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out  vec2 scale;
 layout(location = 2) out  float fragpos;
-layout(location = 3) out  vec2 warpp;
-layout(location = 4) out  vec2 dbwarp;
+
 
 void main()
 {
 	gl_Position = global.MVP * Position;
 	vTexCoord = TexCoord * 1.0001;
-    scale = SourceSize.xy/OriginalSize.xy;
-    warpp = vTexCoord.xy*scale;
-    dbwarp = warpp*2.0-1.0;
-    fragpos = warpp.x*OutputSize.x*pi*2.0/SIZE;
+    fragpos = vTexCoord.x*OutputSize.x*pi*2.0/SIZE;
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-layout(location = 1) in  vec2 scale;
 layout(location = 2) in  float fragpos;
-layout(location = 3) in  vec2 warpp;
-layout(location = 4) in  vec2 dbwarp;
+
 
 layout(set = 0, binding = 1) uniform sampler2D Source;
 
 vec2 Warp(vec2 pos)
 {
-    pos = dbwarp;
+    pos = pos*2.0-1.0;
     pos *= vec2(1.0+pos.y*pos.y*0.03, 1.0+pos.x*pos.x*0.04);
     pos = pos*0.5+0.5;
     return pos;
@@ -65,10 +58,9 @@ vec2 Warp(vec2 pos)
 
 void main()
 {
-vec2 pos = Warp(warpp);
+vec2 pos = Warp(vTexCoord);
 vec2 corn = min(pos, 1.0-pos);    // This is used to mask the rounded
   corn.x = 0.0002/corn.x;         // corners later on
-  pos /= scale;
 
 float y = pos.y*SourceSize.y;
 float gl2pos = floor(y) + 0.5;
@@ -84,14 +76,14 @@ vec3 clean = res;
 float w = dot(vec3(0.15),res);
 
 // vignette  
-float x = (warpp.x-0.5);  // range -0.5 to 0.5, 0.0 being center of screen
+float x = (vTexCoord.x-0.5);  // range -0.5 to 0.5, 0.0 being center of screen
       x = x*x;   
 res *= (0.25+x)*sin((y-0.25)*pi*2.0)+(0.75-x);
 res *= 0.15*sin(fragpos)+0.85;
 
 res = mix(res,clean, w);
 
-res *= vec3(1.0,0.85,1.2);
+res *= vec3(1.0,0.9,1.15);
 
 
 float lum = dot(vec3(0.29,0.6,0.11),res);
