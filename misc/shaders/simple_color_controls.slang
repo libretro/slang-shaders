@@ -23,7 +23,7 @@ layout(push_constant) uniform Push
 #pragma parameter contrast "Contrast" 1.0 0.00 2.00 0.01
 #pragma parameter SAT "Saturation" 1.0 0.0 2.0 0.01
 #pragma parameter BLACK  "Black Level" 0.0 -0.20 0.20 0.01 
-#pragma parameter SEGA "SEGA Lum Fix" 0.0 0.0 1.0 1.0
+#pragma parameter SEGA "Lum Fix: ST/GEN-CPC-AMIGA" 0.0 0.0 3.0 1.0
 #pragma parameter postbr "Bright Boost" 1.0 1.0 2.0 0.05
 #pragma parameter postdk "Dark Boost" 1.0 1.0 2.0 0.05
 #pragma parameter gamma_out "Gamma out" 2.2 1.0 4.0 0.05
@@ -87,6 +87,24 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
+#if defined GL_ES
+
+mat3 PAL = mat3(                    
+0.7954  ,   0.1881  ,   0.0053  ,
+-0.0310 ,   1.0343  ,   -0.0044 ,
+-0.0236 ,   0.1383  ,   0.8927  );
+
+mat3 NTSC = mat3(                   
+0.6837  ,   0.2635  ,   0.0336  ,
+-0.0499 ,   1.0323  ,   0.0139  ,
+-0.0119 ,   0.1071  ,   0.9111  );
+
+mat3 NTSC_J = mat3(                 
+0.8642  ,   0.1253  ,   0.0030  ,
+0.0545  ,   0.9513  ,   -0.0029 ,
+-0.0214 ,   0.1554  ,   0.8750  );
+
+#else
 // standard 6500k
 mat3 PAL = mat3(                    
 1.0740  ,   -0.0574 ,   -0.0119 ,
@@ -104,6 +122,7 @@ mat3 NTSC_J = mat3(
 1.0185  ,   -0.0144 ,   -0.0029 ,
 0.0732  ,   0.9369  ,   -0.0059 ,
 -0.0318 ,   -0.0080 ,   1.0353  );
+#endif
 
 
 float saturate(float v) 
@@ -208,6 +227,12 @@ mat3 hue = mat3(
 );
 
    vec3 col = texture(Source,vTexCoord).rgb;
+
+  if (SEGA == 1.0) col = floor(col*7.0+0.5)/7.0;
+  if (SEGA == 2.0) col = floor(col*2.0+0.5)/2.0;
+  if (SEGA == 3.0) col = floor(col*15.0+0.5)/15.0;
+   
+
    col *= BRIGHTNESS;
    
    col = pow((col+0.099)/1.099, vec3(gamma_in));
@@ -223,7 +248,6 @@ if (CS != 0.0){
     col *= vec3(r_out,g_out,b_out); 
     col = clamp(col,0.0,2.0);
 }
-   if (SEGA == 1.0) col *= 1.0625;
 
     col = pow(1.099*col, vec3(1.0/gamma_out))-0.099;
    
