@@ -72,6 +72,7 @@ const mat3 YIQ2RGB = mat3(1.000, 1.000, 1.000,
                           0.956,-0.272,-1.106,
                           0.621,-0.647, 1.703);
 
+
 void main()
 {
     vec2 size = SourceSize.xy;
@@ -81,12 +82,21 @@ void main()
         vec3 YIQ = vec3(0);
         for (int n=-2; n<2; n++) {
             vec2 pos = uv + vec2(float(n) / size.x, 0.0);
-            float phase = (vTexCoord.x * SourceSize.x+vTexCoord.y*SourceSize.y + float(n)) * TAU / 4.0;
-            YIQ += texture(Source, pos).rgb * vec3(1.0, cos(phase), sin(phase));
+            YIQ.x += texture(Source, pos).r ;
         }
-        YIQ /= 4.0;
-        
+        YIQ.x /= 4.0;
+
+        for (int n=-4; n<4; n++) {
+            vec2 pos = uv + vec2(float(n) / size.x, 0.0);
+            float phase = (vTexCoord.x * SourceSize.x+ float(n)) * TAU / 4.0+vTexCoord.y*SourceSize.y*2.0*PI/3.0 ;
+            YIQ.yz += texture(Source, pos).gb * vec2(cos(phase), sin(phase));
+        }
+        YIQ.yz /= 8.0;
+
+
         //  Convert YIQ signal to RGB
-        FragColor = vec4(YIQ2RGB * YIQ, 1.0);
+        YIQ = YIQ2RGB*YIQ;
+
+        FragColor = vec4(YIQ, 1.0);
     
 }
