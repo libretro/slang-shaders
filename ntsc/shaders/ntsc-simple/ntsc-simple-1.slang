@@ -69,17 +69,15 @@ const mat3 RGBYIQ = mat3(0.299, 0.596, 0.211,
 
 void main()
 {
-   
+    
 mat3 mix_mat = mat3(NTSC_bri  , FRINGING      , FRINGING, 
                    ARTIFACTING, 2.0 * NTSC_sat, 0.0, 
                    ARTIFACTING, 0.0           , 2.0 * NTSC_sat);
 
-
-    float phase = (vTexCoord.x*SourceSize.x+vTexCoord.y*SourceSize.y) * PI/2.0;
+    float phase = (vTexCoord.x*SourceSize.x) * PI/2.0 +vTexCoord.y*SourceSize.y*2.0*PI/3.0;
     vec3 YIQ = texture(Source,vTexCoord).rgb; 
     YIQ = YIQ*RGBYIQ; 
     vec3 signal = vec3(YIQ.x, cos(phase)*YIQ.y,  YIQ.z*sin(phase) );   
-        //  Convert YIQ signal to RGB
-        FragColor = vec4(signal*mix_mat, 1.0);
+    FragColor = vec4(signal*mix_mat, 1.0);
     
 }
