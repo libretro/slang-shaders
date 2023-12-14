@@ -4,56 +4,56 @@
 layout(push_constant) uniform Push
 {
 	
-    float SAT,BLACK,TEMP,SEGA,BRIGHTNESS,postbr,contrast,
-    gamma_out, gamma_in, mono, R,G,B, CS, RG,RB,GB,r_out,g_out,b_out, postdk;
+    float sc_sat,sc_black,sc_temp,sc_sega,sc_brightness,sc_postbr,sc_contrast,
+    sc_gamma_out, sc_gamma_in, sc_mono, sc_r,sc_g,sc_b, sc_cs, sc_rg,sc_rb,sc_gb,r_out,g_out,b_out, sc_postdk;
 } params;
 
 
 
-#pragma parameter CS "Colors: sRGB, PAL, NTSC-U, NTSC-J" 0.0 0.0 3.0 1.0
-#pragma parameter TEMP "Color Temperature in Kelvins (NTSC-J 9300)"  6863.0 1031.0 12047.0 72.0
-#pragma parameter gamma_in "Gamma In" 2.4 1.0 4.0 0.05
-#pragma parameter RG "Green <-to-> Red Hue" 0.0 -0.25 0.25 0.01
-#pragma parameter RB "Blue <-to-> Red Hue"  0.0 -0.25 0.25 0.01
-#pragma parameter GB "Blue <-to-> Green Hue" 0.0 -0.25 0.25 0.01
+#pragma parameter sc_cs "Colors: sRGB, PAL, NTSC-U, NTSC-J" 0.0 0.0 3.0 1.0
+#pragma parameter sc_temp "Color Temperature in Kelvins (NTSC-J 9300)"  6863.0 1031.0 12047.0 72.0
+#pragma parameter sc_gamma_in "Gamma In" 2.4 1.0 4.0 0.05
+#pragma parameter sc_rg "Green <-to-> Red Hue" 0.0 -0.25 0.25 0.01
+#pragma parameter sc_rb "Blue <-to-> Red Hue"  0.0 -0.25 0.25 0.01
+#pragma parameter sc_gb "Blue <-to-> Green Hue" 0.0 -0.25 0.25 0.01
 #pragma parameter r_out "CRT Red Vibrancy" 0.29 0.0 1.0 0.01
 #pragma parameter g_out "CRT Green Vibrancy" 0.62 0.0 1.0 0.01
 #pragma parameter b_out "CRT Blue Vibrancy" 0.09 0.0 1.0 0.01
-#pragma parameter BRIGHTNESS "Brightness" 1.0 0.0 2.0 0.01
-#pragma parameter contrast "Contrast" 1.0 0.00 2.00 0.01
-#pragma parameter SAT "Saturation" 1.0 0.0 2.0 0.01
-#pragma parameter BLACK  "Black Level" 0.0 -0.20 0.20 0.01 
-#pragma parameter SEGA "Lum Fix: ST/GEN-CPC-AMIGA" 0.0 0.0 3.0 1.0
-#pragma parameter postbr "Bright Boost" 1.0 1.0 2.0 0.05
-#pragma parameter postdk "Dark Boost" 1.0 1.0 2.0 0.05
-#pragma parameter gamma_out "Gamma out" 2.2 1.0 4.0 0.05
-#pragma parameter mono "Mono Display On/Off" 0.0 0.0 1.0 1.0
-#pragma parameter R "Mono Red/Channel" 1.0 0.0 2.0 0.01
-#pragma parameter G "Mono Green/Channel" 1.0 0.0 2.0 0.01
-#pragma parameter B "Mono Blue/Channel" 1.0 0.0 2.0 0.01
+#pragma parameter sc_brightness "Brightness" 1.0 0.0 2.0 0.01
+#pragma parameter sc_contrast "Contrast" 1.0 0.00 2.00 0.01
+#pragma parameter sc_sat "Saturation" 1.0 0.0 2.0 0.01
+#pragma parameter sc_black  "Black Level" 0.0 -0.20 0.20 0.01 
+#pragma parameter sc_sega "Lum Fix: ST/GEN-CPC-AMIGA" 0.0 0.0 3.0 1.0
+#pragma parameter sc_postbr "Bright Boost" 1.0 1.0 2.0 0.05
+#pragma parameter sc_postdk "Dark Boost" 1.0 1.0 2.0 0.05
+#pragma parameter sc_gamma_out "Gamma out" 2.2 1.0 4.0 0.05
+#pragma parameter sc_mono "Mono Display On/Off" 0.0 0.0 1.0 1.0
+#pragma parameter sc_r "Mono Red/Channel" 1.0 0.0 2.0 0.01
+#pragma parameter sc_g "Mono Green/Channel" 1.0 0.0 2.0 0.01
+#pragma parameter sc_b "Mono Blue/Channel" 1.0 0.0 2.0 0.01
 
 
-#define CS params.CS
-#define RG params.RG
-#define RB params.RB
-#define GB params.GB
+#define sc_cs params.sc_cs
+#define sc_rg params.sc_rg
+#define sc_rb params.sc_rb
+#define sc_gb params.sc_gb
 #define r_out params.r_out
 #define g_out params.g_out
 #define b_out params.b_out
-#define TEMP params.TEMP
-#define SAT params.SAT
-#define BRIGHTNESS params.BRIGHTNESS
-#define contrast params.contrast
-#define BLACK params.BLACK
-#define SEGA params.SEGA
-#define postbr params.postbr
-#define postdk params.postdk
-#define gamma_in params.gamma_in
-#define gamma_out params.gamma_out
-#define mono params.mono
-#define R params.R
-#define G params.G
-#define B params.B
+#define sc_temp params.sc_temp
+#define sc_sat params.sc_sat
+#define sc_brightness params.sc_brightness
+#define sc_contrast params.sc_contrast
+#define sc_black params.sc_black
+#define sc_sega params.sc_sega
+#define sc_postbr params.sc_postbr
+#define sc_postdk params.sc_postdk
+#define sc_gamma_in params.sc_gamma_in
+#define sc_gamma_out params.sc_gamma_out
+#define sc_mono params.sc_mono
+#define sc_r params.sc_r
+#define sc_g params.sc_g
+#define sc_b params.sc_b
 
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -172,7 +172,7 @@ vec3 toGrayscale(vec3 color)
 {
 
   float average = dot(vec3(0.3,0.59,0.11),color);
-  if (CS == 0.0) average = dot(vec3(0.22,0.71,0.07),color);
+  if (sc_cs == 0.0) average = dot(vec3(0.22,0.71,0.07),color);
   return vec3(average);
 }
 
@@ -221,55 +221,55 @@ vec3 huePreserveClipDesaturate(float r, float g, float b)
 void main()
 {
 mat3 hue = mat3(
-    1.0, -RG, -RB,
-    RG, 1.0, -GB,
-    RB, GB, 1.0
+    1.0, -sc_rg, -sc_rb,
+    sc_rg, 1.0, -sc_gb,
+    sc_rb, sc_gb, 1.0
 );
 
    vec3 col = texture(Source,vTexCoord).rgb;
 
-  if (SEGA == 1.0) col = floor(col*7.0+0.5)/7.0;
-  if (SEGA == 2.0) col = floor(col*2.0+0.5)/2.0;
-  if (SEGA == 3.0) col = floor(col*15.0+0.5)/15.0;
+  if (sc_sega == 1.0) col = floor(col*7.0+0.5)/7.0;
+  if (sc_sega == 2.0) col = floor(col*2.0+0.5)/2.0;
+  if (sc_sega == 3.0) col = floor(col*15.0+0.5)/15.0;
    
 
-   col *= BRIGHTNESS;
+   col *= sc_brightness;
    
-   col = pow((col+0.099)/1.099, vec3(gamma_in));
+   col = pow((col+0.099)/1.099, vec3(sc_gamma_in));
 //color temperature  
-   col *= ColorTemp(TEMP);
+   col *= ColorTemp(sc_temp);
 
    
-if (CS != 0.0){
-    if (CS == 1.0) col *= PAL;
-    if (CS == 2.0) col *= NTSC;
-    if (CS == 3.0) col *= NTSC_J;
+if (sc_cs != 0.0){
+    if (sc_cs == 1.0) col *= PAL;
+    if (sc_cs == 2.0) col *= NTSC;
+    if (sc_cs == 3.0) col *= NTSC_J;
     col /= vec3(0.24,0.69,0.07);
     col *= vec3(r_out,g_out,b_out); 
     col = clamp(col,0.0,2.0);
 }
 
-    col = pow(1.099*col, vec3(1.0/gamma_out))-0.099;
+    col = pow(1.099*col, vec3(1.0/sc_gamma_out))-0.099;
    
-    col -= vec3(BLACK);
-    col*= vec3(1.0)/vec3(1.0-BLACK);
+    col -= vec3(sc_black);
+    col*= vec3(1.0)/vec3(1.0-sc_black);
     
 //saturation
 vec3 lumw = vec3(0.3,0.59,0.11);
-if (CS == 0.0) lumw = vec3(0.2124,0.7011, 0.0866);   
+if (sc_cs == 0.0) lumw = vec3(0.2124,0.7011, 0.0866);   
 float l = dot(col, lumw);
     
-   col = mix(vec3(l), col, SAT); 
-    if (mono == 1.0)
+   col = mix(vec3(l), col, sc_sat); 
+    if (sc_mono == 1.0)
     {
     vec3 col1 = toGrayscale (col);
-    vec3 c = vec3(R, G, B);
+    vec3 c = vec3(sc_r, sc_g, sc_b);
     col = colorize (col1, c);
     }
    col *= hue;
 
-col *= mix(postdk,postbr,l);
-col = (contrastMatrix(contrast) * vec4(col,1.0)).rgb;  
+col *= mix(sc_postdk,sc_postbr,l);
+col = (contrastMatrix(sc_contrast) * vec4(col,1.0)).rgb;  
 
    col = huePreserveClipDesaturate(col.r, col.g, col.b);
 
