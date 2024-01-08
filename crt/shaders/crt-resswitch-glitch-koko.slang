@@ -38,12 +38,17 @@ layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out float vSwitchres_show_bar;
 
-#define _3kHIST0 global.SourceSize.y
-#define _3kHIST1 global.OriginalHistorySize1.y
-#define _3kHIST2 global.OriginalHistorySize2.y
-#define _3kHIST3 global.OriginalHistorySize3.y
-#define _3kHIST4 global.OriginalHistorySize4.y
-#define _3kHIST5 global.OriginalHistorySize5.y
+#define _3kHIST0 global.SourceSize.xy
+#define _3kHIST1 global.OriginalHistorySize1.xy
+#define _3kHIST2 global.OriginalHistorySize2.xy
+#define _3kHIST3 global.OriginalHistorySize3.xy
+#define _3kHIST4 global.OriginalHistorySize4.xy
+#define _3kHIST5 global.OriginalHistorySize5.xy
+
+bool changed_enough(vec2 current, vec2 past){
+    return (abs(current.y - past.y) / current.y > global.RESSWITCH_GLITCH_TRESHOLD) ||
+           (abs(current.x - past.x) / current.x > global.RESSWITCH_GLITCH_TRESHOLD);
+}
 
 void main() {
     gl_Position = global.MVP * Position;
@@ -53,25 +58,28 @@ void main() {
     // Skip a bunch of frames at the beginning to prevent unwanted glitches
     // with flycast core and maybe with fast-forward too.
     if (global.RESSWITCH_ENABLE > 0.5 && global.FrameCount > 10 ) {
-        if ( abs(_3kHIST0 - _3kHIST1 ) / _3kHIST0 > global.RESSWITCH_GLITCH_TRESHOLD) {
+        if (changed_enough(_3kHIST0, _3kHIST1)) {
             //first frame
             vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR;
             vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX * +1.0 ;
         }
 
-        else if ( abs(_3kHIST0 - _3kHIST2) / _3kHIST0 > global.RESSWITCH_GLITCH_TRESHOLD) {
+        else if (changed_enough(_3kHIST0, _3kHIST2)) {
             vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR;
             vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX * -1.0;
         }
-        else if ( abs(_3kHIST0 - _3kHIST3) / _3kHIST0 > global.RESSWITCH_GLITCH_TRESHOLD) {
+
+        else if (changed_enough(_3kHIST0, _3kHIST3)) {
             vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR;
             vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX * +0.5;
         }
-        else if ( abs(_3kHIST0 - _3kHIST4) / _3kHIST0 > global.RESSWITCH_GLITCH_TRESHOLD) {
+
+        else if (changed_enough(_3kHIST0, _3kHIST4)) {
             vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR;
             vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX * -0.5;
         }
-        else if ( abs(_3kHIST0 - _3kHIST5) /_3kHIST0 > global.RESSWITCH_GLITCH_TRESHOLD) {
+
+        else if (changed_enough(_3kHIST0, _3kHIST5)) {
             //last frame
             vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX * +0.25;
             vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR;
