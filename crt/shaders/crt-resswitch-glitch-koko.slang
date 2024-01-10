@@ -32,7 +32,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 
 #pragma parameter RESSWITCH_ENABLE "★ Resolution switch glitch enable? ==>"     1.0  0.0 1.0  1.0
 #pragma parameter RESSWITCH_GLITCH_TRESHOLD  "    Glitch if vertical resolution changes at least by" 0.1 0.01 1.0 0.01
-#pragma parameter RESSWITCH_GLITCH_SHAKE_MAX "    Shake amplitude"       0.5  0.0 1.0 0.01
+#pragma parameter RESSWITCH_GLITCH_SHAKE_MAX "    Shake amplitude"       0.25  0.0 1.0 0.01
 #pragma parameter RESSWITCH_GLITCH_ROT_MAX   "    Tilt amplitude"        0.2  0.0 1.0 0.01
 #pragma parameter RESSWITCH_GLITCH_WOB_MAX   "    Wobblying amplitude"   0.1 0.0 1.0 0.01
 #pragma parameter RESSWITCH_GLITCH_BAR_SIZE  "    Bright glitch bars size"      0.5 0.0 1.0 0.01
@@ -145,7 +145,6 @@ void main() {
             0.0, 0.0, 0.0, 1.0 );
 
         gl_Position = global.MVP * Position * projectionMatrix * m4rotationZ;
-        
 
 }
 
