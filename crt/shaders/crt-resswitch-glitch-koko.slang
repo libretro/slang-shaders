@@ -24,6 +24,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
     float RESSWITCH_GLITCH_TRESHOLD;
     float RESSWITCH_GLITCH_BAR_STR;
     float RESSWITCH_GLITCH_BAR_SIZE;
+    float RESSWITCH_GLITCH_BAR_SMOOTH;
     float RESSWITCH_GLITCH_SHAKE_MAX;
     float RESSWITCH_GLITCH_ROT_MAX;
     float RESSWITCH_GLITCH_WOB_MAX;
@@ -34,9 +35,10 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter RESSWITCH_GLITCH_TRESHOLD  "    Glitch if vertical resolution changes at least by" 0.1 0.01 1.0 0.01
 #pragma parameter RESSWITCH_GLITCH_SHAKE_MAX "    Shake amplitude"       0.25  0.0 1.0 0.01
 #pragma parameter RESSWITCH_GLITCH_ROT_MAX   "    Tilt amplitude"        0.2  0.0 1.0 0.01
-#pragma parameter RESSWITCH_GLITCH_WOB_MAX   "    Wobblying amplitude"   0.1 0.0 1.0 0.01
-#pragma parameter RESSWITCH_GLITCH_BAR_SIZE  "    Bright glitch bars size"      0.5 0.0 1.0 0.01
-#pragma parameter RESSWITCH_GLITCH_BAR_STR   "    Bright glitch bars strength"  0.6 0.0 1.0 0.01
+#pragma parameter RESSWITCH_GLITCH_WOB_MAX     "    Wobblying amplitude"  0.1 0.0 1.0 0.01
+#pragma parameter RESSWITCH_GLITCH_BAR_SIZE    "    Bars size"            0.5 0.0 1.0 0.01
+#pragma parameter RESSWITCH_GLITCH_BAR_SMOOTH  "    Bars smoothness"      1.0 0.01 1.0 0.01
+#pragma parameter RESSWITCH_GLITCH_BAR_STR     "    Bars strength"  0.6 0.0 1.0 0.01
 
 
 #pragma stage vertex
@@ -165,15 +167,15 @@ void main() {
     vec2 co = vTexCoord;
     // BORDER BARS
         float switchresglitch = 0.0;  
-        float sin_formula1 = sin(_3kPI*(co.y-1.0)/vSwitchres_bar_size);
+        float sin_formula1 =   sin(_3kPI*(co.y-1.0)/vSwitchres_bar_size);
         float sin_formula2 =  -sin(_3kPI*co.y/vSwitchres_bar_size);
         if (co.y > 1.0) {
             if (co.y < 1.0 + vSwitchres_bar_size)
-                switchresglitch = sin_formula1 * vSwitchres_show_bar ;
+                switchresglitch = pow(sin_formula1,global.RESSWITCH_GLITCH_BAR_SMOOTH) * vSwitchres_show_bar ;
         } 
         else if (co.y < 0.0) {
             if (co.y > - vSwitchres_bar_size)
-                switchresglitch = sin_formula2 * vSwitchres_show_bar ;
+                switchresglitch = pow(sin_formula2, global.RESSWITCH_GLITCH_BAR_SMOOTH) * vSwitchres_show_bar ;
         }
         FragColor = texture(Source, co) + switchresglitch * vSwitchres_show_bar;
         
@@ -182,7 +184,8 @@ void main() {
 
         float wobbly = 0.0;
         if (vWobblyAmp > 0.0) {
-            wobbly = sin( co.y * 20.0 + vWobPhase)  * vWobblyAmp;
+            wobbly = sin( co.y * 20.0 + vWobPhase) * vWobblyAmp;
+            
             /* Different pattern
                 #define a 4.1
                 #define b 1.0
