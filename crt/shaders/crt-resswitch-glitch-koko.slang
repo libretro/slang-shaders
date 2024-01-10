@@ -22,21 +22,31 @@ layout(std140, set = 0, binding = 0) uniform UBO {
     vec4 OriginalHistorySize5;
     float RESSWITCH_ENABLE;
     float RESSWITCH_GLITCH_TRESHOLD;
-    float RESSWITCH_GLITCH_BAR;
+    float RESSWITCH_GLITCH_BAR_STR;
+    float RESSWITCH_GLITCH_BAR_SIZE;
     float RESSWITCH_GLITCH_SHAKE_MAX;
+    float RESSWITCH_GLITCH_ROT_MAX;
+    float RESSWITCH_GLITCH_WOB_MAX;
     uint FrameCount;
 } global;
 
 #pragma parameter RESSWITCH_ENABLE "★ Resolution switch glitch enable? ==>"     1.0  0.0 1.0  1.0
 #pragma parameter RESSWITCH_GLITCH_TRESHOLD  "    Glitch if vertical resolution changes at least by" 0.1 0.01 1.0 0.01
-#pragma parameter RESSWITCH_GLITCH_BAR       "    Bright glitch bars strength"  0.2 0.0 1.0 0.01
-#pragma parameter RESSWITCH_GLITCH_SHAKE_MAX "    Screen shake amplitude"       0.2  0.0 1.0 0.01
+#pragma parameter RESSWITCH_GLITCH_SHAKE_MAX "    Shake amplitude"       0.5  0.0 1.0 0.01
+#pragma parameter RESSWITCH_GLITCH_ROT_MAX   "    Tilt amplitude"        0.2  0.0 1.0 0.01
+#pragma parameter RESSWITCH_GLITCH_WOB_MAX   "    Wobblying amplitude"   0.1 0.0 1.0 0.01
+#pragma parameter RESSWITCH_GLITCH_BAR_SIZE  "    Bright glitch bars size"      0.5 0.0 1.0 0.01
+#pragma parameter RESSWITCH_GLITCH_BAR_STR   "    Bright glitch bars strength"  0.6 0.0 1.0 0.01
+
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out float vSwitchres_show_bar;
+layout(location = 2) out float vSwitchres_bar_size;
+layout(location = 3) out float vWobblyAmp;
+layout(location = 4) out float vWobPhase;
 
 #define _3kHIST0 global.SourceSize.xy
 #define _3kHIST1 global.OriginalHistorySize1.xy
@@ -51,56 +61,139 @@ bool changed_enough(vec2 current, vec2 past){
 }
 
 void main() {
-    gl_Position = global.MVP * Position;
+    
+    float z   = 1.0; // zoom (1.0)
+    float sty = 1.0; // Y stretch (1.0)
+    float stx = 1.0; // H stretch (1.0)
+    float rx  = 0.0; // X rot
+    float ry  = 0.0; // Y rot 
+    float sx1 = 0.0; // H slope
+    float sy1 = 0.0; // V slope
+    float tx  = 0.0; // H shift
+    float ty  = 0.0; // V shift
+    float angleZ = 0.0; // Z rot
+    
+    
     vTexCoord = TexCoord * 1.0001;
 
-    vSwitchres_show_bar = 0.0;
-    // Skip a bunch of frames at the beginning to prevent unwanted glitches
-    // with flycast core and maybe with fast-forward too.
-    if (global.RESSWITCH_ENABLE > 0.5 && global.FrameCount > 10 ) {
-        if (changed_enough(_3kHIST0, _3kHIST1)) {
-            //first frame
-            vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR;
-            vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX * +1.0 ;
-        }
+    vWobblyAmp = 0.0;
+    
+    //SHAKING
+        vSwitchres_show_bar = 0.0;
+        
+        // Skip a bunch of frames at the beginning to prevent unwanted glitches
+        // with flycast core and maybe with fast-forward too.
+        
+        if (global.RESSWITCH_ENABLE > 0.5 && global.FrameCount > 10 ) {
+            vWobPhase = global.FrameCount * 0.01;
 
-        else if (changed_enough(_3kHIST0, _3kHIST2)) {
-            vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR;
-            vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX * -1.0;
-        }
+            vSwitchres_bar_size = global.RESSWITCH_GLITCH_SHAKE_MAX  * global.RESSWITCH_GLITCH_BAR_SIZE ;
+            
+            if (changed_enough(_3kHIST0, _3kHIST1)) {
+                //1st
+                vWobblyAmp = global.RESSWITCH_GLITCH_WOB_MAX * 0.001;
+                vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR_STR;
+                vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX *  0.5 ;
+                rx = global.RESSWITCH_GLITCH_ROT_MAX * 1.0 * 0.2;
+            }
 
-        else if (changed_enough(_3kHIST0, _3kHIST3)) {
-            vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR;
-            vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX * +0.5;
-        }
+            else if (changed_enough(_3kHIST0, _3kHIST2)) {
+                //2nd frame
+                vWobblyAmp = global.RESSWITCH_GLITCH_WOB_MAX * 0.01;
+                vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR_STR;
+                vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX * -1.0;
+                rx =  global.RESSWITCH_GLITCH_ROT_MAX *  -1.0 * 0.2;
+            }
 
-        else if (changed_enough(_3kHIST0, _3kHIST4)) {
-            vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR;
-            vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX * -0.5;
-        }
+            else if (changed_enough(_3kHIST0, _3kHIST3)) {
+                //3rd frame
+                vWobblyAmp = global.RESSWITCH_GLITCH_WOB_MAX * 0.1;
+                vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR_STR;
+                vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX * +0.5;
+                rx =  global.RESSWITCH_GLITCH_ROT_MAX * 0.5 * 0.2;
+            }
 
-        else if (changed_enough(_3kHIST0, _3kHIST5)) {
-            //last frame
-            vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX * +0.25;
-            vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR;
+            else if (changed_enough(_3kHIST0, _3kHIST4)) {
+                //4th frame
+                vWobblyAmp = global.RESSWITCH_GLITCH_WOB_MAX * 0.01;
+                vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR_STR;
+                vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX * -0.5;
+                rx =  global.RESSWITCH_GLITCH_ROT_MAX * - 0.5 * 0.2;
+            }
+
+            else if (changed_enough(_3kHIST0, _3kHIST5)) {
+                //5th last frame
+                vWobblyAmp = global.RESSWITCH_GLITCH_WOB_MAX * 0.001;
+                vSwitchres_show_bar = global.RESSWITCH_GLITCH_BAR_STR;
+                vTexCoord.y += global.RESSWITCH_GLITCH_SHAKE_MAX * +0.25;
+                rx =  global.RESSWITCH_GLITCH_ROT_MAX * 0.25 * 0.2;
+            }
         }
-    }
+        
+        //Maybe for future ues
+        mat4 projectionMatrix = mat4( 
+            stx, sx1, 0.0,  tx,
+            sy1, sty, 0.0,  ty,
+            0.0, 0.0, -1.0, 0.0,
+            -ry, rx,  0.0,  z );
+        
+        //Rotate around Z axis (angleZ set before)?
+        mat4 m4rotationZ = mat4(
+            cos(angleZ), -sin(angleZ), 0.0, 0.0,
+            sin(angleZ), cos(angleZ), 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0 );
+
+        gl_Position = global.MVP * Position * projectionMatrix * m4rotationZ;
+        
+
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in float vSwitchres_show_bar;
+layout(location = 2) in float vSwitchres_bar_size;
+layout(location = 3) in float vWobblyAmp;
+layout(location = 4) in float vWobPhase;
 layout(location = 0) out vec4 FragColor;
 
 layout(set = 0, binding = 1) uniform sampler2D Source;
 
 #define _3kPI 3.141592653589793
 
+
 void main() {
-   float switchresglitch = 0.0;
+    vec2 co = vTexCoord;
+    // BORDER BARS
+        float switchresglitch = 0.0;  
+        float sin_formula1 = sin(_3kPI*(co.y-1.0)/vSwitchres_bar_size);
+        float sin_formula2 =  -sin(_3kPI*co.y/vSwitchres_bar_size);
+        if (co.y > 1.0) {
+            if (co.y < 1.0 + vSwitchres_bar_size)
+                switchresglitch = sin_formula1 * vSwitchres_show_bar ;
+        } 
+        else if (co.y < 0.0) {
+            if (co.y > - vSwitchres_bar_size)
+                switchresglitch = sin_formula2 * vSwitchres_show_bar ;
+        }
+        FragColor = texture(Source, co) + switchresglitch * vSwitchres_show_bar;
+        
+  
+    //WOBBLYING
 
-   if (vTexCoord.y < 0.0 ||vTexCoord.y > 1.0 )
-      switchresglitch = sin( vTexCoord.y * _3kPI * (2/global.RESSWITCH_GLITCH_SHAKE_MAX) ) * vSwitchres_show_bar;
+        float wobbly = 0.0;
+        if (vWobblyAmp > 0.0) {
+            wobbly = sin( co.y * 20.0 + vWobPhase)  * vWobblyAmp;
+            /* Different pattern
+                #define a 4.1
+                #define b 1.0
+                #define c 1.0
+                //wobbly = sin(0.03*k + a* sin(0.02*k + b * sin (0.01 *k + c* co.y))) * 0.1;
+            */
+            co.x+=wobbly;
+        }
+        
+        FragColor = texture(Source, co) + switchresglitch * vSwitchres_show_bar;
 
-   FragColor = texture(Source, vTexCoord) + switchresglitch;
+        
 }
