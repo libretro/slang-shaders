@@ -25,7 +25,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter mode "Color Profile (1=sRGB, 2=DCI, 3=Rec2020)" 1.0 1.0 3.0 1.0
 int color_mode = int(global.mode);
 
-#pragma parameter lighten_screen "Lighten Screen" 1.0 0.0 1.0 0.05
+#pragma parameter lighten_screen "Lighten Screen" 0.5 0.0 1.0 0.05
 
 #define target_gamma 2.2
 #define display_gamma 2.2
