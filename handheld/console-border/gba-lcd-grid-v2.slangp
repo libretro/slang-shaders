@@ -1,10 +1,10 @@
 shaders = 4
 shader0 = ../../motionblur/shaders/response-time.slang
-shader1 = shader-files/lcd-cgwg/lcd-grid-v2.slang
-shader2 = ../shaders/color/gba-color.slang
+shader1 = ../shaders/color/gba-color.slang
+shader2 = shader-files/lcd-cgwg/lcd-grid-v2.slang
 shader3 = shader-files/gb-pass-5.slang
 
-scale_type1 = viewport
+scale_type2 = viewport
 
 filter_linear0 = false
 filter_linear1 = false
@@ -32,4 +32,3 @@ gamma = "2.2"
 blacklevel = "0"
 ambient = "0"
 BGR = "1"
-darken_screen = "0"
