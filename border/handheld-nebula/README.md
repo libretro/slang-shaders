@@ -1,4 +1,4 @@
-# handheld-galaxy border shader
+# handheld-nebula border shader
 
 These shader presets will allow you to apply a 280x224* border around an input image from one of the following handheld cores:
 

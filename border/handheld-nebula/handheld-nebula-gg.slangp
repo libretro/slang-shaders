@@ -13,4 +13,4 @@ in_res_x = "160.000000"
 in_res_y = "144.000000"
 
 textures = "BORDER"
-BORDER = "handheld-galaxy-gg.png"
+BORDER = "handheld-nebula-gg.png"
