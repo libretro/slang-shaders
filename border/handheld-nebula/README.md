@@ -7,6 +7,8 @@ These shader presets will allow you to apply a 280x224* border around an input i
 * 240x160 : Nintendo - Game Boy Advance
 * 160x144 : Sega - Game Gear
 
+I've posted images of the shaders in use to [this imgur album](https://imgur.com/a/nqzDnYa).
+
 *The Game Gear version of this shader uses a 248x224 image with a 160x144 hole cut in it, this is then stretched to "280x224" via aspect ratio settings to ensure ideal sampling.*
 
 **Set your video aspect ration to 4:3 when using these shaders.** RetroArch's "core provided" scaling function will not automatically set a correct aspect ratio for the output image, as it will only take the handheld core's reported resolution into account and not the output image's 280x224 resolution.
