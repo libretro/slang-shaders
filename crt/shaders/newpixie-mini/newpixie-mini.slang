@@ -136,10 +136,6 @@ void main()
     col.g = tsample(Source,vec2(x+scuv.x+0.0000,scuv.y-0.0011),resolution.y/800.0, resolution ).y+0.02;
     col.b = tsample(Source,vec2(x+scuv.x-0.0015,scuv.y+0.0000),resolution.y/800.0, resolution ).z+0.02;
 
-    float i = clamp(col.r*0.299 + col.g*0.587 + col.b*0.114, 0.0, 1.0 );
-    i = pow( 1.0 - pow(i,2.0), 1.0 );
-    i = (1.0-i) * 0.85 + 0.15; 
-    
     /* Level adjustment (curves) */
     col = clamp(col + col*col + col*col*col*col*col,vec3(0.0),vec3(10.0));
 
