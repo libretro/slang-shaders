@@ -86,10 +86,17 @@ for (int n=-3; n<4; n++)
 {
 float p = float(n);   
 float w = exp(-lpass*p*p);
+
+// vTexCoord is "time" variable, 52.6μs is time active pixels are displayed
+// 1000000 multiply (osc) /divide (52.6μs) are omitted as they cancel one another
 float carrier    =  (vTexCoord.x * ofq * 52.6 + p)*PI*0.5;
+// every other NTSC line will be 180' shifted
 float carrier_up =  (vTexCoord.x * ofq * 52.6 + p)*PI*0.5 + PI;
+
+// lineup and line will cancel chroma/luma one another on comb
 vec3 phase    = vec3(1.0,0.5*cos(carrier+mini_hue)   ,0.5*sin(carrier+mini_hue));
 vec3 phase_up = vec3(1.0,0.5*cos(carrier_up+mini_hue),0.5*sin(carrier_up+mini_hue));
+
 vec3 phasefinal  = vec3(1.0,ntsc_sat*cos(carrier)   ,ntsc_sat*sin(carrier));
 
 float line_cur = compo0(p,phase)*w;
