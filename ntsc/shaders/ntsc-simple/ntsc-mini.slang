@@ -3,17 +3,22 @@
 
 layout(push_constant) uniform Push
 {
-  float ntsc_sat,lpass,comb_filter;
+  float ntsc_sat,lpass,comb_filter,ofq,luma_rate,mini_hue;
 } params;
 
-#pragma parameter comb_filter "Chroma Comb. Filter Strength" 0.6 0.0 1.0 0.05
-#pragma parameter lpass "Luma Low Pass" 0.2 0.0 1.0 0.01
+#pragma parameter comb_filter "Chroma Comb. Filter Str." 0.6 0.0 1.0 0.05
+#pragma parameter luma_rate "Luma/Chroma Analysis Rate (typical 2.0)" 2.0 1.0 4.0 1.0
+#pragma parameter lpass "Luma Low Pass (sharpness)" 0.2 0.0 1.0 0.01
+#pragma parameter mini_hue "Hue Shift" 0.0 -6.3 6.3 0.05
 #pragma parameter ntsc_sat "Saturation" 3.0 0.0 6.0 0.05
-
+#pragma parameter ofq "Color Clock Frequency Mhz (typical 3.579)" 3.58 0.0 14.32 0.01
 
 #define comb_filter params.comb_filter
 #define lpass params.lpass
 #define ntsc_sat params.ntsc_sat
+#define ofq params.ofq
+#define luma_rate params.luma_rate
+#define mini_hue params.mini_hue
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -72,7 +77,7 @@ return dot(vec3(1.0),yiq*phase);
 }
 
 void main() {
-dx = vec2(SourceSize.z*0.5,0.0);
+dx = vec2(SourceSize.z/luma_rate,0.0);
 dy = vec2(0.0,SourceSize.w*0.25);
 vec3 final = vec3(0.0);
 float sum = 0.0;
@@ -81,10 +86,10 @@ for (int n=-3; n<4; n++)
 {
 float p = float(n);   
 float w = exp(-lpass*p*p);
-float carrier    =  (vTexCoord.x * SourceSize.x / (170.667 / OriginalSize.x) + p)*PI*0.5;
-float carrier_up =  (vTexCoord.x * SourceSize.x / (170.667 / OriginalSize.x) + p)*PI*0.5 + PI;
-vec3 phase    = vec3(1.0,0.5*cos(carrier)   ,0.5*sin(carrier));
-vec3 phase_up = vec3(1.0,0.5*cos(carrier_up),0.5*sin(carrier_up));
+float carrier    =  (vTexCoord.x * ofq * 52.6 + p)*PI*0.5;
+float carrier_up =  (vTexCoord.x * ofq * 52.6 + p)*PI*0.5 + PI;
+vec3 phase    = vec3(1.0,0.5*cos(carrier+mini_hue)   ,0.5*sin(carrier+mini_hue));
+vec3 phase_up = vec3(1.0,0.5*cos(carrier_up+mini_hue),0.5*sin(carrier_up+mini_hue));
 vec3 phasefinal  = vec3(1.0,ntsc_sat*cos(carrier)   ,ntsc_sat*sin(carrier));
 
 float line_cur = compo0(p,phase)*w;
