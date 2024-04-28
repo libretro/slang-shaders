@@ -10,6 +10,10 @@
     Reference photos:
     - https://gbcc.dev/technology/subpixels.jpg
 
+    Inspired by:
+    -
+   https://www.reddit.com/r/AnaloguePocket/comments/1azaxgd/ive_made_some_improvements_to_my_analogue_pocket/
+
     Changelog:
     v1.0: Initial release.
 */
@@ -20,6 +24,7 @@
 layout(push_constant) uniform Push {
     vec4 SourceSize;
     vec4 OutputSize;
+    float AUTH_GBC_BRIG;
 }
 param;
 
@@ -29,66 +34,45 @@ global;
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
-layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out vec2 tx_coord;
-layout(location = 2) out vec2 px_coord;
-layout(location = 3) out vec2 tx_to_px;
+layout(location = 0) out vec2 tx_coord;
+layout(location = 1) out vec4 px_rect;
+layout(location = 2) out vec2 tx_to_px;
+layout(location = 3) out vec2 subpx_size;
+layout(location = 4) out vec2 notch_size;
+layout(location = 5) out float subpx_orig_y;
 
 void main() {
     gl_Position = global.MVP * Position;
-    vTexCoord = TexCoord;
+
     tx_coord = TexCoord * param.SourceSize.xy;
-    px_coord = TexCoord * param.OutputSize.xy;
+    px_rect = vec4(TexCoord * param.OutputSize.xy - 0.5,
+                   TexCoord * param.OutputSize.xy + 0.5);
     tx_to_px = param.OutputSize.xy * param.SourceSize.zw;
+    subpx_size =
+        tx_to_px * mix(subpx_ratio, vec2(2.0 / 3.0, 1.0), param.AUTH_GBC_BRIG);
+    notch_size = tx_to_px * mix(notch_ratio, vec2(0.0), param.AUTH_GBC_BRIG);
+    subpx_orig_y = (tx_to_px.y - subpx_size.y) * 0.5;
 }
 
 #pragma stage fragment
-layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in vec2 tx_coord;
-layout(location = 2) in vec2 px_coord;
-layout(location = 3) in vec2 tx_to_px;
+layout(location = 0) in vec2 tx_coord;
+layout(location = 1) in vec4 px_rect;
+layout(location = 2) in vec2 tx_to_px;
+layout(location = 3) in vec2 subpx_size;
+layout(location = 4) in vec2 notch_size;
+layout(location = 5) in float subpx_orig_y;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-const vec2 subpx_ratio = vec2(0.3, 0.91);
-const vec2 notch_ratio = vec2(0.115, 0.166);
-
-float rect_coverage(vec2 px_coord, vec4 rect) {
-    vec2 coverage = clamp(rect.zw, px_coord - 0.5, px_coord + 0.5) -
-                    clamp(rect.xy, px_coord - 0.5, px_coord + 0.5);
-    return coverage.x * coverage.y;
-}
-
-float subpx_coverage(vec2 px_coord, vec2 subpx_orig, vec2 subpx_size,
-                     vec2 notch_size) {
-    return rect_coverage(px_coord, vec4(subpx_orig, subpx_orig + subpx_size)) -
-           rect_coverage(
-               px_coord,
-               vec4(subpx_orig.x, subpx_orig.y + subpx_size.y - notch_size.y,
-                    subpx_orig.x + notch_size.x, subpx_orig.y + subpx_size.y));
-}
-
-vec3 pixel_color(vec2 px_coord, vec2 px_size, vec2 px_orig) {
-    const vec2 subpx_size = subpx_ratio * px_size;
-    const vec2 notch_size = notch_ratio * px_size;
-    return vec3(subpx_coverage(px_coord,
-                               px_orig + vec2(1.0 / 3.0 - subpx_ratio.x,
-                                              1.0 - subpx_ratio.y) *
-                                             0.5 * px_size,
-                               subpx_size, notch_size),
-                subpx_coverage(
-                    px_coord,
-                    px_orig + vec2(1.0 - subpx_ratio.x, 1.0 - subpx_ratio.y) *
-                                  0.5 * px_size,
-                    subpx_size, notch_size),
-                subpx_coverage(px_coord,
-                               px_orig + vec2(5.0 / 3.0 - subpx_ratio.x,
-                                              1.0 - subpx_ratio.y) *
-                                             0.5 * px_size,
-                               subpx_size, notch_size));
-}
-
 void main() {
+#if 0
+    // Debug
+    vec3 res = pixel_color(px_rect, vec2(500.0), vec2(100.0));
+    res += pixel_color(px_rect, vec2(500.0), vec2(600.0, 100.0));
+    res += pixel_color(px_rect, vec2(500.0), vec2(100.0, 600.0));
+    res += pixel_color(px_rect, vec2(500.0), vec2(600.0));
+    FragColor = vec4(res, 1.0);
+#else
     // Figure out 4 nearest texels in source texture
     vec2 tx_coord_i;
     const vec2 tx_coord_f = modf(tx_coord, tx_coord_i);
@@ -109,12 +93,18 @@ void main() {
     samples[2] *= samples[2];
     samples[3] *= samples[3];
 
+    // Apply shader.
     const vec3 res =
-        samples[0] * pixel_color(px_coord, tx_to_px, tx_origins[0] * tx_to_px) +
-        samples[1] * pixel_color(px_coord, tx_to_px, tx_origins[1] * tx_to_px) +
-        samples[2] * pixel_color(px_coord, tx_to_px, tx_origins[2] * tx_to_px) +
-        samples[3] * pixel_color(px_coord, tx_to_px, tx_origins[3] * tx_to_px);
+        samples[0] * pixel_color(px_rect, tx_to_px, tx_origins[0] * tx_to_px,
+                                 subpx_orig_y, subpx_size, notch_size) +
+        samples[1] * pixel_color(px_rect, tx_to_px, tx_origins[1] * tx_to_px,
+                                 subpx_orig_y, subpx_size, notch_size) +
+        samples[2] * pixel_color(px_rect, tx_to_px, tx_origins[2] * tx_to_px,
+                                 subpx_orig_y, subpx_size, notch_size) +
+        samples[3] * pixel_color(px_rect, tx_to_px, tx_origins[3] * tx_to_px,
+                                 subpx_orig_y, subpx_size, notch_size);
 
-    // Apply sqrt for fast "gamma correction"
+    // Apply sqrt for fast "gamma correction".
     FragColor = vec4(sqrt(res), 1.0);
+#endif
 }
