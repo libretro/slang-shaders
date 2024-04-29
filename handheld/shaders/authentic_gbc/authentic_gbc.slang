@@ -18,8 +18,8 @@
     v1.0: Initial release.
 */
 
-#include "parameters.slang"
-#include "shared.slang"
+#include "parameters.inc"
+#include "shared.inc"
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -34,8 +34,8 @@ global;
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
-layout(location = 0) out vec2 tx_coord;
-layout(location = 1) out vec4 px_rect;
+layout(location = 0) out vec4 px_rect;
+layout(location = 1) out vec2 tx_coord;
 layout(location = 2) out vec2 tx_to_px;
 layout(location = 3) out vec2 subpx_size;
 layout(location = 4) out vec2 notch_size;
@@ -44,19 +44,14 @@ layout(location = 5) out float subpx_orig_y;
 void main() {
     gl_Position = global.MVP * Position;
 
-    tx_coord = TexCoord * param.SourceSize.xy;
-    px_rect = vec4(TexCoord * param.OutputSize.xy - 0.5,
-                   TexCoord * param.OutputSize.xy + 0.5);
-    tx_to_px = param.OutputSize.xy * param.SourceSize.zw;
-    subpx_size =
-        tx_to_px * mix(subpx_ratio, vec2(2.0 / 3.0, 1.0), param.AUTH_GBC_BRIG);
-    notch_size = tx_to_px * mix(notch_ratio, vec2(0.0), param.AUTH_GBC_BRIG);
-    subpx_orig_y = (tx_to_px.y - subpx_size.y) * 0.5;
+    auth_gbc_vert_shader(param.SourceSize.xy, param.OutputSize.xy,
+                         param.AUTH_GBC_BRIG, TexCoord, px_rect, tx_coord,
+                         tx_to_px, subpx_size, notch_size, subpx_orig_y);
 }
 
 #pragma stage fragment
-layout(location = 0) in vec2 tx_coord;
-layout(location = 1) in vec4 px_rect;
+layout(location = 0) in vec4 px_rect;
+layout(location = 1) in vec2 tx_coord;
 layout(location = 2) in vec2 tx_to_px;
 layout(location = 3) in vec2 subpx_size;
 layout(location = 4) in vec2 notch_size;
