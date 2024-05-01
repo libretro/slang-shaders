@@ -1,7 +1,7 @@
 #version 450
 
 /*
-    Pixel AA v1.4 by fishku
+    Pixel AA v1.5 by fishku
     Copyright (C) 2023
     Public domain license (CC0)
 
@@ -24,6 +24,7 @@
     subpixel anti-aliasing, results are identical to the "pixellate" shader.
 
     Changelog:
+    v1.5: Upstream optimizations from GLSL port. Add free transform preset.
     v1.4: Enable subpixel sampling for all four pixel layout orientations,
           including rotated screens.
     v1.3: Account for screen rotation in subpixel sampling.
@@ -59,9 +60,8 @@ layout(location = 2) out vec2 tx_to_uv;
 
 void main() {
     gl_Position = global.MVP * Position;
-    tx_coord = TexCoord * param.SourceSize.xy;
-    tx_per_px = param.SourceSize.xy * param.OutputSize.zw;
-    tx_to_uv = param.SourceSize.zw;
+    pixel_aa_vert_shader(TexCoord, param.SourceSize.xy, param.OutputSize.xy,
+                         tx_coord, tx_per_px, tx_to_uv);
 }
 
 #pragma stage fragment
