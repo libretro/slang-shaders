@@ -1,13 +1,5 @@
 // See pixel_aa.slang for copyright and other information.
 
-void pixel_aa_vert_shader(vec2 TexCoord, vec2 source_size, vec2 output_size,
-                          inout vec2 tx_coord, inout vec2 tx_per_px,
-                          inout vec2 tx_to_uv) {
-    tx_coord = TexCoord * source_size;
-    tx_per_px = source_size / output_size;
-    tx_to_uv = 1.0 / source_size;
-}
-
 // Similar to smoothstep, but has a configurable slope at x = 0.5.
 // Original smoothstep has a slope of 1.5 at x = 0.5
 #define INSTANTIATE_SLOPESTEP(T)                               \
