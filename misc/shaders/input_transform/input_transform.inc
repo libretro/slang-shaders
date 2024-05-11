@@ -111,44 +111,41 @@ vec2 get_scale_o2i(vec2 input_size, vec2 output_size, vec4 crop, uint rotation,
 // From unit output to pixel input space.
 // coord_in_input_space = o2i(coord_in_output_space)
 // This is used to sample from the input texture in the output pass.
-// Version where scale is passed in.
-vec2 o2i(vec2 x, vec2 input_size, vec4 crop, vec2 shift, uint rotation,
-         float center_after_cropping, vec2 scale_o2i) {
-    return (x - 0.49999) * scale_o2i + get_input_center(input_size, crop, shift,
-                                                        rotation,
-                                                        center_after_cropping);
+// Version where scale and input center are passed in.
+vec2 o2i(vec2 x, vec2 scale_o2i, vec2 input_center) {
+    return (x - 0.49999) * scale_o2i + input_center;
 }
 
-// Version that computes scale.
+// Version that computes scale and input center.
 vec2 o2i(vec2 x, vec2 input_size, vec2 output_size, vec4 crop, vec2 shift,
          uint rotation, float center_after_cropping, float force_aspect_ratio,
          vec2 aspect, vec2 force_integer_scaling, float overscale,
          bool output_size_is_final_viewport_size) {
-    return o2i(x, input_size, crop, shift, rotation, center_after_cropping,
+    return o2i(x,
                get_scale_o2i(input_size, output_size, crop, rotation,
                              center_after_cropping, force_aspect_ratio, aspect,
                              force_integer_scaling, overscale,
-                             output_size_is_final_viewport_size));
+                             output_size_is_final_viewport_size),
+               get_input_center(input_size, crop, shift, rotation,
+                                center_after_cropping));
 }
 
 // From pixel input to unit output space.
-// Version where scale is passed in.
-vec2 i2o(vec2 x, vec2 input_size, vec4 crop, vec2 shift, uint rotation,
-         float center_after_cropping, vec2 scale_o2i) {
-    return (x - get_input_center(input_size, crop, shift, rotation,
-                                 center_after_cropping)) /
-               scale_o2i +
-           0.49999;
+// Version where scale and input center are passed in.
+vec2 i2o(vec2 x, vec2 scale_o2i, vec2 input_center) {
+    return (x - input_center) / scale_o2i + 0.49999;
 }
 
-// Version that computes scale.
+// Version that computes scale and input center.
 vec2 i2o(vec2 x, vec2 input_size, vec2 output_size, vec4 crop, vec2 shift,
          uint rotation, float center_after_cropping, float force_aspect_ratio,
          vec2 aspect, vec2 force_integer_scaling, float overscale,
          bool output_size_is_final_viewport_size) {
-    return i2o(x, input_size, crop, shift, rotation, center_after_cropping,
+    return i2o(x,
                get_scale_o2i(input_size, output_size, crop, rotation,
                              center_after_cropping, force_aspect_ratio, aspect,
                              force_integer_scaling, overscale,
-                             output_size_is_final_viewport_size));
+                             output_size_is_final_viewport_size),
+               get_input_center(input_size, crop, shift, rotation,
+                                center_after_cropping));
 }

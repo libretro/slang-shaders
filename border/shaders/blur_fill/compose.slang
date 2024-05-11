@@ -106,8 +106,10 @@ void main() {
         param.OVERSCALE,
         /* output_size_is_final_viewport_size = */ false);
     const vec2 shift = vec2(param.SHIFT_H, param.SHIFT_V);
-    tx_coord = o2i(vTexCoord, param.InputSize.xy, crop, shift, param.Rotation,
-                   param.CENTER_AFTER_CROPPING, scale_o2i);
+    const vec2 input_center =
+        get_input_center(param.InputSize.xy, crop, shift, param.Rotation,
+                         param.CENTER_AFTER_CROPPING);
+    tx_coord = o2i(vTexCoord, scale_o2i, input_center);
     tx_per_px = scale_o2i * param.OutputSize.zw;
     tx_to_uv = param.InputSize.zw;
     input_corners = get_input_corners(param.InputSize.xy, crop, param.Rotation);
