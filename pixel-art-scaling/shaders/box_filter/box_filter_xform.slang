@@ -47,37 +47,41 @@ global;
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
-layout(location = 0) out vec4 px_rect;
-layout(location = 1) out vec2 tx_coord;
-layout(location = 2) out vec2 scale_o2i;
-layout(location = 3) out vec2 input_center;
+layout(location = 0) out vec2 vTexCoord;
+// layout(location = 0) out vec4 px_rect;
+// layout(location = 1) out vec2 tx_coord;
+// layout(location = 2) out vec2 scale_o2i;
+// layout(location = 3) out vec2 input_center;
 
 void main() {
     gl_Position = global.MVP * Position;
 
-    px_rect = vec4(TexCoord * param.OutputSize.xy - 0.5,
-                   TexCoord * param.OutputSize.xy + 0.5);
-    const vec4 crop = vec4(param.OS_CROP_TOP, param.OS_CROP_LEFT,
-                           param.OS_CROP_BOTTOM, param.OS_CROP_RIGHT);
-    scale_o2i = get_scale_o2i(
-        param.SourceSize.xy, param.OutputSize.xy, crop, param.Rotation,
-        param.CENTER_AFTER_CROPPING, param.FORCE_ASPECT_RATIO,
-        vec2(param.ASPECT_H, param.ASPECT_V),
-        vec2(param.FORCE_INTEGER_SCALING_H, param.FORCE_INTEGER_SCALING_V),
-        param.OVERSCALE,
-        /* output_size_is_final_viewport_size = */ false);
-    const vec2 shift = vec2(param.SHIFT_H, param.SHIFT_V);
-    input_center =
-        get_input_center(param.SourceSize.xy, crop, shift, param.Rotation,
-                         param.CENTER_AFTER_CROPPING);
-    tx_coord = o2i(TexCoord, scale_o2i, input_center);
+    vTexCoord = TexCoord;
+
+    // px_rect = vec4(TexCoord * param.OutputSize.xy - 0.5,
+    //                TexCoord * param.OutputSize.xy + 0.5);
+    // const vec4 crop = vec4(param.OS_CROP_TOP, param.OS_CROP_LEFT,
+    //                        param.OS_CROP_BOTTOM, param.OS_CROP_RIGHT);
+    // scale_o2i = get_scale_o2i(
+    //     param.SourceSize.xy, param.OutputSize.xy, crop, param.Rotation,
+    //     param.CENTER_AFTER_CROPPING, param.FORCE_ASPECT_RATIO,
+    //     vec2(param.ASPECT_H, param.ASPECT_V),
+    //     vec2(param.FORCE_INTEGER_SCALING_H, param.FORCE_INTEGER_SCALING_V),
+    //     param.OVERSCALE,
+    //     /* output_size_is_final_viewport_size = */ false);
+    // const vec2 shift = vec2(param.SHIFT_H, param.SHIFT_V);
+    // input_center =
+    //     get_input_center(param.SourceSize.xy, crop, shift, param.Rotation,
+    //                      param.CENTER_AFTER_CROPPING);
+    // tx_coord = o2i(TexCoord, scale_o2i, input_center);
 }
 
 #pragma stage fragment
-layout(location = 0) in vec4 px_rect;
-layout(location = 1) in vec2 tx_coord;
-layout(location = 2) in vec2 scale_o2i;
-layout(location = 3) in vec2 input_center;
+layout(location = 0) in vec2 vTexCoord;
+// layout(location = 0) in vec4 px_rect;
+// layout(location = 1) in vec2 tx_coord;
+// layout(location = 2) in vec2 scale_o2i;
+// layout(location = 3) in vec2 input_center;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -133,8 +137,10 @@ float PrintValue(vec2 vStringCoords, float fValue, float fMaxDigits,
 
 vec3 addTextOverlays(vec2 fragCoord, vec2 origin, float valueToPrint,
                      vec3 color) {
-    fragCoord = vec2(fragCoord.x, param.OutputSize.y - fragCoord.y);
-    vec2 vFontSize = vec2(8.0, 15.0);
+    fragCoord.y = param.OutputSize.y - fragCoord.y;
+    origin.y = param.OutputSize.y - origin.y;
+
+    vec2 vFontSize = vec2(24.0, 35.0);
 
     float customDigit =
         PrintValue((fragCoord - origin) / vFontSize, valueToPrint, 3.0, 6.0);
@@ -143,6 +149,93 @@ vec3 addTextOverlays(vec2 fragCoord, vec2 origin, float valueToPrint,
 }
 
 void main() {
+    // Debug
+    FragColor = vec4(vec3(0.0), 1.0);
+
+    const vec2 TexCoord = vTexCoord;
+    // const vec2 TexCoord =
+    //     (floor(0.5 * param.OutputSize.xy) + 0.5) / param.OutputSize.xy;
+
+    const vec2 fragCoord = vTexCoord * param.OutputSize.xy;
+    // fragCoord max error: About 3.0e-4
+
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(40.0, 40.0),
+    //                     param.OutputSize.x, vec3(1.0, 0.0,
+    //                     0.0));
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(300.0, 40.0),
+    //                     param.OutputSize.y, vec3(1.0, 0.0,
+    //                     0.0));
+    // return;
+
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(40.0, 40.0),
+    //                     TexCoord.x + 1.0e-7, vec3(1.0, 0.0, 0.0));
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(300.0, 40.0),
+    //                     TexCoord.y + 1.0e-7, vec3(1.0, 0.0, 0.0));
+    // return;
+
+    // FragColor.rgb += addTextOverlays(
+    //     mod(fragCoord, vec2(600.0, 40.0)), vec2(40.0, 40.0),
+    //     param.OutputSize.x * TexCoord.x + 1.0e-7, vec3(1.0, 0.0, 0.0));
+    // FragColor.rgb += addTextOverlays(
+    //     mod(fragCoord, vec2(600.0, 40.0)), vec2(300.0, 40.0),
+    //     param.OutputSize.y * TexCoord.y + 1.0e-7, vec3(1.0, 0.0, 0.0));
+    // return;
+
+    const vec4 px_rect = vec4(TexCoord * param.OutputSize.xy - 0.5,
+                              TexCoord * param.OutputSize.xy + 0.5);
+    // px_rect max error: About 3.0e-4
+
+    const vec4 crop = vec4(param.OS_CROP_TOP, param.OS_CROP_LEFT,
+                           param.OS_CROP_BOTTOM, param.OS_CROP_RIGHT);
+    const vec2 scale_i2o = get_scale_i2o(
+        param.SourceSize.xy, param.OutputSize.xy, crop, param.Rotation,
+        param.CENTER_AFTER_CROPPING, param.FORCE_ASPECT_RATIO,
+        vec2(param.ASPECT_H, param.ASPECT_V),
+        vec2(param.FORCE_INTEGER_SCALING_H, param.FORCE_INTEGER_SCALING_V),
+        param.OVERSCALE,
+        /* output_size_is_final_viewport_size = */ false);
+    // scale_o2i seems accurate to at least 1.0e-6.
+
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(40.0, 40.0),
+    //                     scale_i2o.x, vec3(1.0, 0.0,
+    //                     0.0));
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(300.0, 40.0),
+    //                     scale_i2o.y, vec3(1.0, 0.0,
+    //                     0.0));
+    // return;
+
+    const vec2 shift = vec2(param.SHIFT_H, param.SHIFT_V);
+    const vec2 input_center = get_input_center(
+        param.SourceSize.xy, param.OutputSize.xy, scale_i2o, crop, shift,
+        param.Rotation, param.CENTER_AFTER_CROPPING);
+    // input_center max error: 1.0e-5
+    // NOTE that printing of the numbers seems to have a bug here!
+
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(40.0, 40.0),
+    //                     input_center.x, vec3(1.0, 0.0, 0.0));
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(300.0, 40.0),
+    //                     input_center.y, vec3(1.0, 0.0, 0.0));
+    // return;
+
+    vec2 tx_coord = transform(
+        TexCoord, vec2(0.5), param.OutputSize.xy / scale_i2o, input_center);
+
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(40.0, 40.0),
+    //                     tx_coord.x + 1.0e-6, vec3(1.0, 0.0, 0.0));
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(300.0, 40.0),
+    //                     tx_coord.y + 1.0e-6, vec3(1.0, 0.0, 0.0));
+    // return;
+
     // Figure out 4 nearest texels in source texture
     vec2 tx_coord_i;
     const vec2 tx_coord_f = modf(tx_coord, tx_coord_i);
@@ -150,6 +243,14 @@ void main() {
     vec2 tx_origins[] = {tx_coord_i, tx_coord_i + vec2(tx_coord_off.x, 0.0),
                          tx_coord_i + vec2(0.0, tx_coord_off.y),
                          tx_coord_i + tx_coord_off};
+
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(40.0, 40.0),
+    //                     tx_origins[3].x, vec3(1.0, 0.0, 0.0));
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(300.0, 40.0),
+    //                     tx_origins[3].y, vec3(1.0, 0.0, 0.0));
+    // return;
 
     // Sample.
     // Apply square for fast "gamma correction".
@@ -166,24 +267,56 @@ void main() {
     // Apply shader.
     // Transform tx_origins into pixel output space. Equivalent to manual
     // unrolling of "i2o" function.
-    const vec2 scale_i2o = 1.0 / scale_o2i;
-    const vec2 px_per_tx = param.OutputSize.xy * scale_i2o;
+    const vec2 px_per_tx = scale_i2o;
 
-    tx_origins[0] = fma(tx_origins[0], scale_i2o, -input_center * scale_i2o);
-    tx_origins[0] =
-        fma(tx_origins[0], param.OutputSize.xy, 0.49999 * param.OutputSize.xy);
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(40.0, 40.0),
+    //                     scale_i2o.x*1000.0, vec3(1.0, 0.0, 0.0));
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(300.0, 40.0),
+    //                     scale_i2o.y*1000.0, vec3(1.0, 0.0, 0.0));
+    // return;
 
-    tx_origins[1] = fma(tx_origins[1], scale_i2o, -input_center * scale_i2o);
-    tx_origins[1] =
-        fma(tx_origins[1], param.OutputSize.xy, 0.49999 * param.OutputSize.xy);
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(40.0, 40.0),
+    //                     px_per_tx.x, vec3(1.0, 0.0, 0.0));
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(300.0, 40.0),
+    //                     px_per_tx.y, vec3(1.0, 0.0, 0.0));
+    // return;
 
-    tx_origins[2] = fma(tx_origins[2], scale_i2o, -input_center * scale_i2o);
-    tx_origins[2] =
-        fma(tx_origins[2], param.OutputSize.xy, 0.49999 * param.OutputSize.xy);
+    tx_origins[0] = transform(tx_origins[0], input_center, scale_i2o,
+                              0.5 * param.OutputSize.xy);
+    tx_origins[1] = transform(tx_origins[1], input_center, scale_i2o,
+                              0.5 * param.OutputSize.xy);
+    tx_origins[2] = transform(tx_origins[2], input_center, scale_i2o,
+                              0.5 * param.OutputSize.xy);
+    tx_origins[3] = transform(tx_origins[3], input_center, scale_i2o,
+                              0.5 * param.OutputSize.xy);
 
-    tx_origins[3] = fma(tx_origins[3], scale_i2o, -input_center * scale_i2o);
-    tx_origins[3] =
-        fma(tx_origins[3], param.OutputSize.xy, 0.49999 * param.OutputSize.xy);
+    // tx_origins[0] = fma(tx_origins[0], scale_i2o, -input_center * scale_i2o);
+    // tx_origins[0] =
+    //     fma(tx_origins[0], param.OutputSize.xy, 0.5 * param.OutputSize.xy);
+
+    // tx_origins[1] = fma(tx_origins[1], scale_i2o, -input_center * scale_i2o);
+    // tx_origins[1] =
+    //     fma(tx_origins[1], param.OutputSize.xy, 0.5 * param.OutputSize.xy);
+
+    // tx_origins[2] = fma(tx_origins[2], scale_i2o, -input_center * scale_i2o);
+    // tx_origins[2] =
+    //     fma(tx_origins[2], param.OutputSize.xy, 0.5 * param.OutputSize.xy);
+
+    // tx_origins[3] = fma(tx_origins[3], scale_i2o, -input_center * scale_i2o);
+    // tx_origins[3] =
+    //     fma(tx_origins[3], param.OutputSize.xy, 0.5 * param.OutputSize.xy);
+
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(40.0, 40.0),
+    //                     tx_origins[1].x, vec3(1.0, 0.0, 0.0));
+    // FragColor.rgb +=
+    //     addTextOverlays(mod(fragCoord, vec2(600.0, 40.0)), vec2(300.0, 40.0),
+    //                     tx_origins[1].y, vec3(1.0, 0.0, 0.0));
+    // return;
 
     const vec3 res =
         samples[0] * rect_coverage(px_rect, vec4(tx_origins[0],
@@ -197,30 +330,4 @@ void main() {
 
     // Apply sqrt for fast "gamma correction".
     FragColor = vec4(sqrt(res), 1.0);
-
-    // px_per_tx
-    FragColor.rgb += addTextOverlays(px_rect.xy, vec2(20.0, 20.0), px_per_tx.x,
-                                     vec3(1.0, 0.0, 0.0));
-    FragColor.rgb += addTextOverlays(px_rect.xy, vec2(100.0, 20.0), px_per_tx.y,
-                                     vec3(1.0, 0.0, 0.0));
-
-    // px_rect fract
-    FragColor.rgb += addTextOverlays(px_rect.xy, vec2(20.0, 50.0),
-                                     fract(px_rect.x), vec3(1.0, 0.0, 0.0));
-    FragColor.rgb += addTextOverlays(px_rect.xy, vec2(100.0, 50.0),
-                                     fract(px_rect.y), vec3(1.0, 0.0, 0.0));
-
-    // tx_origins fract
-    FragColor.rgb +=
-        addTextOverlays(px_rect.xy, vec2(20.0, 100.0), fract(tx_origins[0].x),
-                        vec3(1.0, 0.0, 0.0));
-    FragColor.rgb +=
-        addTextOverlays(px_rect.xy, vec2(100.0, 100.0), fract(tx_origins[0].y),
-                        vec3(1.0, 0.0, 0.0));
-
-    // input_center
-    FragColor.rgb += addTextOverlays(px_rect.xy, vec2(20.0, 150.0),
-                                     input_center.x, vec3(1.0, 0.0, 0.0));
-    FragColor.rgb += addTextOverlays(px_rect.xy, vec2(150.0, 150.0),
-                                     input_center.y, vec3(1.0, 0.0, 0.0));
 }
