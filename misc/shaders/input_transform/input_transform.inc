@@ -68,8 +68,7 @@ vec2 get_scale_i2o(vec2 input_size, vec2 output_size, vec4 crop, uint rotation,
     }
     aspect = get_rotated_size(aspect, rotation);
     // Aspect ratio before cropping.
-    // lambda_1 * input_pixels.x, lambda_2 * input_pixels.y,
-    // possibly corrected for forced aspect ratio
+    // Corrected for forced aspect ratio.
     aspect = (force_aspect_ratio < 0.5
                   ? output_size * input_size.yx
                   : (aspect.x < 0.5 || aspect.y < 0.5
