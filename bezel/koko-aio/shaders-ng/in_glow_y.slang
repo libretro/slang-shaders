@@ -237,7 +237,7 @@ void main() {
    float max_inLum = max( 1.0, DO_CCORRECTION * apply_contrast_brightness(1.0, CONTRAST, BRIGHTNESS));
    //Scanlines (over)inflation.
    //The result will be stored in the alpha channel to be consumed by final pass.
-      float dy = global.flick_and_noise_passSize.w;
+      float dy = params.OriginalSize.w * 0.5;
       float inflation = PIXELGRID_INFLATION * 0.25 * dy * PIXELGRID_MAX_H;
 
       vec3 gy = texture(Source, vec2(vTexCoord.x, vTexCoord.y + dy)).rgb

@@ -1299,7 +1299,7 @@ void main() {
             // ^^ We have to check if alpha is > 3.0 because till 3.0 it means it is carrying the scanline
             // ^^ inflation information from glow_y pass.
             if (reuse_old) {
-                FragColor = texture(final_passFeedback, vOutputCoord);// * vec4(1,0,0,0);
+                FragColor = texture(final_passFeedback, vOutputCoord); // * vec4(1,0,0,0);
                 return;
             }
         }
@@ -1524,38 +1524,5 @@ void main() {
     #endif
 
     FragColor = vec4(pixel_out, 1.0);
-/*    
-float m = 1.0;
-    
-   vec2 d = global.flick_and_noise_passSize.zw*m;
-
-   vec2 sharpness = d*SERVICE1/m;
-   
-   vec3 gx = texture(in_glow_pass, vec2(vTexCoord.x + d.x, vTexCoord.y)).rgb - 
-             texture(in_glow_pass, vec2(vTexCoord.x - d.x, vTexCoord.y)).rgb;
-
-   vec3 gy = texture(in_glow_pass, vec2(vTexCoord.x, vTexCoord.y + d.y)).rgb - 
-             texture(in_glow_pass, vec2(vTexCoord.x, vTexCoord.y - d.y)).rgb;
-      
-  
-   float fgx = +(gx.x+gx.y+gx.z)/3.0;
-   float fgy = +(gy.x+gy.y+gy.z)/3.0;
-
-   
-//   fgx = clamp(fgx, -SERVICE1, SERVICE1);
-//   fgy = clamp(fgy, -SERVICE1, SERVICE1);
-   
-    vec2 warp = vec2(fgx, fgy) * sharpness;
-    
-
-    
-    vec2 warpedTexCoord = vTexCoord + warp;
-    
-    vec4 warpedColor = texture(in_glow_pass, warpedTexCoord);
-    
-    FragColor = vec4(fgx*fgy);
-    
-    FragColor = warpedColor;
- */   
     
 }
