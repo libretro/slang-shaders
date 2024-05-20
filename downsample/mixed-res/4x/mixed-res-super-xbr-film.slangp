@@ -97,7 +97,7 @@ scale9 = 1.0
 
 shader10 = "../../../deblur/shaders/deblur.slang"
 filter_linear10 = "true"
-wrap_mode10 = "clamp_to_border"
+wrap_mode10 = "clamp_to_edge"
 srgb_framebuffer10 = "true"
 scale_type10 = "source"
 scale10 = "1.000000"
@@ -116,11 +116,12 @@ scale_y11 =  "1.000000"
 
 
 IR_SCALE = "4.0"
+CS_RADIUS = "4.0"
 B_TRESH = "0.10"
 XBR_WEIGHT = "1.000000"
 XBR_EDGE_STR_P1 = "5.000000"
 B = "0.330000"
-C = "0.330000"
+C = "0.500000"
 CS_SHARPNESS = "0.200000"
 OFFSET = "3.000000"
 DEBLUR = "3.000000"
