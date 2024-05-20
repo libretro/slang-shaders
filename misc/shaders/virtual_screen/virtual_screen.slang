@@ -41,17 +41,27 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main() {
+    // Define sphere
+    const vec3 sphere_o = vec3(0.0);
+    const float r = 1.0 / param.VIRT_SCREEN_CURVATURE;
+
+    // Define plane
+    const float sin_tilt = sin(param.VIRT_SCREEN_TILT_ANGLE);
+    const float cos_tilt = cos(param.VIRT_SCREEN_TILT_ANGLE);
+    const vec3 plane_o = vec3(0.0, -r * sin_tilt, r * cos_tilt);
+    const vec3 plane_u = vec3(1.0, 0.0, 0.0);
+    const vec3 plane_v = vec3(0.0, cos_tilt, sin_tilt);
+    const vec3 plane_n = plane_o - sphere_o;
+
     // Generate ray
     vec2 aspect =
         param.OutputSize.xy / max(param.OutputSize.x, param.OutputSize.y);
     vec2 uv = (vTexCoord - 0.5) * aspect;
     // TODO find distance automatically
-    vec3 ray_o = vec3(0.0, 0.0, 5.0);
+    vec3 ray_o = vec3(0.0, plane_o.y, 5.0);
     vec3 ray_d = vec3(uv, -param.VIRT_SCREEN_F);
 
     // Intersect sphere
-    const vec3 sphere_o = vec3(0.0);
-    const float r = 1.0 / param.VIRT_SCREEN_CURVATURE;
     vec3 oc = ray_o - sphere_o;
     float a = dot(ray_d, ray_d);
     float half_b = dot(oc, ray_d);
@@ -75,12 +85,6 @@ void main() {
     // Intersect plane
     ray_o = sphere_o;
     ray_d = p_sphere - sphere_o;
-    const float sin_tilt = sin(param.VIRT_SCREEN_TILT_ANGLE);
-    const float cos_tilt = cos(param.VIRT_SCREEN_TILT_ANGLE);
-    const vec3 plane_o = vec3(0.0, r * sin_tilt, r * -cos_tilt);
-    const vec3 plane_u = vec3(-1.0, 0.0, 0.0);
-    const vec3 plane_v = vec3(0.0, -cos_tilt, -sin_tilt);
-    const vec3 plane_n = plane_o - sphere_o;
     float denom = dot(plane_n, ray_d);
     // We assume that denom is not close to zero.
     const vec3 d = plane_o - ray_o;
