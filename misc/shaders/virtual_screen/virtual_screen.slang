@@ -15,8 +15,10 @@
 layout(push_constant) uniform Push {
     vec4 SourceSize;
     vec4 OutputSize;
+    float VIRT_SCREEN_CURVATURE;
+    float VIRT_SCREEN_ZOOM;
+    float VIRT_SCREEN_TILT_ANGLE;
     float VIRT_SCREEN_F;
-    float R;
 }
 param;
 
@@ -39,18 +41,6 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main() {
-    // vec3 res =
-    //     textureGrad(Source, vTexCoord,
-    //                 vec2(log2(1.0 - vTexCoord.x) / 32.0, 0.0),
-    //                 dFdy(vTexCoord))
-    //         .rgb;
-
-    // float lod = vTexCoord.x * 8.0;
-    // vec3 res_1 = textureLod(Source, vTexCoord, floor(lod)).rgb;
-    // vec3 res_2 = textureLod(Source, vTexCoord, floor(lod) + 1.0).rgb;
-    // FragColor = vec4(mix(res_1, res_2, fract(lod)), 1.0);
-    // return;
-
     // Generate ray
     vec2 aspect =
         param.OutputSize.xy / max(param.OutputSize.x, param.OutputSize.y);
@@ -61,7 +51,7 @@ void main() {
 
     // Intersect sphere
     const vec3 sphere_o = vec3(0.0);
-    const float r = param.R;
+    const float r = 1.0 / param.VIRT_SCREEN_CURVATURE;
     vec3 oc = ray_o - sphere_o;
     float a = dot(ray_d, ray_d);
     float half_b = dot(oc, ray_d);
@@ -73,22 +63,23 @@ void main() {
         return;
     }
 
-    float disc_sq = sqrt(disc);
-    // TODO: Sign of half_b is always negative?
-    const float q = -(half_b + sign(half_b) * disc_sq);
     // We only need the smaller root of the two solutions for the sphere-ray
     // intersection. The smaller root can be found as follows, according to:
     // https://www.av8n.com/physics/quadratic-formula.htm
     // This assumes that the solution is positive.
-    float root = c / q;
+    // Simplification: sign(half_b) is always < 0.
+    float root = c / (sqrt(disc) - half_b);
     const vec3 p_sphere = ray_o + root * ray_d;
     const vec3 normal = normalize(p_sphere);
 
     // Intersect plane
     ray_o = sphere_o;
     ray_d = p_sphere - sphere_o;
-    // TODO this will be rotated
-    const vec3 plane_o = vec3(0.0, 0.0, -r);
+    const float sin_tilt = sin(param.VIRT_SCREEN_TILT_ANGLE);
+    const float cos_tilt = cos(param.VIRT_SCREEN_TILT_ANGLE);
+    const vec3 plane_o = vec3(0.0, r * sin_tilt, r * -cos_tilt);
+    const vec3 plane_u = vec3(-1.0, 0.0, 0.0);
+    const vec3 plane_v = vec3(0.0, -cos_tilt, -sin_tilt);
     const vec3 plane_n = plane_o - sphere_o;
     float denom = dot(plane_n, ray_d);
     // We assume that denom is not close to zero.
@@ -99,71 +90,29 @@ void main() {
 
     // Convert plane intersection to input UV
     aspect = param.SourceSize.xy / max(param.SourceSize.x, param.SourceSize.y);
-    // Invert p_plane to flip image the right way up.
-    uv = -p_plane.xy / aspect + 0.5;
+    const vec3 po = p_plane - plane_o;
+    uv = vec2(dot(po, plane_u), dot(po, plane_v)) / aspect + 0.5;
 
     // Do a sharp "pixel art" sampling following:
     // https://www.youtube.com/watch?v=d6tp43wZqps
     // You may probably want to do a different kind of sampling when chaining
     // this shader with other effects.
-
-    // Naive approach
-    // vec2 px_per_tx = param.OutputSize.xy * param.SourceSize.zw;
-    // vec2 tx = uv * param.SourceSize.xy;
-    // vec2 tx_offset = clamp(fract(tx) * px_per_tx, 0, 0.5) -
-    //                  clamp((1 - fract(tx)) * px_per_tx, 0, 0.5);
-    // uv = (floor(tx) + 0.5 + tx_offset) * param.SourceSize.zw;
-
-    // // First d_uv_dx & d_uv_dy version
-    // vec2 box_size = (abs(dFdx(uv)) + abs(dFdy(uv))) * param.SourceSize.xy;
-    // // vec2 px_per_tx = param.OutputSize.xy * param.SourceSize.zw;
-    // vec2 tx = uv * param.SourceSize.xy;
-    // vec2 tx_offset = clamp(fract(tx) / box_size, 0, 0.5) -
-    //                  clamp((1 - fract(tx)) / box_size, 0, 0.5);
-    // uv = (floor(tx) + 0.5 + tx_offset) * param.SourceSize.zw;
-
-    // // Use fwidth instead of d_uv_dx & d_uv_dy
-    // vec2 box_size = fwidth(uv) * param.SourceSize.xy;
-    // // vec2 px_per_tx = param.OutputSize.xy * param.SourceSize.zw;
-    // vec2 tx = uv * param.SourceSize.xy;
-    // vec2 tx_offset = clamp(fract(tx) / box_size, 0, 0.5) -
-    //                  clamp((1 - fract(tx)) / box_size, 0, 0.5);
-    // uv = (floor(tx) + 0.5 + tx_offset) * param.SourceSize.zw;
-
-    // // Simplify code
-    // vec2 box_size = fwidth(uv) * param.SourceSize.xy;
-    // vec2 tx = uv * param.SourceSize.xy - 0.5 * box_size;
-    // vec2 tx_offset = clamp((fract(tx) - (1 - box_size)) / box_size,
-    // 0.0, 1.0); uv = (floor(tx) + 0.5 + tx_offset) * param.SourceSize.zw;
-
-    // // Clamp box size
-    // vec2 box_size = clamp(fwidth(uv) * param.SourceSize.xy, 1.0e-6, 1.0);
-    // vec2 tx = uv * param.SourceSize.xy - 0.5 * box_size;
-    // vec2 tx_offset = clamp((fract(tx) - (1 - box_size)) / box_size,
-    // 0.0, 1.0); uv = (floor(tx) + 0.5 + tx_offset) * param.SourceSize.zw;
-
-    // // Use bilinear sampling. Ignore gamma correctness.
-    // const vec3 rgb = texture(Source, uv).rgb;
-
-    // // Better texture sampling
-    // const vec2 d_uv_dx = dFdx(uv);
-    // const vec2 d_uv_dy = dFdy(uv);
-    // vec2 box_size = clamp((abs(d_uv_dx) + abs(d_uv_dy)) *
-    // param.SourceSize.xy, 1.0e-6, 1.0); vec2 tx = uv * param.SourceSize.xy -
-    // 0.5 * box_size; vec2 tx_offset = clamp((fract(tx) - (1 - box_size)) /
-    // box_size, 0.0, 1.0); uv = (floor(tx) + 0.5 + tx_offset) *
-    // param.SourceSize.zw; const vec3 rgb = textureGrad(Source, uv, d_uv_dx,
-    // d_uv_dy).rgb;
-
-    // Smoothstep weighting
-    const vec2 d_uv_dx = dFdx(uv);
-    const vec2 d_uv_dy = dFdy(uv);
-    vec2 box_size =
-        clamp((abs(d_uv_dx) + abs(d_uv_dy)) * param.SourceSize.xy, 1.0e-6, 1.0);
+    vec2 d_uv_dx = dFdx(uv) * param.SourceSize.xy;
+    vec2 d_uv_dy = dFdy(uv) * param.SourceSize.xy;
+    vec2 box_size = clamp(abs(d_uv_dx) + abs(d_uv_dy), 1.0e-6, 1.0);
     vec2 tx = uv * param.SourceSize.xy - 0.5 * box_size;
     vec2 tx_offset = smoothstep(1 - box_size, vec2(1), fract(tx));
     uv = (floor(tx) + 0.5 + tx_offset) * param.SourceSize.zw;
-    const vec3 rgb = textureGrad(Source, uv, d_uv_dx, d_uv_dy).rgb;
+
+    // Implement proper anisotropic texture filtering in software because
+    // current implementation is broken. See:
+    // https://github.com/libretro/RetroArch/issues/16567
+    const float lambda_base =
+        max(0.0, 0.5 * log2(max(dot(d_uv_dx, d_uv_dx), dot(d_uv_dy, d_uv_dy))));
+    float lambda_i;
+    const float lambda_f = modf(lambda_base, lambda_i);
+    const vec3 rgb = mix(textureLod(Source, uv, lambda_i).rgb,
+                         textureLod(Source, uv, lambda_i + 1.0).rgb, lambda_f);
 
     FragColor = vec4(rgb, 1.0);
 }
