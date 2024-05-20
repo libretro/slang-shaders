@@ -41,6 +41,13 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main() {
+    // Misc. pre-computation
+    const vec2 input_aspect =
+        param.SourceSize.xy / max(param.SourceSize.x, param.SourceSize.y);
+    // const vec2 input_aspect = vec2(1.0, 0.75);
+    const vec2 output_aspect =
+        param.OutputSize.xy / max(param.OutputSize.x, param.OutputSize.y);
+
     // Define sphere
     const vec3 sphere_o = vec3(0.0);
     const float r = 1.0 / param.VIRT_SCREEN_CURVATURE;
@@ -53,20 +60,17 @@ void main() {
     const vec3 plane_v = vec3(0.0, cos_tilt, sin_tilt);
     const vec3 plane_n = plane_o - sphere_o;
 
-    // Generate ray
-    vec2 aspect =
-        param.OutputSize.xy / max(param.OutputSize.x, param.OutputSize.y);
-    vec2 uv = (vTexCoord - 0.5) * aspect;
+    // Generate camera ray
     // TODO find distance automatically
     vec3 ray_o = vec3(0.0, plane_o.y, 5.0);
-    vec3 ray_d = vec3(uv, -param.VIRT_SCREEN_F);
+    vec3 ray_d = vec3((vTexCoord - 0.5) * output_aspect, -param.VIRT_SCREEN_F);
 
     // Intersect sphere
-    vec3 oc = ray_o - sphere_o;
-    float a = dot(ray_d, ray_d);
-    float half_b = dot(oc, ray_d);
-    float c = dot(oc, oc) - r * r;
-    float disc = half_b * half_b - a * c;
+    const vec3 oc = ray_o - sphere_o;
+    const float a = dot(ray_d, ray_d);
+    const float half_b = dot(oc, ray_d);
+    const float c = dot(oc, oc) - r * r;
+    const float disc = half_b * half_b - a * c;
 
     if (disc < 0.0) {
         FragColor = vec4(vec3(0.0), 1.0);
@@ -76,11 +80,9 @@ void main() {
     // We only need the smaller root of the two solutions for the sphere-ray
     // intersection. The smaller root can be found as follows, according to:
     // https://www.av8n.com/physics/quadratic-formula.htm
-    // This assumes that the solution is positive.
-    // Simplification: sign(half_b) is always < 0.
-    float root = c / (sqrt(disc) - half_b);
-    const vec3 p_sphere = ray_o + root * ray_d;
-    const vec3 normal = normalize(p_sphere);
+    // Simplification: Assume the solution is positive.
+    // Simplification: Assume half_b < 0.
+    const vec3 p_sphere = ray_o + c / (sqrt(disc) - half_b) * ray_d;
 
     // Intersect plane
     ray_o = sphere_o;
@@ -89,23 +91,22 @@ void main() {
     // We assume that denom is not close to zero.
     const vec3 d = plane_o - ray_o;
     const float t = dot(d, plane_n) / denom;
-    // We assume that t >= 0.
+    // We assume that t > 0.
     const vec3 p_plane = ray_o + t * ray_d;
 
     // Convert plane intersection to input UV
-    aspect = param.SourceSize.xy / max(param.SourceSize.x, param.SourceSize.y);
     const vec3 po = p_plane - plane_o;
-    uv = vec2(dot(po, plane_u), dot(po, plane_v)) / aspect + 0.5;
+    vec2 uv = vec2(dot(po, plane_u), dot(po, plane_v)) / input_aspect + 0.5;
 
-    // Do a sharp "pixel art" sampling following:
+    // Do a sharp "pixel art" sampling, following:
     // https://www.youtube.com/watch?v=d6tp43wZqps
     // You may probably want to do a different kind of sampling when chaining
     // this shader with other effects.
-    vec2 d_uv_dx = dFdx(uv) * param.SourceSize.xy;
-    vec2 d_uv_dy = dFdy(uv) * param.SourceSize.xy;
-    vec2 box_size = clamp(abs(d_uv_dx) + abs(d_uv_dy), 1.0e-6, 1.0);
-    vec2 tx = uv * param.SourceSize.xy - 0.5 * box_size;
-    vec2 tx_offset = smoothstep(1 - box_size, vec2(1), fract(tx));
+    const vec2 d_uv_dx = dFdx(uv) * param.SourceSize.xy;
+    const vec2 d_uv_dy = dFdy(uv) * param.SourceSize.xy;
+    const vec2 box_size = clamp(abs(d_uv_dx) + abs(d_uv_dy), 1.0e-6, 1.0);
+    const vec2 tx = uv * param.SourceSize.xy - 0.5 * box_size;
+    const vec2 tx_offset = smoothstep(1 - box_size, vec2(1.0), fract(tx));
     uv = (floor(tx) + 0.5 + tx_offset) * param.SourceSize.zw;
 
     // Implement proper anisotropic texture filtering in software because
