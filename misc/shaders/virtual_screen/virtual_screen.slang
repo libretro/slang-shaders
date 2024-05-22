@@ -19,6 +19,7 @@ layout(push_constant) uniform Push {
     float VIRT_SCREEN_ZOOM;
     float VIRT_SCREEN_TILT_ANGLE;
     float VIRT_SCREEN_F;
+    float VIRT_SCREEN_ROUNDED_CORNER;
 }
 param;
 
@@ -171,6 +172,13 @@ void main() {
                    dot(op, plane_v / input_aspect.y)) +
               0.5;
 
+    // Compute rounded corner darkening
+    const vec2 q =
+        input_aspect * (abs(uv - 0.5) - 0.5) + param.VIRT_SCREEN_ROUNDED_CORNER;
+    const float dist = min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) -
+                       param.VIRT_SCREEN_ROUNDED_CORNER;
+    const float darkening = smoothstep(-param.OutputSize.z, 0.0, -dist);
+
     // Do a sharp "pixel art" sampling, following:
     // https://www.youtube.com/watch?v=d6tp43wZqps
     // You may probably want to do a different kind of sampling when chaining
@@ -193,4 +201,7 @@ void main() {
                          textureLod(Source, uv, lambda_i + 1.0).rgb, lambda_f);
 
     FragColor = vec4(rgb, 1.0);
+
+    // Apply rounded corner
+    FragColor.rgb *= darkening;
 }
