@@ -9,12 +9,18 @@
     v1.0: Initial release.
 */
 
+// Uncommented means sharp pixel art, better for stand-alone usage.
+// Commented out means bilinear filtering, better for appending.
+// #define SHARP_PIXEL_SAMPLING
+
 #include "parameters.inc"
 #include "shared.inc"
 
 layout(push_constant) uniform Push {
     vec4 OriginalSize;
     vec4 OutputSize;
+    float VIRT_SCREEN_ASPECT_H;
+    float VIRT_SCREEN_ASPECT_V;
     float VIRT_SCREEN_CURVATURE;
     float VIRT_SCREEN_ZOOM;
     float VIRT_SCREEN_TILT_ANGLE;
@@ -71,7 +77,11 @@ void main() {
 
     // Misc. pre-computation
     const vec2 input_aspect =
-        param.OriginalSize.xy / max(param.OriginalSize.x, param.OriginalSize.y);
+        param.VIRT_SCREEN_ASPECT_H > 0.0 && param.VIRT_SCREEN_ASPECT_V > 0.0
+            ? vec2(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V) /
+                  max(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V)
+            : param.OriginalSize.xy /
+                  max(param.OriginalSize.x, param.OriginalSize.y);
     // const vec2 input_aspect = vec2(1.0, 0.75);
     const vec2 output_aspect =
         param.OutputSize.xy / max(param.OutputSize.x, param.OutputSize.y);
@@ -179,6 +189,7 @@ void main() {
                        param.VIRT_SCREEN_ROUNDED_CORNER;
     const float darkening = smoothstep(-param.OutputSize.z, 0.0, -dist);
 
+#ifdef SHARP_PIXEL_SAMPLING
     // Do a sharp "pixel art" sampling, following:
     // https://www.youtube.com/watch?v=d6tp43wZqps
     // You may probably want to do a different kind of sampling when chaining
@@ -201,6 +212,9 @@ void main() {
                          textureLod(Source, uv, lambda_i + 1.0).rgb, lambda_f);
 
     FragColor = vec4(rgb, 1.0);
+#else
+    FragColor = texture(Source, uv);
+#endif
 
     // Apply rounded corner
     FragColor.rgb *= darkening;
