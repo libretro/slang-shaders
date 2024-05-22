@@ -91,23 +91,27 @@ float get_avg_lum_from_mip(sampler2D tex, vec2 co, float lod) {
     //the defined emulated eye adaption speed needs to be divided 
     //by the eye adaption strength (BLOOM_EYE_ADPT_SRT)
 
+    float eye_adaption_speed;
+    float luminance_from_feedback = rgb_to_gray(mip);
+    
     if (DELTA_RENDER == 0.0) {
-        float luminance_from_feedback = rgb_to_gray(mip);
         //The following makes the adaption speed more constant:
-            float eye_adaption_speed = BLOOM_PUPIL_ADAPTION_SPEED * ( luminance_first_pass / luminance_from_feedback ) ;
+        eye_adaption_speed = BLOOM_PUPIL_ADAPTION_SPEED * ( luminance_first_pass / luminance_from_feedback ) ;
 
         //The following is needed so that the speed is the same even for higher strength
-            eye_adaption_speed = (eye_adaption_speed / BLOOM_EYE_ADPT_SRT);
+        eye_adaption_speed = (eye_adaption_speed / BLOOM_EYE_ADPT_SRT);
             
         //The following simulates pupil inertia
-            eye_adaption_speed = clamp(eye_adaption_speed, 1.0/BLOOM_EYE_INERTIA, 1.0);
-        
-        float luminance = mix(luminance_first_pass, luminance_from_feedback, eye_adaption_speed);
-    
-        return luminance + eps;
+        eye_adaption_speed = clamp(eye_adaption_speed, 1.0/BLOOM_EYE_INERTIA, 1.0);
     } else {
-        return luminance_first_pass + eps;
+        //Temporal adaption speed is no good with deltarenter.
+        eye_adaption_speed = 1.0;
     }
+
+    float luminance = mix(luminance_first_pass, luminance_from_feedback, eye_adaption_speed);
+    return luminance + eps;
+    
+    
 }
 
 
