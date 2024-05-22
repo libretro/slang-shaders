@@ -20,11 +20,11 @@
 //#define DEBUG
    //#define DEBUG_COLOR_CALIB
    //#define DEBUG_TIME_FADE
-   //#define DEBUG_SOLID_COLOR
+   #define DEBUG_SOLID_COLOR
    //#define DEBUG_STEP_GRADIENT
    //#define DEBUG_STEP_GRADIENT_V
    //#define DEBUG_BLINK
-   #define DEBUG_BLINK_CIRCLE
+   //#define DEBUG_BLINK_CIRCLE
    //#define DEBUG_WALKING_CIRCLE
    //#define DEBUG_COLORWHEEL
    
@@ -157,7 +157,12 @@ vec4 ntscdec(vec2 uv, vec3 RGB_ori) {
       #endif
       for (int n=0; n < N; n++) {
          vec2 pos = uv + vec2( (n-NTSC_FILTER_MIDDLE)  * params.SourceSize.z  , 0.0);
-         vec3 smp_mul_weight = vec3((texture(Source, pos).rgb * RGB2YIQ).x) * vNTSC_weights[n] ;
+         //vec3 smp_mul_weight = vec3((texture(Source, pos).rgb * RGB2YIQ).x) * vNTSC_weights[n] ;
+         //need texture nearest here, because we have to sample linearly from previous pass,
+         //In turn, because we need linear feedback from this pass (linear feedback mipmaps needed by deltarender)
+         //and linear feedback is controlled by this pass filtering, contrary to the present linear filtering
+         //which is controlled by next pass filtering (What a mess RetroArch!)
+         vec3 smp_mul_weight = vec3((texture_NEAREST(Source, pos, params.SourceSize).rgb * RGB2YIQ).x) * vNTSC_weights[n] ;
          
          float phase =  vSubcarrierFrequency_mul_size_mul_TAU * pos.x;
 
