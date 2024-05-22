@@ -13,7 +13,7 @@
 #include "shared.inc"
 
 layout(push_constant) uniform Push {
-    vec4 SourceSize;
+    vec4 OriginalSize;
     vec4 OutputSize;
     float VIRT_SCREEN_CURVATURE;
     float VIRT_SCREEN_ZOOM;
@@ -40,33 +40,93 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
+void update_frustum(const vec3 curvature_o, const float r, const vec3 plane_o,
+                    const vec3 plane_u, const vec3 plane_v,
+                    const vec2 input_aspect, const float f,
+                    inout vec3 half_spaces[4], inout float min_z, vec2 uv) {
+    uv -= 0.5;
+    uv *= input_aspect;
+    const vec3 p_plane = plane_o + uv.x * plane_u + uv.y * plane_v;
+    const vec3 p = normalize(p_plane - curvature_o) * r;
+    half_spaces[0].z = min(half_spaces[0].z, dot(half_spaces[0].xy, p.xz));
+    half_spaces[1].z = min(half_spaces[1].z, dot(half_spaces[1].xy, p.xz));
+    half_spaces[2].z = min(half_spaces[2].z, dot(half_spaces[2].xy, p.yz));
+    half_spaces[3].z = min(half_spaces[3].z, dot(half_spaces[3].xy, p.yz));
+    min_z = min(min_z, p.z);
+}
+
+vec2 line_intersection(vec3 l1, vec3 l2) {
+    // Assumes lines are not parallel.
+    const float inv_det = 1.0 / (l1.x * l2.y - l2.x * l1.y);
+    return vec2((l2.y * l1.z - l1.y * l2.z) * inv_det,
+                (l1.x * l2.z - l2.x * l1.z) * inv_det);
+}
+
 void main() {
+    // FragColor = vec4(vTexCoord, 0.0, 1.0);
+    // return;
+
     // Misc. pre-computation
     const vec2 input_aspect =
-        param.SourceSize.xy / max(param.SourceSize.x, param.SourceSize.y);
+        param.OriginalSize.xy / max(param.OriginalSize.x, param.OriginalSize.y);
     // const vec2 input_aspect = vec2(1.0, 0.75);
     const vec2 output_aspect =
         param.OutputSize.xy / max(param.OutputSize.x, param.OutputSize.y);
+    // Focal length
+    const float f = param.VIRT_SCREEN_F;
 
     // Define sphere
-    const vec3 sphere_o = vec3(0.0);
+    const vec3 curvature_o = vec3(0.0, 0.0, 0.0);
     const float r = 1.0 / param.VIRT_SCREEN_CURVATURE;
 
     // Define plane
     const float sin_tilt = sin(param.VIRT_SCREEN_TILT_ANGLE);
     const float cos_tilt = cos(param.VIRT_SCREEN_TILT_ANGLE);
-    const vec3 plane_o = vec3(0.0, -r * sin_tilt, r * cos_tilt);
+    const vec3 plane_o = vec3(0.0, -r * sin_tilt, -r * cos_tilt);
     const vec3 plane_u = vec3(1.0, 0.0, 0.0);
-    const vec3 plane_v = vec3(0.0, cos_tilt, sin_tilt);
-    const vec3 plane_n = plane_o - sphere_o;
+    const vec3 plane_v = vec3(0.0, cos_tilt, -sin_tilt);
+    const vec3 plane_n = plane_o - curvature_o;
+
+    // Figure out optimal camera position from 8 points:
+    // Upper left, upper middle, upper right, lower left, lower middle, lower
+    // right, left middle, right middle.
+    // We want to find the camera position that is as close as possible to the
+    // points, maximizing the points in the frustum view.
+    vec3 half_spaces[4] = {vec3(f, 0.5 * output_aspect.x, 1.0e16),
+                           vec3(-f, 0.5 * output_aspect.x, 1.0e16),
+                           vec3(-f, 0.5 * output_aspect.y, 1.0e16),
+                           vec3(f, 0.5 * output_aspect.y, 1.0e16)};
+    float min_z = 1.0e16;
+    update_frustum(curvature_o, r, plane_o, plane_u, plane_v, input_aspect, f,
+                   half_spaces, min_z, vec2(0.0, 0.0));
+    update_frustum(curvature_o, r, plane_o, plane_u, plane_v, input_aspect, f,
+                   half_spaces, min_z, vec2(0.5, 0.0));
+    update_frustum(curvature_o, r, plane_o, plane_u, plane_v, input_aspect, f,
+                   half_spaces, min_z, vec2(1.0, 0.0));
+    update_frustum(curvature_o, r, plane_o, plane_u, plane_v, input_aspect, f,
+                   half_spaces, min_z, vec2(0.0, 0.5));
+    update_frustum(curvature_o, r, plane_o, plane_u, plane_v, input_aspect, f,
+                   half_spaces, min_z, vec2(1.0, 0.5));
+    update_frustum(curvature_o, r, plane_o, plane_u, plane_v, input_aspect, f,
+                   half_spaces, min_z, vec2(0.0, 1.0));
+    update_frustum(curvature_o, r, plane_o, plane_u, plane_v, input_aspect, f,
+                   half_spaces, min_z, vec2(0.5, 1.0));
+    update_frustum(curvature_o, r, plane_o, plane_u, plane_v, input_aspect, f,
+                   half_spaces, min_z, vec2(1.0, 1.0));
+    const vec2 i_xz = line_intersection(half_spaces[0], half_spaces[1]);
+    const vec2 i_yz = line_intersection(half_spaces[2], half_spaces[3]);
+    const float ideal_cam_z = min(i_xz[1], i_yz[1]);
 
     // Generate camera ray
-    // TODO find distance automatically
-    vec3 ray_o = vec3(0.0, plane_o.y, 5.0);
-    vec3 ray_d = vec3((vTexCoord - 0.5) * output_aspect, -param.VIRT_SCREEN_F);
+    vec3 ray_o = vec3(i_xz[0], i_yz[0],
+                      min_z + (ideal_cam_z - min_z) / param.VIRT_SCREEN_ZOOM);
+    vec3 ray_d = vec3((vTexCoord - 0.5) * output_aspect, f);
+
+    // FragColor = vec4(ray_d.xy, 0.0, 1.0);
+    // return;
 
     // Intersect sphere
-    const vec3 oc = ray_o - sphere_o;
+    const vec3 oc = ray_o - curvature_o;
     const float a = dot(ray_d, ray_d);
     const float half_b = dot(oc, ray_d);
     const float c = dot(oc, oc) - r * r;
@@ -78,15 +138,19 @@ void main() {
     }
 
     // We only need the smaller root of the two solutions for the sphere-ray
-    // intersection. The smaller root can be found as follows, according to:
+    // intersection. The smaller root can be found as c / q, according to:
     // https://www.av8n.com/physics/quadratic-formula.htm
     // Simplification: Assume the solution is positive.
     // Simplification: Assume half_b < 0.
     const vec3 p_sphere = ray_o + c / (sqrt(disc) - half_b) * ray_d;
 
+    // const vec3 n_sphere = normalize(p_sphere - curvature_o);
+    // FragColor = vec4((n_sphere * 0.5 + 0.5).xy, 0.0, 1.0);
+    // return;
+
     // Intersect plane
-    ray_o = sphere_o;
-    ray_d = p_sphere - sphere_o;
+    ray_o = curvature_o;
+    ray_d = p_sphere - curvature_o;
     float denom = dot(plane_n, ray_d);
     // We assume that denom is not close to zero.
     const vec3 d = plane_o - ray_o;
@@ -95,19 +159,21 @@ void main() {
     const vec3 p_plane = ray_o + t * ray_d;
 
     // Convert plane intersection to input UV
-    const vec3 po = p_plane - plane_o;
-    vec2 uv = vec2(dot(po, plane_u), dot(po, plane_v)) / input_aspect + 0.5;
+    const vec3 op = p_plane - plane_o;
+    vec2 uv = vec2(dot(op, plane_u / input_aspect.x),
+                   dot(op, plane_v / input_aspect.y)) +
+              0.5;
 
     // Do a sharp "pixel art" sampling, following:
     // https://www.youtube.com/watch?v=d6tp43wZqps
     // You may probably want to do a different kind of sampling when chaining
     // this shader with other effects.
-    const vec2 d_uv_dx = dFdx(uv) * param.SourceSize.xy;
-    const vec2 d_uv_dy = dFdy(uv) * param.SourceSize.xy;
+    const vec2 d_uv_dx = dFdx(uv) * param.OriginalSize.xy;
+    const vec2 d_uv_dy = dFdy(uv) * param.OriginalSize.xy;
     const vec2 box_size = clamp(abs(d_uv_dx) + abs(d_uv_dy), 1.0e-6, 1.0);
-    const vec2 tx = uv * param.SourceSize.xy - 0.5 * box_size;
+    const vec2 tx = uv * param.OriginalSize.xy - 0.5 * box_size;
     const vec2 tx_offset = smoothstep(1 - box_size, vec2(1.0), fract(tx));
-    uv = (floor(tx) + 0.5 + tx_offset) * param.SourceSize.zw;
+    uv = (floor(tx) + 0.5 + tx_offset) * param.OriginalSize.zw;
 
     // Implement proper anisotropic texture filtering in software because
     // current implementation is broken. See:
