@@ -423,7 +423,7 @@ layout(set = 0, binding = 6)  uniform sampler2D monitor_body_straight;
 layout(set = 0, binding = 7)  uniform sampler2D monitor_body_curved;
 layout(set = 0, binding = 8)  uniform sampler2D bg_under;
 layout(set = 0, binding = 9)  uniform sampler2D bg_over;
-//layout(set = 0, binding = 10) uniform sampler2D halo_pre_gamma_pass;
+//layout(set = 0, binding = 10) uniform sampler2D in_glow_pass_x;
 layout(set = 0, binding = 11) uniform sampler2D in_glow_pass;
 layout(set = 0, binding = 12) uniform sampler2D halo_pass;
 #ifndef D3D_WORKAROUND
@@ -1295,11 +1295,9 @@ void main() {
  
     #ifndef D3D_WORKAROUND
         if (DELTA_RENDER == 1.0) {
-            bool reuse_old =  bool( float(texture(in_glow_pass, co_content).a > 3.0) * canvas_busy * vDeltaRenderOk ) ;
-            // ^^ We have to check if alpha is > 3.0 because till 3.0 it means it is carrying the scanline
-            // ^^ inflation information from glow_y pass.
+            bool reuse_old =  bool( float( texture(in_glow_pass, co_content).a == 0.0) * canvas_busy * vDeltaRenderOk ) ;
             if (reuse_old) {
-                FragColor = texture(final_passFeedback, vOutputCoord); // * vec4(1,0,0,0);
+                FragColor = texture(final_passFeedback, vOutputCoord);// * vec4(1,0,0,0);
                 return;
             }
         }

@@ -272,10 +272,6 @@ bool first_in_range_strict(float a, float lo, float hi) {
    return a == bounded;
 }
 
-/*bool first_in_range_strict(float a, float lo, float hi) {
-   return (a >= lo) && (a <= hi);
-}*/
-
 vec3 pixel_dedither(sampler2D tex, vec2 coords, vec4 sourcesize, float tmin, float tmax, float strength1, float strength2) {
    #define DX sourcesize.z
    #define DY sourcesize.w
@@ -345,14 +341,8 @@ vec3 pixel_dedither(sampler2D tex, vec2 coords, vec4 sourcesize, float tmin, flo
       }
    }
 
-   //if (accum_div1 > 0.0) {
-      //pixel_out = (pxb + pxa + pxc + pya + pyc + pxya + pxyc + pxya2 + pxyc2) / 9.0;
-      //pixel_out = (pxb + pxa + pxc + pya + pyc ) / 5.0;
-      //pixel_out = mix(p0, (avg_x + avg_y + avg_xy + avg_yx) / accum_div, strength1);
-   //}
    vec3 pixel_out = p0;
    if (accum_div1 > 0.0) {
-      //pixel_out = mix(pixel_out, (avg_x + avg_y)   / accum_div1, strength1);
       pixel_out = mix(pixel_out, fma(avg_x, vec3(1.0)/accum_div1, avg_y / accum_div1) , strength1); //ASM PROOF FASTER
    }
    if (accum_div2 > 0.0) {
@@ -362,38 +352,6 @@ vec3 pixel_dedither(sampler2D tex, vec2 coords, vec4 sourcesize, float tmin, flo
 
    return pixel_out;
 }
-
-
-
-vec3 persistence_v1(vec3 feedback, vec3 pixel_now, float start_decay, float end_decay, float motion_blur_cancel) {
-   //start_decay: is the initial decay, the fast one: 1.0 means instantaneous, try around 0.8
-   //end decay the higher, the more the persistance in the long run, try around 1.0;
-   //motion_blur_cancel: 0.0 means full blur on bright areas; try around 2.5
-
-   vec3 x=(feedback - pixel_now);
-   
-   vec3 a = vec3( 1 + start_decay );
-   vec3 b = vec3( end_decay );
-
-   //compute fade speed as an high gamma curve:
-   vec3 fade_speed=pow(a, pow(x,b) )-1;
-   
-   //higher speed is needed when composing over brighter colors to avoid motion blur
-   fade_speed = fade_speed + (pixel_now*motion_blur_cancel);
-   
-   //Ensure a minimum speed to reach 0.0 and clamp to 1.0 to avoid funky effects
-   float min_speed = 0.05  ;
-   fade_speed=clamp(fade_speed, min_speed, 1.0);
-   
-
-   //Compute the persistent light by mixing pixel current and previous one
-   vec3 pixel_persistent = mix(feedback, pixel_now, fade_speed );  
-   
-   //blend only if we are fading out
-      vec3 light_fading_out = vec3(greaterThan(feedback, pixel_now));
-      return mix(pixel_now, pixel_persistent, light_fading_out);
-   }
-   
 
 
 vec3 persistence(vec3 feedback, vec3 pixel_now, float start_decay, float late_persistence, float motion_blur_cancel) {
@@ -516,10 +474,11 @@ void main() {
    */
 
    if (DO_PPERSISTENCE == 1.0) {
-      //persistence(vec3 feedback, vec3 pixel_now, float start_decay, float end_decay, float motion_blur_cancel) {
-      vec3 feedback = texture(colortools_and_ntsc_passFeedback, co).rgb;
-      float motion_blur_cancel = 2.5;
-      pixel_out = persistence(feedback, pixel_out, PPERSISTENCE_START, PPERSISTENCE_END, motion_blur_cancel);
+      if (params.OutputSize.xy == global.colortools_and_ntsc_passFeedbackSize.xy) {
+         vec3 feedback = texture(colortools_and_ntsc_passFeedback, co).rgb;
+         float motion_blur_cancel = 2.5;
+         pixel_out = persistence(feedback, pixel_out, PPERSISTENCE_START, PPERSISTENCE_END, motion_blur_cancel);
+      }
    }
  
   

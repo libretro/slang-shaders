@@ -14,7 +14,6 @@ layout(location = 1) out float glow_h_and_w_outside_interval;
 layout(location = 2) out float glow_w_inside_interval;
 layout(location = 3) out float vSharp_sub;
 layout(location = 4) out float vShowArtifactsMask;
-layout(location = 5) out float vDeltaRenderOk;
 
 void main() {
    gl_Position = global.MVP * Position;
@@ -40,9 +39,6 @@ void main() {
    //}
       
    vShowArtifactsMask = float(DO_NTSC_ARTIFACTS + NTSC_SHOW_ARTF_MASK > 1.5);
-   
-   bool bIs_Interlaced = is_interlaced();
-   vDeltaRenderOk = is_deltarender_allowed(bIs_Interlaced); //carries DR mandatory conditions, including forced refreshed frames
    
 }
 
@@ -73,19 +69,6 @@ vec3 blur_select_wrap(sampler2D texture_in, vec2 co, vec4 sourcesize, float shar
 
 
 void main() { 
-
-   
-   //Delta render?
-   if (DELTA_RENDER == 1.0) {
-      if (vDeltaRenderOk == 1.0) {
-         float DR_unchanged = delta_render_unchanged(colortools_and_ntsc_passFeedback, colortools_and_ntsc_pass,
-                                                      vTexCoord, DELTA_RENDER_CHECK_AREA);
-         if (DR_unchanged > 0.0) {
-            FragColor = vec4(0.0,0.0,0.0,DR_unchanged); 
-            return;
-         }
-      }
-   }
 
    //Modulate glow power via ntsc artifact mask:
       float ntsc_artifacts = texture(shift_and_bleed_pass, vTexCoord).a; //compiler is smart enough to reuse this lookup, no need to branch.
