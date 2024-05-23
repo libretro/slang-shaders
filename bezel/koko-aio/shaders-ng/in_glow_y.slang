@@ -14,7 +14,8 @@ layout(location = 2) out float vDoInGlowBias;
 layout(location = 3) out float vGlow_Gain;
 layout(location = 4) out float vSharp_sub;
 layout(location = 11) out float vDeltaRenderOk;
-
+layout(location = 12) out float vInflation;
+layout(location = 13) out vec2 vInflation_offsets;
 
 void main() {
    gl_Position = global.MVP * Position;
@@ -47,6 +48,16 @@ void main() {
    bool bIs_Interlaced = is_interlaced();
    vDeltaRenderOk = is_deltarender_allowed(bIs_Interlaced); //carries DR mandatory conditions, including forced refreshed frames
 
+   float Inflation_delta;
+   if ( need_tate(is_rotated()) == 1.0 ) {
+      Inflation_delta = params.OriginalSize.z * 0.5;
+      vInflation_offsets = vec2(+Inflation_delta, 0.0);
+   } else {
+      Inflation_delta = params.OriginalSize.w * 0.5;
+      vInflation_offsets = vec2(0.0, +Inflation_delta); 
+   }
+   vInflation = (PIXELGRID_INFLATION * PIXELGRID_MAX_H * 0.25) * Inflation_delta;
+   
 }
 
 
@@ -58,7 +69,8 @@ layout(location = 2) in float vDoInGlowBias;
 layout(location = 3) in float vGlow_Gain;
 layout(location = 4) in float vSharp_sub;
 layout(location = 11) in float vDeltaRenderOk;
-
+layout(location = 12) in float vInflation;
+layout(location = 13) in vec2 vInflation_offsets;
 
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 5) uniform sampler2D shift_and_bleed_pass;
@@ -69,78 +81,12 @@ layout(set = 0, binding = 9) uniform sampler2D colortools_and_ntsc_pass;
 
 vec3 glow_blur_bias(sampler2D source_tex, vec2 co, vec3 pixel_glowed, float bias){
    vec3 pixel_source = texture(source_tex, co).rgb;
-   
-   /* 
-   //Take originale
-   vec3 glow_light = pixel_glowed - pixel_source;
-   glow_light = clamp(glow_light * IN_GLOW_SPREAD, 0.0, 1.0);
-   vec3 proper_glow = glow_light * glow_light + pixel_source;  
-   return mix(proper_glow, pixel_glowed, max(0.0, bias));      
-   */
-   
-   //Take 2: come originale, ma permetti di poware a piacere,            //Buono, per ora la scelta safe.
-   //Sembra funzionare nalogamente a Take4, forse più semplice da impostare.
-   //buono con sx,sx=1.3; light gain 2.7, light sharpness 1.1
+   //good with sx,sy=1.3; light gain 2.7, light sharpness 1.1
    vec3 glow_light = pixel_glowed - pixel_source;
    glow_light = clamp(glow_light * IN_GLOW_SPREAD, 0.0, 1.0);
    glow_light = pow(glow_light, vec3(IN_GLOW_SPREAD_SHARPNESS));
    vec3 proper_glow = glow_light  + pixel_source;  
-   return mix(proper_glow, pixel_glowed, max(0.0, bias));         
-   
-   
-   //Take 2.5: come Take 2, ma usiamo smoothstep al posto di pow.
-   //melio take 2.
-   /*vec3 glow_light = pixel_glowed - pixel_source;
-   glow_light = smoothstep(vec3(0.0), vec3(SERVICE1*2), glow_light);
-   glow_light = clamp(glow_light * IN_GLOW_SPREAD, 0.0, 1.0);
-   vec3 proper_glow = glow_light  + pixel_source;  
-   return mix(proper_glow, pixel_glowed, max(0.0, bias));       
-   */
-
-   //Take 2: come Take2, ma facciamo anche smoothstep prevenfivo su glow light
-   //Sembra funzionare nalogamente a Take4, forse più semplice da impostare.
-   /*vec3 glow_light = pixel_glowed - pixel_source;
-   glow_light = clamp(glow_light * IN_GLOW_SPREAD, 0.0, 1.0);
-   
-   glow_light = pow(glow_light, vec3(SERVICE1*2));
-   glow_light = smoothstep(vec3(0.7), vec3(1.0), glow_light);
-   vec3 proper_glow = glow_light  + pixel_source;  
-   return mix(proper_glow, pixel_glowed, max(0.0, bias));         
-   */
-   
-   //Take 3: come take 2 ma con smoothstep finale                   //Non saprei se è utile oppure no.
-   /*vec3 glow_light = pixel_glowed - pixel_source;
-   glow_light = clamp(glow_light * IN_GLOW_SPREAD, 0.0, 1.0);
-   glow_light = pow(glow_light, vec3(SERVICE1*2));
-   glow_light = smoothstep(vec3(0.4), vec3(0.8), glow_light);
-   vec3 proper_glow = glow_light  + pixel_source; 
-   return mix(proper_glow, pixel_glowed, max(0.0, bias));         
-   */
-   
-   //Take4: Il gain viene dato alla luce glow che poi diventa il valore di mix tra pixel sharp e il glow originale.
-   //Da meno problemi di pixel scuri che diventano troppo chiari, ma è anche più sfocato in generale.
-   //Bene con gamma service1 a 0.001, sharpx,y = 2, light 3.6
-   /*vec3 pixel_glowed_ori = pixel_glowed;
-   vec3 glow_light = pixel_glowed - pixel_source ; 
-   glow_light = max(glow_light, 0.0);
-   pixel_glowed = pow(pixel_glowed, vec3(SERVICE1)) * IN_GLOW_SPREAD; 
-   vec3 proper_glow = mix(pixel_source, pixel_glowed, glow_light);
-   proper_glow = mix(proper_glow, pixel_glowed_ori, max(0.0, bias));      
-   return proper_glow;*/
-   
-   //Take5: Come take4, speriamo di riuscire a fare uno sharp tramite smoothstep.
-   //..no.
-   /*vec3 pixel_glowed_ori = pixel_glowed;
-   vec3 glow_light = pixel_glowed - pixel_source ; 
-   glow_light = max(glow_light, 0.0);
-   pixel_glowed = pow(pixel_glowed, vec3(SERVICE1)) * IN_GLOW_SPREAD; 
-   pixel_glowed = smoothstep(vec3(0.3), vec3(0.7), pixel_glowed);
-   //return pixel_glowed;
-   vec3 proper_glow = mix(pixel_source, pixel_glowed, glow_light);
-   proper_glow = mix(proper_glow, pixel_glowed_ori, max(0.0, bias));      
-   return proper_glow;*/
-
-   
+   return mix(proper_glow, pixel_glowed, max(0.0, bias));            
 }
 
 vec3 blur_select_wrap(sampler2D texture_in, vec2 co, vec4 sourcesize, float sharpness, bool use_gauss) {
@@ -149,44 +95,6 @@ vec3 blur_select_wrap(sampler2D texture_in, vec2 co, vec4 sourcesize, float shar
          else
       return blur9_y_box(texture_in, co, sourcesize.xy, sharpness, vSharp_sub);      
 }
-
-/*
-vec3 antialias_blur_bias(sampler2D source_tex, vec2 co, vec3 pixel_glowed, float bias){
-   //Create a dilated and an eroded image, then mix between them via the blurred color.
-   
-   vec3 pixel_source = texture(source_tex, co).rgb;
-   pixel_source  = pixel_source * IN_GLOW_POWER;
-   
-   vec3 glow_light = clamp((pixel_glowed - pixel_source) * IN_GLOW_SPREAD, 0.0, 1.0);
-
-   vec3 pixel_glowed_inv = 1 - clamp(pixel_glowed, 0.0, 1.0);
-   vec3 pixel_source_inv = 1 - clamp(pixel_source, 0.0, 1.0);
-   
-   vec3 pixel_dark = clamp((pixel_glowed_inv - pixel_source_inv) * IN_GLOW_SPREAD, 0.0, 1.0) ;
-
-   vec3 pixel_dilated = pixel_source + glow_light ;
-   vec3 pixel_eroded  = pixel_source - pixel_dark ;
-
-
-   //Dilate or erode depending on blurred brightness:
-      vec3 pixel_dilated_eroded =  mix(pixel_eroded, pixel_dilated, pixel_glowed);
-   
-   //Unsharp mask:
-      float sharpamt = 0.5;
-      pixel_dilated_eroded =  pixel_dilated_eroded + ((1 - pixel_glowed)*sharpamt);
-      pixel_dilated_eroded = (pixel_dilated_eroded - sharpamt) * (1 + 2*sharpamt);
-
-   
-   return mix(pixel_dilated_eroded, pixel_glowed, max(0.0, bias));   
-   //return mix(pixel_out, pixel_glowed, max(0.0, bias));   
-
-}
-*/
-
-
-
-
-
 
 
 
@@ -237,15 +145,13 @@ void main() {
    float max_inLum = max( 1.0, DO_CCORRECTION * apply_contrast_brightness(1.0, CONTRAST, BRIGHTNESS));
    //Scanlines (over)inflation.
    //The result will be stored in the alpha channel to be consumed by final pass.
-      float dy = params.OriginalSize.w * 0.5;
-      float inflation = PIXELGRID_INFLATION * 0.25 * dy * PIXELGRID_MAX_H;
-
-      vec3 gy = texture(Source, vec2(vTexCoord.x, vTexCoord.y + dy)).rgb
-              - texture(Source, vec2(vTexCoord.x, vTexCoord.y - dy)).rgb; 
+  
+      vec3 gy = texture(Source, vTexCoord + vInflation_offsets).rgb
+              - texture(Source, vTexCoord - vInflation_offsets).rgb;
               
       gy /=max_inLum;
               
-      float scanline_inflation = (gy.x+gy.y+gy.z) * (inflation*global.FinalViewportSize.y) 
+      float scanline_inflation = (gy.x+gy.y+gy.z) * (vInflation * global.FinalViewportSize.y) 
       + (eps * DELTA_RENDER); 
       //This eps is needed because we multiplex deltarender and inflection and we NEED to have dr = 0.0 (and not a positive number)
       //To reuse old pixels, only that way (using 0.0 to reuse pixels) multiplexing is possible.
