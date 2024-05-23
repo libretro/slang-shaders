@@ -48,8 +48,11 @@ void main() {
    bool bIs_Interlaced = is_interlaced();
    vDeltaRenderOk = is_deltarender_allowed(bIs_Interlaced); //carries DR mandatory conditions, including forced refreshed frames
 
+   //FIXME check for d3d compatibility.
+   bool rotated = (abs((global.final_passFeedbackSize.x/global.final_passFeedbackSize.y) - (global.FinalViewportSize.x/global.FinalViewportSize.y)) > ar_tolerance);
+   
    float Inflation_delta;
-   if ( need_tate(is_rotated()) == 1.0 ) {
+   if ( need_tate(rotated) == 1.0 ) {
       Inflation_delta = params.OriginalSize.z * 0.5;
       vInflation_offsets = vec2(+Inflation_delta, 0.0);
    } else {
