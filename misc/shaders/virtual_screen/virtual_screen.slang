@@ -11,13 +11,14 @@
 
 // Uncommented means sharp pixel art, better for stand-alone usage.
 // Commented out means bilinear filtering, better for appending.
-#define SHARP_PIXEL_SAMPLING
+// #define SHARP_PIXEL_SAMPLING
 
 #include "parameters.inc"
 #include "shared.inc"
 
 layout(push_constant) uniform Push {
     vec4 OriginalSize;
+    vec4 SourceSize;
     vec4 OutputSize;
     float VIRT_SCREEN_ASPECT_H;
     float VIRT_SCREEN_ASPECT_V;
@@ -226,8 +227,8 @@ void main() {
     // https://www.youtube.com/watch?v=d6tp43wZqps
     // You may probably want to do a different kind of sampling when chaining
     // this shader with other effects.
-    const vec2 d_uv_dx = dFdx(uv) * param.OriginalSize.xy;
-    const vec2 d_uv_dy = dFdy(uv) * param.OriginalSize.xy;
+    const vec2 d_uv_dx = dFdx(uv) * param.SourceSize.xy;
+    const vec2 d_uv_dy = dFdy(uv) * param.SourceSize.xy;
     const vec2 box_size = clamp(abs(d_uv_dx) + abs(d_uv_dy), 1.0e-6, 1.0);
     const vec2 tx = uv * param.OriginalSize.xy - 0.5 * box_size;
     const vec2 tx_offset = smoothstep(1 - box_size, vec2(1.0), fract(tx));
@@ -245,7 +246,23 @@ void main() {
 
     FragColor = vec4(rgb, 1.0);
 #else
-    FragColor = texture(Source, uv);
+    // 1. Bilinear interpolation (worst)
+    // FragColor = vec4(textureLod(Source, uv, 0).rgb, 1.0);
+    // 2. Bilinear with nearest neighbor mip-mapping (less aliasing, but visible
+    // seams)
+    // FragColor = vec4(texture(Source, uv).rgb, 1.0);
+    // 3. Anisotropic trilinear filtering (best)
+    const vec2 d_uv_dx = dFdx(uv) * param.SourceSize.xy;
+    const vec2 d_uv_dy = dFdy(uv) * param.SourceSize.xy;
+    // Implement in software because current implementation is broken. See:
+    // https://github.com/libretro/RetroArch/issues/16567
+    const float lambda_base =
+        max(0.0, 0.5 * log2(max(dot(d_uv_dx, d_uv_dx), dot(d_uv_dy, d_uv_dy))));
+    float lambda_i;
+    const float lambda_f = modf(lambda_base, lambda_i);
+    const vec3 rgb = mix(textureLod(Source, uv, lambda_i).rgb,
+                         textureLod(Source, uv, lambda_i + 1.0).rgb, lambda_f);
+    FragColor = vec4(rgb, 1.0);
 #endif
 
     // Apply rounded corner
