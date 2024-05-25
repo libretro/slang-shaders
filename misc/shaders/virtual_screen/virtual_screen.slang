@@ -48,10 +48,11 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-vec3 update_frustum(bool shape, const vec3 curvature_o, const float curv,
+void update_frustum(bool shape, const vec3 curvature_o, const float curv,
                     const vec3 plane_o, const vec3 plane_u, const vec3 plane_v,
                     const vec2 input_aspect, const float f,
-                    inout vec3 half_spaces[4], inout float min_z, vec2 uv) {
+                    inout vec3 half_spaces[4], inout vec3 p_min,
+                    inout vec3 p_max, vec2 uv) {
     uv -= 0.5;
     uv *= input_aspect;
     vec3 p = plane_o + uv.x * plane_u + uv.y * plane_v;
@@ -71,8 +72,8 @@ vec3 update_frustum(bool shape, const vec3 curvature_o, const float curv,
     half_spaces[1].z = min(half_spaces[1].z, dot(half_spaces[1].xy, p.xz));
     half_spaces[2].z = min(half_spaces[2].z, dot(half_spaces[2].xy, p.yz));
     half_spaces[3].z = min(half_spaces[3].z, dot(half_spaces[3].xy, p.yz));
-    min_z = min(min_z, p.z);
-    return p;
+    p_min = min(p_min, p);
+    p_max = max(p_max, p);
 }
 
 vec2 line_intersection(vec3 l1, vec3 l2) {
@@ -110,66 +111,46 @@ void main() {
     const vec3 plane_v = vec3(0.0, cos_tilt, -sin_tilt);
     const vec3 plane_n = plane_o - curvature_o;
 
-    // Figure out optimal camera position from 8 points:
-    // Upper left, upper middle, upper right, lower left, lower middle, lower
-    // right, left middle, right middle.
-    // We want to find the camera position that is as close as possible to the
-    // points, maximizing the points in the frustum view.
+    // Figure out optimal camera position from 9 points sampled across the
+    // frame. We want to find the camera position that is as close as possible
+    // to the points, maximizing the points in the frustum view.
     vec3 half_spaces[4] = {vec3(f, 0.5 * output_aspect.x, 1.0e16),
                            vec3(-f, 0.5 * output_aspect.x, 1.0e16),
                            vec3(f, 0.5 * output_aspect.y, 1.0e16),
                            vec3(-f, 0.5 * output_aspect.y, 1.0e16)};
-    float min_z = 1.0e16;
+    vec3 p_min = vec3(1.0e16);
+    vec3 p_max = vec3(-1.0e16);
     const bool shape = param.VIRT_SCREEN_SHAPE < 0.5;
-
-    vec3 debug_p[8];
-    debug_p[0] =
-        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
-                       input_aspect, f, half_spaces, min_z, vec2(0.0, 0.0));
-    debug_p[1] =
-        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
-                       input_aspect, f, half_spaces, min_z, vec2(0.5, 0.0));
-    debug_p[2] =
-        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
-                       input_aspect, f, half_spaces, min_z, vec2(1.0, 0.0));
-    debug_p[3] =
-        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
-                       input_aspect, f, half_spaces, min_z, vec2(0.0, 0.5));
-    debug_p[4] =
-        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
-                       input_aspect, f, half_spaces, min_z, vec2(1.0, 0.5));
-    debug_p[5] =
-        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
-                       input_aspect, f, half_spaces, min_z, vec2(0.0, 1.0));
-    debug_p[6] =
-        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
-                       input_aspect, f, half_spaces, min_z, vec2(0.5, 1.0));
-    debug_p[7] =
-        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
-                       input_aspect, f, half_spaces, min_z, vec2(1.0, 1.0));
-
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
+                           input_aspect, f, half_spaces, p_min, p_max,
+                           vec2(i * 0.5, j * 0.5));
+        }
+    }
     const vec2 i_xz = line_intersection(half_spaces[0], half_spaces[1]);
     const vec2 i_yz = line_intersection(half_spaces[2], half_spaces[3]);
     const float ideal_cam_z = min(i_xz[1], i_yz[1]);
 
     // Generate camera ray
-    vec3 ray_o = vec3(i_xz[0], i_yz[0],
-                      min_z + (ideal_cam_z - min_z) / param.VIRT_SCREEN_ZOOM);
-    vec3 ray_d = vec3((vTexCoord - 0.5) * output_aspect, f);
-
-    // Debug: project all points and visualize to make sure forward & backward
-    // is consistent.
-    // for (int i = 0; i < 8; ++i) {
-    //     debug_p[i] -= ray_o;
-    //     vec2 proj_p = vec2(debug_p[i].x / debug_p[i].z * f,
-    //                        debug_p[i].y / debug_p[i].z * f);
-    //     proj_p /= output_aspect;
-    //     proj_p += 0.5;
-    //     if (length(vTexCoord - proj_p) < 0.01) {
-    //         FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-    //         return;
-    //     }
-    // }
+    vec3 ray_o, ray_d;
+    if (param.VIRT_SCREEN_F < VIRT_SCREEN_F_MAX) {
+        // Perspective camera
+        ray_o =
+            vec3(i_xz[0], i_yz[0],
+                 p_min.z + (ideal_cam_z - p_min.z) / param.VIRT_SCREEN_ZOOM);
+        ray_d = vec3((vTexCoord - 0.5) * output_aspect, f);
+    } else {
+        // Orthographic camera
+        const vec3 p_extent = p_max - p_min;
+        const vec2 p_center = 0.5 * (p_min.xy + p_max.xy);
+        ray_o = vec3(p_center + (vTexCoord - 0.5) * output_aspect *
+                                    max(p_extent.x / output_aspect.x,
+                                        p_extent.y / output_aspect.y) /
+                                    param.VIRT_SCREEN_ZOOM,
+                     p_min.z - 1.0);
+        ray_d = vec3(0.0, 0.0, 1.0);
+    }
 
     if (curv > 1.0e-3) {
         // Intersect sphere / cylinder
