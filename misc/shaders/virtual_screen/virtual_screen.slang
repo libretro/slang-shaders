@@ -11,7 +11,7 @@
 
 // Uncommented means sharp pixel art, better for stand-alone usage.
 // Commented out means bilinear filtering, better for appending.
-// #define SHARP_PIXEL_SAMPLING
+#define SHARP_PIXEL_SAMPLING
 
 #include "parameters.inc"
 #include "shared.inc"
@@ -21,6 +21,7 @@ layout(push_constant) uniform Push {
     vec4 OutputSize;
     float VIRT_SCREEN_ASPECT_H;
     float VIRT_SCREEN_ASPECT_V;
+    float VIRT_SCREEN_SHAPE;
     float VIRT_SCREEN_CURVATURE;
     float VIRT_SCREEN_ZOOM;
     float VIRT_SCREEN_TILT_ANGLE;
@@ -47,7 +48,7 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-void update_frustum(const vec3 curvature_o, const float curv,
+vec3 update_frustum(bool shape, const vec3 curvature_o, const float curv,
                     const vec3 plane_o, const vec3 plane_u, const vec3 plane_v,
                     const vec2 input_aspect, const float f,
                     inout vec3 half_spaces[4], inout float min_z, vec2 uv) {
@@ -55,13 +56,23 @@ void update_frustum(const vec3 curvature_o, const float curv,
     uv *= input_aspect;
     vec3 p = plane_o + uv.x * plane_u + uv.y * plane_v;
     if (curv > 1.0e-3) {
-        p = normalize(p - curvature_o) / curv;
+        if (shape) {
+            // Sphere
+            p = curvature_o + normalize(p - curvature_o) / curv;
+        } else {
+            // Cylinder
+            // Assume that the cylinder axis is == plane_v.
+            const vec3 oc = p - curvature_o;
+            const vec3 p_on_ax = curvature_o + dot(oc, plane_v) * plane_v;
+            p = p_on_ax + normalize(p - p_on_ax) / curv;
+        }
     }
     half_spaces[0].z = min(half_spaces[0].z, dot(half_spaces[0].xy, p.xz));
     half_spaces[1].z = min(half_spaces[1].z, dot(half_spaces[1].xy, p.xz));
     half_spaces[2].z = min(half_spaces[2].z, dot(half_spaces[2].xy, p.yz));
     half_spaces[3].z = min(half_spaces[3].z, dot(half_spaces[3].xy, p.yz));
     min_z = min(min_z, p.z);
+    return p;
 }
 
 vec2 line_intersection(vec3 l1, vec3 l2) {
@@ -72,9 +83,6 @@ vec2 line_intersection(vec3 l1, vec3 l2) {
 }
 
 void main() {
-    // FragColor = vec4(vTexCoord, 0.0, 1.0);
-    // return;
-
     // Misc. pre-computation
     const vec2 input_aspect =
         param.VIRT_SCREEN_ASPECT_H > 0.0 && param.VIRT_SCREEN_ASPECT_V > 0.0
@@ -82,20 +90,20 @@ void main() {
                   max(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V)
             : param.OriginalSize.xy /
                   max(param.OriginalSize.x, param.OriginalSize.y);
-    // const vec2 input_aspect = vec2(1.0, 0.75);
     const vec2 output_aspect =
         param.OutputSize.xy / max(param.OutputSize.x, param.OutputSize.y);
     // Focal length
     const float f = param.VIRT_SCREEN_F;
 
-    // Define curved object, sphere or cylinder
+    // Define curved object: sphere or cylinder
+    const float sin_tilt = sin(param.VIRT_SCREEN_TILT_ANGLE);
+    const float cos_tilt = cos(param.VIRT_SCREEN_TILT_ANGLE);
     const vec3 curvature_o = vec3(0.0, 0.0, 0.0);
     const float curv = param.VIRT_SCREEN_CURVATURE;
     const float r = 1.0 / curv;
+    const vec3 cyl_ax = vec3(0.0, cos_tilt, -sin_tilt);
 
     // Define plane
-    const float sin_tilt = sin(param.VIRT_SCREEN_TILT_ANGLE);
-    const float cos_tilt = cos(param.VIRT_SCREEN_TILT_ANGLE);
     const vec3 plane_o = curv > 1.0e-3 ? vec3(0.0, -r * sin_tilt, -r * cos_tilt)
                                        : vec3(0.0, -sin_tilt, -cos_tilt);
     const vec3 plane_u = vec3(1.0, 0.0, 0.0);
@@ -109,25 +117,37 @@ void main() {
     // points, maximizing the points in the frustum view.
     vec3 half_spaces[4] = {vec3(f, 0.5 * output_aspect.x, 1.0e16),
                            vec3(-f, 0.5 * output_aspect.x, 1.0e16),
-                           vec3(-f, 0.5 * output_aspect.y, 1.0e16),
-                           vec3(f, 0.5 * output_aspect.y, 1.0e16)};
+                           vec3(f, 0.5 * output_aspect.y, 1.0e16),
+                           vec3(-f, 0.5 * output_aspect.y, 1.0e16)};
     float min_z = 1.0e16;
-    update_frustum(curvature_o, curv, plane_o, plane_u, plane_v, input_aspect,
-                   f, half_spaces, min_z, vec2(0.0, 0.0));
-    update_frustum(curvature_o, curv, plane_o, plane_u, plane_v, input_aspect,
-                   f, half_spaces, min_z, vec2(0.5, 0.0));
-    update_frustum(curvature_o, curv, plane_o, plane_u, plane_v, input_aspect,
-                   f, half_spaces, min_z, vec2(1.0, 0.0));
-    update_frustum(curvature_o, curv, plane_o, plane_u, plane_v, input_aspect,
-                   f, half_spaces, min_z, vec2(0.0, 0.5));
-    update_frustum(curvature_o, curv, plane_o, plane_u, plane_v, input_aspect,
-                   f, half_spaces, min_z, vec2(1.0, 0.5));
-    update_frustum(curvature_o, curv, plane_o, plane_u, plane_v, input_aspect,
-                   f, half_spaces, min_z, vec2(0.0, 1.0));
-    update_frustum(curvature_o, curv, plane_o, plane_u, plane_v, input_aspect,
-                   f, half_spaces, min_z, vec2(0.5, 1.0));
-    update_frustum(curvature_o, curv, plane_o, plane_u, plane_v, input_aspect,
-                   f, half_spaces, min_z, vec2(1.0, 1.0));
+    const bool shape = param.VIRT_SCREEN_SHAPE < 0.5;
+
+    vec3 debug_p[8];
+    debug_p[0] =
+        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
+                       input_aspect, f, half_spaces, min_z, vec2(0.0, 0.0));
+    debug_p[1] =
+        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
+                       input_aspect, f, half_spaces, min_z, vec2(0.5, 0.0));
+    debug_p[2] =
+        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
+                       input_aspect, f, half_spaces, min_z, vec2(1.0, 0.0));
+    debug_p[3] =
+        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
+                       input_aspect, f, half_spaces, min_z, vec2(0.0, 0.5));
+    debug_p[4] =
+        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
+                       input_aspect, f, half_spaces, min_z, vec2(1.0, 0.5));
+    debug_p[5] =
+        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
+                       input_aspect, f, half_spaces, min_z, vec2(0.0, 1.0));
+    debug_p[6] =
+        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
+                       input_aspect, f, half_spaces, min_z, vec2(0.5, 1.0));
+    debug_p[7] =
+        update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
+                       input_aspect, f, half_spaces, min_z, vec2(1.0, 1.0));
+
     const vec2 i_xz = line_intersection(half_spaces[0], half_spaces[1]);
     const vec2 i_yz = line_intersection(half_spaces[2], half_spaces[3]);
     const float ideal_cam_z = min(i_xz[1], i_yz[1]);
@@ -137,35 +157,65 @@ void main() {
                       min_z + (ideal_cam_z - min_z) / param.VIRT_SCREEN_ZOOM);
     vec3 ray_d = vec3((vTexCoord - 0.5) * output_aspect, f);
 
-    // FragColor = vec4(ray_d.xy, 0.0, 1.0);
-    // return;
+    // Debug: project all points and visualize to make sure forward & backward
+    // is consistent.
+    // for (int i = 0; i < 8; ++i) {
+    //     debug_p[i] -= ray_o;
+    //     vec2 proj_p = vec2(debug_p[i].x / debug_p[i].z * f,
+    //                        debug_p[i].y / debug_p[i].z * f);
+    //     proj_p /= output_aspect;
+    //     proj_p += 0.5;
+    //     if (length(vTexCoord - proj_p) < 0.01) {
+    //         FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    //         return;
+    //     }
+    // }
 
     if (curv > 1.0e-3) {
-        // Intersect sphere
+        // Intersect sphere / cylinder
+        float a, half_b, c;
         const vec3 oc = ray_o - curvature_o;
-        const float a = dot(ray_d, ray_d);
-        const float half_b = dot(oc, ray_d);
-        const float c = dot(oc, oc) - r * r;
+        if (param.VIRT_SCREEN_SHAPE < 0.5) {
+            // sphere
+            a = dot(ray_d, ray_d);
+            half_b = dot(oc, ray_d);
+            c = dot(oc, oc) - r * r;
+        } else {
+            // cylinder
+            const vec3 alpha = ray_d - dot(ray_d, cyl_ax) * cyl_ax;
+            const vec3 beta = oc - dot(oc, cyl_ax) * cyl_ax;
+            a = dot(alpha, alpha);
+            half_b = dot(alpha, beta);
+            c = dot(beta, beta) - r * r;
+        }
         const float disc = half_b * half_b - a * c;
-
         if (disc < 0.0) {
             FragColor = vec4(vec3(0.0), 1.0);
             return;
         }
 
-        // We only need the smaller root of the two solutions for the sphere-ray
+        // We only need the smaller root of the two solutions for the ray-object
         // intersection. The smaller root can be found as c / q, according to:
         // https://www.av8n.com/physics/quadratic-formula.htm
         // Simplification: Assume the solution is positive.
         // Simplification: Assume half_b < 0.
-        const vec3 p_sphere = ray_o + c / (sqrt(disc) - half_b) * ray_d;
+        const vec3 p_screen = ray_o + c / (sqrt(disc) - half_b) * ray_d;
 
-        // const vec3 n_sphere = normalize(p_sphere - curvature_o);
+        // const vec3 n_sphere = normalize(p_screen - curvature_o);
         // FragColor = vec4((n_sphere * 0.5 + 0.5).xy, 0.0, 1.0);
         // return;
 
-        ray_o = curvature_o;
-        ray_d = p_sphere - curvature_o;
+        if (param.VIRT_SCREEN_SHAPE < 0.5) {
+            // sphere
+            ray_o = p_screen;
+            ray_d = p_screen - curvature_o;
+        } else {
+            // cylinder
+            ray_o = p_screen;
+            const vec3 oc = p_screen - curvature_o;
+            const vec3 p_on_ax = curvature_o + dot(oc, plane_v) * plane_v;
+            ray_d = p_screen - p_on_ax;
+        }
     }
 
     // Intersect plane
