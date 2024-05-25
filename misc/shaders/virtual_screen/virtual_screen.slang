@@ -187,7 +187,8 @@ void main() {
         input_aspect * (abs(uv - 0.5) - 0.5) + param.VIRT_SCREEN_ROUNDED_CORNER;
     const float dist = min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) -
                        param.VIRT_SCREEN_ROUNDED_CORNER;
-    const float darkening = smoothstep(-param.OutputSize.z, 0.0, -dist);
+    const float darkening =
+        smoothstep(-(param.OutputSize.z + param.OutputSize.w), 0.0, -dist);
 
 #ifdef SHARP_PIXEL_SAMPLING
     // Do a sharp "pixel art" sampling, following:
