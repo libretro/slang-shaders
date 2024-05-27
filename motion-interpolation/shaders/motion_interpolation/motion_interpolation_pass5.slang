@@ -41,34 +41,43 @@ void main()
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D OriginalHistory1;
-layout(set = 0, binding = 4) uniform sampler2D vector1;
-layout(set = 0, binding = 5) uniform sampler2D Original;
+layout(set = 0, binding = 2) uniform sampler2D vector1;
+layout(set = 0, binding = 3) uniform sampler2D interp1Feedback;
+layout(set = 0, binding = 4) uniform sampler2D Original;
+layout(set = 0, binding = 5) uniform sampler2D interp1;
+layout(set = 0, binding = 6) uniform sampler2D vector2;
 
 // uncomment the next line to see the motion vectors for debugging purposes
 //#define OUTPUT_MOTION_VECTOR
-#define iChannel3 vector1
-#define iChannel1 Original
-#define iChannel0 OriginalHistory1
+#define iChannel3 vector2
+#define iChannel0 Original
+#define iChannel1 interp1Feedback
 
 void main()
 {
-    vec2 uv = vTexCoord.xy;
-    vec4 col = texture(iChannel3, uv);
+   if(params.TotalSubFrames < 2 || params.CurrentSubFrame == 1)
+   {
+       FragColor = texture(interp1, vTexCoord);
+       return;
+   }
+   else
+   {
+       vec2 uv = vTexCoord.xy;
+       vec4 col = texture(iChannel3, uv);
 #ifdef OUTPUT_MOTION_VECTOR
-    FragColor = (col * 0.5) + 0.5;
-	return;
+       FragColor = (col * 0.5) + 0.5;
+	   return;
 #endif
 
-    vec4 previousFrame, nextFrame;
-    
-    float testShift = params.MOTION_MIX_FACTOR;//iMouse.x / iResolution.x;
-    vec2 FinalUvShift = texture(iChannel3, uv).rg / params.MOTION_SCALE_FACTOR;
+       vec4 previousFrame, nextFrame;
+       
+       float testShift = params.MOTION_MIX_FACTOR;//iMouse.x / iResolution.x;
+       vec2 FinalUvShift = texture(iChannel3, uv).rg / params.MOTION_SCALE_FACTOR;
 
-        previousFrame = texture(iChannel0, uv - (FinalUvShift * 0.5));
-        nextFrame = texture(iChannel1, uv - (FinalUvShift * (0.5)));
+           previousFrame = texture(iChannel0, uv - (FinalUvShift * 0.5));
+           nextFrame = texture(iChannel1, uv - (FinalUvShift * (0.5)));
 
-    
-    FragColor = mix(previousFrame, nextFrame, testShift);
+       
+       FragColor = mix(previousFrame, nextFrame, testShift);
+    }
 }
