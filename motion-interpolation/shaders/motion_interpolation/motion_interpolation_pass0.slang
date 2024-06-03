@@ -39,6 +39,7 @@ layout(set = 0, binding = 3) uniform sampler2D OriginalHistory1;
 
 #define iChannel0 OriginalHistory1
 #define iChannel1 Source
+#pragma name Pass0
 
 float PixV(sampler2D Target, vec2 Shift, vec2 iuv, vec2 texelSize)
 {
