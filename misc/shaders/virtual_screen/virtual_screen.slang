@@ -43,12 +43,11 @@ layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec3 prim_ray_o;
 layout(location = 1) out vec3 prim_ray_d;
-layout(location = 2) out vec3 cyl_ax;
-layout(location = 3) out vec3 plane_n;
-layout(location = 4) out vec3 plane_u;
-layout(location = 5) out vec3 plane_v;
-layout(location = 6) out vec2 input_aspect;
-layout(location = 7) out float r;
+layout(location = 2) out vec3 plane_n;
+layout(location = 3) out vec3 plane_u;
+layout(location = 4) out vec3 plane_v;
+layout(location = 5) out vec2 input_aspect;
+layout(location = 6) out float r;
 
 void update_frustum(bool shape, const float curv, const vec3 plane_o,
                     const vec3 plane_u, const vec3 plane_v,
@@ -79,7 +78,7 @@ void update_frustum(bool shape, const float curv, const vec3 plane_o,
 }
 
 vec2 line_intersection(vec3 l1, vec3 l2) {
-    // Assumes lines are not parallel.
+    // Simplification: Assume lines are not parallel.
     const float inv_det = 1.0 / (l1.x * l2.y - l2.x * l1.y);
     return vec2((l2.y * l1.z - l1.y * l2.z) * inv_det,
                 (l1.x * l2.z - l2.x * l1.z) * inv_det);
@@ -88,10 +87,7 @@ vec2 line_intersection(vec3 l1, vec3 l2) {
 void main() {
     gl_Position = global.MVP * Position;
 
-    // Simplification: Assume origin of curved object (sphere / cylinder) is at
-    // the origin.
-
-    // Misc. pre-computation
+    // Misc. pre-computation.
     input_aspect =
         param.VIRT_SCREEN_ASPECT_H > 0.0 && param.VIRT_SCREEN_ASPECT_V > 0.0
             ? vec2(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V) /
@@ -100,15 +96,17 @@ void main() {
                   max(param.OriginalSize.x, param.OriginalSize.y);
     const vec2 output_aspect =
         param.OutputSize.xy / max(param.OutputSize.x, param.OutputSize.y);
-    // Focal length
+    // Focal length.
     const float f = param.VIRT_SCREEN_F;
 
-    // Define curved object: sphere or cylinder
+    // Define curved object: sphere or cylinder.
+    // Simplification: Assume origin of curved object (sphere / cylinder) is at
+    // the origin.
     r = param.VIRT_SCREEN_CURVATURE > 1.0e-3 ? 1.0 / param.VIRT_SCREEN_CURVATURE
                                              : 1.0;
     const float sin_tilt = sin(param.VIRT_SCREEN_TILT_ANGLE);
     const float cos_tilt = cos(param.VIRT_SCREEN_TILT_ANGLE);
-    cyl_ax = vec3(0.0, cos_tilt, -sin_tilt);
+    // Simplification: Assume cylinder axis == plane_v.
 
     // Define plane
     plane_n = vec3(0.0, -r * sin_tilt, -r * cos_tilt);
@@ -118,19 +116,36 @@ void main() {
     // Figure out optimal camera position from 9 points sampled across the
     // frame. We want to find the camera position that is as close as possible
     // to the points, maximizing the points in the frustum view.
-    vec3 half_spaces[4] = {vec3(f, 0.5 * output_aspect.x, 1.0e16),
-                           vec3(-f, 0.5 * output_aspect.x, 1.0e16),
-                           vec3(f, 0.5 * output_aspect.y, 1.0e16),
-                           vec3(-f, 0.5 * output_aspect.y, 1.0e16)};
-    vec3 p_min = vec3(1.0e16);
-    vec3 p_max = vec3(-1.0e16);
-    const bool shape = param.VIRT_SCREEN_SHAPE < 0.5;
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
+    vec3 half_spaces[4] = {vec3(f, 0.5 * output_aspect.x, 1.0e7),
+                           vec3(-f, 0.5 * output_aspect.x, 1.0e7),
+                           vec3(f, 0.5 * output_aspect.y, 1.0e7),
+                           vec3(-f, 0.5 * output_aspect.y, 1.0e7)};
+    vec3 p_min = vec3(1.0e7);
+    vec3 p_max = vec3(-1.0e7);
+    for (int i = -1; i < 2; ++i) {
+        for (int j = -1; j < 2; ++j) {
+            vec2 uv = vec2(i * 0.5, j * 0.5) * input_aspect;
             // Simplification: Assume plane_o = plane_n
-            update_frustum(shape, param.VIRT_SCREEN_CURVATURE, plane_n, plane_u,
-                           plane_v, input_aspect, f, half_spaces, p_min, p_max,
-                           vec2(i * 0.5, j * 0.5));
+            vec3 p = plane_n + uv.x * plane_u + uv.y * plane_v;
+            if (param.VIRT_SCREEN_CURVATURE > 1.0e-3) {
+                // Simplification: Assume VIRT_SCREEN_SHAPE = 0 for sphere, = 1
+                // for cylinder. This allows multiplication instead of
+                // branching.
+                // Simplification: Assume cylinder axis == plane_v.
+                const vec3 p_on_ax =
+                    param.VIRT_SCREEN_SHAPE * dot(p, plane_v) * plane_v;
+                p = p_on_ax + normalize(p - p_on_ax) * r;
+            }
+            half_spaces[0].z =
+                min(half_spaces[0].z, dot(half_spaces[0].xy, p.xz));
+            half_spaces[1].z =
+                min(half_spaces[1].z, dot(half_spaces[1].xy, p.xz));
+            half_spaces[2].z =
+                min(half_spaces[2].z, dot(half_spaces[2].xy, p.yz));
+            half_spaces[3].z =
+                min(half_spaces[3].z, dot(half_spaces[3].xy, p.yz));
+            p_min = min(p_min, p);
+            p_max = max(p_max, p);
         }
     }
     const vec2 i_xz = line_intersection(half_spaces[0], half_spaces[1]);
@@ -160,12 +175,11 @@ void main() {
 #pragma stage fragment
 layout(location = 0) in vec3 prim_ray_o;
 layout(location = 1) in vec3 prim_ray_d;
-layout(location = 2) in vec3 cyl_ax;
-layout(location = 3) in vec3 plane_n;
-layout(location = 4) in vec3 plane_u;
-layout(location = 5) in vec3 plane_v;
-layout(location = 6) in vec2 input_aspect;
-layout(location = 7) in float r;
+layout(location = 2) in vec3 plane_n;
+layout(location = 3) in vec3 plane_u;
+layout(location = 4) in vec3 plane_v;
+layout(location = 5) in vec2 input_aspect;
+layout(location = 6) in float r;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -177,10 +191,11 @@ void main() {
         // Intersect sphere / cylinder.
         // Simplification: Assume VIRT_SCREEN_SHAPE = 0 for sphere, = 1 for
         // cylinder. This allows multiplication instead of branching.
-        const vec3 alpha = prim_ray_d - dot(prim_ray_d, cyl_ax) * cyl_ax *
-                                            param.VIRT_SCREEN_SHAPE;
-        const vec3 beta = prim_ray_o - dot(prim_ray_o, cyl_ax) * cyl_ax *
-                                           param.VIRT_SCREEN_SHAPE;
+        // Simplification: Assume cylinder axis == plane_v.
+        const vec3 alpha = prim_ray_d - param.VIRT_SCREEN_SHAPE *
+                                            dot(prim_ray_d, plane_v) * plane_v;
+        const vec3 beta = prim_ray_o - param.VIRT_SCREEN_SHAPE *
+                                           dot(prim_ray_o, plane_v) * plane_v;
         const float half_b = dot(alpha, beta);
         const float c = dot(beta, beta) - r * r;
         // Simplification: a = dot(alpha, alpha).
@@ -202,7 +217,7 @@ void main() {
         // Simplification: Assume VIRT_SCREEN_SHAPE = 0 for sphere, = 1 for
         // cylinder. This allows multiplication instead of branching.
         sec_ray_d = p_screen -
-                    dot(p_screen, plane_v) * plane_v * param.VIRT_SCREEN_SHAPE;
+                    param.VIRT_SCREEN_SHAPE * dot(p_screen, plane_v) * plane_v;
     }
 
     // Intersect plane.
