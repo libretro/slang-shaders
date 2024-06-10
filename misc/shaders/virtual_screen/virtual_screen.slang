@@ -5,6 +5,12 @@
     Copyright (C) 2024
     Public domain license (CC0)
 
+    This example demoes the following:
+    - How to generate rays for tracing against the screen surface in the vertex
+      shader.
+    - How to trace the rays in the fragment shader.
+    - How to achieve high-quality sampling with the found UV.
+
     Changelog:
     v1.0: Initial release.
 */
@@ -46,64 +52,16 @@ layout(location = 1) out vec3 prim_ray_d;
 layout(location = 2) out vec3 plane_n;
 layout(location = 3) out vec3 plane_u;
 layout(location = 4) out vec3 plane_v;
-layout(location = 5) out vec2 input_aspect;
-layout(location = 6) out float r;
-
-void update_frustum(bool shape, const float curv, const vec3 plane_o,
-                    const vec3 plane_u, const vec3 plane_v,
-                    const vec2 input_aspect, const float f,
-                    inout vec3 half_spaces[4], inout vec3 p_min,
-                    inout vec3 p_max, vec2 uv) {
-    uv -= 0.5;
-    uv *= input_aspect;
-    vec3 p = plane_o + uv.x * plane_u + uv.y * plane_v;
-    if (curv > 1.0e-3) {
-        if (shape) {
-            // Sphere
-            p = normalize(p) / curv;
-        } else {
-            // Cylinder
-            // Assume that the cylinder axis is == plane_v.
-            const vec3 oc = p;
-            const vec3 p_on_ax = dot(oc, plane_v) * plane_v;
-            p = p_on_ax + normalize(p - p_on_ax) / curv;
-        }
-    }
-    half_spaces[0].z = min(half_spaces[0].z, dot(half_spaces[0].xy, p.xz));
-    half_spaces[1].z = min(half_spaces[1].z, dot(half_spaces[1].xy, p.xz));
-    half_spaces[2].z = min(half_spaces[2].z, dot(half_spaces[2].xy, p.yz));
-    half_spaces[3].z = min(half_spaces[3].z, dot(half_spaces[3].xy, p.yz));
-    p_min = min(p_min, p);
-    p_max = max(p_max, p);
-}
-
-vec2 line_intersection(vec3 l1, vec3 l2) {
-    // Simplification: Assume lines are not parallel.
-    const float inv_det = 1.0 / (l1.x * l2.y - l2.x * l1.y);
-    return vec2((l2.y * l1.z - l1.y * l2.z) * inv_det,
-                (l1.x * l2.z - l2.x * l1.z) * inv_det);
-}
 
 void main() {
     gl_Position = global.MVP * Position;
 
-    // Misc. pre-computation.
-    input_aspect =
-        param.VIRT_SCREEN_ASPECT_H > 0.0 && param.VIRT_SCREEN_ASPECT_V > 0.0
-            ? vec2(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V) /
-                  max(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V)
-            : param.OriginalSize.xy /
-                  max(param.OriginalSize.x, param.OriginalSize.y);
-    const vec2 output_aspect =
-        param.OutputSize.xy / max(param.OutputSize.x, param.OutputSize.y);
-    // Focal length.
-    const float f = param.VIRT_SCREEN_F;
-
     // Define curved object: sphere or cylinder.
     // Simplification: Assume origin of curved object (sphere / cylinder) is at
     // the origin.
-    r = param.VIRT_SCREEN_CURVATURE > 1.0e-3 ? 1.0 / param.VIRT_SCREEN_CURVATURE
-                                             : 1.0;
+    const float r = param.VIRT_SCREEN_CURVATURE > 1.0e-3
+                        ? 1.0 / param.VIRT_SCREEN_CURVATURE
+                        : 1.0;
     const float sin_tilt = sin(param.VIRT_SCREEN_TILT_ANGLE);
     const float cos_tilt = cos(param.VIRT_SCREEN_TILT_ANGLE);
     // Simplification: Assume cylinder axis == plane_v.
@@ -113,63 +71,18 @@ void main() {
     plane_u = vec3(1.0, 0.0, 0.0);
     plane_v = vec3(0.0, cos_tilt, -sin_tilt);
 
-    // Figure out optimal camera position from 9 points sampled across the
-    // frame. We want to find the camera position that is as close as possible
-    // to the points, maximizing the points in the frustum view.
-    vec3 half_spaces[4] = {vec3(f, 0.5 * output_aspect.x, 1.0e7),
-                           vec3(-f, 0.5 * output_aspect.x, 1.0e7),
-                           vec3(f, 0.5 * output_aspect.y, 1.0e7),
-                           vec3(-f, 0.5 * output_aspect.y, 1.0e7)};
-    vec3 p_min = vec3(1.0e7);
-    vec3 p_max = vec3(-1.0e7);
-    for (int i = -1; i < 2; ++i) {
-        for (int j = -1; j < 2; ++j) {
-            vec2 uv = vec2(i * 0.5, j * 0.5) * input_aspect;
-            // Simplification: Assume plane_o = plane_n
-            vec3 p = plane_n + uv.x * plane_u + uv.y * plane_v;
-            if (param.VIRT_SCREEN_CURVATURE > 1.0e-3) {
-                // Simplification: Assume VIRT_SCREEN_SHAPE = 0 for sphere, = 1
-                // for cylinder. This allows multiplication instead of
-                // branching.
-                // Simplification: Assume cylinder axis == plane_v.
-                const vec3 p_on_ax =
-                    param.VIRT_SCREEN_SHAPE * dot(p, plane_v) * plane_v;
-                p = p_on_ax + normalize(p - p_on_ax) * r;
-            }
-            half_spaces[0].z =
-                min(half_spaces[0].z, dot(half_spaces[0].xy, p.xz));
-            half_spaces[1].z =
-                min(half_spaces[1].z, dot(half_spaces[1].xy, p.xz));
-            half_spaces[2].z =
-                min(half_spaces[2].z, dot(half_spaces[2].xy, p.yz));
-            half_spaces[3].z =
-                min(half_spaces[3].z, dot(half_spaces[3].xy, p.yz));
-            p_min = min(p_min, p);
-            p_max = max(p_max, p);
-        }
-    }
-    const vec2 i_xz = line_intersection(half_spaces[0], half_spaces[1]);
-    const vec2 i_yz = line_intersection(half_spaces[2], half_spaces[3]);
-    const float ideal_cam_z = min(i_xz[1], i_yz[1]);
+    // Misc. pre-computation.
+    const vec2 input_aspect = get_input_aspect(
+        vec2(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V),
+        param.OriginalSize.xy);
+    const vec2 output_aspect =
+        param.OutputSize.xy / max(param.OutputSize.x, param.OutputSize.y);
 
-    // Generate camera ray
-    if (param.VIRT_SCREEN_F < VIRT_SCREEN_F_MAX) {
-        // Perspective camera
-        prim_ray_o =
-            vec3(i_xz[0], i_yz[0],
-                 p_min.z + (ideal_cam_z - p_min.z) / param.VIRT_SCREEN_ZOOM);
-        prim_ray_d = vec3((TexCoord.xy - 0.5) * output_aspect, f);
-    } else {
-        // Orthographic camera
-        const vec3 p_extent = p_max - p_min;
-        const vec2 p_center = 0.5 * (p_min.xy + p_max.xy);
-        prim_ray_o = vec3(p_center + (TexCoord.xy - 0.5) * output_aspect *
-                                         max(p_extent.x / output_aspect.x,
-                                             p_extent.y / output_aspect.y) /
-                                         param.VIRT_SCREEN_ZOOM,
-                          p_min.z - 1.0);
-        prim_ray_d = vec3(0.0, 0.0, 1.0);
-    }
+    // Simplification: Assume plane_o = plane_n
+    generate_camera_ray(TexCoord, input_aspect, output_aspect, r, plane_n,
+                        plane_u, plane_v, param.VIRT_SCREEN_F,
+                        param.VIRT_SCREEN_SHAPE, param.VIRT_SCREEN_ZOOM,
+                        prim_ray_o, prim_ray_d);
 }
 
 #pragma stage fragment
@@ -178,8 +91,6 @@ layout(location = 1) in vec3 prim_ray_d;
 layout(location = 2) in vec3 plane_n;
 layout(location = 3) in vec3 plane_u;
 layout(location = 4) in vec3 plane_v;
-layout(location = 5) in vec2 input_aspect;
-layout(location = 6) in float r;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -197,6 +108,7 @@ void main() {
         const vec3 beta = prim_ray_o - param.VIRT_SCREEN_SHAPE *
                                            dot(prim_ray_o, plane_v) * plane_v;
         const float half_b = dot(alpha, beta);
+        const float r = 1.0 / param.VIRT_SCREEN_CURVATURE;
         const float c = dot(beta, beta) - r * r;
         // Simplification: a = dot(alpha, alpha).
         const float discriminant = half_b * half_b - dot(alpha, alpha) * c;
@@ -233,6 +145,9 @@ void main() {
                         dot(plane_n, sec_ray_d) * sec_ray_d -
                     plane_n;
     // Convert plane intersection to input UV.
+    const vec2 input_aspect = get_input_aspect(
+        vec2(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V),
+        param.OriginalSize.xy);
     vec2 uv = vec2(dot(op, plane_u / input_aspect.x),
                    dot(op, plane_v / input_aspect.y)) +
               0.5;
