@@ -1,14 +1,6 @@
 // See the main shader file for copyright and other information.
 
-// Get effective input aspect ratio.
-// This corresponds to the aspect ratio of the virtual screen.
-vec2 get_input_aspect(vec2 forced_aspect, vec2 original_size) {
-    return forced_aspect.x > 0.0 && forced_aspect.y > 0.0
-               ? vec2(forced_aspect.x, forced_aspect.y) /
-                     max(forced_aspect.x, forced_aspect.y)
-               : original_size / max(original_size.x, original_size.y);
-}
-
+// Intersects 2D lines, defined as normal vector (.x and .y) and offset (.z).
 vec2 line_intersection(vec3 l1, vec3 l2) {
     // Simplification: Assume lines are not parallel.
     const float inv_det = 1.0 / (l1.x * l2.y - l2.x * l1.y);
@@ -16,10 +8,10 @@ vec2 line_intersection(vec3 l1, vec3 l2) {
                 (l1.x * l2.z - l2.x * l1.z) * inv_det);
 }
 
-void generate_camera_ray(vec2 tex_coord, vec2 input_aspect, vec2 output_aspect,
-                         float r, vec3 plane_o, vec3 plane_u, vec3 plane_v,
-                         float f, float shape, float zoom,
-                         inout vec3 prim_ray_o, inout vec3 prim_ray_d) {
+void generate_ray(vec2 tex_coord, vec2 input_aspect, vec2 output_aspect,
+                  float r, vec3 plane_o, vec3 plane_u, vec3 plane_v, float f,
+                  float shape, float zoom, inout vec3 prim_ray_o,
+                  inout vec3 prim_ray_d) {
     // Figure out optimal camera position from 9 points sampled across the
     // frame. We want to find the camera position that is as close as possible
     // to the points, maximizing the points in the frustum view.
@@ -74,4 +66,59 @@ void generate_camera_ray(vec2 tex_coord, vec2 input_aspect, vec2 output_aspect,
                           p_min.z - 1.0);
         prim_ray_d = vec3(0.0, 0.0, 1.0);
     }
+}
+
+vec2 trace_ray(vec2 input_aspect, vec3 prim_ray_o, vec3 prim_ray_d,
+               vec3 plane_n, vec3 plane_u, vec3 plane_v, float curv,
+               float shape) {
+    vec3 sec_ray_o = prim_ray_o;
+    vec3 sec_ray_d = prim_ray_d;
+
+    if (curv > 1.0e-3) {
+        // Intersect sphere / cylinder.
+        // Simplification: Assume shape = 0 for sphere, = 1 for
+        // cylinder. This allows multiplication instead of branching.
+        // Simplification: Assume cylinder axis == plane_v.
+        const vec3 alpha =
+            prim_ray_d - shape * dot(prim_ray_d, plane_v) * plane_v;
+        const vec3 beta =
+            prim_ray_o - shape * dot(prim_ray_o, plane_v) * plane_v;
+        const float half_b = dot(alpha, beta);
+        const float r = 1.0 / curv;
+        const float c = dot(beta, beta) - r * r;
+        // Simplification: a = dot(alpha, alpha).
+        const float discriminant = half_b * half_b - dot(alpha, alpha) * c;
+        if (discriminant < 0.0) {
+            return vec2(-1.0);
+        }
+
+        // We only need the smaller root of the two solutions for the ray-object
+        // intersection. The smaller root can be found as c / q, according to:
+        // https://www.av8n.com/physics/quadratic-formula.htm
+        // Simplification: Assume the solution is positive.
+        // Simplification: Assume half_b < 0.
+        const vec3 p_screen =
+            prim_ray_o + c / (sqrt(discriminant) - half_b) * prim_ray_d;
+
+        sec_ray_o = p_screen;
+        // Simplification: Assume shape = 0 for sphere, = 1 for
+        // cylinder. This allows multiplication instead of branching.
+        sec_ray_d = p_screen - shape * dot(p_screen, plane_v) * plane_v;
+    }
+
+    // Intersect plane.
+    // Simplification:
+    // t = dot(plane_o - sec_ray_o, plane_n) / dot(plane_n, sec_ray_d).
+    // Simplification: Assume t > 0.
+    // Simplification: Assume denominator is not close to zero.
+    // Simplification: p_plane = sec_ray_o + dot(plane_o - sec_ray_o, plane_n) /
+    //  dot(plane_n, sec_ray_d) * sec_ray_d;
+    const vec3 op = sec_ray_o +
+                    dot(plane_n - sec_ray_o, plane_n) /
+                        dot(plane_n, sec_ray_d) * sec_ray_d -
+                    plane_n;
+    // Convert plane intersection to input UV.
+    return vec2(dot(op, plane_u / input_aspect.x),
+                dot(op, plane_v / input_aspect.y)) +
+           0.5;
 }

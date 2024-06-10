@@ -52,6 +52,7 @@ layout(location = 1) out vec3 prim_ray_d;
 layout(location = 2) out vec3 plane_n;
 layout(location = 3) out vec3 plane_u;
 layout(location = 4) out vec3 plane_v;
+layout(location = 5) out vec2 input_aspect;
 
 void main() {
     gl_Position = global.MVP * Position;
@@ -72,17 +73,19 @@ void main() {
     plane_v = vec3(0.0, cos_tilt, -sin_tilt);
 
     // Misc. pre-computation.
-    const vec2 input_aspect = get_input_aspect(
-        vec2(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V),
-        param.OriginalSize.xy);
+    input_aspect =
+        param.VIRT_SCREEN_ASPECT_H > 0.0 && param.VIRT_SCREEN_ASPECT_V > 0.0
+            ? vec2(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V) /
+                  max(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V)
+            : param.OriginalSize.xy /
+                  max(param.OriginalSize.x, param.OriginalSize.y);
     const vec2 output_aspect =
         param.OutputSize.xy / max(param.OutputSize.x, param.OutputSize.y);
 
     // Simplification: Assume plane_o = plane_n
-    generate_camera_ray(TexCoord, input_aspect, output_aspect, r, plane_n,
-                        plane_u, plane_v, param.VIRT_SCREEN_F,
-                        param.VIRT_SCREEN_SHAPE, param.VIRT_SCREEN_ZOOM,
-                        prim_ray_o, prim_ray_d);
+    generate_ray(TexCoord, input_aspect, output_aspect, r, plane_n, plane_u,
+                 plane_v, param.VIRT_SCREEN_F, param.VIRT_SCREEN_SHAPE,
+                 param.VIRT_SCREEN_ZOOM, prim_ray_o, prim_ray_d);
 }
 
 #pragma stage fragment
@@ -91,66 +94,14 @@ layout(location = 1) in vec3 prim_ray_d;
 layout(location = 2) in vec3 plane_n;
 layout(location = 3) in vec3 plane_u;
 layout(location = 4) in vec3 plane_v;
+layout(location = 5) in vec2 input_aspect;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main() {
-    vec3 sec_ray_o = prim_ray_o;
-    vec3 sec_ray_d = prim_ray_d;
-
-    if (param.VIRT_SCREEN_CURVATURE > 1.0e-3) {
-        // Intersect sphere / cylinder.
-        // Simplification: Assume VIRT_SCREEN_SHAPE = 0 for sphere, = 1 for
-        // cylinder. This allows multiplication instead of branching.
-        // Simplification: Assume cylinder axis == plane_v.
-        const vec3 alpha = prim_ray_d - param.VIRT_SCREEN_SHAPE *
-                                            dot(prim_ray_d, plane_v) * plane_v;
-        const vec3 beta = prim_ray_o - param.VIRT_SCREEN_SHAPE *
-                                           dot(prim_ray_o, plane_v) * plane_v;
-        const float half_b = dot(alpha, beta);
-        const float r = 1.0 / param.VIRT_SCREEN_CURVATURE;
-        const float c = dot(beta, beta) - r * r;
-        // Simplification: a = dot(alpha, alpha).
-        const float discriminant = half_b * half_b - dot(alpha, alpha) * c;
-        if (discriminant < 0.0) {
-            FragColor = vec4(vec3(0.0), 1.0);
-            return;
-        }
-
-        // We only need the smaller root of the two solutions for the ray-object
-        // intersection. The smaller root can be found as c / q, according to:
-        // https://www.av8n.com/physics/quadratic-formula.htm
-        // Simplification: Assume the solution is positive.
-        // Simplification: Assume half_b < 0.
-        const vec3 p_screen =
-            prim_ray_o + c / (sqrt(discriminant) - half_b) * prim_ray_d;
-
-        sec_ray_o = p_screen;
-        // Simplification: Assume VIRT_SCREEN_SHAPE = 0 for sphere, = 1 for
-        // cylinder. This allows multiplication instead of branching.
-        sec_ray_d = p_screen -
-                    param.VIRT_SCREEN_SHAPE * dot(p_screen, plane_v) * plane_v;
-    }
-
-    // Intersect plane.
-    // Simplification:
-    // t = dot(plane_o - sec_ray_o, plane_n) / dot(plane_n, sec_ray_d).
-    // Simplification: Assume t > 0.
-    // Simplification: Assume denominator is not close to zero.
-    // Simplification: p_plane = sec_ray_o + dot(plane_o - sec_ray_o, plane_n) /
-    //  dot(plane_n, sec_ray_d) * sec_ray_d;
-    // Simplification: Assume plane_o = plane_n
-    const vec3 op = sec_ray_o +
-                    dot(plane_n - sec_ray_o, plane_n) /
-                        dot(plane_n, sec_ray_d) * sec_ray_d -
-                    plane_n;
-    // Convert plane intersection to input UV.
-    const vec2 input_aspect = get_input_aspect(
-        vec2(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V),
-        param.OriginalSize.xy);
-    vec2 uv = vec2(dot(op, plane_u / input_aspect.x),
-                   dot(op, plane_v / input_aspect.y)) +
-              0.5;
+    vec2 uv = trace_ray(input_aspect, prim_ray_o, prim_ray_d, plane_n, plane_u,
+                        plane_v, param.VIRT_SCREEN_CURVATURE,
+                        param.VIRT_SCREEN_SHAPE);
 
     // Compute rounded corner darkening.
     const vec2 q =
