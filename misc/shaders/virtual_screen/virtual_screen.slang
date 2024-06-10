@@ -89,6 +89,9 @@ vec2 line_intersection(vec3 l1, vec3 l2) {
 }
 
 void main() {
+    // Simplification: Assume origin of curved object (sphere / cylinder) is at
+    // the origin.
+
     // Misc. pre-computation
     const vec2 input_aspect =
         param.VIRT_SCREEN_ASPECT_H > 0.0 && param.VIRT_SCREEN_ASPECT_V > 0.0
@@ -160,23 +163,18 @@ void main() {
     vec3 sec_ray_d = prim_ray_d;
 
     if (curv > 1.0e-3) {
-        // Intersect sphere / cylinder
-        float a, half_b, c;
-        if (param.VIRT_SCREEN_SHAPE < 0.5) {
-            // sphere
-            a = dot(prim_ray_d, prim_ray_d);
-            half_b = dot(prim_ray_o, prim_ray_d);
-            c = dot(prim_ray_o, prim_ray_o) - r * r;
-        } else {
-            // cylinder
-            const vec3 alpha = prim_ray_d - dot(prim_ray_d, cyl_ax) * cyl_ax;
-            const vec3 beta = prim_ray_o - dot(prim_ray_o, cyl_ax) * cyl_ax;
-            a = dot(alpha, alpha);
-            half_b = dot(alpha, beta);
-            c = dot(beta, beta) - r * r;
-        }
-        const float disc = half_b * half_b - a * c;
-        if (disc < 0.0) {
+        // Intersect sphere / cylinder.
+        // Simplification: Assume VIRT_SCREEN_SHAPE = 0 for sphere, = 1 for
+        // cylinder. This allows multiplication instead of branching.
+        const vec3 alpha = prim_ray_d - dot(prim_ray_d, cyl_ax) * cyl_ax *
+                                            param.VIRT_SCREEN_SHAPE;
+        const vec3 beta = prim_ray_o - dot(prim_ray_o, cyl_ax) * cyl_ax *
+                                           param.VIRT_SCREEN_SHAPE;
+        const float half_b = dot(alpha, beta);
+        const float c = dot(beta, beta) - r * r;
+        // Simplification: a = dot(alpha, alpha).
+        const float discriminant = half_b * half_b - dot(alpha, alpha) * c;
+        if (discriminant < 0.0) {
             FragColor = vec4(vec3(0.0), 1.0);
             return;
         }
@@ -187,27 +185,27 @@ void main() {
         // Simplification: Assume the solution is positive.
         // Simplification: Assume half_b < 0.
         const vec3 p_screen =
-            prim_ray_o + c / (sqrt(disc) - half_b) * prim_ray_d;
+            prim_ray_o + c / (sqrt(discriminant) - half_b) * prim_ray_d;
 
         sec_ray_o = p_screen;
-        if (param.VIRT_SCREEN_SHAPE < 0.5) {
-            // sphere
-            sec_ray_d = p_screen;
-        } else {
-            // cylinder
-            sec_ray_d = p_screen - dot(p_screen, plane_v) * plane_v;
-        }
+        // Simplification: Assume VIRT_SCREEN_SHAPE = 0 for sphere, = 1 for
+        // cylinder. This allows multiplication instead of branching.
+        sec_ray_d = p_screen -
+                    dot(p_screen, plane_v) * plane_v * param.VIRT_SCREEN_SHAPE;
     }
 
     // Intersect plane.
+    // Simplification:
+    // t = dot(plane_o - sec_ray_o, plane_n) / dot(plane_n, sec_ray_d).
     // Simplification: Assume t > 0.
-    const vec3 d = plane_o - sec_ray_o;
     // Simplification: Assume denominator is not close to zero.
-    const float t = dot(d, plane_n) / dot(plane_n, sec_ray_d);
-    const vec3 p_plane = sec_ray_o + t * sec_ray_d;
-
+    // Simplification: p_plane = sec_ray_o + dot(plane_o - sec_ray_o, plane_n) /
+    //  dot(plane_n, sec_ray_d) * sec_ray_d;
+    const vec3 op = sec_ray_o +
+                    dot(plane_o - sec_ray_o, plane_n) /
+                        dot(plane_n, sec_ray_d) * sec_ray_d -
+                    plane_o;
     // Convert plane intersection to input UV
-    const vec3 op = p_plane - plane_o;
     vec2 uv = vec2(dot(op, plane_u / input_aspect.x),
                    dot(op, plane_v / input_aspect.y)) +
               0.5;
@@ -218,7 +216,7 @@ void main() {
     const float rounded_rect_dist = min(max(q.x, q.y), 0.0) +
                                     length(max(q, 0.0)) -
                                     param.VIRT_SCREEN_ROUNDED_CORNER;
-    const float darkening = smoothstep(
+    const float corner_darkening = smoothstep(
         -max(param.OutputSize.z, param.OutputSize.w), 0.0, -rounded_rect_dist);
 
 #if defined(SHARP_PIXEL_SAMPLING) || defined(TRILINEAR_SAMPLING)
@@ -256,5 +254,5 @@ void main() {
 #endif
 
     // Apply rounded corner
-    FragColor.rgb *= darkening;
+    FragColor.rgb *= corner_darkening;
 }
