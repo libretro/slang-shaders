@@ -28,6 +28,7 @@ layout(push_constant) uniform Push {
     float VIRT_SCREEN_TILT_ANGLE;
     float VIRT_SCREEN_F;
     float VIRT_SCREEN_ROUNDED_CORNER;
+    float VIRT_SCREEN_LOD_BIAS;
 }
 param;
 
@@ -220,7 +221,7 @@ void main() {
     const float dist = min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) -
                        param.VIRT_SCREEN_ROUNDED_CORNER;
     const float darkening =
-        smoothstep(-(param.OutputSize.z + param.OutputSize.w), 0.0, -dist);
+        smoothstep(-max(param.SourceSize.z, param.SourceSize.w), 0.0, -dist);
 
 #ifdef SHARP_PIXEL_SAMPLING
     // Do a sharp "pixel art" sampling, following:
@@ -257,7 +258,9 @@ void main() {
     // Implement in software because current implementation is broken. See:
     // https://github.com/libretro/RetroArch/issues/16567
     const float lambda_base =
-        max(0.0, 0.5 * log2(max(dot(d_uv_dx, d_uv_dx), dot(d_uv_dy, d_uv_dy))));
+        max(0.0,
+            0.5 * log2(max(dot(d_uv_dx, d_uv_dx), dot(d_uv_dy, d_uv_dy)))) +
+        param.VIRT_SCREEN_LOD_BIAS;
     float lambda_i;
     const float lambda_f = modf(lambda_base, lambda_i);
     const vec3 rgb = mix(textureLod(Source, uv, lambda_i).rgb,
