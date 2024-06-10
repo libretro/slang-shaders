@@ -41,17 +41,14 @@ global;
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
-layout(location = 0) out vec2 vTexCoord;
-
-void main() {
-    gl_Position = global.MVP * Position;
-    vTexCoord = TexCoord;
-}
-
-#pragma stage fragment
-layout(location = 0) in vec2 vTexCoord;
-layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Source;
+layout(location = 0) out vec3 prim_ray_o;
+layout(location = 1) out vec3 prim_ray_d;
+layout(location = 2) out vec3 cyl_ax;
+layout(location = 3) out vec3 plane_n;
+layout(location = 4) out vec3 plane_u;
+layout(location = 5) out vec3 plane_v;
+layout(location = 6) out vec2 input_aspect;
+layout(location = 7) out float r;
 
 void update_frustum(bool shape, const float curv, const vec3 plane_o,
                     const vec3 plane_u, const vec3 plane_v,
@@ -89,11 +86,13 @@ vec2 line_intersection(vec3 l1, vec3 l2) {
 }
 
 void main() {
+    gl_Position = global.MVP * Position;
+
     // Simplification: Assume origin of curved object (sphere / cylinder) is at
     // the origin.
 
     // Misc. pre-computation
-    const vec2 input_aspect =
+    input_aspect =
         param.VIRT_SCREEN_ASPECT_H > 0.0 && param.VIRT_SCREEN_ASPECT_V > 0.0
             ? vec2(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V) /
                   max(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V)
@@ -105,18 +104,16 @@ void main() {
     const float f = param.VIRT_SCREEN_F;
 
     // Define curved object: sphere or cylinder
+    r = param.VIRT_SCREEN_CURVATURE > 1.0e-3 ? 1.0 / param.VIRT_SCREEN_CURVATURE
+                                             : 1.0;
     const float sin_tilt = sin(param.VIRT_SCREEN_TILT_ANGLE);
     const float cos_tilt = cos(param.VIRT_SCREEN_TILT_ANGLE);
-    const float curv = param.VIRT_SCREEN_CURVATURE;
-    const float r = 1.0 / curv;
-    const vec3 cyl_ax = vec3(0.0, cos_tilt, -sin_tilt);
+    cyl_ax = vec3(0.0, cos_tilt, -sin_tilt);
 
     // Define plane
-    const vec3 plane_o = curv > 1.0e-3 ? vec3(0.0, -r * sin_tilt, -r * cos_tilt)
-                                       : vec3(0.0, -sin_tilt, -cos_tilt);
-    const vec3 plane_u = vec3(1.0, 0.0, 0.0);
-    const vec3 plane_v = vec3(0.0, cos_tilt, -sin_tilt);
-    const vec3 plane_n = plane_o;
+    plane_n = vec3(0.0, -r * sin_tilt, -r * cos_tilt);
+    plane_u = vec3(1.0, 0.0, 0.0);
+    plane_v = vec3(0.0, cos_tilt, -sin_tilt);
 
     // Figure out optimal camera position from 9 points sampled across the
     // frame. We want to find the camera position that is as close as possible
@@ -130,8 +127,9 @@ void main() {
     const bool shape = param.VIRT_SCREEN_SHAPE < 0.5;
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-            update_frustum(shape, curv, plane_o, plane_u, plane_v, input_aspect,
-                           f, half_spaces, p_min, p_max,
+            // Simplification: Assume plane_o = plane_n
+            update_frustum(shape, param.VIRT_SCREEN_CURVATURE, plane_n, plane_u,
+                           plane_v, input_aspect, f, half_spaces, p_min, p_max,
                            vec2(i * 0.5, j * 0.5));
         }
     }
@@ -140,29 +138,42 @@ void main() {
     const float ideal_cam_z = min(i_xz[1], i_yz[1]);
 
     // Generate camera ray
-    vec3 prim_ray_o, prim_ray_d;
     if (param.VIRT_SCREEN_F < VIRT_SCREEN_F_MAX) {
         // Perspective camera
         prim_ray_o =
             vec3(i_xz[0], i_yz[0],
                  p_min.z + (ideal_cam_z - p_min.z) / param.VIRT_SCREEN_ZOOM);
-        prim_ray_d = vec3((vTexCoord - 0.5) * output_aspect, f);
+        prim_ray_d = vec3((TexCoord.xy - 0.5) * output_aspect, f);
     } else {
         // Orthographic camera
         const vec3 p_extent = p_max - p_min;
         const vec2 p_center = 0.5 * (p_min.xy + p_max.xy);
-        prim_ray_o = vec3(p_center + (vTexCoord - 0.5) * output_aspect *
+        prim_ray_o = vec3(p_center + (TexCoord.xy - 0.5) * output_aspect *
                                          max(p_extent.x / output_aspect.x,
                                              p_extent.y / output_aspect.y) /
                                          param.VIRT_SCREEN_ZOOM,
                           p_min.z - 1.0);
         prim_ray_d = vec3(0.0, 0.0, 1.0);
     }
+}
 
+#pragma stage fragment
+layout(location = 0) in vec3 prim_ray_o;
+layout(location = 1) in vec3 prim_ray_d;
+layout(location = 2) in vec3 cyl_ax;
+layout(location = 3) in vec3 plane_n;
+layout(location = 4) in vec3 plane_u;
+layout(location = 5) in vec3 plane_v;
+layout(location = 6) in vec2 input_aspect;
+layout(location = 7) in float r;
+layout(location = 0) out vec4 FragColor;
+layout(set = 0, binding = 2) uniform sampler2D Source;
+
+void main() {
     vec3 sec_ray_o = prim_ray_o;
     vec3 sec_ray_d = prim_ray_d;
 
-    if (curv > 1.0e-3) {
+    if (param.VIRT_SCREEN_CURVATURE > 1.0e-3) {
         // Intersect sphere / cylinder.
         // Simplification: Assume VIRT_SCREEN_SHAPE = 0 for sphere, = 1 for
         // cylinder. This allows multiplication instead of branching.
@@ -201,16 +212,17 @@ void main() {
     // Simplification: Assume denominator is not close to zero.
     // Simplification: p_plane = sec_ray_o + dot(plane_o - sec_ray_o, plane_n) /
     //  dot(plane_n, sec_ray_d) * sec_ray_d;
+    // Simplification: Assume plane_o = plane_n
     const vec3 op = sec_ray_o +
-                    dot(plane_o - sec_ray_o, plane_n) /
+                    dot(plane_n - sec_ray_o, plane_n) /
                         dot(plane_n, sec_ray_d) * sec_ray_d -
-                    plane_o;
-    // Convert plane intersection to input UV
+                    plane_n;
+    // Convert plane intersection to input UV.
     vec2 uv = vec2(dot(op, plane_u / input_aspect.x),
                    dot(op, plane_v / input_aspect.y)) +
               0.5;
 
-    // Compute rounded corner darkening
+    // Compute rounded corner darkening.
     const vec2 q =
         input_aspect * (abs(uv - 0.5) - 0.5) + param.VIRT_SCREEN_ROUNDED_CORNER;
     const float rounded_rect_dist = min(max(q.x, q.y), 0.0) +
@@ -219,6 +231,7 @@ void main() {
     const float corner_darkening = smoothstep(
         -max(param.OutputSize.z, param.OutputSize.w), 0.0, -rounded_rect_dist);
 
+    // Sampling.
 #if defined(SHARP_PIXEL_SAMPLING) || defined(TRILINEAR_SAMPLING)
     const vec2 d_uv_dx = dFdx(uv) * param.SourceSize.xy;
     const vec2 d_uv_dy = dFdy(uv) * param.SourceSize.xy;
@@ -227,8 +240,6 @@ void main() {
 #ifdef SHARP_PIXEL_SAMPLING
     // Do a sharp "pixel art" sampling, following:
     // https://www.youtube.com/watch?v=d6tp43wZqps
-    // You may probably want to do a different kind of sampling when chaining
-    // this shader with other effects.
     const vec2 box_size = clamp(abs(d_uv_dx) + abs(d_uv_dy), 1.0e-6, 1.0);
     const vec2 tx = uv * param.SourceSize.xy - 0.5 * box_size;
     const vec2 tx_offset = smoothstep(1 - box_size, vec2(1.0), fract(tx));
@@ -253,6 +264,6 @@ void main() {
         vec4(textureLod(Source, uv, param.VIRT_SCREEN_LOD_BIAS).rgb, 1.0);
 #endif
 
-    // Apply rounded corner
+    // Apply rounded corner darkening.
     FragColor.rgb *= corner_darkening;
 }
