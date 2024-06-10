@@ -53,8 +53,8 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-void update_frustum(bool shape, const vec3 curvature_o, const float curv,
-                    const vec3 plane_o, const vec3 plane_u, const vec3 plane_v,
+void update_frustum(bool shape, const float curv, const vec3 plane_o,
+                    const vec3 plane_u, const vec3 plane_v,
                     const vec2 input_aspect, const float f,
                     inout vec3 half_spaces[4], inout vec3 p_min,
                     inout vec3 p_max, vec2 uv) {
@@ -64,12 +64,12 @@ void update_frustum(bool shape, const vec3 curvature_o, const float curv,
     if (curv > 1.0e-3) {
         if (shape) {
             // Sphere
-            p = curvature_o + normalize(p - curvature_o) / curv;
+            p = normalize(p) / curv;
         } else {
             // Cylinder
             // Assume that the cylinder axis is == plane_v.
-            const vec3 oc = p - curvature_o;
-            const vec3 p_on_ax = curvature_o + dot(oc, plane_v) * plane_v;
+            const vec3 oc = p;
+            const vec3 p_on_ax = dot(oc, plane_v) * plane_v;
             p = p_on_ax + normalize(p - p_on_ax) / curv;
         }
     }
@@ -104,7 +104,6 @@ void main() {
     // Define curved object: sphere or cylinder
     const float sin_tilt = sin(param.VIRT_SCREEN_TILT_ANGLE);
     const float cos_tilt = cos(param.VIRT_SCREEN_TILT_ANGLE);
-    const vec3 curvature_o = vec3(0.0, 0.0, 0.0);
     const float curv = param.VIRT_SCREEN_CURVATURE;
     const float r = 1.0 / curv;
     const vec3 cyl_ax = vec3(0.0, cos_tilt, -sin_tilt);
@@ -114,7 +113,7 @@ void main() {
                                        : vec3(0.0, -sin_tilt, -cos_tilt);
     const vec3 plane_u = vec3(1.0, 0.0, 0.0);
     const vec3 plane_v = vec3(0.0, cos_tilt, -sin_tilt);
-    const vec3 plane_n = plane_o - curvature_o;
+    const vec3 plane_n = plane_o;
 
     // Figure out optimal camera position from 9 points sampled across the
     // frame. We want to find the camera position that is as close as possible
@@ -128,8 +127,8 @@ void main() {
     const bool shape = param.VIRT_SCREEN_SHAPE < 0.5;
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-            update_frustum(shape, curvature_o, curv, plane_o, plane_u, plane_v,
-                           input_aspect, f, half_spaces, p_min, p_max,
+            update_frustum(shape, curv, plane_o, plane_u, plane_v, input_aspect,
+                           f, half_spaces, p_min, p_max,
                            vec2(i * 0.5, j * 0.5));
         }
     }
@@ -163,16 +162,15 @@ void main() {
     if (curv > 1.0e-3) {
         // Intersect sphere / cylinder
         float a, half_b, c;
-        const vec3 oc = prim_ray_o - curvature_o;
         if (param.VIRT_SCREEN_SHAPE < 0.5) {
             // sphere
             a = dot(prim_ray_d, prim_ray_d);
-            half_b = dot(oc, prim_ray_d);
-            c = dot(oc, oc) - r * r;
+            half_b = dot(prim_ray_o, prim_ray_d);
+            c = dot(prim_ray_o, prim_ray_o) - r * r;
         } else {
             // cylinder
             const vec3 alpha = prim_ray_d - dot(prim_ray_d, cyl_ax) * cyl_ax;
-            const vec3 beta = oc - dot(oc, cyl_ax) * cyl_ax;
+            const vec3 beta = prim_ray_o - dot(prim_ray_o, cyl_ax) * cyl_ax;
             a = dot(alpha, alpha);
             half_b = dot(alpha, beta);
             c = dot(beta, beta) - r * r;
@@ -191,22 +189,20 @@ void main() {
         const vec3 p_screen =
             prim_ray_o + c / (sqrt(disc) - half_b) * prim_ray_d;
 
+        sec_ray_o = p_screen;
         if (param.VIRT_SCREEN_SHAPE < 0.5) {
             // sphere
-            sec_ray_o = p_screen;
-            sec_ray_d = p_screen - curvature_o;
+            sec_ray_d = p_screen;
         } else {
             // cylinder
-            sec_ray_o = p_screen;
-            sec_ray_d = p_screen - curvature_o -
-                        dot(p_screen - curvature_o, plane_v) * plane_v;
+            sec_ray_d = p_screen - dot(p_screen, plane_v) * plane_v;
         }
     }
 
     // Intersect plane.
-    // We assume that t > 0.
+    // Simplification: Assume t > 0.
     const vec3 d = plane_o - sec_ray_o;
-    // We assume that the denominator is not close to zero.
+    // Simplification: Assume denominator is not close to zero.
     const float t = dot(d, plane_n) / dot(plane_n, sec_ray_d);
     const vec3 p_plane = sec_ray_o + t * sec_ray_d;
 
