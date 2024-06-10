@@ -1,7 +1,7 @@
 #version 450
 
 /*
-    Virtual Screen v1.0 by fishku
+    Ray traced curvature v1.0 by fishku
     Copyright (C) 2024
     Public domain license (CC0)
 
@@ -29,15 +29,15 @@ layout(push_constant) uniform Push {
     vec4 OriginalSize;
     vec4 SourceSize;
     vec4 OutputSize;
-    float VIRT_SCREEN_ASPECT_H;
-    float VIRT_SCREEN_ASPECT_V;
-    float VIRT_SCREEN_SHAPE;
-    float VIRT_SCREEN_CURVATURE;
-    float VIRT_SCREEN_ZOOM;
-    float VIRT_SCREEN_TILT_ANGLE;
-    float VIRT_SCREEN_F;
-    float VIRT_SCREEN_ROUNDED_CORNER;
-    float VIRT_SCREEN_LOD_BIAS;
+    float RT_CURV_ASPECT_H;
+    float RT_CURV_ASPECT_V;
+    float RT_CURV_SHAPE;
+    float RT_CURV_CURVATURE;
+    float RT_CURV_ZOOM;
+    float RT_CURV_TILT_ANGLE;
+    float RT_CURV_F;
+    float RT_CURV_ROUNDED_CORNER;
+    float RT_CURV_LOD_BIAS;
 }
 param;
 
@@ -60,11 +60,10 @@ void main() {
     // Define curved object: sphere or cylinder.
     // Simplification: Assume origin of curved object (sphere / cylinder) is at
     // the origin.
-    const float r = param.VIRT_SCREEN_CURVATURE > 1.0e-3
-                        ? 1.0 / param.VIRT_SCREEN_CURVATURE
-                        : 1.0;
-    const float sin_tilt = sin(param.VIRT_SCREEN_TILT_ANGLE);
-    const float cos_tilt = cos(param.VIRT_SCREEN_TILT_ANGLE);
+    const float r =
+        param.RT_CURV_CURVATURE > 1.0e-3 ? 1.0 / param.RT_CURV_CURVATURE : 1.0;
+    const float sin_tilt = sin(param.RT_CURV_TILT_ANGLE);
+    const float cos_tilt = cos(param.RT_CURV_TILT_ANGLE);
     // Simplification: Assume cylinder axis == plane_v.
 
     // Define plane
@@ -73,19 +72,19 @@ void main() {
     plane_v = vec3(0.0, cos_tilt, -sin_tilt);
 
     // Misc. pre-computation.
-    input_aspect =
-        param.VIRT_SCREEN_ASPECT_H > 0.0 && param.VIRT_SCREEN_ASPECT_V > 0.0
-            ? vec2(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V) /
-                  max(param.VIRT_SCREEN_ASPECT_H, param.VIRT_SCREEN_ASPECT_V)
-            : param.OriginalSize.xy /
-                  max(param.OriginalSize.x, param.OriginalSize.y);
+    input_aspect = param.RT_CURV_ASPECT_H > 0.0 && param.RT_CURV_ASPECT_V > 0.0
+                       ? vec2(param.RT_CURV_ASPECT_H, param.RT_CURV_ASPECT_V) /
+                             max(param.RT_CURV_ASPECT_H, param.RT_CURV_ASPECT_V)
+                       : param.OriginalSize.xy /
+                             max(param.OriginalSize.x, param.OriginalSize.y);
     const vec2 output_aspect =
         param.OutputSize.xy / max(param.OutputSize.x, param.OutputSize.y);
 
     // Simplification: Assume plane_o = plane_n
-    generate_ray(TexCoord, input_aspect, output_aspect, r, plane_n, plane_u,
-                 plane_v, param.VIRT_SCREEN_F, param.VIRT_SCREEN_SHAPE,
-                 param.VIRT_SCREEN_ZOOM, prim_ray_o, prim_ray_d);
+    generate_ray(TexCoord, input_aspect, output_aspect, plane_n, plane_u,
+                 plane_v, param.RT_CURV_CURVATURE, param.RT_CURV_F,
+                 param.RT_CURV_SHAPE, param.RT_CURV_ZOOM, prim_ray_o,
+                 prim_ray_d);
 }
 
 #pragma stage fragment
@@ -100,15 +99,14 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main() {
     vec2 uv = trace_ray(input_aspect, prim_ray_o, prim_ray_d, plane_n, plane_u,
-                        plane_v, param.VIRT_SCREEN_CURVATURE,
-                        param.VIRT_SCREEN_SHAPE);
+                        plane_v, param.RT_CURV_CURVATURE, param.RT_CURV_SHAPE);
 
     // Compute rounded corner darkening.
     const vec2 q =
-        input_aspect * (abs(uv - 0.5) - 0.5) + param.VIRT_SCREEN_ROUNDED_CORNER;
+        input_aspect * (abs(uv - 0.5) - 0.5) + param.RT_CURV_ROUNDED_CORNER;
     const float rounded_rect_dist = min(max(q.x, q.y), 0.0) +
                                     length(max(q, 0.0)) -
-                                    param.VIRT_SCREEN_ROUNDED_CORNER;
+                                    param.RT_CURV_ROUNDED_CORNER;
     const float corner_darkening = smoothstep(
         -max(param.OutputSize.z, param.OutputSize.w), 0.0, -rounded_rect_dist);
 
@@ -134,15 +132,14 @@ void main() {
     const float lambda_base =
         max(0.0,
             0.5 * log2(max(dot(d_uv_dx, d_uv_dx), dot(d_uv_dy, d_uv_dy)))) +
-        param.VIRT_SCREEN_LOD_BIAS;
+        param.RT_CURV_LOD_BIAS;
     float lambda_i;
     const float lambda_f = modf(lambda_base, lambda_i);
     FragColor = vec4(mix(textureLod(Source, uv, lambda_i).rgb,
                          textureLod(Source, uv, lambda_i + 1.0).rgb, lambda_f),
                      1.0);
 #else
-    FragColor =
-        vec4(textureLod(Source, uv, param.VIRT_SCREEN_LOD_BIAS).rgb, 1.0);
+    FragColor = vec4(textureLod(Source, uv, param.RT_CURV_LOD_BIAS).rgb, 1.0);
 #endif
 
     // Apply rounded corner darkening.
