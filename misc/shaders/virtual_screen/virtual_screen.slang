@@ -138,37 +138,40 @@ void main() {
     const float ideal_cam_z = min(i_xz[1], i_yz[1]);
 
     // Generate camera ray
-    vec3 ray_o, ray_d;
+    vec3 prim_ray_o, prim_ray_d;
     if (param.VIRT_SCREEN_F < VIRT_SCREEN_F_MAX) {
         // Perspective camera
-        ray_o =
+        prim_ray_o =
             vec3(i_xz[0], i_yz[0],
                  p_min.z + (ideal_cam_z - p_min.z) / param.VIRT_SCREEN_ZOOM);
-        ray_d = vec3((vTexCoord - 0.5) * output_aspect, f);
+        prim_ray_d = vec3((vTexCoord - 0.5) * output_aspect, f);
     } else {
         // Orthographic camera
         const vec3 p_extent = p_max - p_min;
         const vec2 p_center = 0.5 * (p_min.xy + p_max.xy);
-        ray_o = vec3(p_center + (vTexCoord - 0.5) * output_aspect *
-                                    max(p_extent.x / output_aspect.x,
-                                        p_extent.y / output_aspect.y) /
-                                    param.VIRT_SCREEN_ZOOM,
-                     p_min.z - 1.0);
-        ray_d = vec3(0.0, 0.0, 1.0);
+        prim_ray_o = vec3(p_center + (vTexCoord - 0.5) * output_aspect *
+                                         max(p_extent.x / output_aspect.x,
+                                             p_extent.y / output_aspect.y) /
+                                         param.VIRT_SCREEN_ZOOM,
+                          p_min.z - 1.0);
+        prim_ray_d = vec3(0.0, 0.0, 1.0);
     }
+
+    vec3 sec_ray_o = prim_ray_o;
+    vec3 sec_ray_d = prim_ray_d;
 
     if (curv > 1.0e-3) {
         // Intersect sphere / cylinder
         float a, half_b, c;
-        const vec3 oc = ray_o - curvature_o;
+        const vec3 oc = prim_ray_o - curvature_o;
         if (param.VIRT_SCREEN_SHAPE < 0.5) {
             // sphere
-            a = dot(ray_d, ray_d);
-            half_b = dot(oc, ray_d);
+            a = dot(prim_ray_d, prim_ray_d);
+            half_b = dot(oc, prim_ray_d);
             c = dot(oc, oc) - r * r;
         } else {
             // cylinder
-            const vec3 alpha = ray_d - dot(ray_d, cyl_ax) * cyl_ax;
+            const vec3 alpha = prim_ray_d - dot(prim_ray_d, cyl_ax) * cyl_ax;
             const vec3 beta = oc - dot(oc, cyl_ax) * cyl_ax;
             a = dot(alpha, alpha);
             half_b = dot(alpha, beta);
@@ -185,32 +188,27 @@ void main() {
         // https://www.av8n.com/physics/quadratic-formula.htm
         // Simplification: Assume the solution is positive.
         // Simplification: Assume half_b < 0.
-        const vec3 p_screen = ray_o + c / (sqrt(disc) - half_b) * ray_d;
-
-        // const vec3 n_sphere = normalize(p_screen - curvature_o);
-        // FragColor = vec4((n_sphere * 0.5 + 0.5).xy, 0.0, 1.0);
-        // return;
+        const vec3 p_screen =
+            prim_ray_o + c / (sqrt(disc) - half_b) * prim_ray_d;
 
         if (param.VIRT_SCREEN_SHAPE < 0.5) {
             // sphere
-            ray_o = p_screen;
-            ray_d = p_screen - curvature_o;
+            sec_ray_o = p_screen;
+            sec_ray_d = p_screen - curvature_o;
         } else {
             // cylinder
-            ray_o = p_screen;
-            const vec3 oc = p_screen - curvature_o;
-            const vec3 p_on_ax = curvature_o + dot(oc, plane_v) * plane_v;
-            ray_d = p_screen - p_on_ax;
+            sec_ray_o = p_screen;
+            sec_ray_d = p_screen - curvature_o -
+                        dot(p_screen - curvature_o, plane_v) * plane_v;
         }
     }
 
-    // Intersect plane
-    float denom = dot(plane_n, ray_d);
-    // We assume that denom is not close to zero.
-    const vec3 d = plane_o - ray_o;
-    const float t = dot(d, plane_n) / denom;
+    // Intersect plane.
     // We assume that t > 0.
-    const vec3 p_plane = ray_o + t * ray_d;
+    const vec3 d = plane_o - sec_ray_o;
+    // We assume that the denominator is not close to zero.
+    const float t = dot(d, plane_n) / dot(plane_n, sec_ray_d);
+    const vec3 p_plane = sec_ray_o + t * sec_ray_d;
 
     // Convert plane intersection to input UV
     const vec3 op = p_plane - plane_o;
@@ -221,10 +219,11 @@ void main() {
     // Compute rounded corner darkening
     const vec2 q =
         input_aspect * (abs(uv - 0.5) - 0.5) + param.VIRT_SCREEN_ROUNDED_CORNER;
-    const float dist = min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) -
-                       param.VIRT_SCREEN_ROUNDED_CORNER;
-    const float darkening =
-        smoothstep(-max(param.OutputSize.z, param.OutputSize.w), 0.0, -dist);
+    const float rounded_rect_dist = min(max(q.x, q.y), 0.0) +
+                                    length(max(q, 0.0)) -
+                                    param.VIRT_SCREEN_ROUNDED_CORNER;
+    const float darkening = smoothstep(
+        -max(param.OutputSize.z, param.OutputSize.w), 0.0, -rounded_rect_dist);
 
 #if defined(SHARP_PIXEL_SAMPLING) || defined(TRILINEAR_SAMPLING)
     const vec2 d_uv_dx = dFdx(uv) * param.SourceSize.xy;
