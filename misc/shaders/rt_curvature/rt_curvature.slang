@@ -15,13 +15,14 @@
     v1.0: Initial release.
 */
 
-// Uncommented means sharp pixel art, better for stand-alone usage.
-// Commented out means no coordinate distortion, better for appending.
+// If uncommented, pixel art is sampled sharply, better for stand-alone usage.
+// If commented out, no coordinate distortion is done, better for appending.
 #define SHARP_PIXEL_SAMPLING
 
-// Uncommented blends mip-map levels, if available, giving better AA.
+// If uncommented, mip-map levels are blended, if available, giving better AA.
 #define TRILINEAR_SAMPLING
 
+#include "../input_transform/rotation.inc"
 #include "parameters.inc"
 #include "shared.inc"
 
@@ -29,12 +30,14 @@ layout(push_constant) uniform Push {
     vec4 OriginalSize;
     vec4 SourceSize;
     vec4 OutputSize;
+    uint Rotation;
     float RT_CURV_ASPECT_H;
     float RT_CURV_ASPECT_V;
     float RT_CURV_SHAPE;
     float RT_CURV_CURVATURE;
     float RT_CURV_ZOOM;
-    float RT_CURV_TILT_ANGLE;
+    float RT_CURV_TILT_ANGLE_H;
+    float RT_CURV_TILT_ANGLE_V;
     float RT_CURV_F;
     float RT_CURV_ROUNDED_CORNER;
     float RT_CURV_LOD_BIAS;
@@ -62,21 +65,40 @@ void main() {
     // the origin.
     const float r =
         param.RT_CURV_CURVATURE > 1.0e-3 ? 1.0 / param.RT_CURV_CURVATURE : 1.0;
-    const float sin_tilt = sin(param.RT_CURV_TILT_ANGLE);
-    const float cos_tilt = cos(param.RT_CURV_TILT_ANGLE);
+    // TODO: Why does this need an extra flip compared to the usage in
+    // input_transform.inc?
+    const vec2 tilt = get_rotated_vector(vec2(param.RT_CURV_TILT_ANGLE_H,
+                                              param.RT_CURV_TILT_ANGLE_V),
+                                         param.Rotation) *
+                      (1 - 2 * (int(param.Rotation) % 2));
+    const vec2 sin_tilt = sin(tilt);
+    const vec2 cos_tilt = cos(tilt);
     // Simplification: Assume cylinder axis == plane_v.
 
-    // Define plane
-    plane_n = vec3(0.0, -r * sin_tilt, -r * cos_tilt);
-    plane_u = vec3(1.0, 0.0, 0.0);
-    plane_v = vec3(0.0, cos_tilt, -sin_tilt);
+    // Define input texture plane.
+    // Basic vectors are:
+    // n = (0, 0, -r)
+    // u = (1, 0, 0)
+    // v = (0, 1, 0)
+    // n serves a double duty as the origin of the plane.
+    // These are then rotated around x by tilt.x and then around y by tilt.y.
+    plane_n = vec3(r * sin_tilt.x * cos_tilt.y, -r * sin_tilt.y,
+                   -r * cos_tilt.x * cos_tilt.y);
+    plane_u = vec3(cos_tilt.x, 0.0, sin_tilt.x);
+    plane_v =
+        vec3(sin_tilt.x * sin_tilt.y, cos_tilt.y, -cos_tilt.x * sin_tilt.y);
 
-    // Misc. pre-computation.
-    input_aspect = param.RT_CURV_ASPECT_H > 0.0 && param.RT_CURV_ASPECT_V > 0.0
-                       ? vec2(param.RT_CURV_ASPECT_H, param.RT_CURV_ASPECT_V) /
-                             max(param.RT_CURV_ASPECT_H, param.RT_CURV_ASPECT_V)
-                       : param.OriginalSize.xy /
-                             max(param.OriginalSize.x, param.OriginalSize.y);
+    // Compute aspects ratios.
+    // Output aspect ratio does not need to be rotated since RA takes care of
+    // output rotation.
+    input_aspect =
+        param.RT_CURV_ASPECT_H > 0.0 && param.RT_CURV_ASPECT_V > 0.0
+            ? get_rotated_size(
+                  vec2(param.RT_CURV_ASPECT_H, param.RT_CURV_ASPECT_V) /
+                      max(param.RT_CURV_ASPECT_H, param.RT_CURV_ASPECT_V),
+                  param.Rotation)
+            : param.OriginalSize.xy /
+                  max(param.OriginalSize.x, param.OriginalSize.y);
     const vec2 output_aspect =
         param.OutputSize.xy / max(param.OutputSize.x, param.OutputSize.y);
 
@@ -110,7 +132,7 @@ void main() {
     const float corner_darkening = smoothstep(
         -max(param.OutputSize.z, param.OutputSize.w), 0.0, -rounded_rect_dist);
 
-    // Sampling.
+    // Sampling section follows.
 #if defined(SHARP_PIXEL_SAMPLING) || defined(TRILINEAR_SAMPLING)
     const vec2 d_uv_dx = dFdx(uv) * param.SourceSize.xy;
     const vec2 d_uv_dy = dFdy(uv) * param.SourceSize.xy;

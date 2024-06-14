@@ -4,7 +4,8 @@
 #pragma parameter RT_CURV_SETTINGS "=== Ray Traced Curvature v1.0 settings ===" 0.0 0.0 1.0 1.0
 
 #pragma parameter RT_CURV_CURVATURE "Curvature strength" 0.5 0.0 1.5 0.05
-#pragma parameter RT_CURV_TILT_ANGLE "Vertical tilt" -0.08 -0.5 0.5 0.01
+#pragma parameter RT_CURV_TILT_ANGLE_H "Horizontal tilt" 0.0 -0.5 0.5 0.01
+#pragma parameter RT_CURV_TILT_ANGLE_V "Vertical tilt" -0.08 -0.5 0.5 0.01
 #pragma parameter RT_CURV_ROUNDED_CORNER "Rounded corner radius" 0.02 0.0 0.2 0.01
 #pragma parameter RT_CURV_SHAPE "Screen shape (0 = sphere, 1 = cylinder)" 0.0 0.0 1.0 1.0
 

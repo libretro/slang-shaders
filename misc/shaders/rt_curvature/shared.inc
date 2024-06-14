@@ -84,11 +84,11 @@ vec2 trace_ray(vec2 input_aspect, vec3 prim_ray_o, vec3 prim_ray_d,
         const vec3 beta =
             prim_ray_o - shape * dot(prim_ray_o, plane_v) * plane_v;
         const float half_b = dot(alpha, beta);
-        const float r = 1.0 / curv;
-        const float c = dot(beta, beta) - r * r;
+        const float c = dot(beta, beta) - 1.0 / (curv * curv);
         // Simplification: a = dot(alpha, alpha).
         const float discriminant = half_b * half_b - dot(alpha, alpha) * c;
         if (discriminant < 0.0) {
+            // Ray misses screen surface entirely.
             return vec2(-1.0);
         }
 
@@ -97,13 +97,11 @@ vec2 trace_ray(vec2 input_aspect, vec3 prim_ray_o, vec3 prim_ray_d,
         // https://www.av8n.com/physics/quadratic-formula.htm
         // Simplification: Assume the solution is positive.
         // Simplification: Assume half_b < 0.
-        const vec3 p_screen =
-            prim_ray_o + c / (sqrt(discriminant) - half_b) * prim_ray_d;
-
-        sec_ray_o = p_screen;
+        // Simplification: p_screen = sec_ray_o.
+        sec_ray_o = prim_ray_o + c / (sqrt(discriminant) - half_b) * prim_ray_d;
         // Simplification: Assume shape = 0 for sphere, = 1 for
         // cylinder. This allows multiplication instead of branching.
-        sec_ray_d = p_screen - shape * dot(p_screen, plane_v) * plane_v;
+        sec_ray_d = sec_ray_o - shape * dot(sec_ray_o, plane_v) * plane_v;
     }
 
     // Intersect plane.
