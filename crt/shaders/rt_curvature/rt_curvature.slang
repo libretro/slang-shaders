@@ -43,6 +43,7 @@ layout(push_constant) uniform Push {
     float RT_CURV_F;
     float RT_CURV_ROUNDED_CORNER;
     float RT_CURV_LOD_BIAS;
+    float RT_CURV_APPEND;
 }
 param;
 
@@ -141,12 +142,15 @@ void main() {
 #endif
 
 #ifdef SHARP_PIXEL_SAMPLING
-    // Do a sharp "pixel art" sampling, following:
-    // https://www.youtube.com/watch?v=d6tp43wZqps
-    const vec2 box_size = clamp(abs(d_uv_dx) + abs(d_uv_dy), 1.0e-6, 1.0);
-    const vec2 tx = uv * param.SourceSize.xy - 0.5 * box_size;
-    const vec2 tx_offset = smoothstep(1 - box_size, vec2(1.0), fract(tx));
-    uv = (floor(tx) + 0.5 + tx_offset) * param.SourceSize.zw;
+    if (param.RT_CURV_APPEND < 0.5) {
+        // Do a sharp "pixel art" sampling, following:
+        // https://www.youtube.com/watch?v=d6tp43wZqps
+        // Only apply pixel art sampling when not appending to avoid aliasing.
+        const vec2 box_size = clamp(abs(d_uv_dx) + abs(d_uv_dy), 1.0e-6, 1.0);
+        const vec2 tx = uv * param.SourceSize.xy - 0.5 * box_size;
+        const vec2 tx_offset = smoothstep(1 - box_size, vec2(1.0), fract(tx));
+        uv = (floor(tx) + 0.5 + tx_offset) * param.SourceSize.zw;
+    }
 #endif
 
 #ifdef TRILINEAR_SAMPLING

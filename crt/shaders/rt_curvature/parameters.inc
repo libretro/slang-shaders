@@ -17,4 +17,5 @@
 #pragma parameter RT_CURV_F "Focal Length (max = ortho)" 2.0 0.5 10.0 0.25
 
 #pragma parameter RT_CURV_LOD_BIAS "Anti-aliasing boost" 0.0 0.0 1.0 0.05
+#pragma parameter RT_CURV_APPEND "Disable pixel art sampling (for append)" 0.0 0.0 1.0 1.0
 // clang-format on
