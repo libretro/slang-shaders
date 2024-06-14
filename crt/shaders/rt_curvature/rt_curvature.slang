@@ -22,7 +22,7 @@
 // If uncommented, mip-map levels are blended, if available, giving better AA.
 #define TRILINEAR_SAMPLING
 
-#include "../input_transform/rotation.inc"
+#include "../../../misc/shaders/input_transform/rotation.inc"
 #include "parameters.inc"
 #include "shared.inc"
 
