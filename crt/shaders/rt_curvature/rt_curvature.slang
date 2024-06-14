@@ -16,7 +16,9 @@
 */
 
 // If uncommented, pixel art is sampled sharply, better for stand-alone usage.
-// If commented out, no coordinate distortion is done, better for appending.
+// If commented out, no coordinate distortion is done, which is better for
+// appending. Enabling this option may give stronger aliasing artifacts when
+// appending to other presets.
 #define SHARP_PIXEL_SAMPLING
 
 // If uncommented, mip-map levels are blended, if available, giving better AA.
