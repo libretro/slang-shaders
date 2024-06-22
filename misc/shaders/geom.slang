@@ -3,8 +3,8 @@
 layout(push_constant) uniform Push
 {
    uint FrameCount;
-   float targetgamma;
-   float monitorgamma;
+   float geom_target_gamma;
+   float geom_monitor_gamma;
    float d;
    float R;
    float cornersize;
@@ -14,7 +14,7 @@ layout(push_constant) uniform Push
    float overscan_x;
    float overscan_y;
    float SHARPER;
-   float CURVATURE;
+   float GEOM_CURVATURE;
    float interlace_detect;
    float lum;
    float invert_aspect;
@@ -29,10 +29,10 @@ layout(std140, set = 0, binding = 0) uniform UBO
     vec4 SourceSize;
 } global;
 
-#pragma parameter targetgamma "Geom Target Gamma" 2.4 0.1 5.0 0.1
-#pragma parameter monitorgamma "Geom Monitor Gamma" 2.2 0.1 5.0 0.1
+#pragma parameter geom_target_gamma "Geom Target Gamma" 2.4 0.1 5.0 0.1
+#pragma parameter geom_monitor_gamma "Geom Monitor Gamma" 2.2 0.1 5.0 0.1
 #pragma parameter d "Geom Distance" 1.5 0.1 3.0 0.1
-#pragma parameter CURVATURE "Geom Curvature Toggle" 1.0 0.0 1.0 1.0
+#pragma parameter GEOM_CURVATURE "Geom Curvature Toggle" 1.0 0.0 1.0 1.0
 #pragma parameter invert_aspect "Geom Curvature Aspect Inversion" 0.0 0.0 1.0 1.0
 #pragma parameter R "Geom Curvature Radius" 2.0 0.1 10.0 0.1
 #pragma parameter cornersize "Geom Corner Size" 0.03 0.001 1.0 0.005
@@ -96,7 +96,7 @@ vec4 SourceSize = vec4(width.x, height.x, width.y, height.y);
 #define PI 3.141592653589
 
 #ifdef LINEAR_PROCESSING
-#       define TEX2D(c) pow(texture(Source, (c)), vec4(registers.targetgamma))
+#       define TEX2D(c) pow(texture(Source, (c)), vec4(registers.geom_target_gamma))
 #else
 #       define TEX2D(c) texture(Source, (c))
 #endif
@@ -273,7 +273,7 @@ void main()
     // Texture coordinates of the texel containing the active pixel.
     vec2 xy;
 
-    if (registers.CURVATURE > 0.5)
+    if (registers.GEOM_CURVATURE > 0.5)
         xy = transform(vTexCoord);
     else
         xy = vTexCoord;
@@ -295,7 +295,7 @@ void main()
 
 
 #ifndef LINEAR_PROCESSING
-    col  = pow(col , vec4(registers.targetgamma));
+    col  = pow(col , vec4(registers.geom_target_gamma));
 #endif
 
     col.rgb *= (registers.lum * step(0.0, uv_ratio.y));
@@ -303,7 +303,7 @@ void main()
     vec3 mul_res  =  col.rgb * vec3(cval);
 
     // Convert the image gamma for display on our output device.
-    mul_res = pow(mul_res, vec3(1.0 / registers.monitorgamma));
+    mul_res = pow(mul_res, vec3(1.0 / registers.geom_monitor_gamma));
 
     FragColor = vec4(mul_res, 1.0);
 }
