@@ -1,5 +1,12 @@
-shaders = 1
+shaders = 2
 
-shader0 = shaders/geom.slang
+shader0 = ../stock.slang
+filter_linear0 = false
 scale_type0 = viewport
-wrap_mode0 = "clamp_to_border"
+
+shader1 = shaders/geom.slang
+filter_linear1 = true
+scale_type1 = viewport
+wrap_mode1 = "clamp_to_border"
+mipmap_input1 = "true"
+
