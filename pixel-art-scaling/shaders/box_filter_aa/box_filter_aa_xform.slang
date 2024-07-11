@@ -51,7 +51,8 @@ layout(location = 0) out vec4 px_rect;
 layout(location = 1) out vec4 input_corners;
 layout(location = 2) out vec2 scale_i2o;
 layout(location = 3) out vec2 input_center;
-layout(location = 4) out vec2 tx_coord;
+layout(location = 4) out vec2 output_center;
+layout(location = 5) out vec2 tx_coord;
 void main() {
     gl_Position = global.MVP * Position;
 
@@ -72,6 +73,7 @@ void main() {
                                     param.CENTER_AFTER_CROPPING);
     tx_coord = transform(TexCoord, vec2(0.5), param.OutputSize.xy / scale_i2o,
                          input_center);
+    output_center = 0.5 * param.OutputSize.xy;
     input_corners =
         get_input_corners(param.SourceSize.xy, crop, param.Rotation);
 }
@@ -81,7 +83,8 @@ layout(location = 0) in vec4 px_rect;
 layout(location = 1) in vec4 input_corners;
 layout(location = 2) in vec2 scale_i2o;
 layout(location = 3) in vec2 input_center;
-layout(location = 4) in vec2 tx_coord;
+layout(location = 4) in vec2 output_center;
+layout(location = 5) in vec2 tx_coord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -109,16 +112,15 @@ void main() {
     samples[3] *= samples[3];
 
     // Apply shader.
-    // Transform tx_origins into pixel output space. Equivalent to manual
-    // unrolling of "i2o" function.
-    tx_origins[0] = transform(tx_origins[0], input_center, scale_i2o,
-                              0.5 * param.OutputSize.xy);
-    tx_origins[1] = transform(tx_origins[1], input_center, scale_i2o,
-                              0.5 * param.OutputSize.xy);
-    tx_origins[2] = transform(tx_origins[2], input_center, scale_i2o,
-                              0.5 * param.OutputSize.xy);
-    tx_origins[3] = transform(tx_origins[3], input_center, scale_i2o,
-                              0.5 * param.OutputSize.xy);
+    // Transform tx_origins into pixel output space.
+    tx_origins[0] =
+        transform(tx_origins[0], input_center, scale_i2o, output_center);
+    tx_origins[1] =
+        transform(tx_origins[1], input_center, scale_i2o, output_center);
+    tx_origins[2] =
+        transform(tx_origins[2], input_center, scale_i2o, output_center);
+    tx_origins[3] =
+        transform(tx_origins[3], input_center, scale_i2o, output_center);
 
     const vec3 res =
         samples[0] * rect_coverage(px_rect, vec4(tx_origins[0],

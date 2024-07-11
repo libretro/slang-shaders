@@ -116,15 +116,6 @@ vec2 transform(vec2 x, vec2 input_center, vec2 scale, vec2 output_center) {
     return (x - input_center) * scale + output_center;
 }
 
-// From unit output to pixel input space.
-// coord_in_input_space = o2i(coord_in_output_space)
-// This is used to sample from the input texture in the output pass.
-// Version where scale and input center are passed in.
-// vec2 o2i(vec2 x, vec2 scale, vec2 input_center) {
-//     return (x - 0.5) * scale + input_center;
-// }
-
-// Version that computes scale and input center.
 vec2 o2i(vec2 x, vec2 input_size, vec2 output_size, vec4 crop, vec2 shift,
          uint rotation, float center_after_cropping, float force_aspect_ratio,
          vec2 aspect, vec2 force_integer_scaling, float overscale,
@@ -138,13 +129,6 @@ vec2 o2i(vec2 x, vec2 input_size, vec2 output_size, vec4 crop, vec2 shift,
                                       shift, rotation, center_after_cropping));
 }
 
-// From pixel input to unit output space.
-// Version where scale and input center are passed in.
-// vec2 i2o(vec2 x, vec2 scale, vec2 input_center) {
-//     return (x - input_center) / scale + 0.5;
-// }
-
-// Version that computes scale and input center.
 vec2 i2o(vec2 x, vec2 input_size, vec2 output_size, vec4 crop, vec2 shift,
          uint rotation, float center_after_cropping, float force_aspect_ratio,
          vec2 aspect, vec2 force_integer_scaling, float overscale,
