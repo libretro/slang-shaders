@@ -59,8 +59,7 @@ void main() {
         param.CENTER_AFTER_CROPPING, param.FORCE_ASPECT_RATIO,
         vec2(param.ASPECT_H, param.ASPECT_V),
         vec2(param.FORCE_INTEGER_SCALING_H, param.FORCE_INTEGER_SCALING_V),
-        param.OVERSCALE,
-        /* output_size_is_final_viewport_size = */ false);
+        param.OVERSCALE);
     const vec2 shift = vec2(param.SHIFT_H, param.SHIFT_V);
     const vec2 input_center = get_input_center(
         param.SourceSize.xy, param.OutputSize.xy, scale_i2o, crop, shift,
