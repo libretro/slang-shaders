@@ -98,7 +98,7 @@ vec2 Warp(vec2 coord)
 void main()
 {
 vec3 res = vec3(0.0);
-vec2 dx = vec2(SourceSize.z*0.35,0.0); //sharpness
+vec2 dx = vec2(SourceSize.z*0.5,0.0); //sharpness
 vec2 pos, corn;
 if(CURV == 1.0){
  pos = Warp(vTexCoord);
@@ -115,12 +115,12 @@ vec2 f = pos*SourceSize.xy - near;
 xy.y = (near.y + 16.0*f.y*f.y*f.y*f.y*f.y)*SourceSize.w;    
 
 //kaizer precalculated
-res += texture(Source,xy).rgb*-0.6052;
-res += texture(Source,xy+2.0*dx).rgb*0.6052;
-res += texture(Source,xy+3.0*dx).rgb*0.96356;
-res += texture(Source,xy+4.0*dx).rgb*0.92896;
+res += texture(Source,xy-dx).rgb*-1.6;
+res += texture(Source,xy).rgb*3.3;
+res += texture(Source,xy+dx).rgb*5.6;
+res += texture(Source,xy+2.0*dx).rgb*-1.5;
     
-res /= 1.8925;
+res /= 5.8;
     float a = dot(vec3(0.2),res);
     float s = mix(scanlines,scanlines*0.5,a);
 
