@@ -5,7 +5,7 @@ layout(push_constant) uniform Push
     float GLOW_ENABLE;
     float GLOW_RADIUS;
     float GLOW_STRENGTH;
-    float BEAM_PROFILE;
+    float PRESET_OPTION;
     float DISPLAY_RES;
     float PHOSPHOR_LAYOUT;
     float MASK_STRENGTH;
@@ -41,23 +41,23 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter GLOW_STRENGTH "Glow Strength" 0.15 0.0 1.0 0.01
 #pragma parameter GLOW_ENABLE "Enable Glow" 1.0 0.0 1.0 1.0
 
-#pragma parameter DISPLAY_RES "PRESET TARGET RESOLUTION [1080p | 4k]" 0.0 0.0 1.0 1.0
-#pragma parameter BEAM_PROFILE "PRESET [0=CUSTOM, 1=APERTURE, 2=SLOT, 3=SHADOW, 4=TRINITRON]" 0.0 0.0 4.0 1.0
-#pragma parameter PHOSPHOR_LAYOUT "    [CUSTOM] MASK [1-6 Aperture, 7-10 Shadow, 11-14 Slot]" 1.0 0.0 15.0 1.0
-#pragma parameter MASK_STRENGTH "    [CUSTOM] MASK STRENGTH" 0.0 0.0 1.0 0.01
-#pragma parameter MONITOR_SUBPIXELS "MONITOR SUBPIXELS LAYOUT [RGB | BGR]" 0.0 0.0 1.0 1.0
-#pragma parameter VSCANLINES "VERTICAL SCANLINES [ OFF | ON ]" 0.0 0.0 1.0 1.0
+#pragma parameter DISPLAY_RES "(IF PRESET > 0) TARGET RESOLUTION [ 1080p | 4k ]" 0.0 0.0 1.0 1.0
+#pragma parameter PRESET_OPTION "PRESET [0=Custom, Aperture1, Aperture2, Slot1, Slot2, Shadow]" 0.0 0.0 5.0 1.0
+#pragma parameter PHOSPHOR_LAYOUT "      MASK [1..6 Aperture, 7..10 Shadow, 11..14 Slot]" 1.0 0.0 15.0 1.0
+#pragma parameter MASK_STRENGTH "      MASK STRENGTH" 0.0 0.0 1.0 0.02
+#pragma parameter MONITOR_SUBPIXELS "MONITOR SUBPIXELS LAYOUT [ RGB | BGR ]" 0.0 0.0 1.0 1.0
+#pragma parameter VSCANLINES "VERTICAL SCANLINES [ Off | On ]" 0.0 0.0 1.0 1.0
 
 #pragma parameter geom_curvature "Geom Curvature Toggle" 0.0 0.0 1.0 1.0
-#pragma parameter geom_R "Geom Curvature Radius" 2.0 0.1 10.0 0.1
+#pragma parameter geom_R "Geom Curvature Radius" 2.0 0.3 10.0 0.1
 #pragma parameter geom_d "Geom Distance" 1.5 0.1 3.0 0.1
 #pragma parameter geom_invert_aspect "Geom Curvature Aspect Inversion" 0.0 0.0 1.0 1.0
 #pragma parameter geom_cornersize "Geom Corner Size" 0.006 0.001 1.0 0.005
 #pragma parameter geom_cornersmooth "Geom Corner Smoothness" 400.0 80.0 2000.0 100.0
-#pragma parameter geom_x_tilt "Geom Horizontal Tilt" 0.0 -0.5 0.5 0.05
-#pragma parameter geom_y_tilt "Geom Vertical Tilt" 0.0 -0.5 0.5 0.05
-#pragma parameter geom_center_x "Geom Center X" 0.0 -1.0 1.0 0.01
-#pragma parameter geom_center_y "Geom Center Y" 0.0 -1.0 1.0 0.01
+#pragma parameter geom_x_tilt "Geom Horizontal Tilt" 0.0 -0.5 0.5 0.01
+#pragma parameter geom_y_tilt "Geom Vertical Tilt" 0.0 -0.5 0.5 0.01
+#pragma parameter geom_center_x "Geom Center X" 0.0 -1.0 1.0 0.001
+#pragma parameter geom_center_y "Geom Center Y" 0.0 -1.0 1.0 0.001
 #pragma parameter geom_overscan_x "Geom Horiz. Overscan %" 100.0 -125.0 125.0 0.5
 #pragma parameter geom_overscan_y "Geom Vert. Overscan %" 100.0 -125.0 125.0 0.5
 
@@ -101,19 +101,50 @@ vec2 get_beam_profile()
 
     if (DISPLAY_RES < 0.5)
     {
-	if (params.BEAM_PROFILE == 1.0)  bp = vec2( 1.0, 0.00);
-	if (params.BEAM_PROFILE == 2.0)  bp = vec2(11.0, 0.00);
-	if (params.BEAM_PROFILE == 3.0)  bp = vec2( 7.0, 0.00);
-	if (params.BEAM_PROFILE == 4.0)  bp = vec2( 2.0, 0.00);
+	if (params.PRESET_OPTION == 1.0)  bp = vec2( 1.0, 0.00);
+	if (params.PRESET_OPTION == 2.0)  bp = vec2( 2.0, 0.00);
+	if (params.PRESET_OPTION == 3.0)  bp = vec2(11.0, 0.00);
+	if (params.PRESET_OPTION == 4.0)  bp = vec2(11.0, 0.20);
+	if (params.PRESET_OPTION == 5.0)  bp = vec2( 7.0, 0.00);
     } else {
-	if (params.BEAM_PROFILE == 1.0)  bp = vec2( 2.0, 0.00);
-	if (params.BEAM_PROFILE == 2.0)  bp = vec2(14.0, 0.00);
-	if (params.BEAM_PROFILE == 3.0)  bp = vec2( 9.0, 0.00);
-	if (params.BEAM_PROFILE == 4.0)  bp = vec2( 4.0, 0.00);
+	if (params.PRESET_OPTION == 1.0)  bp = vec2( 2.0, 0.00);
+	if (params.PRESET_OPTION == 2.0)  bp = vec2( 4.0, 0.00);
+	if (params.PRESET_OPTION == 3.0)  bp = vec2(14.0, 0.00);
+	if (params.PRESET_OPTION == 4.0)  bp = vec2(14.0, 0.20);
+	if (params.PRESET_OPTION == 5.0)  bp = vec2( 9.0, 0.00);
      }
 
 	return bp;
 }
+
+
+/*
+    Geom code - a modified Geom code without CRT features made to provide
+    curvature/warping/oversampling features.
+
+    Adapted by Hyllian (2024).
+*/
+
+/*
+    Copyright (C) 2010-2012 cgwg, Themaister and DOLLS
+
+    This program is free software; you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by the Free
+    Software Foundation; either version 2 of the License, or (at your option)
+    any later version.
+
+    (cgwg gave their consent to have the original version of this shader
+    distributed under the GPL in this message:
+
+    http://board.byuu.org/viewtopic.php?p=26075#p26075
+
+    "Feel free to distribute my shaders under the GPL. After all, the
+    barrel distortion code was taken from the Curvature shader, which is
+    under the GPL."
+    )
+    This shader variant is pre-configured with screen curvature
+*/
+
 
 float intersect(vec2 xy)
 {

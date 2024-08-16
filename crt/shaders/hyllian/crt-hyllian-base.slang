@@ -30,7 +30,7 @@ layout(push_constant) uniform Push
     vec4 OutputSize;
     vec4 OriginalSize;
     vec4 SourceSize;
-    float BEAM_PROFILE;
+    float PRESET_OPTION;
     float BEAM_MIN_WIDTH;
     float BEAM_MAX_WIDTH;
     float SCANLINES_STRENGTH;
@@ -51,21 +51,22 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 
 #pragma parameter H_OUTPUT_GAMMA "OUTPUT GAMMA" 2.2 1.0 3.0 0.05
-#pragma parameter DISPLAY_RES "PRESET TARGET RESOLUTION [1080p | 4k]" 0.0 0.0 1.0 1.0
-#pragma parameter BEAM_PROFILE "PRESET [0=CUSTOM, 1=APERTURE, 2=SLOT, 3=SHADOW, 4=TRINITRON]" 0.0 0.0 4.0 1.0
-#pragma parameter BEAM_MIN_WIDTH "    [CUSTOM] MIN BEAM WIDTH" 0.86 0.0 1.0 0.01
-#pragma parameter BEAM_MAX_WIDTH "    [CUSTOM] MAX BEAM WIDTH" 1.0 0.0 1.0 0.01
-#pragma parameter SCANLINES_STRENGTH "    [CUSTOM] SCANLINES STRENGTH" 0.72 0.0 1.0 0.01
-#pragma parameter SCANLINES_SHAPE "    [CUSTOM] SCANLINES SHAPE [SHARP | SOFT]" 1.0 0.0 1.0 1.0
-#pragma parameter PHOSPHOR_LAYOUT "    [CUSTOM] MASK [1-6 Aperture, 7-10 Shadow, 11-14 Slot]" 1.0 0.0 15.0 1.0
-#pragma parameter MASK_STRENGTH "    [CUSTOM] MASK STRENGTH" 0.0 0.0 1.0 0.01
-#pragma parameter BRIGHTBOOST "BRIGHTBOOST" 1.0 1.0 5.0 0.05
-#pragma parameter MONITOR_SUBPIXELS "MONITOR SUBPIXELS LAYOUT [RGB | BGR]" 0.0 0.0 1.0 1.0
-#pragma parameter SCANLINES_CUTOFF "SCANLINES CUTOFF" 400.0 0.0 1000.0 1.0
+#pragma parameter DISPLAY_RES "(IF PRESET > 0) TARGET RESOLUTION [ 1080p | 4k ]" 0.0 0.0 1.0 1.0
+#pragma parameter PRESET_OPTION "PRESET [0=Custom, Aperture1, Aperture2, Slot1, Slot2, Shadow]" 0.0 0.0 5.0 1.0
+#pragma parameter CUSTOM_OPTIONS "[Custom Settings]" 0.0 0.0 1.0 1.0
+#pragma parameter BEAM_MIN_WIDTH "      MIN BEAM WIDTH" 0.86 0.0 1.0 0.01
+#pragma parameter BEAM_MAX_WIDTH "      MAX BEAM WIDTH" 1.0 0.0 1.0 0.01
+#pragma parameter SCANLINES_STRENGTH "      SCANLINES STRENGTH" 0.72 0.0 1.0 0.01
+#pragma parameter SCANLINES_SHAPE "      SCANLINES SHAPE [ Sharp | Soft ]" 1.0 0.0 1.0 1.0
+#pragma parameter PHOSPHOR_LAYOUT "      MASK [1..6 Aperture, 7..10 Shadow, 11..14 Slot]" 1.0 0.0 15.0 1.0
+#pragma parameter MASK_STRENGTH "      MASK STRENGTH" 0.0 0.0 1.0 0.02
+#pragma parameter BRIGHTBOOST "BRIGHTBOOST" 1.0 1.0 2.0 0.01
+#pragma parameter MONITOR_SUBPIXELS "MONITOR SUBPIXELS LAYOUT [ RGB | BGR ]" 0.0 0.0 1.0 1.0
+#pragma parameter SCANLINES_CUTOFF "SCANLINES CUTOFF" 400.0 0.0 1000.0 2.0
 #pragma parameter SCANLINES_HIRES "HIGH RESOLUTION SCANLINES" 0.0 0.0 1.0 1.0
-#pragma parameter IR_SCALE "INTERNAL RESOLUTION SCALE (downsampling)" 1.0 1.0 10.0 1.0
-#pragma parameter VSCANLINES "VERTICAL SCANLINES [ OFF | ON ]" 0.0 0.0 1.0 1.0
-#pragma parameter SHARPNESS_HACK "SHARPNESS_HACK" 1.0 1.0 4.0 1.0
+#pragma parameter IR_SCALE "INTERNAL RESOLUTION SCALE (Downsampling)" 1.0 1.0 10.0 1.0
+#pragma parameter VSCANLINES "VERTICAL SCANLINES [ Off | On ]" 0.0 0.0 1.0 1.0
+#pragma parameter SHARPNESS_HACK "SHARPNESS HACK" 1.0 1.0 4.0 1.0
 #pragma parameter CRT_ANTI_RINGING "ANTI RINGING" 1.0 0.0 1.0 1.0
 
 #define CRT_ANTI_RINGING params.CRT_ANTI_RINGING
@@ -96,7 +97,8 @@ vec4 get_beam_profile()
 {
 	vec4 bp = vec4(SCANLINES_STRENGTH, BEAM_MIN_WIDTH, BEAM_MAX_WIDTH, SCANLINES_SHAPE);
 
-	if (params.BEAM_PROFILE == 2.0)  bp = vec4(0.58, 0.86, 1.00, 0.0);
+	if (params.PRESET_OPTION == 3.0)  bp = vec4(0.58, 0.86, 1.00, 0.0);
+	if (params.PRESET_OPTION == 4.0)  bp = vec4(0.58, 0.86, 1.00, 1.0);
 
 	return bp;
 }
