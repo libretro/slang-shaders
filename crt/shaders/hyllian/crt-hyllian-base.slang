@@ -97,8 +97,11 @@ vec4 get_beam_profile()
 {
 	vec4 bp = vec4(SCANLINES_STRENGTH, BEAM_MIN_WIDTH, BEAM_MAX_WIDTH, SCANLINES_SHAPE);
 
+	if (params.PRESET_OPTION == 1.0)  bp = vec4(0.58, 0.86, 1.00, 1.0);
+	if (params.PRESET_OPTION == 2.0)  bp = vec4(0.58, 0.86, 1.00, 1.0);
 	if (params.PRESET_OPTION == 3.0)  bp = vec4(0.58, 0.86, 1.00, 0.0);
-	if (params.PRESET_OPTION == 4.0)  bp = vec4(0.58, 0.86, 1.00, 1.0);
+	if (params.PRESET_OPTION == 4.0)  bp = vec4(0.42, 0.86, 1.00, 1.0);
+	if (params.PRESET_OPTION == 5.0)  bp = vec4(0.58, 0.86, 1.00, 1.0);
 
 	return bp;
 }
