@@ -35,7 +35,6 @@ layout(push_constant) uniform Push
     float BEAM_MAX_WIDTH;
     float SCANLINES_STRENGTH;
     float SCANLINES_SHAPE;
-    float BRIGHTBOOST;
     float SHARPNESS_HACK;
     float SCANLINES_CUTOFF;
     float SCANLINES_HIRES;
@@ -60,7 +59,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter SCANLINES_SHAPE "      SCANLINES SHAPE [ Sharp | Soft ]" 1.0 0.0 1.0 1.0
 #pragma parameter PHOSPHOR_LAYOUT "      MASK [1..6 Aperture, 7..10 Shadow, 11..14 Slot]" 1.0 0.0 15.0 1.0
 #pragma parameter MASK_STRENGTH "      MASK STRENGTH" 0.0 0.0 1.0 0.02
-#pragma parameter BRIGHTBOOST "BRIGHTBOOST" 1.0 1.0 2.0 0.01
+#pragma parameter BRIGHTBOOST "BRIGHTBOOST" 1.0 0.5 2.0 0.01
 #pragma parameter MONITOR_SUBPIXELS "MONITOR SUBPIXELS LAYOUT [ RGB | BGR ]" 0.0 0.0 1.0 1.0
 #pragma parameter SCANLINES_CUTOFF "SCANLINES CUTOFF" 400.0 0.0 1000.0 2.0
 #pragma parameter SCANLINES_HIRES "HIGH RESOLUTION SCANLINES" 0.0 0.0 1.0 1.0
@@ -70,7 +69,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter CRT_ANTI_RINGING "ANTI RINGING" 1.0 0.0 1.0 1.0
 
 #define CRT_ANTI_RINGING params.CRT_ANTI_RINGING
-#define BRIGHTBOOST params.BRIGHTBOOST
 #define SHARPNESS_HACK params.SHARPNESS_HACK
 #define SCANLINES_SHAPE params.SCANLINES_SHAPE
 #define SCANLINES_STRENGTH (-0.16*SCANLINES_SHAPE+params.SCANLINES_STRENGTH)
@@ -239,8 +237,6 @@ void main()
     vec3 d1 = scanlines_strength*pos1/(lum1*lum1+0.0000001);
 
     vec3 color  = (draw_scanlines > 0.5) ? get_scanlines(d0, d1, color0, color1, scanlines_shape) : texture(Source, vTexCoord).xyz;
-
-    color *= BRIGHTBOOST;
     
     FragColor = vec4(color, 1.0);
 }

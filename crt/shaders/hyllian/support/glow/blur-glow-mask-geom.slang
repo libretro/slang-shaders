@@ -9,6 +9,7 @@ layout(push_constant) uniform Push
     float DISPLAY_RES;
     float PHOSPHOR_LAYOUT;
     float MASK_STRENGTH;
+    float BRIGHTBOOST;
     float MONITOR_SUBPIXELS;
     float VSCANLINES;
     float H_OUTPUT_GAMMA;
@@ -45,6 +46,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter PRESET_OPTION "PRESET [0=Custom, Aperture1, Aperture2, Slot1, Slot2, Shadow]" 0.0 0.0 5.0 1.0
 #pragma parameter PHOSPHOR_LAYOUT "      MASK [1..6 Aperture, 7..10 Shadow, 11..14 Slot]" 1.0 0.0 15.0 1.0
 #pragma parameter MASK_STRENGTH "      MASK STRENGTH" 0.0 0.0 1.0 0.02
+#pragma parameter BRIGHTBOOST "BRIGHTBOOST" 1.0 0.5 2.0 0.01
 #pragma parameter MONITOR_SUBPIXELS "MONITOR SUBPIXELS LAYOUT [ RGB | BGR ]" 0.0 0.0 1.0 1.0
 #pragma parameter VSCANLINES "VERTICAL SCANLINES [ Off | On ]" 0.0 0.0 1.0 1.0
 
@@ -61,7 +63,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter geom_overscan_x "Geom Horiz. Overscan %" 100.0 -125.0 125.0 0.5
 #pragma parameter geom_overscan_y "Geom Vert. Overscan %" 100.0 -125.0 125.0 0.5
 
-
+#define BRIGHTBOOST params.BRIGHTBOOST
 #define DISPLAY_RES params.DISPLAY_RES
 #define GLOW_ENABLE params.GLOW_ENABLE
 #define GLOW_RADIUS params.GLOW_RADIUS
@@ -552,7 +554,7 @@ void main()
     mask_wgts = (MONITOR_SUBPIXELS > 0.5) ? mask_wgts.bgr : mask_wgts;
 
     // CRT + Bloom + Mask + Curvature
-    vec3 crt = texture(CRTPass, uv).rgb;
+    vec3 crt = BRIGHTBOOST * texture(CRTPass, uv).rgb;
 
     crt += GLOW_STRENGTH * bloom;
 
