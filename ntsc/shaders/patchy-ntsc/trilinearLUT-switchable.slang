@@ -39,7 +39,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	mat4 MVP;
 } global;
 
-#pragma parameter lut_notice "!!NOTICE!! These LUTs (other than sRGB) are a work in progress." 0 0 0 1
 #pragma parameter lut_toggle "Gamut: sRGB, P22-80s, P22-90s, P22-J, Trinitron P22" 0 0 4 1
 #pragma parameter lut_index "Reference White: SMPTE-C (D65) | NTSC-U (C) | NTSC-J (D93)" 1 0 2 1
 //#pragma parameter lut_chroma_adapt "(For Trinitron Only) Chromatic Adaptation to D65" 0 0 1 1
