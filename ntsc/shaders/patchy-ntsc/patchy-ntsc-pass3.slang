@@ -105,16 +105,13 @@ void main()
         float skew;
         if(global.pn_nes_hue_skew < 0.5) {
             // 2C02G
-            skew = (satLevelI + satLevelF) * -5.0 / 180.0 * pi; // -5 degrees
+            skew = -5.0 / 180.0 * pi; // -5 degrees
         } else {
             // 2C02E
-            skew = (satLevelI + satLevelF) * -2.5 / 180.0 * pi; // -2.5 degrees
+            skew = -2.5 / 180.0 * pi; // -2.5 degrees
         }
         
-        // 15 degree rotation was a very close match against real hardware video capture.
-        // It makes sense because it's half of an NES PPU cycle.
-        // The change is done here instead of in the video signal for better precision, due to the video signal sample resolution being the same as the NES PPU cycle rate.
-        tint += -skew - 15.0 / 180.0 * pi;
+        tint += (3.0 - (satLevelI + satLevelF)) * skew;
     }
     
     vec2 bmyRmy = uvDemodPickable(global.pn_demodulator_chroma_filter_type, chroma, phase, tint);
