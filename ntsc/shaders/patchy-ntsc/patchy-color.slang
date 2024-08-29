@@ -53,7 +53,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float pc_color;
     float pc_tint;
     float pc_unused6;
-    float pc_gamma;
+    float pc_gamma_type;
+    float pc_g_CRT_l;
+    float pc_power_gamma;
 } global;
 
 #pragma parameter pc_unused1 "===== Patchy Color Settings =====" 0.0 0.0 0 1
@@ -65,10 +67,10 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter pc_unused3 "== Console settings (Does work with test patterns) ==" 0 0 0 1
 #pragma parameter pc_console "Console: Other | Gen/MD | NES/FC (raw palette)" 0 0 2 1
-#pragma parameter pc_nes_lut "NES: Use real capture (2C02G) | Use formulas" 0 0 1 1
+#pragma parameter pc_nes_lut "NES: Use real capture (probably 2C02G) | Use formulas" 0 0 1 1
 #pragma parameter pc_nes_version "NES PPU formula: 2C02G (NTSC) | 2C02E (NTSC) | PAL" 0 0 2 1
 //#pragma parameter pc_nes_alt_voltages "(Reccomend 0 (off)) NES: Use outdated voltages" 0 0 1 1
-#pragma parameter pc_genesis_needfix "MD emu: BlastEm (accurate) | GenPlusGX (Needs correcting)" 0 0 1 1
+#pragma parameter pc_genesis_needfix "MD emu: BlastEm (Leave as-is) | GenPlusGX (Apply correction)" 0 0 1 1
 
 #pragma parameter pc_unused4 "=== Composite video demodulation controls ===" 0 0 0 1
 #pragma parameter pc_enableComposite "Enable composite demodulator simulation" 1.0 0.0 1.0 1.0
@@ -85,7 +87,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter pc_tint "Tint (Hue Rotation) (Rec. exactly 0.0)" 0 -45 45 0.5
 
 #pragma parameter pc_unused6 "=== Gamma and phosphors ===" 0 0 0 1
-#pragma parameter pc_gamma "Gamma" 2.5 2.3 2.6 0.01
+#pragma parameter pc_gamma_type "Gamma: BT.1886 + Grade black lift fix | BT.1886 | Power | sRGB" 1 0 3 1
+#pragma parameter pc_g_CRT_l        "Black lift fix approximate gamma"                  2.50   2.30  2.60 0.01
+#pragma parameter pc_power_gamma "Power gamma" 2.4 2.2 3.0 0.01
 
 #define pi 3.14159265358
 
@@ -233,22 +237,40 @@ vec3 createNesColorYuv(vec3 c) {
    float skew;
    if(global.pc_nes_version < 0.5) {
       // 2C02G
-      skew = level * -5.0 / 180.0 * pi; // -5 degrees
+      skew = (3 - level) * -5.0 / 180.0 * pi; // -5 degrees
    } else if(global.pc_nes_version < 1.5) {
       // 2C02E
-      skew = level * -2.5 / 180.0 * pi; // -2.5 degrees
+      skew = (3 - level) * -2.5 / 180.0 * pi; // -2.5 degrees
    } else {
       // In PAL, the alternating phase causes this color error to be cancelled out.
       skew = 0.0;
    }
+   
+   // Also from lidnariq's post:
+   float burstLow = (0.148 - black) / (white - black);
+   float burstHigh = (0.524 - black) / (white - black);
+   float burstMid = (burstLow + burstHigh) / 2;
+   vec2 burstUV = vec2(0);
 
    for(int i = 0; i < 12; i++) {
-   
-      resultYiq.y += (signal[i] - resultYiq.x) * sin((i + 3) * pi / 6 - skew);
-      resultYiq.z += (signal[i] - resultYiq.x) * cos((i + 3) * pi / 6 - skew);
+      resultYiq.y += (signal[i] - resultYiq.x) * sin((i + 3) * pi / 6 + skew);
+      resultYiq.z += (signal[i] - resultYiq.x) * cos((i + 3) * pi / 6 + skew);
+      if(i >= 5 && i <= 10) {
+          burstUV.x += (burstHigh - burstMid) * sin(i * pi / 6);
+          burstUV.y += (burstHigh - burstMid) * cos(i * pi / 6);
+      } else {
+          burstUV.x += (burstLow - burstMid) * sin(i * pi / 6);
+          burstUV.y += (burstLow - burstMid) * cos(i * pi / 6);
+      }
    }
    
    resultYiq.yz *= 1.0 / 12.0;
+   burstUV *= 1.0 / 12.0;
+   
+   // 1.1 comes from the NES's white (color 0x20 or 0x30) being at roughly 110 IRE.
+   // 0.2 comes from the standard NTSC colorburst amplitude.
+   // The result is still quite different from my real hardware capture.
+   resultYiq.yz *= (0.2 / 1.1) / sqrt(pow(burstUV.x, 2) + pow(burstUV.y, 2));
 
    return resultYiq;
 }
@@ -573,31 +595,36 @@ vec3 lookupNesColor(vec3 nesFormat) {
 }
 
 vec3 retreiveNesColorYuv(vec3 nesFormat) {
+    mat3 yuvMat;
+    //if(global.pc_nes_lut_newyuv < 0.5) {
+    //    // https://en.wikipedia.org/wiki/Y%E2%80%B2UV as of 27 Jul 2024
+    //    // Standard matrix for BT.470
+    //    yuvMat = mat3x3(
+    //        0.299, -0.14713, 0.615,
+    //        0.587, -0.28886, -0.51499,
+    //        0.114, 0.436, -0.10001
+    //    );
+    //} else {
+        // https://en.wikipedia.org/wiki/Y%E2%80%B2UV as of 27 Jul 2024
+        // Standard matrix for BT.709
+        yuvMat = mat3(0.2126, -0.09991, 0.615,
+                      0.7152, -0.33609, -0.55861,
+                      0.0722, 0.436, -0.05639);
+    //}
+    vec3 colYuv;
     if(global.pc_nes_lut < 0.5) {
         // Lookup table (a.k.a. color palette) is enabled.
-        mat3 yuvMat;
-        //if(global.pc_nes_lut_newyuv < 0.5) {
-        //    // https://en.wikipedia.org/wiki/Y%E2%80%B2UV as of 27 Jul 2024
-        //    // Standard matrix for BT.470
-        //    yuvMat = mat3x3(
-        //        0.299, -0.14713, 0.615,
-        //        0.587, -0.28886, -0.51499,
-        //        0.114, 0.436, -0.10001
-        //    );
-        //} else {
-            // https://en.wikipedia.org/wiki/Y%E2%80%B2UV as of 27 Jul 2024
-            // Standard matrix for BT.709
-            yuvMat = mat3(0.2126, -0.09991, 0.615,
-                          0.7152, -0.33609, -0.55861,
-                          0.0722, 0.436, -0.05639);
-        //}
-        return yuvMat * lookupNesColor(nesFormat);
+        colYuv = yuvMat * lookupNesColor(nesFormat);
     } else {
-        return mat3x3(
-            1, 0, 0, // Compared to my real capture, the computed colors are off by half an NES PPU cycle.
-            0, cos(-15.0 * pi / 180.0), -sin(-15.0 * pi / 180.0),
-            0, sin(-15.0 * pi / 180.0), cos(-15.0 * pi / 180.0)
-        ) * createNesColorYuv(nesFormat);
+        colYuv = createNesColorYuv(nesFormat);
+    }
+    if(global.pc_enableComposite < 0.5) {
+        return mat3( // BT.470 / Rec. 601 YUV to RGB matrix
+    1.0000000, 1.0,  1.0,
+    -0.000000029378826483, -0.396552562713623050, 2.031872510910034000,
+    1.1383928060531616,  -0.5800843834877014,  0.0000000000000000) * colYuv;
+    } else {
+        return colYuv;
     }
 }
 
@@ -866,11 +893,36 @@ float nesMaxRgb() {
    return max(maxRgb, 1.0); // 1.0 is the maximum pure white on the NES.
 }
 
+float EOTF_1886a_default(float color, float brightness, float contrast) {
+    // From Rec. ITU-R BT.1886
+    float Vc = 0.35, // Vc, a1, and a2 are directly from the paper
+          a1 = 2.6,
+          a2 = 3.0,
+          Lw = contrast;
+    
+    float V = color,
+          b = brightness, // The paper recommends about either 0 or 0.1.
+          k = Lw / pow(1.0 + b, a1);
+    
+    if(V < Vc) {
+        return k * pow(Vc + b, a1 - a2) * pow(V + b, a2);
+    } else {
+        return k * pow(V + b, a1);
+    }
+}
+ 
+vec3 EOTF_1886a_default_f3(vec3 color, float brightness, float contrast) {
+    color.r = EOTF_1886a_default(color.r, brightness, contrast);
+    color.g = EOTF_1886a_default(color.g, brightness, contrast);
+    color.b = EOTF_1886a_default(color.b, brightness, contrast);
+    return color;
+}
+
 // CRT EOTF Function
 // Taken from Grade
 //----------------------------------------------------------------------
 
-#define CRT_l           -(100000.*log((72981.-500000./(3.*max(2.3,global.pc_gamma)))/9058.))/945461.
+#define CRT_l           -(100000.*log((72981.-500000./(3.*max(2.3,global.pc_g_CRT_l)))/9058.))/945461.
 
 float EOTF_1886a(float color, float bl, float brightness, float contrast) {
 
@@ -1020,6 +1072,9 @@ vec3 testPattern(vec2 pos) {
     }
 }
 
+// For sRGB_to_linear
+#include "../../../include/colorspace-tools.h"
+
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
@@ -1066,7 +1121,7 @@ void main()
         if(global.pc_console < 1.5)
             changedColor = toYuv * changedColor;
             
-        float tint = global.pc_tint * pi / 180.0;
+        float tint = -global.pc_tint * pi / 180.0;
         changedColor.gb *= mat2(
             cos(tint), -sin(tint),
             sin(tint), cos(tint)
@@ -1074,18 +1129,20 @@ void main()
         changedColor.gb *= global.pc_color;
         
         changedColor = toRgb * changedColor;
-//        changedColor *= global.pc_contrast;
-//        changedColor.r += global.pc_brightness / (1 + global.pc_brightness) * global.pc_contrast;
-    } else {
-        // When not simulating Composite video, simulate RGB instead.
-        // Only the Contrast and Brightness knobs work in RGB.
-//        changedColor = (changedColor + global.pc_brightness) / (1 + global.pc_brightness) * global.pc_contrast;
-//        changedColor *= global.pc_contrast;
-        // The setting for 1.0 contrast's behavior doesn't matter in RGB because the white ramp and RGB space are of equal size.
     }
     
-    changedColor = EOTF_1886a_f3(changedColor, CRT_l, global.pc_brightness, global.pc_contrast);
+    if(global.pc_gamma_type < 0.5) {
+        changedColor = EOTF_1886a_f3(changedColor, CRT_l, global.pc_brightness, global.pc_contrast);
+    } else if(global.pc_gamma_type < 1.5) {
+        changedColor = EOTF_1886a_default_f3(changedColor, global.pc_brightness, global.pc_contrast);
+    } else if(global.pc_gamma_type < 2.5) {
+        changedColor = pow((changedColor + global.pc_brightness) / (1 + global.pc_brightness), vec3(global.pc_power_gamma)) * global.pc_contrast;
+    } else {
+        float contr = global.pc_contrast <= 1.001 ? linear_to_sRGB(vec3(global.pc_contrast), 2.4).r : 1.055 * pow(global.pc_contrast, 1.0 / 2.4) - 0.055; // 2.4 instead of 2.2 is not a mistake.
+        changedColor = (changedColor + global.pc_brightness) / (1 + global.pc_brightness) * contr;
+        changedColor = sRGB_to_linear(changedColor, 2.4); // Beware that this function clamps between 0 and 1.
+    }
     
-    FragColor = vec4(changedColor, originalColor.a);
+    FragColor = vec4(clamp(changedColor, 0, 1), originalColor.a);
 }
 
