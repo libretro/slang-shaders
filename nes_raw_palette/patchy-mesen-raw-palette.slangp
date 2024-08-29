@@ -85,12 +85,11 @@ scale_x6 = "1.000000"
 scale_type_y6 = "source"
 scale_y6 = "1.000000"
 pn_knob_contrast = "0.725000"
-pn_knob_saturation = "1.150000"
-pn_knob_tint = "-5.000000"
 pn_rgb_smear_enable = "1.000000"
 pn_width_uncropped = "256.000000"
 pn_height_uncropped = "240.000000"
 pn_nes_enable = "1.000000"
+pn_rgb_smear_rate = "1.15"
 
 textures = "PhosphorSamplerLUT1;PhosphorSamplerLUT2;PhosphorSamplerLUT3;PhosphorSamplerLUT4;PhosphorSamplerLUT5;PhosphorSamplerLUT6"
 
