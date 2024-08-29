@@ -973,5 +973,78 @@ vec3 nesRealCaptureLookup(vec3 yBmyRmy, float saturation) {
                 0.0722, 0.436, -0.05639) * RGB;
 }
 
+//////////////////
+// Inverse EOTF //
+//////////////////
+
+// CRT EOTF function taken from Grade; modified to perform its steps backward.
+#define CRT_l           -(100000.*log((72981.-500000./(3.*max(2.3,global.pn_g_CRT_l)))/9058.))/945461.
+float EOTF_1886a_inverse_max(float bl, float brightness, float contrast) {
+    
+    // Defaults:
+    //  Black Level = 0.1
+    //  Brightness  = 0
+    //  Contrast    = 100
+
+    const float wl = 100.0;
+          float b  = pow(bl, 1./2.4);
+          float a  = pow(wl, 1./2.4)-b;
+//                b  = (brightness-50.) / 250. + b/a;                   // -0.20 to +0.20
+                b  = (brightness * 100.) / 250. + b/a;                   // -0.20 to +0.20
+                //a  = contrast!=50. ? pow(2.,(contrast-50.)/50.) : 1.; //  0.50 to +2.00
+                a = contrast;
+
+    const float Vc = 0.35;                           // Offset
+          float Lw = wl/100. * a;                    // White level
+          float Lb = min( b  * a,Vc);                // Black level
+    const float a1 = 2.6;                            // Shoulder gamma
+    const float a2 = 3.0;                            // Knee gamma
+          float k  = Lw /pow(1. + Lb,    a1);
+          float sl = k * pow(Vc + Lb, a1-a2);        // Slope for knee gamma
+    
+    // What input value results in 1.0?
+    float bc = 0.00446395*pow(bl,1.23486);
+    float color = 1.0;
+    color = pow(color, 1.0 / (1.0-0.00843283*pow(bl,1.22744)));
+    color = color / (1.0 / (1.0 - bc)) + bc;
+    
+    color = pow(color / k, 1.0 / a1) - Lb;
+
+    return color;
+}
+
+float EOTF_1886a_default_inverse_max(float brightness, float contrast) {
+    // From Rec. ITU-R BT.1886
+    float Vc = 0.35, // Vc, a1, and a2 are directly from the paper
+          a1 = 2.6,
+          a2 = 3.0,
+          Lw = contrast;
+    
+    float V = 1.0,
+          b = brightness, // The paper recommends about either 0 or 0.1.
+          k = Lw / pow(1.0 + b, a1);
+    
+    // What value of V gives a result of 1.0?
+//    1.0 = k * pow(V + b, a1)
+//    pow(1.0 / k, 1.0 / a1) - b = V
+
+    return pow(1.0 / k, 1.0 / a1) - b;
+}
+
+float gammaInverseMaxPickable() {
+    if(global.pn_gamma_type < 0.5) {
+        return 1.0 / EOTF_1886a_inverse_max(CRT_l, global.pn_knob_brightness, global.pn_knob_contrast);
+    } else if(global.pn_gamma_type < 1.5) {
+        return 1.0 / EOTF_1886a_default_inverse_max(global.pn_knob_brightness, global.pn_knob_contrast);
+    } else if(global.pn_gamma_type < 2.5) {
+        return pow(global.pn_knob_contrast, 1.0 / global.pn_power_gamma);
+    } else {
+        float contr = 1.055 * pow(global.pn_knob_contrast, 1.0 / 2.4) - 0.055; // 2.4 instead of 2.2 is not a mistake.
+//        rgb = (rgb + global.pn_knob_brightness) / (1 + global.pn_knob_brightness) * contr;
+//        rgb * (1 + global.pn_knob_brightness) / contr - global.pn_knob_brightness = rgb
+        return 1.0 / ((1 + global.pn_knob_brightness) / contr - global.pn_knob_brightness);
+    }
+}
+
 #endif // __patchy_ntsc_inc_filters_inc__
 

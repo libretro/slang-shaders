@@ -146,20 +146,20 @@ void main()
         rgb = min(col, 1);
     }
     
-    rgb /= global.pn_knob_contrast;
+    rgb /= gammaInverseMaxPickable();
+    rgb = rgb * (1.0 + global.pn_knob_brightness) - global.pn_knob_brightness;
     
     if(global.pn_gamma_type < 0.5) {
         FragColor = vec4(EOTF_1886a_f3(rgb, CRT_l, global.pn_knob_brightness, global.pn_knob_contrast), 1.0);
     } else if(global.pn_gamma_type < 1.5) {
         FragColor = vec4(clamp(EOTF_1886a_default_f3(rgb, global.pn_knob_brightness, global.pn_knob_contrast), 0, 1), 1.0);
     } else if(global.pn_gamma_type < 2.5) {
-        rgb = max(rgb * (1.0 - global.pn_knob_brightness) + global.pn_knob_brightness, 0);
+        rgb = max((rgb + global.pn_knob_brightness) / (1.0 + global.pn_knob_brightness), 0);
         rgb *= pow(global.pn_knob_contrast, 1.0 / global.pn_power_gamma);
         FragColor = vec4(pow(min(rgb, vec3(1)), vec3(global.pn_power_gamma)), 1.0);
     } else {
-        // The different values 2.2 and 2.4 are not a mistake.
-        rgb = max(rgb * (1.0 - global.pn_knob_brightness) + global.pn_knob_brightness, 0);
-        rgb *= global.pn_knob_contrast <= 1.0 ? linear_to_sRGB(vec3(global.pn_knob_contrast), 2.4).r : pow(global.pn_knob_contrast, 1.0 / 2.2);
+        float contr = 1.055 * pow(global.pn_knob_contrast, 1.0 / 2.4) - 0.055; // 2.4 instead of 2.2 is not a mistake.
+        rgb = (rgb + global.pn_knob_brightness) / (1 + global.pn_knob_brightness) * contr;
         FragColor = vec4(sRGB_to_linear(rgb, 2.4), 1.0);
     }
 }

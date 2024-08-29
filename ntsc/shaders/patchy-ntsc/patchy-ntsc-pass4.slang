@@ -58,8 +58,10 @@ void main()
     } else {
         rgb = YBmyRmyToRGBMatrix() * vec3(y, rmybmy * global.pn_knob_saturation);
     }
-    rgb *= global.pn_knob_contrast;
-//    rgb += global.pn_knob_brightness; // Brightness will be handled later.
+    
+    rgb = (rgb + global.pn_knob_brightness) / (1 + global.pn_knob_brightness);
+    rgb *= gammaInverseMaxPickable();
+    
     if(global.pn_rgb_smear_enable > 0.5)
         rgb = min(vec3(global.pn_rgb_smear_clamp), rgb);
     
