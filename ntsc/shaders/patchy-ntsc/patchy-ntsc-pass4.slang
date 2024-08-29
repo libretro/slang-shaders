@@ -52,7 +52,12 @@ void main()
     // A slight lowpass on B-Y and R-Y after demodulating
     vec2 rmybmy = lowpassGTU(240).gb;
     
-    vec3 rgb = YBmyRmyToRGBMatrix() * vec3(y, rmybmy * global.pn_knob_saturation);
+    vec3 rgb;
+    if(global.pn_nes_enable > 0.5 && global.pn_nes_real_capture > 0.5) {
+        rgb = nesRealCaptureLookup(vec3(y, rmybmy), global.pn_knob_saturation);
+    } else {
+        rgb = YBmyRmyToRGBMatrix() * vec3(y, rmybmy * global.pn_knob_saturation);
+    }
     rgb *= global.pn_knob_contrast;
 //    rgb += global.pn_knob_brightness; // Brightness will be handled later.
     if(global.pn_rgb_smear_enable > 0.5)

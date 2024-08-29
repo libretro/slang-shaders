@@ -34,6 +34,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
           pn_color_screen_offset,
           pn_nes_enable,
           pn_nes_phase_mod,
+          pn_nes_real_capture,
           pn_nes_hue_skew,
           pn_genesis_palette,
           pn_genesis_jailbar_enable,
@@ -122,7 +123,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter pn_comment_nes_palette "== Note: Use Mesen (not FCEUmm) and change palette to Raw ==" 0 0 0 1
 #pragma parameter pn_nes_enable "Enable NES Raw Palette Mode" 0 0 1 1
 #pragma parameter pn_nes_phase_mod "NES Battletoads / Battletoads Double Dragon Phase Cycle" 0 0 1 1
-#pragma parameter pn_nes_hue_skew "NES colors emulated PPU version: 2C02G | 2C02E" 0 0 1 1
+#pragma parameter pn_nes_real_capture "NES color fix: Hue-skew | Real video capture LUT (unfinished)" 0 0 1 1
+#pragma parameter pn_nes_hue_skew "NES hue-skew PPU version: 2C02G | 2C02E" 0 0 1 1
 
 #pragma parameter pn_comment_genesis_jailbar "=== Genesis Settings ===" 0 0 0 1
 #pragma parameter pn_genesis_palette "Genesis Plus GX color fix (not for BlastEm or other consoles)" 0 0 1 1

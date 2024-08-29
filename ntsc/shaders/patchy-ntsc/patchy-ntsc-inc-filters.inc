@@ -681,6 +681,297 @@ vec2 uvDemodPickable(float type, float chroma, float phase, float tint) {
     }
 }
 
+//////////////////////////////////////////////////
+// NES real hardware video capture lookup table //
+//////////////////////////////////////////////////
+
+
+// The current video capture is of low quality. I am going to redo it soon.
+// The problem is that it is captured at only 25% saturation (and 25% contrast), which is extremely low.
+// The video capture can be done with a much higher saturation. The goal is to undersaturate to avoid clamping over/under 0.0 or 1.0.
+
+vec3 nesRealCaptureLookup(vec3 yBmyRmy, float saturation) {
+    mat3x2 yuvAxisPts = yuvAxisPointsSynced();
+    
+    float xr, yr, xg, yg, xb, yb;
+    xr = yuvAxisPts[0][1] * cos(yuvAxisPts[0][0]);
+    yr = yuvAxisPts[0][1] * sin(yuvAxisPts[0][0]);
+    xg = yuvAxisPts[1][1] * cos(yuvAxisPts[1][0]);
+    yg = yuvAxisPts[1][1] * sin(yuvAxisPts[1][0]);
+    xb = yuvAxisPts[2][1] * cos(yuvAxisPts[2][0]);
+    yb = yuvAxisPts[2][1] * sin(yuvAxisPts[2][0]);
+    
+    // YUV to Y B-Y R-Y matrix
+    mat3 toYBmyRmy = mat3(1, 0, 0,
+                          0, xb, xr,
+                          0, yb, yr);
+    
+    // YUV to RGB matrix
+    mat3 toRgb = mat3(1,  1,  1,
+                      xr, xg, xb,
+                      yr, yg, yb);
+
+    vec3 YIQ = mat3(1, 0, 0, // 30 instead of 33 is not a mistake. The hue offsets below were based on GTU-famicom's output, which has its YIQ off by exactly 3 degrees.
+                    0, -sin(30.0 * pi / 180.0), cos(30.0 * pi / 180.0),
+                    0, cos(30.0 * pi / 180.0), sin(30.0 * pi / 180.0)) *
+               inverse(toYBmyRmy) * yBmyRmy;
+
+    // Grays. I only approximated the three grays in the 00-column and put pure black for 1d. I'll probably get the remaining ones from the 0d column sometime later.
+    float unsaturatedLevels[4] = {0.0, (0.616 - 0.312) / (1.100 - 0.312), (0.840 - 0.312) / (1.100 - 0.312), 1.0}; // Calculated from DAC.slang 
+    // The two equivalent whites 20 and 30 are only one white in this.
+    float whiteRed[] = {0, 0.26171875, 0.41796875, 0.62109375, };
+    float whiteGreen[] = {0, 0.19921875, 0.3984375, 0.5, };
+    float whiteBlue[] = {0, 0.3203125, 0.5390625, 0.7421875, };
+    
+    // Colors that aren't gray, i.e. x1 thru xC for x = 0, 1, 2, 3
+    float levelSats[4] = {sqrt((16 + 9) / 255.0), sqrt((3 * 16) / 255.0), sqrt((3 * 16 + 2) / 255.0), sqrt(9.0 / 255.0)}; // Distance of cartesian point (I, Q) from origin (0, 0). Screenshotted from shader test output.
+    float saturatedLevels[4] = {((0.228 + 0.616) / 2. - 0.312) / (1.100 - 0.312), ((0.312 + 0.840) / 2. - 0.312) / (1.100 - 0.312), ((0.552 + 1.100) / 2. - 0.312) / (1.100 - 0.312), ((0.880 + 1.100) / 2. - 0.312) / (1.100 - 0.312)}; // Calculated from DAC.slang
+    float levelHues[12] = {0.2890625, 0.3672419921875, 0.4453125, 0.53125, 0.609375, 0.69140625, 0.76953125, 0.890625, 0.96875, 0.0546875, 0.1328125, 0.20703125}; // Screenshotted from shader test output
+    float level0Red[] = {0.06640625, 0.11328125, 0.16015625, 0.30078125, 0.3203125, 0.33203125, 0.26171875, 0.12890625, 0.0, 0.0, 0.0, 0.05078125, };
+    float level0Green[] = {0.0546875, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.046875, 0.08203125, 0.109375, 0.08984375, 0.04296875, };
+    float level0Blue[] = {0.45703125, 0.5, 0.44140625, 0.328125, 0.0703125, 0.0, 0.0, 0.0, 0.0, 0.0, 0.12109375, 0.328125, };
+    float level1Red[] = {0.1640625, 0.16796875, 0.3359375, 0.4453125, 0.5078125, 0.5, 0.4609375, 0.37109375, 0.125, 0.0, 0.0, 0.08203125, };
+    float level1Green[] = {0.09375, 0.08203125, 0.0, 0.0, 0.08203125, 0.08984375, 0.14453125, 0.2265625, 0.265625, 0.2890625, 0.2734375, 0.27734375, };
+    float level1Blue[] = {0.69921875, 0.76953125, 0.7265625, 0.5859375, 0.328125, 0.0, 0.0, 0.0, 0.0, 0.0, 0.22265625, 0.51171875, };
+    float level2Red[] = {0.1328125, 0.265625, 0.3984375, 0.5234375, 0.56640625, 0.625, 0.55859375, 0.52734375, 0.359375, 0.21875, 0.0, 0.125, };
+    float level2Green[] = {0.41015625, 0.26953125, 0.1953125, 0.203125, 0.19921875, 0.28125, 0.328125, 0.3828125, 0.37890625, 0.44140625, 0.4296875, 0.47265625, };
+    float level2Blue[] = {0.80859375, 0.73046875, 0.6953125, 0.70703125, 0.58203125, 0.3359375, 0.07421875, 0.0, 0.0, 0.1484375, 0.3984375, 0.63671875, };
+    float level3Red[] = {0.46875, 0.50390625, 0.5390625, 0.59765625, 0.6328125, 0.57421875, 0.609375, 0.58203125, 0.51953125, 0.4375, 0.41796875, 0.390625, };
+    float level3Green[] = {0.51953125, 0.48046875, 0.48046875, 0.4765625, 0.4765625, 0.4375, 0.49609375, 0.48828125, 0.48828125, 0.4765625, 0.4765625, 0.4765625, };
+    float level3Blue[] = {0.796875, 0.78125, 0.76953125, 0.8046875, 0.7265625, 0.56640625, 0.5390625, 0.4765625, 0.48046875, 0.52734375, 0.56640625, 0.6015625, };
+    
+    // The saturation amounts were screenshotted from GTU-famicom, which does not properly bandpass the chroma signal.
+    // That results in GTU-famicom's chroma being oversaturated, due to the NES's chroma signal being a square wave instead of a sinusoid.
+    // Those incorrect saturation amounts can be fixed by just calculating them properly.
+    float lowLevels[4] = {(0.228 - 0.312) / (1.100 - 0.312), 0.0, (0.522 - 0.312) / (1.1 - 0.312), (0.880 - 0.312) / (1.1 - 0.312)};
+    float highLevels[4] = {(0.616 - 0.312) / (1.1 - 0.312), (0.84 - 0.312) / (1.1 - 0.312), 1.0, 1.0};
+    for(int i = 0; i < 4; i++) {
+        float amplitude = (highLevels[i] - lowLevels[i]) / 2;
+        levelSats[i] = 0.0;
+        for(int j = 0; j < 12; j++) {
+            levelSats[i] += 2 * amplitude * pow(sin(j / 12.0 * pi / 2.0), 2.0) / 12.0; // Use a sine wave instead of a square wave, to roughly simulate bandpassing. Result is a slight underestimate.
+        }
+    }
+    
+    // Screw all that. Replace that entire eyeballed palette with a direct video capture of the NES's composite video.
+    // I originally wrote this code months ago, so pardon the mess. I've carefully looked through this
+    // horrible mess of code and made sure it works. The only problem is that emphasis bits aren't implemented.
+    // I do not know how I would implement emphasis bits into this lookup, but the result is already close enough for me.
+    
+    float pal[192] = {
+        0.478321,   0.478585,   0.478334, 
+        0.366470,   0.403287,   0.500952, 
+        0.400869,   0.390277,   0.509457, 
+        0.429738,   0.383858,   0.496003, 
+        0.461984,   0.383553,   0.462478, 
+        0.464060,   0.381734,   0.399996, 
+        0.456407,   0.392188,   0.335543, 
+        0.429468,   0.403545,   0.299086, 
+        0.404554,   0.416319,   0.288624, 
+        0.360529,   0.423274,   0.301706, 
+        0.335662,   0.426387,   0.352844, 
+        0.330750,   0.423530,   0.401436, 
+        0.341014,   0.418906,   0.454200, 
+        0.364416,   0.364810,   0.364445, 
+        0.368611,   0.369176,   0.368467, 
+        0.368611,   0.369176,   0.368467, 
+        0.558871,   0.559355,   0.558862, 
+        0.397998,   0.459932,   0.570550, 
+        0.445642,   0.440000,   0.594072, 
+        0.486899,   0.428728,   0.585057, 
+        0.527970,   0.429614,   0.550925, 
+        0.537326,   0.425318,   0.467786, 
+        0.530366,   0.436656,   0.377826, 
+        0.502618,   0.451730,   0.328883, 
+        0.470762,   0.468125,   0.308494, 
+        0.410478,   0.479321,   0.318534, 
+        0.372913,   0.485220,   0.374387, 
+        0.361928,   0.482245,   0.437718, 
+        0.366940,   0.480164,   0.507869, 
+        0.368611,   0.369176,   0.368467, 
+        0.368611,   0.369176,   0.368467, 
+        0.368611,   0.369176,   0.368467, 
+        0.648117,   0.648838,   0.648073, 
+        0.479182,   0.551627,   0.647106, 
+        0.520994,   0.532234,   0.681346, 
+        0.562577,   0.519448,   0.680616, 
+        0.602906,   0.518809,   0.653828, 
+        0.624149,   0.510424,   0.573186, 
+        0.621879,   0.523408,   0.486425, 
+        0.598359,   0.535614,   0.428962, 
+        0.570986,   0.553840,   0.400425, 
+        0.512108,   0.564480,   0.401383, 
+        0.471310,   0.572906,   0.444626, 
+        0.450232,   0.571801,   0.509053, 
+        0.455226,   0.571961,   0.579762, 
+        0.454777,   0.455136,   0.454750, 
+        0.368611,   0.369176,   0.368467, 
+        0.368611,   0.369176,   0.368467, 
+        0.648117,   0.648838,   0.648073, 
+        0.581149,   0.612569,   0.642884, 
+        0.592490,   0.605032,   0.665907, 
+        0.610979,   0.600103,   0.666567, 
+        0.630066,   0.598694,   0.649834, 
+        0.636469,   0.596019,   0.623470, 
+        0.641093,   0.600434,   0.590489, 
+        0.627745,   0.604366,   0.564505, 
+        0.619065,   0.613878,   0.551681, 
+        0.592630,   0.617272,   0.548023, 
+        0.580770,   0.619989,   0.564797, 
+        0.571081,   0.620166,   0.590528, 
+        0.568069,   0.622819,   0.618941, 
+        0.568471,   0.569152,   0.568223,
+        0.368611,   0.369176,   0.368467, 
+        0.368611,   0.369176,   0.368467
+    };
+        
+#define OVERWRITE_COLOR(pal_offset, array_offset, arrays) \
+    arrays##Red[array_offset] = (pal[(pal_offset) * 3] - 0.368467) / (0.648117 - 0.368467); \
+    arrays##Green[array_offset] = (pal[(pal_offset) * 3 + 1] - 0.368467) / (0.648117 - 0.368467); \
+    arrays##Blue[array_offset] = (pal[(pal_offset) * 3 + 2] - 0.368467) / (0.648117 - 0.368467);
+
+#define OVERWRITE_ROW(rowNumber) \
+    for(int i = 1; i <= 12; i++) { \
+        OVERWRITE_COLOR(i + (rowNumber) * 16, (i-1) % 12, level##rowNumber); \
+    }
+
+#define OVERWRITE_PALETTE  \
+    OVERWRITE_ROW(0); \
+    OVERWRITE_ROW(1); \
+    OVERWRITE_ROW(2); \
+    OVERWRITE_ROW(3); \
+    OVERWRITE_COLOR(30, 0, white); \
+    OVERWRITE_COLOR(0, 1, white); \
+    OVERWRITE_COLOR(16, 2, white); \
+    OVERWRITE_COLOR(48, 3, white);
+    
+    OVERWRITE_PALETTE;
+    
+    int unsatLevelI = -1; // Integer part. Can be 0, 1, or 2. If the level is 3 or higher, it is represented as 2 with a fractional part greater than 1.
+    float unsatLevelF; // Fractional part. If I=0, -1<F<1. If I=1, 0<F<1. If I=2, 0<F<2.
+    do {
+        if(unsatLevelI == -1)
+            unsatLevelI = 0;
+        else
+            unsatLevelI++; // This if-statement is stupid, but my stupid computer requires me to do this...
+        float unsatYRemaining = YIQ.r - unsaturatedLevels[unsatLevelI];
+        unsatLevelF = unsatYRemaining / (unsaturatedLevels[unsatLevelI + 1] - unsaturatedLevels[unsatLevelI]);
+    } while(unsatLevelI < 3 && unsatLevelF > 1.0);
+
+    // Note that the color does not cap at 0 and 1; it can be negative or greater than 1 too.
+    vec3 unsaturatedColor = vec3(whiteRed[unsatLevelI], whiteGreen[unsatLevelI], whiteBlue[unsatLevelI]) * (1 - unsatLevelF) +
+                            unsatLevelF * vec3(whiteRed[unsatLevelI + 1], whiteGreen[unsatLevelI + 1], whiteBlue[unsatLevelI + 1]);
+
+    int satLevelI = -1; // Integer part. Can be 0, 1, or 2. If the level is 3 or higher, it is represented as 2 with a fractional part greater than 1.
+    float satLevelF; // Fractional part. If I=0, -1<F<1. If I=1, 0<F<1. If I=2, 0<F<2.
+    do {
+        if(satLevelI < 0)
+            satLevelI = 0;
+        else
+            satLevelI++;
+        float satYRemaining = YIQ.r - saturatedLevels[satLevelI];
+        satLevelF = satYRemaining / (saturatedLevels[satLevelI + 1] - saturatedLevels[satLevelI]);
+    } while(satLevelI < 2 && satLevelF > 1.0);
+    
+    float hue = atan(YIQ.g, YIQ.b) / 2 / pi + 0.5;
+    int floorI = -1; // Hue integer that's less than hue.
+    int ceilI = 0; // Hue integer that's greater than hue.
+    float partI; // Fractional part of hue.
+    
+    // Performed a linear regression on screenshotted test output.
+    // As long as the preset's settings are all nearest-neighbor at 8x horizontal resolution,
+    // this is the same for all setups.
+    float hueFitted = (hue - 0.0418747) / 0.0826453 + 12.0 - 3.0;
+    floorI = int(floor(hueFitted) + 0.5);
+    ceilI = floorI + 1;
+    partI = hueFitted - floorI;
+    while(floorI >= 12)
+        floorI -= 12;
+    while(ceilI >= 12)
+        ceilI -= 12;
+    
+    // Old code using an array of screenshotted values.
+//    do {
+//        floorI++;
+//        ceilI = (floorI + 1) % 12;
+//        float floorH = levelHues[floorI];
+//        float ceilH = levelHues[ceilI];
+//        if(floorH < ceilH) {
+//            partI = (hue - floorH) / (ceilH - floorH);
+//        } else if(hue <= ceilH) {
+//            partI = (hue + 1 - floorH) / (ceilH + 1 - floorH);
+//        } else if(hue >= floorH) {
+//            partI = (hue - floorH) / (ceilH + 1 - floorH);
+//        } else { // hue >= ceilH && hue <= floorH
+//            continue;
+//        }
+//    } while(floorI < 12 && (partI >= 1.0 || partI < 0.0));
+
+    vec3 floorLow, ceilLow, floorHigh, ceilHigh;
+    switch(satLevelI) {
+    case 0:
+        floorLow = vec3(level0Red[floorI], level0Green[floorI], level0Blue[floorI]);
+        ceilLow = vec3(level0Red[ceilI], level0Green[ceilI], level0Blue[ceilI]);
+        floorHigh = vec3(level1Red[floorI], level1Green[floorI], level1Blue[floorI]);
+        ceilHigh = vec3(level1Red[ceilI], level1Green[ceilI], level1Blue[ceilI]);
+
+//        vec3 floorDiff = floorHigh - floorLow;
+//        vec3 ceilDiff = ceilHigh - ceilLow;
+//        while(satLevelF < 0) {
+//            satLevelF++;
+//            floorLow -= floorDiff;
+//            floorHigh -= floorDiff;
+//            ceilLow -= ceilDiff;
+//            ceilHigh -= ceilDiff;
+//        }
+        break;
+    case 1:
+        floorLow = vec3(level1Red[floorI], level1Green[floorI], level1Blue[floorI]);
+        ceilLow = vec3(level1Red[ceilI], level1Green[ceilI], level1Blue[ceilI]);
+        floorHigh = vec3(level2Red[floorI], level2Green[floorI], level2Blue[floorI]);
+        ceilHigh = vec3(level2Red[ceilI], level2Green[ceilI], level2Blue[ceilI]);
+        break;
+    case 2:
+        floorLow = vec3(level2Red[floorI], level2Green[floorI], level2Blue[floorI]);
+        ceilLow = vec3(level2Red[ceilI], level2Green[ceilI], level2Blue[ceilI]);
+        floorHigh = vec3(level3Red[floorI], level3Green[floorI], level3Blue[floorI]);
+        ceilHigh = vec3(level3Red[ceilI], level3Green[ceilI], level3Blue[ceilI]);
+        
+        break;
+    }
+    
+    // I've since learned that each of these calculations can easily be replaced with mix().
+    vec3 saturatedLow = floorLow + partI * (ceilLow - floorLow);
+    vec3 saturatedHigh = floorHigh + partI * (ceilHigh - floorHigh);
+    
+    vec3 saturatedColor;
+    float expectedSaturationRaw;
+    
+    if(satLevelI == 0 && satLevelF < 0.0) {
+        // For some palettes, it might be better to use the normal "else" clause instead of this special case.
+        expectedSaturationRaw = levelSats[0];
+        saturatedColor = saturatedLow + (YIQ.r - saturatedLevels[0]) / (unsaturatedLevels[1] - unsaturatedLevels[0]) * (vec3(whiteRed[1] - whiteRed[0], whiteGreen[1] - whiteGreen[0], whiteBlue[1] - whiteBlue[0]));
+    } else if(satLevelI == 2 && satLevelF > 1.0) {
+        expectedSaturationRaw = levelSats[3];
+        saturatedColor = saturatedHigh + (YIQ.r - saturatedLevels[3]) / (unsaturatedLevels[3] - unsaturatedLevels[2]) * (vec3(whiteRed[3] - whiteRed[2], whiteGreen[3] - whiteGreen[2], whiteBlue[3] - whiteBlue[2]));
+    } else {
+        saturatedColor = saturatedLow + satLevelF * (saturatedHigh - saturatedLow); // saturatedLow * (1 - satLevelF) + saturatedHigh * satLevelF;
+        expectedSaturationRaw = levelSats[satLevelI] + satLevelF * (levelSats[satLevelI + 1] - levelSats[satLevelI]);
+    }
+    
+    float saturationRaw = sqrt(YIQ.g * YIQ.g + YIQ.b * YIQ.b);
+    float saturationNorm = saturationRaw / expectedSaturationRaw;
+    //RGB = vec3(saturationNorm);
+    vec3 RGB = unsaturatedColor + saturationNorm * (saturatedColor - unsaturatedColor);
+    
+    return toRgb *
+           mat3(1, 0, 0,
+                0, saturation, 0,
+                0, 0, saturation) *
+           mat3(0.2126, -0.09991, 0.615, // Rec. 709 YUV matrix.
+                0.7152, -0.33609, -0.55861, // My video capture used Rec. 709.
+                0.0722, 0.436, -0.05639) * RGB;
+}
 
 #endif // __patchy_ntsc_inc_filters_inc__
 

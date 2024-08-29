@@ -72,20 +72,19 @@ void main()
     
     if(global.pn_nes_enable < 0.5) {
         luma *= global.pn_color_amplitude; // Correction by the color carrier amplitude
-    } else {
+    }
+    
+    float tint = global.pn_knob_tint * pi / 180.0;
+    
+    if(global.pn_nes_enable > 0.5 && global.pn_nes_real_capture < 0.5) {
         // From lidnariq's measurements at http://forums.nesdev.org/viewtopic.php?p=159266#p159266
         // 30 = colorburst max
         // -23 = colorburst min
         // 110 = white
         // 0 = black
         float nesAmp = (30.0 - -23.0) / 2.0 / (110.0 - 0.0);
-        float stdAmp = 0.2; // Standard colorburst amplitude in NTSC
+        float stdAmp = 0.2 * 100.0 / 110.0; // Standard colorburst amplitude in NTSC
         chroma *= stdAmp / nesAmp;
-    }
-    
-    float tint = global.pn_knob_tint * pi / 180.0;
-    
-    if(global.pn_nes_enable > 0.5) {
         float saturatedLevels[4] = {((0.228 + 0.616) / 2. - 0.312) / (1.100 - 0.312), ((0.312 + 0.840) / 2. - 0.312) / (1.100 - 0.312), ((0.552 + 1.100) / 2. - 0.312) / (1.100 - 0.312), ((0.880 + 1.100) / 2. - 0.312) / (1.100 - 0.312)}; // Calculated from DAC.slang from GTU-famicom
         
         int satLevelI = -1; // Integer part. Can be 0, 1, or 2. If the level is 3 or higher, it is represented as 2 with a fractional part greater than 1.
