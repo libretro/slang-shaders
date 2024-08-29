@@ -34,7 +34,7 @@ scale_x2 = "1.000000"
 scale_type_y2 = "source"
 scale_y2 = "1.000000"
 
-textures = "PhosphorSamplerLUT1;PhosphorSamplerLUT2;PhosphorSamplerLUT3;PhosphorSamplerLUT4"
+textures = "PhosphorSamplerLUT1;PhosphorSamplerLUT2;PhosphorSamplerLUT3;PhosphorSamplerLUT4;PhosphorSamplerLUT5;PhosphorSamplerLUT6"
 
 PhosphorSamplerLUT1 = "../ntsc/shaders/patchy-ntsc/P22_80s_D65.png"
 PhosphorSamplerLUT1_wrap_mode = "clamp_to_border"
@@ -55,4 +55,14 @@ PhosphorSamplerLUT4 = "../ntsc/shaders/patchy-ntsc/TrinitronP22_D65.png"
 PhosphorSamplerLUT4_wrap_mode = "clamp_to_border"
 PhosphorSamplerLUT4_mipmap = "false"
 PhosphorSamplerLUT4_linear = "false"
+
+PhosphorSamplerLUT5 = "../ntsc/shaders/patchy-ntsc/P22_J_D93.png"
+PhosphorSamplerLUT5_wrap_mode = "clamp_to_border"
+PhosphorSamplerLUT5_mipmap = "false"
+PhosphorSamplerLUT5_linear = "false"
+
+PhosphorSamplerLUT6 = "../ntsc/shaders/patchy-ntsc/TrinitronP22_D93.png"
+PhosphorSamplerLUT6_wrap_mode = "clamp_to_border"
+PhosphorSamplerLUT6_mipmap = "false"
+PhosphorSamplerLUT6_linear = "false"
 

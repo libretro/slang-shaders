@@ -40,8 +40,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 } global;
 
 #pragma parameter lut_toggle "Gamut: sRGB, P22-80s, P22-90s, P22-J, Trinitron P22" 0 0 4 1
-#pragma parameter lut_index "Reference White: SMPTE-C (D65) | NTSC-U (C) | NTSC-J (D93)" 1 0 2 1
-//#pragma parameter lut_chroma_adapt "(For Trinitron Only) Chromatic Adaptation to D65" 0 0 1 1
+#pragma parameter lut_index "White point: SMPTE-C (D65) | NTSC-U (C) | NTSC-J (9300K+27MPCD)" 1 0 2 1
+#pragma parameter lut_chroma_adapt "(For P22-J and Trinitron w/ NTSC-J) Chromatic Adaptation to D65" 0 0 1 1
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -63,7 +63,8 @@ layout(set = 0, binding = 3) uniform sampler2D PhosphorSamplerLUT1;
 layout(set = 0, binding = 4) uniform sampler2D PhosphorSamplerLUT2;
 layout(set = 0, binding = 5) uniform sampler2D PhosphorSamplerLUT3;
 layout(set = 0, binding = 6) uniform sampler2D PhosphorSamplerLUT4;
-//layout(set = 0, binding = 7) uniform sampler2D PhosphorSamplerLUT5;
+layout(set = 0, binding = 7) uniform sampler2D PhosphorSamplerLUT5;
+layout(set = 0, binding = 8) uniform sampler2D PhosphorSamplerLUT6;
 
 #define saturate(c) clamp(c, 0.0, 1.0)
 
@@ -72,9 +73,11 @@ void main()
 	vec2 LUT_Size = textureSize(PhosphorSamplerLUT1, 0); // All are the same size... right?
 	vec3 imgColor = texture(Source, vTexCoord.xy).rgb;
 	
+	// Chromatic adaptation is available for P22-J and Trinitron P22 when using white D93.
+	bool doChromaAdapt = params.lut_toggle > 2.5 && params.lut_index > 1.5 && params.lut_chroma_adapt > 0.5;
+	
 	// Force disable chromatic adaptation if a chroma-adapted LUT is missing.
-	// The current version lacks any chroma-adapted LUTs whatsoever, so the check is commented out.
-//	if(params.lut_chroma_adapt < 0.5 || params.lut_toggle < 2.5) {
+	if(!doChromaAdapt) {
 	    // Change the white balance ourselves, and use the D65-to-D65 LUT.
 	    
 	    float Wx, Wy;
@@ -131,7 +134,7 @@ void main()
         vec3 normConsts = cNormConsts / d65NormConsts;
         normConsts /= max(normConsts.r, max(normConsts.g, normConsts.b));
         imgColor *= normConsts; // Scale R, G, and B to get the white point that we want.
-//	}
+	}
 	
 	if(params.lut_toggle < 0.5) {
 	    FragColor = vec4(imgColor, 1.0);
@@ -172,15 +175,23 @@ void main()
     RcGcBf = (texture(SamplerLUT, vec2(floors.b + ceils.r, ceils.g))).xyz; \
     RcGcBc = (texture(SamplerLUT, vec2(ceils.b + ceils.r, ceils.g))).xyz;
 	
-	if(params.lut_toggle < 1.5) {
-	    eightSamples(PhosphorSamplerLUT1);
-	} else if(params.lut_toggle < 2.5) {
-	    eightSamples(PhosphorSamplerLUT2);
-	} else if (params.lut_toggle < 3.5) {
-	    eightSamples(PhosphorSamplerLUT3);
-	} else {	    
-	    eightSamples(PhosphorSamplerLUT4);
-	}
+	if(doChromaAdapt) {
+	    if(params.lut_toggle < 3.5) {
+	        eightSamples(PhosphorSamplerLUT5);
+        } else {
+            eightSamples(PhosphorSamplerLUT6);
+        }
+    } else {
+	    if(params.lut_toggle < 1.5) {
+	        eightSamples(PhosphorSamplerLUT1);
+	    } else if(params.lut_toggle < 2.5) {
+	        eightSamples(PhosphorSamplerLUT2);
+	    } else if (params.lut_toggle < 3.5) {
+	        eightSamples(PhosphorSamplerLUT3);
+	    } else {	    
+	        eightSamples(PhosphorSamplerLUT4);
+	    }
+    }
 
 #undef eightSamples
 	
