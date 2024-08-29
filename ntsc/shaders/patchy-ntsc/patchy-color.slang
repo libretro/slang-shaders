@@ -1103,7 +1103,7 @@ void main()
     
     if(global.pc_console > 0.5) {
         if(global.pc_console < 1.5) { // Sega Genesis / MegaDrive
-            if(global.pc_genesis_needfix > 0.5) // Genesis gamma correction--BlastEm already performs this fix for you
+            if(global.pc_genesis_needfix > 0.5 && global.pc_testpattern < 0.5) // Genesis gamma correction--BlastEm already performs this fix for you
                 changedColor = fixGenColor(changedColor);
         }
             else if(global.pc_console < 2.5) { // NES PPU

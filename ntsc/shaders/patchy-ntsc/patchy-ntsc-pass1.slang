@@ -282,7 +282,7 @@ void main()
         
     } else {
         
-        if(global.pn_genesis_palette > 0.5) {
+        if(global.pn_genesis_palette > 0.5 && global.pn_test_pattern < 0.5) {
             colorIn.rgb = fixGenColor(colorIn.rgb);
         }
         
