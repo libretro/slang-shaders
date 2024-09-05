@@ -24,7 +24,6 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	vec4 ORIG_LINEARIZEDSize;
 } params;
 
 //////////////////////////////////  INCLUDES  //////////////////////////////////
@@ -47,12 +46,12 @@ void main()
    
     //  Detect interlacing: il_step_multiple indicates the step multiple between
     //  lines: 1 is for progressive sources, and 2 is for interlaced sources.
-    vec2  video_size_ = params.ORIG_LINEARIZEDSize.xy;
+    vec2  video_size_ = params.SourceSize.xy;
     float y_step      = 1.0 + float(is_interlaced(video_size_.y));
     il_step_multiple  = vec2(1.0, y_step);
 
     //  Get the uv tex coords step between one texel (x) and scanline (y):
-    uv_step = il_step_multiple / params.ORIG_LINEARIZEDSize.xy;
+    uv_step = il_step_multiple / params.SourceSize.xy;
 
     //  We need the pixel height in scanlines for antialiased/integral sampling:
     float ph = (video_size_.y / params.OutputSize.y) / il_step_multiple.y;
@@ -67,9 +66,7 @@ layout(location = 2) in vec2 il_step_multiple;             //  (1, 1) = progress
 layout(location = 3) in float pixel_height_in_scanlines;   //  Height of an output pixel in scanlines
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D ORIG_LINEARIZED;
-
-#define input_texture ORIG_LINEARIZED
+#define input_texture Source
 
 void main()
 {
@@ -77,8 +74,8 @@ void main()
     //  vertical resolution.  Temporarily auto-dim the output to avoid clipping.
 
     //  Read some attributes into local variables:
-    vec2 texture_size_    = params.ORIG_LINEARIZEDSize.xy;
-    vec2 texture_size_inv = params.ORIG_LINEARIZEDSize.zw;
+    vec2 texture_size_    = params.SourceSize.xy;
+    vec2 texture_size_inv = params.SourceSize.zw;
 
     float frame_count = float(params.FrameCount);
     float ph = pixel_height_in_scanlines;
@@ -106,6 +103,18 @@ void main()
     //  Vertical convergence offsets are in units of current-field scanlines.
     //  dist2 means "positive sample distance from scanline 2, in scanlines:"
     vec3 dist2 = vec3(dist);
+
+    if(beam_misconvergence)
+    {
+        vec3 convergence_offsets_vert_rgb = get_convergence_offsets_y_vector();
+        dist2 = vec3(dist) - convergence_offsets_vert_rgb;
+    }
+
+    //  Calculate {sigma, shape}_range outside of scanline_contrib so it's only
+    //  done once per pixel (not 6 times) with runtime params.  Don't reuse the
+    //  vertex shader calculations, so static versions can be constant-folded.
+	float sigma_range = max(beam_max_sigma, beam_min_sigma) - beam_min_sigma;
+	float shape_range = max(beam_max_shape, beam_min_shape) - beam_min_shape;
 
     //  Calculate and sum final scanline contributions, starting with lines 2/3.
     //  There is no normalization step, because we're not interpolating a

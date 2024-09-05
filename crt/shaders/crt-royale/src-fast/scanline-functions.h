@@ -230,11 +230,17 @@ vec3 sample_single_scanline_horizontal(sampler2D tex, vec2 tex_uv, vec2 tex_size
         float inner_denom_inv = 1.0/(2.0*beam_horiz_sigma*beam_horiz_sigma);
         weights               = exp(-(sample_dists*sample_dists)*inner_denom_inv);
     }
-    else
+    else if(beam_horiz_filter < 2.5)
     {
         //  Lanczos2:
         vec4 pi_dists = FIX_ZERO(sample_dists * pi);
         weights       = 2.0 * sin(pi_dists) * sin(pi_dists * 0.5)/(pi_dists * pi_dists);
+    }
+    else
+    {
+        //  Linear:
+        float x  = sample_dists.y;
+        weights  = vec4(0.0, 1.0 - x, x, 0.0);
     }
 
     //  Ensure the weight sum == 1.0:
@@ -249,7 +255,26 @@ vec3 sample_single_scanline_horizontal(sampler2D tex, vec2 tex_uv, vec2 tex_size
 vec3 sample_rgb_scanline_horizontal(sampler2D tex, vec2 tex_uv, vec2 tex_size, vec2 texture_size_inv)
 {
     //  TODO: Add function requirements.
-    return sample_single_scanline_horizontal(tex, tex_uv, tex_size, texture_size_inv);
+    //  Rely on a helper to make convergence easier.
+    if(beam_misconvergence)
+    {
+        vec3 convergence_offsets_rgb = get_convergence_offsets_x_vector();
+        vec3 offset_u_rgb = convergence_offsets_rgb * texture_size_inv.xxx;
+
+	vec2 scanline_uv_r = tex_uv - vec2(offset_u_rgb.r, 0.0);
+        vec2 scanline_uv_g = tex_uv - vec2(offset_u_rgb.g, 0.0);
+        vec2 scanline_uv_b = tex_uv - vec2(offset_u_rgb.b, 0.0);
+
+	vec3 sample_r = sample_single_scanline_horizontal(tex, scanline_uv_r, tex_size, texture_size_inv);
+        vec3 sample_g = sample_single_scanline_horizontal(tex, scanline_uv_g, tex_size, texture_size_inv);
+        vec3 sample_b = sample_single_scanline_horizontal(tex, scanline_uv_b, tex_size, texture_size_inv);
+
+	return vec3(sample_r.r, sample_g.g, sample_b.b);
+    }
+    else
+    {
+        return sample_single_scanline_horizontal(tex, tex_uv, tex_size, texture_size_inv);
+    }
 }
 
 // Monolythic

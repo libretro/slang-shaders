@@ -44,6 +44,17 @@ float max_sinc_resize_samples_m4 = ceil(max_sinc_resize_samples_float * 0.25) * 
 
 /////////////////////////  RESAMPLING FUNCTION HELPERS  ////////////////////////
 
+float get_dynamic_loop_size(float magnification_scale)
+{
+
+    float min_samples_float = 2.0 * mask_sinc_lobes / magnification_scale;
+    float min_samples_m4 = ceil(min_samples_float * 0.25) * 4.0;
+
+    //  Simulating loops with branches imposes a 128-sample limit.
+    float max_samples_m4 = min(128.0, max_sinc_resize_samples_m4);
+
+    return min(min_samples_m4, max_samples_m4);
+}
 
 vec2 get_first_texel_tile_uv_and_dist(vec2 tex_uv, vec2 tex_size, float dr, float input_tiles_per_texture_r, float samples, bool vertical)
 {
@@ -216,7 +227,9 @@ vec2 get_resized_mask_tile_size(vec2 estimated_viewport_size, vec2 estimated_mas
     float tile_aspect_ratio     = 1.0/tile_aspect_ratio_inv;
     vec2  tile_aspect           = vec2(1.0, tile_aspect_ratio_inv);
 
-    float desired_tile_size_x = mask_triads_per_tile * global.mask_triad_size_desired;
+    //  If mask_specify_num_triads is 1.0/true and estimated_viewport_size.x is
+    //  wrong, the user preference will be misinterpreted:
+    float desired_tile_size_x = mask_triads_per_tile * mix(global.mask_triad_size_desired, estimated_viewport_size.x / global.mask_num_triads_desired, global.mask_specify_num_triads);
 
     //  Make sure we're not upsizing:
     float temp_tile_size_x = min(desired_tile_size_x, mask_resize_src_lut_size.x);

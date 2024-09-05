@@ -44,6 +44,8 @@ layout(push_constant) uniform Push
 
 #define GAMMA_OUT(color)    pow(color, vec3(1.0 / lcd_gamma))
 
+float bloom_approx_scale_x = params.OutputSize.x / params.SourceSize.y;
+float max_viewport_size_x  = 1080.0*1024.0*(4.0/3.0);
 float bloom_diff_thresh_   = 1.0/256.0;
 float mask_min_allowed_tile_size  = ceil(mask_min_allowed_triad_size * mask_triads_per_tile);
 
@@ -56,21 +58,49 @@ struct st_gauss{
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 video_uv;
-layout(location = 1) out float bloom_sigma_runtime;
-layout(location = 2) out vec4 w1_8;
-layout(location = 3) out vec4 w1_8_ratio;
-layout(location = 4) out float weight_sum_inv;
-layout(location = 5) out float undim_mask_contrast_factors;
+layout(location = 1) out vec2 bloom_dxdy;
+layout(location = 2) out float bloom_sigma_runtime;
+layout(location = 3) out vec4 w1_8;
+layout(location = 4) out vec4 w1_8_ratio;
+layout(location = 5) out float weight_sum_inv;
+layout(location = 6) out float undim_mask_contrast_factors;
 
 // copied from bloom-functions.h
-float get_min_sigma_to_blur_triad(float triad_size, float thresh)
+float get_min_sigma_to_blur_triad(float triad_size,
+    float thresh)
 {
-    return -0.05168 + 0.6113*triad_size - 1.122*triad_size*sqrt(0.000416 + thresh);
+    //  Requires:   1.) triad_size is the final phosphor triad size in pixels
+    //              2.) thresh is the max desired pixel difference in the
+    //                  blurred triad (e.g. 1.0/256.0).
+    //  Returns:    Return the minimum sigma that will fully blur a phosphor
+    //              triad on the screen to an even color, within thresh.
+    //              This closed-form function was found by curve-fitting data.
+    //  Estimate: max error = ~0.086036, mean sq. error = ~0.0013387:
+    return -0.05168 + 0.6113*triad_size -
+        1.122*triad_size*sqrt(0.000416 + thresh);
+    //  Estimate: max error = ~0.16486, mean sq. error = ~0.0041041:
+    //return 0.5985*triad_size - triad_size*sqrt(thresh)
 }
 
 float get_fast_gaussian_weight_sum_inv(float sigma)
 {
-    return min(exp(exp(0.348348412457428/(sigma - 0.0860587260734721))), 0.399334576340352/sigma);
+    //  We can use the Gaussian integral to calculate the asymptotic weight for
+    //  the center pixel.  Since the unnormalized center pixel weight is 1.0,
+    //  the normalized weight is the same as the weight sum inverse.  Given a
+    //  large enough blur (9+), the asymptotic weight sum is close and faster:
+    //      center_weight = 0.5 *
+    //          (erf(0.5/(sigma*sqrt(2.0))) - erf(-0.5/(sigma*sqrt(2.0))))
+    //      erf(-x) == -erf(x), so we get 0.5 * (2.0 * erf(blah blah)):
+    //  However, we can get even faster results with curve-fitting.  These are
+    //  also closer than the asymptotic results, because they were constructed
+    //  from 64 blurs sizes from [3, 131) and 255 equally-spaced sigmas from
+    //  (0, blurN_std_dev), so the results for smaller sigmas are biased toward
+    //  smaller blurs.  The max error is 0.0031793913.
+    //  Relative FPS: 134.3 with erf, 135.8 with curve-fitting.
+    //float temp = 0.5/sqrt(2.0);
+    //return erf(temp/sigma);
+    return min(exp(exp(0.348348412457428/
+        (sigma - 0.0860587260734721))), 0.399334576340352/sigma);
 }
 
 st_gauss get_blur_fastest_w1_8(float sigma)
@@ -92,10 +122,10 @@ st_gauss get_blur_fastest_w1_8(float sigma)
     blur_weights.w1_8.y = w3 + w4;
     blur_weights.w1_8.z = w5 + w6;
     blur_weights.w1_8.w = w7 + w8;
-    blur_weights.w1_8_ratio.x = w2/(blur_weights.w1_8.x) + 1.0;
-    blur_weights.w1_8_ratio.y = w4/(blur_weights.w1_8.y) + 3.0;
-    blur_weights.w1_8_ratio.z = w6/(blur_weights.w1_8.z) + 5.0;
-    blur_weights.w1_8_ratio.w = w8/(blur_weights.w1_8.w) + 7.0;
+    blur_weights.w1_8_ratio.x = w2/(blur_weights.w1_8.x);
+    blur_weights.w1_8_ratio.y = w4/(blur_weights.w1_8.y);
+    blur_weights.w1_8_ratio.z = w6/(blur_weights.w1_8.z);
+    blur_weights.w1_8_ratio.w = w8/(blur_weights.w1_8.w);
 
     return blur_weights;
 }
@@ -107,7 +137,9 @@ vec2 get_resized_mask_tile_size(vec2 estimated_viewport_size, vec2 estimated_mas
     float tile_aspect_ratio     = 1.0/tile_aspect_ratio_inv;
     vec2  tile_aspect           = vec2(1.0, tile_aspect_ratio_inv);
 
-    float desired_tile_size_x = mask_triads_per_tile * global.mask_triad_size_desired;
+    //  If mask_specify_num_triads is 1.0/true and estimated_viewport_size.x is
+    //  wrong, the user preference will be misinterpreted:
+    float desired_tile_size_x = mask_triads_per_tile * mix(global.mask_triad_size_desired, estimated_viewport_size.x / global.mask_num_triads_desired, global.mask_specify_num_triads);
 
     //  Make sure we're not upsizing:
     float temp_tile_size_x = min(desired_tile_size_x, mask_resize_src_lut_size.x);
@@ -135,6 +167,11 @@ void main()
     gl_Position = global.MVP * Position;
     video_uv = TexCoord;
 
+    //  We're horizontally blurring the bloom input (vertically blurred
+    //  brightpass).  Get the uv distance between output pixels / input texels
+    //  in the horizontal direction (this pass must NOT resize):
+    bloom_dxdy = vec2(1.0/params.SourceSize.x, 0.0);
+
     //  Calculate a runtime bloom_sigma in case it's needed:
     float mask_tile_size_x = get_resized_mask_tile_size(params.OutputSize.xy, params.OutputSize.xy * mask_resize_viewport_scale, false).x;
 
@@ -143,24 +180,26 @@ void main()
     st_gauss blur_weights = get_blur_fastest_w1_8(bloom_sigma_runtime);
 
     w1_8       = blur_weights.w1_8;
-    w1_8_ratio = blur_weights.w1_8_ratio * params.SourceSize.z;
+    w1_8_ratio = blur_weights.w1_8_ratio;
 
     weight_sum_inv = get_fast_gaussian_weight_sum_inv(bloom_sigma_runtime);
 
     float undim_factor = 1.0/levels_autodim_temp;
 
     undim_mask_contrast_factors = undim_factor * get_mask_amplify() * levels_contrast;
+//    undim_mask_contrast_factors = 2.0 * (255.0/46.0) * 1.0;
 }
 
 
 
 #pragma stage fragment
 layout(location = 0) in vec2 video_uv;
-layout(location = 1) in float bloom_sigma_runtime;
-layout(location = 2) in vec4 w1_8;
-layout(location = 3) in vec4 w1_8_ratio;
-layout(location = 4) in float weight_sum_inv;
-layout(location = 5) in float undim_mask_contrast_factors;
+layout(location = 1) in vec2 bloom_dxdy;
+layout(location = 2) in float bloom_sigma_runtime;
+layout(location = 3) in vec4 w1_8;
+layout(location = 4) in vec4 w1_8_ratio;
+layout(location = 5) in float weight_sum_inv;
+layout(location = 6) in float undim_mask_contrast_factors;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D BRIGHTPASS;
@@ -169,30 +208,29 @@ layout(set = 0, binding = 4) uniform sampler2D MASKED_SCANLINES;
 
 //////////////////////////////  FRAGMENT INCLUDES  //////////////////////////////
 
-vec3 tex2Dblur17fastest(sampler2D tex, vec2 tex_uv, float weight_sum_inv, vec4 w1_8, vec4 w1_8_ratio)
+vec3 tex2Dblur17fastest(sampler2D tex, vec2 tex_uv, vec2 dxdy, float weight_sum_inv, vec4 w1_8, vec4 w1_8_ratio)
 {
 
     float w0 = 1.0;
 
     vec3 sum = vec3(0.0,0.0,0.0);
 
-    sum += (w1_8.w * texture(tex, tex_uv - vec2(w1_8_ratio.w, 0.0)).rgb);
-    sum += (w1_8.z * texture(tex, tex_uv - vec2(w1_8_ratio.z, 0.0)).rgb);
-    sum += (w1_8.y * texture(tex, tex_uv - vec2(w1_8_ratio.y, 0.0)).rgb);
-    sum += (w1_8.x * texture(tex, tex_uv - vec2(w1_8_ratio.x, 0.0)).rgb);
+    sum += (w1_8.w * texture(tex, tex_uv - (7.0 + w1_8_ratio.w) * dxdy).rgb);
+    sum += (w1_8.z * texture(tex, tex_uv - (5.0 + w1_8_ratio.z) * dxdy).rgb);
+    sum += (w1_8.y * texture(tex, tex_uv - (3.0 + w1_8_ratio.y) * dxdy).rgb);
+    sum += (w1_8.x * texture(tex, tex_uv - (1.0 + w1_8_ratio.x) * dxdy).rgb);
     sum += (w0 * texture(tex, tex_uv).rgb);
-    sum += (w1_8.x * texture(tex, tex_uv + vec2(w1_8_ratio.x, 0.0)).rgb);
-    sum += (w1_8.y * texture(tex, tex_uv + vec2(w1_8_ratio.y, 0.0)).rgb);
-    sum += (w1_8.z * texture(tex, tex_uv + vec2(w1_8_ratio.z, 0.0)).rgb);
-    sum += (w1_8.w * texture(tex, tex_uv + vec2(w1_8_ratio.w, 0.0)).rgb);
+    sum += (w1_8.x * texture(tex, tex_uv + (1.0 + w1_8_ratio.x) * dxdy).rgb);
+    sum += (w1_8.y * texture(tex, tex_uv + (3.0 + w1_8_ratio.y) * dxdy).rgb);
+    sum += (w1_8.z * texture(tex, tex_uv + (5.0 + w1_8_ratio.z) * dxdy).rgb);
+    sum += (w1_8.w * texture(tex, tex_uv + (7.0 + w1_8_ratio.w) * dxdy).rgb);
 
     return sum * weight_sum_inv;
 }
 
-
 void main()
 {
-    vec3 blurred_brightpass = tex2Dblur17fastest(bloom_texture, video_uv, weight_sum_inv, w1_8, w1_8_ratio);
+    vec3 blurred_brightpass = tex2Dblur17fastest(bloom_texture, video_uv, bloom_dxdy, weight_sum_inv, w1_8, w1_8_ratio);
 
     //  Sample the masked scanlines.  Alpha contains the auto-dim factor:
     vec3 intensity_dim  = texture(MASKED_SCANLINEStexture, video_uv).rgb;
@@ -202,5 +240,6 @@ void main()
     vec3 brightpass     = texture(BRIGHTPASStexture, video_uv).rgb;
     vec3 phosphor_bloom = (intensity_dim - brightpass + blurred_brightpass) * undim_mask_contrast_factors;
 
+    //  Encode and output the bloomed image:
     FragColor = vec4(GAMMA_OUT(phosphor_bloom), 1.0);
 }

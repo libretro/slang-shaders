@@ -47,6 +47,7 @@ layout(location = 5) out vec2 input_tiles_per_texture;
 void main()
 {
     gl_Position = global.MVP * Position;
+    vec2 tex_uv = TexCoord.xy;
 
     //  First estimate the viewport size (the user will get the wrong number of
     //  triads if it's wrong and mask_specify_num_triads is 1.0/true).
@@ -61,7 +62,8 @@ void main()
     //  limit, so compute [wrapped] tile uv coords based on the output uv coords
     //  and the number of tiles that will fit in the FBO.
     vec2 output_tiles_this_pass = params.OutputSize.xy / mask_resize_tile_size;
-    tile_uv_wrap                = TexCoord * output_tiles_this_pass;
+    vec2 output_video_uv        = tex_uv;
+    tile_uv_wrap                = output_video_uv * output_tiles_this_pass;
 
     //  Get the texel size of an input tile and related values:
     vec2 input_tile_size    = vec2(min(mask_resize_src_lut_size.x, params.SourceSize.x), mask_resize_tile_size.y);
@@ -96,19 +98,25 @@ void main()
     //  vertically.  Lanczos-resizing the phosphor mask achieves much sharper
     //  results than mipmapping, outputting >= mask_resize_num_tiles makes for
     //  easier tiled sampling later.
-    //  Discard unneeded fragments in case our profile allows real branches.
+    #ifdef PHOSPHOR_MASK_MANUALLY_RESIZE
+        //  Discard unneeded fragments in case our profile allows real branches.
+        vec2 tile_uv_wrap = tile_uv_wrap;
 
-    if(max(tile_uv_wrap.x, tile_uv_wrap.y) <= mask_resize_num_tiles)
-    {
-        float src_dx = src_dxdy.x;
-        vec2 src_tex_uv = fract(src_tex_uv_wrap);
-        vec3 pixel_color = downsample_horizontal_sinc_tiled(input_texture, src_tex_uv, params.SourceSize.xy, src_dxdy.x, resize_magnification_scale.x, tile_size_uv.x);
+        if(max(tile_uv_wrap.x, tile_uv_wrap.y) <= mask_resize_num_tiles)
+        {
+            float src_dx = src_dxdy.x;
+            vec2 src_tex_uv = fract(src_tex_uv_wrap);
+            vec3 pixel_color = downsample_horizontal_sinc_tiled(input_texture, src_tex_uv, params.SourceSize.xy, src_dxdy.x, resize_magnification_scale.x, tile_size_uv.x);
 
-        //  The input LUT was linear RGB, and so is our output:
-        FragColor = vec4(pixel_color, 1.0);
-    }
-    else
-    {
+            //  The input LUT was linear RGB, and so is our output:
+            FragColor = vec4(pixel_color, 1.0);
+        }
+        else
+        {
+            discard;
+        }
+    #else
         discard;
-    }
+        FragColor = vec4(1.0);
+    #endif
 }

@@ -37,6 +37,8 @@ layout(push_constant) uniform Push
 
 ///////////////////////////////  VERTEX INCLUDES  ///////////////////////////////
 
+float bloom_approx_scale_x = params.OutputSize.x / params.SourceSize.y;
+float max_viewport_size_x = 1080.0*1024.0*(4.0/3.0);
 float bloom_diff_thresh_ = 1.0/256.0;
 float mask_min_allowed_tile_size  = ceil(mask_min_allowed_triad_size * mask_triads_per_tile);
 
@@ -48,13 +50,38 @@ layout(location = 1) out float center_weight;
 layout(location = 2) out float undim_mask_contrast_factors;
 
 // copied from bloom-functions.h
-float get_min_sigma_to_blur_triad(float triad_size, float thresh)
+float get_min_sigma_to_blur_triad(float triad_size,
+    float thresh)
 {
+    //  Requires:   1.) triad_size is the final phosphor triad size in pixels
+    //              2.) thresh is the max desired pixel difference in the
+    //                  blurred triad (e.g. 1.0/256.0).
+    //  Returns:    Return the minimum sigma that will fully blur a phosphor
+    //              triad on the screen to an even color, within thresh.
+    //              This closed-form function was found by curve-fitting data.
+    //  Estimate: max error = ~0.086036, mean sq. error = ~0.0013387:
     return -0.05168 + 0.6113*triad_size - 1.122*triad_size*sqrt(0.000416 + thresh);
+    //  Estimate: max error = ~0.16486, mean sq. error = ~0.0041041:
+    //return 0.5985*triad_size - triad_size*sqrt(thresh)
 }
 
 float get_fast_gaussian_weight_sum_inv(float sigma)
 {
+    //  We can use the Gaussian integral to calculate the asymptotic weight for
+    //  the center pixel.  Since the unnormalized center pixel weight is 1.0,
+    //  the normalized weight is the same as the weight sum inverse.  Given a
+    //  large enough blur (9+), the asymptotic weight sum is close and faster:
+    //      center_weight = 0.5 *
+    //          (erf(0.5/(sigma*sqrt(2.0))) - erf(-0.5/(sigma*sqrt(2.0))))
+    //      erf(-x) == -erf(x), so we get 0.5 * (2.0 * erf(blah blah)):
+    //  However, we can get even faster results with curve-fitting.  These are
+    //  also closer than the asymptotic results, because they were constructed
+    //  from 64 blurs sizes from [3, 131) and 255 equally-spaced sigmas from
+    //  (0, blurN_std_dev), so the results for smaller sigmas are biased toward
+    //  smaller blurs.  The max error is 0.0031793913.
+    //  Relative FPS: 134.3 with erf, 135.8 with curve-fitting.
+    //float temp = 0.5/sqrt(2.0);
+    //return erf(temp/sigma);
     return min(exp(exp(0.348348412457428/(sigma - 0.0860587260734721))), 0.399334576340352/sigma);
 }
 
@@ -65,7 +92,9 @@ vec2 get_resized_mask_tile_size(vec2 estimated_viewport_size, vec2 estimated_mas
     float tile_aspect_ratio     = 1.0/tile_aspect_ratio_inv;
     vec2  tile_aspect           = vec2(1.0, tile_aspect_ratio_inv);
 
-    float desired_tile_size_x = mask_triads_per_tile * global.mask_triad_size_desired;
+    //  If mask_specify_num_triads is 1.0/true and estimated_viewport_size.x is
+    //  wrong, the user preference will be misinterpreted:
+    float desired_tile_size_x = mask_triads_per_tile * mix(global.mask_triad_size_desired, estimated_viewport_size.x / global.mask_num_triads_desired, global.mask_specify_num_triads);
 
     //  Make sure we're not upsizing:
     float temp_tile_size_x = min(desired_tile_size_x, mask_resize_src_lut_size.x);

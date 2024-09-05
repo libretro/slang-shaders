@@ -1,0 +1,4 @@
+#reference "../crt/crt-royale-fast.slangp"
+bloom_underestimate_levels = "0.800000"
+beam_horiz_filter = "2.000000"
+mask_triad_size_desired = "1.000000"
