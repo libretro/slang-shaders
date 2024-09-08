@@ -79,13 +79,13 @@ float gba_gamma = 3.5; //  Irrelevant but necessary to define.
 #pragma parameter bloom_excess "Bloom - Excess" 0.0 0.0 1.0 0.005
 #pragma parameter beam_min_sigma "Beam - Min Sigma" 0.055 0.005 1.0 0.005
 #define beam_min_sigma global.beam_min_sigma
-#pragma parameter beam_max_sigma "Beam - Max Sigma" 0.255 0.005 1.0 0.005
+#pragma parameter beam_max_sigma "Beam - Max Sigma" 0.2 0.005 1.0 0.005
 #define beam_max_sigma global.beam_max_sigma
 #pragma parameter beam_spot_power "Beam - Spot Power" 0.38 0.01 16.0 0.01
 #define beam_spot_power global.beam_spot_power
 #pragma parameter beam_min_shape "Beam - Min Shape" 2.0 2.0 32.0 0.1
 #define beam_min_shape global.beam_min_shape
-#pragma parameter beam_max_shape "Beam - Max Shape" 4.0 2.0 32.0 0.1
+#pragma parameter beam_max_shape "Beam - Max Shape" 2.0 2.0 32.0 0.1
 #define beam_max_shape global.beam_max_shape
 #pragma parameter beam_shape_power "Beam - Shape Power" 0.25 0.01 16.0 0.01
 #define beam_shape_power global.beam_shape_power

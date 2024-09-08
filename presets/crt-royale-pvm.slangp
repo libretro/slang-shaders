@@ -1,3 +1,4 @@
 #reference "../crt/crt-royale-fast.slangp"
-bloom_underestimate_levels = "0.800000"
 mask_triad_size_desired = "1.000000"
+beam_max_sigma = "0.200000"
+beam_max_shape = "2.000000"
