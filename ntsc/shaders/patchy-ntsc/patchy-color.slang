@@ -1072,8 +1072,35 @@ vec3 testPattern(vec2 pos) {
     }
 }
 
-// For sRGB_to_linear
-#include "../../../include/colorspace-tools.h"
+// These two sRGB functions are taken from shaders_slang/include/colorspace-tools.h
+// Colorspace Tools
+// ported from Asmodean's PsxFX Shader Suite v2.00
+// License: GPL v2+
+vec3 linear_to_sRGB(vec3 color, float gamma)
+{
+    color = clamp(color, 0.0, 1.0);
+    color.r = (color.r <= 0.00313066844250063) ?
+    color.r * 12.92 : 1.055 * pow(color.r, 1.0 / gamma) - 0.055;
+    color.g = (color.g <= 0.00313066844250063) ?
+    color.g * 12.92 : 1.055 * pow(color.g, 1.0 / gamma) - 0.055;
+    color.b = (color.b <= 0.00313066844250063) ?
+    color.b * 12.92 : 1.055 * pow(color.b, 1.0 / gamma) - 0.055;
+
+    return color.rgb;
+}
+
+vec3 sRGB_to_linear(vec3 color, float gamma)
+{
+    color = clamp(color, 0.0, 1.0);
+    color.r = (color.r <= 0.04045) ?
+    color.r / 12.92 : pow((color.r + 0.055) / (1.055), gamma);
+    color.g = (color.g <= 0.04045) ?
+    color.g / 12.92 : pow((color.g + 0.055) / (1.055), gamma);
+    color.b = (color.b <= 0.04045) ?
+    color.b / 12.92 : pow((color.b + 0.055) / (1.055), gamma);
+
+    return color.rgb;
+}
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;

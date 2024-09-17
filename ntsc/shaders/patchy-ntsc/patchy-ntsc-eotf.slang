@@ -48,9 +48,6 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 // Includes lowpass and bandpass functions
 #include "patchy-ntsc-inc-filters.inc"
 
-// Includes sRGB_to_linear
-#include "../../../../shaders_slang/include/colorspace-tools.h"
-
 // CRT EOTF Function
 // Taken from Grade
 //----------------------------------------------------------------------
@@ -123,6 +120,81 @@ vec3 EOTF_1886a_default_f3(vec3 color, float brightness, float contrast) {
     return color;
 }
 
+vec3 smpteBarsSplit(vec2 pos) {
+   float wholeRamp = pos.x * 8;
+   float flooredWholeRamp = floor(pos.x * 8);
+   if(pos.y < 0.75) {
+      if(pos.y < 0.75 / 2)
+         return vec3(-43);
+      // Standard color bars. Top is 75%; bottom is 100%.
+      int index = 7 - int(flooredWholeRamp + 0.5);
+      return vec3((index & 2) >> 1, index >> 2, index & 1);
+   } else if(pos.x > 0.875) {
+      if(pos.y < (0.75 + 1.0) / 2.0)
+         return vec3(-43);
+      // Standard mini-pluge for syncing the black level
+      float partialRamp = wholeRamp - flooredWholeRamp;
+      float steppedPartialRamp = floor(partialRamp * 3);
+      return vec3((steppedPartialRamp - 1.0) * 0.075);
+   } else {
+      // Deeper pluge for setting a nonstandard brightness
+      float normPos = pos.x / 0.875;
+      float normY = (pos.y - 0.75) / 0.25;
+      
+      if(mod(normY, 0.25) < 0.125)
+         return vec3(-43);
+
+      float steppedPos = floor(normPos * 21);
+      float finalRamp = (steppedPos - 10) / 10;
+      
+      if(normY < 0.25) {
+         return vec3(finalRamp, 0, 0);
+      } else if(normY < 0.5) {
+         return vec3(0, finalRamp, 0);
+      } else if(normY < 0.75) {
+         return vec3(0, 0, finalRamp);
+      } else {
+         return vec3(finalRamp);
+      }
+   }
+}
+
+vec3 colorRampsSplit(vec2 pos) {
+    int x = int(pos.x * 17);
+    int y = int(pos.y * 15);
+    
+    if(x == 0 || x == 16 || (y & 1) == 1) { // Changed (y & 1) == 0 to (y & 1) == 1
+        return vec3(-43);
+    } else {
+        // Red, green, blue, and white are grouped together on purpose.
+        vec3 primaries[] = {
+            vec3(1, 1, 1),
+            vec3(1, 0, 0),
+            vec3(0, 1, 0),
+            vec3(0, 0, 1),
+            vec3(0, 1, 1),
+            vec3(1, 0, 1),
+            vec3(1, 1, 0),
+            vec3(0, 0, 0) // Added an eighth as failsafe
+        };
+        return mix(vec3(0), primaries[y >> 1], x / 15.0);
+    }
+}
+
+vec3 testPatternSplit(vec2 pos) {
+    if(global.pn_test_pattern < 1.5) {
+        return smpteBarsSplit(pos);
+    } else if(global.pn_test_pattern < 2.5) {
+        return colorRampsSplit(pos);
+    } else if(global.pn_test_pattern < 3.5) {
+        return vec3(-43);
+    } else if(global.pn_test_pattern < 4.5) {
+        return vec3(-43);
+    } else if(global.pn_test_pattern < 5.5) {
+        return vec3(-43);
+    }
+}
+
 void main()
 {
     vec3 rgb;
@@ -148,6 +220,12 @@ void main()
     
     rgb /= gammaInverseMaxPickable();
     rgb = rgb * (1.0 + global.pn_knob_brightness) - global.pn_knob_brightness;
+    
+    if(global.pn_test_pattern_split > 0.5 && global.pn_test_pattern > 0.5) {
+        vec3 rgb2 = testPatternSplit(vTexCoord);
+        if(rgb2 != vec3(-43))
+            rgb = rgb2;
+    }
     
     if(global.pn_gamma_type < 0.5) {
         FragColor = vec4(EOTF_1886a_f3(rgb, CRT_l, global.pn_knob_brightness, global.pn_knob_contrast), 1.0);

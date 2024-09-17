@@ -47,28 +47,28 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
-    if(global.pn_nes_enable > 0.5) {
-        FragColor = texture(Source, vTexCoord);
+    vec4 orig = texture(Source, vTexCoord);
+    if(global.pn_nes_enable > 0.5 || global.pn_connection_type > 1.5) {
+        // NES or No Artifacts
+                
+        FragColor = orig;
     } else {
-        float composite = 0.0;
+        // Composite or S-Video
+        
+        float luma = 0.0;
+        float chroma = 0.0;
         
         // Filter luma before combining with chroma.
-        composite += lowpassPickable(global.pn_modulator_luma_filter_type,
+        // Some S-Video mods might still have lowpassed luma.
+        luma = lowpassPickable(global.pn_modulator_luma_filter_type,
             global.pn_modulator_luma_filter_width, global.pn_modulator_luma_filter_level,
             global.pn_modulator_luma_sigma, global.pn_modulator_luma_radius,
-            global.pn_modulator_luma_res,
-        global.pn_modulator_luma_eq_f_lo, global.pn_modulator_luma_eq_f_hi,
-        global.pn_modulator_luma_eq_g_lo, global.pn_modulator_luma_eq_g_mid, global.pn_modulator_luma_eq_g_hi,
-            global.pn_modulator_luma_eq_dist, global.pn_modulator_luma_eq_off).r;
+            global.pn_modulator_luma_res).r;
         
-        composite += bandpassPickable(global.pn_modulator_chroma_filter_type,
-            global.pn_modulator_chroma_filter_width, global.pn_modulator_chroma_filter_level, global.pn_modulator_chroma_filter_level_diff,
-            global.pn_modulator_chroma_eq_f_lo, global.pn_modulator_chroma_eq_f_hi,
-            global.pn_modulator_chroma_eq_g_lo, global.pn_modulator_chroma_eq_g_mid, global.pn_modulator_chroma_eq_g_hi,
-            global.pn_modulator_chroma_eq_dist, global.pn_modulator_chroma_eq_off, 1 // 1 means chroma is in the G channel of the vector
-        ).g;
+        chroma = bandpassPickable(global.pn_modulator_chroma_filter_type,
+            global.pn_modulator_chroma_filter_width, global.pn_modulator_chroma_filter_level, global.pn_modulator_chroma_filter_level_diff).g;
         
-        if(global.pn_genesis_jailbar_enable > 0.5) {
+        if(global.pn_connection_type < 0.5 && global.pn_genesis_jailbar_enable > 0.5) {
             // Compensate for cropped overscan, assuming equal crop on both sides.
             // Current position in pixels, both x and y being decimal numbers.
             vec2 pixelCoord = realPixelCoord();
@@ -77,10 +77,15 @@ void main()
             // I don't even know what actually is causing the jailbars on the Model 1 Genesis, but this looks about right.
             // From what I've read, these jailbars are largely missing on the Genesis model 1 VA6 revision onward, and it can be fixed on earlier model 1s by adjusting the capacitors.
             // 0.0075 matched by eye, not precise.
-            composite += 0.0075 * global.pn_genesis_jailbar_amplitude * -cos(pi * pixelCoord.x + 2 * pi * global.pn_genesis_jailbar_offset);
+            chroma += 0.0075 * global.pn_genesis_jailbar_amplitude * -cos(pi * pixelCoord.x + 2 * pi * global.pn_genesis_jailbar_offset);
         }
         
-        FragColor = vec4(composite, 0, 0, 1);
+        if(global.pn_connection_type < 0.5) { // Composite
+            
+            FragColor = vec4(luma + chroma, 0, 0, 1);
+        } else { // S-Video
+            FragColor = vec4(chroma, luma, 0, 1);
+        }
     }
 }
 

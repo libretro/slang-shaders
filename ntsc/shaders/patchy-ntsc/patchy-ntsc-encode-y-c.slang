@@ -116,7 +116,7 @@ vec3 smpteBars(vec2 pos) {
    float wholeRamp = pos.x * 8;
    float flooredWholeRamp = floor(pos.x * 8);
    if(pos.y < 0.75) {
-      // Standard color bars
+      // Standard color bars. Top is 75%; bottom is 100%.
       int index = 7 - int(flooredWholeRamp + 0.5);
       return vec3((index & 2) >> 1, index >> 2, index & 1);
    } else if(pos.x > 0.875) {
@@ -221,16 +221,27 @@ vec3 testPattern(vec2 pos) {
 
 void main()
 {
-    vec4 colorIn = texture(Source, vTexCoord);
+    vec4 colorIn;
     
     if(global.pn_test_pattern > 0.5) {
         colorIn.rgb = testPattern(vTexCoord);
+    } else if(global.pn_nes_enable < 0.5 && global.pn_rgb_blur_enable > 0.5) {
+        int xscale = int(getSizes().x / global.pn_width_uncropped + 0.5);
+        vec3 sum = vec3(0);
+        int size = int(xscale * SIGNAL_RES * global.pn_rgb_blur_amount + 0.5);
+        int start = (-size) / 2; // rounds up towards 0
+        int end = start + size;
+        for(int i = start; i < end; i++) {
+            sum += texture(Source, vTexCoord - vec2(i * params.OutputSize.z, 0)).rgb;
+        }
+        colorIn.rgb = sum / size;
+    } else {
+        colorIn = texture(Source, vTexCoord);
     }
     
     // Compensate for cropped overscan, assuming equal crop on both sides. We don't know whether the user is cropping overscan or not.
     // Current position in pixels. X is a decimal number. Y is floored to an integer.
-    vec2 pixelCoord = vTexCoord * params.OutputSize.xy / vec2(SIGNAL_RES, 1) + (vec2(global.pn_width_uncropped, global.pn_height_uncropped) - params.OutputSize.xy / vec2(SIGNAL_RES, 1)) / 2;
-    pixelCoord.y = floor(pixelCoord.y);
+    vec2 pixelCoord = realPixelCoord();
     
     if(global.pn_nes_enable > 0.5) {
         
@@ -340,10 +351,17 @@ void main()
         
         vec3 yuvCol = yuvMat * colorIn.rgb;
         
-        float luma = yuvCol.r / global.pn_color_amplitude;
-        float chroma = (yuvCol.g * sin(phase) + yuvCol.b * cos(phase));
+        if(global.pn_connection_type < 1.5) {
+            // Composite and S-Video
         
-        FragColor = vec4(luma, chroma, 0, 1);
+            float luma = yuvCol.r / global.pn_color_amplitude;
+            float chroma = (yuvCol.g * sin(phase) + yuvCol.b * cos(phase));
+            
+            FragColor = vec4(luma, chroma, 0, 1);
+        } else if(global.pn_connection_type < 2.5) {
+            // No Artifacts
+            FragColor = vec4(yuvCol, 1);
+        }
     }
 }
 
