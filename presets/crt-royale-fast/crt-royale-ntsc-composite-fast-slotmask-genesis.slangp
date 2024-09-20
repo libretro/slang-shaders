@@ -1,0 +1,3 @@
+#reference "crt-royale-ntsc-composite-fast-slotmask-snes.slangp"
+cust_artifacting = "1.000000"
+ntsc_rainbow1 = "1.000000"

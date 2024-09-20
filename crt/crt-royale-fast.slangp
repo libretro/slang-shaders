@@ -4,7 +4,7 @@ shaders = "8"
 
 textures = "mask_grille_texture_small;mask_slot_texture_small;mask_shadow_texture_small"
 mask_grille_texture_small = "shaders/crt-royale/TileableLinearApertureGrille15Wide8And5d5SpacingResizeTo64BGR.png"
-mask_slot_texture_small = "shaders/crt-royale/TileableLinearSlotMaskTall15Wide9And4d5Horizontal9d14VerticalSpacingResizeTo64.png"
+mask_slot_texture_small = "shaders/crt-royale/TileableLinearSlotMaskTall15Wide9And4d5Horizontal9d14VerticalSpacingResizeTo64BGRshifted.png"
 mask_shadow_texture_small = "shaders/crt-royale/TileableLinearShadowMaskEDPResizeTo64.png"
 mask_grille_texture_small_wrap_mode = "repeat"
 mask_slot_texture_small_wrap_mode = "repeat"

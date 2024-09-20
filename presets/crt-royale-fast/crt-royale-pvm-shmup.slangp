@@ -1,4 +1,4 @@
-#reference "../crt/crt-royale-fast.slangp"
+#reference "../../crt/crt-royale-fast.slangp"
 mask_triad_size_desired = "1.000000"
 geom_curvature = "1.000000"
 geom_R = "6.000000"

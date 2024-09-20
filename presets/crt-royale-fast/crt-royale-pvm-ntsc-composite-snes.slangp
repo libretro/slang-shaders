@@ -1,0 +1,6 @@
+#reference "crt-royale-pvm-ntsc-composite.slangp"
+cust_artifacting = "0.500000"
+cust_fringing = "0.500000"
+ntsc_taps = "24.000000"
+ntsc_sharp = "3.500000"
+ntsc_shape = "0.750000"
