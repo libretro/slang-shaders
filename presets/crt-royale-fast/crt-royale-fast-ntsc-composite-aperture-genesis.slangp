@@ -126,7 +126,6 @@ mask_triad_size_desired = "3.000000"
 
 cust_artifacting = "1.000000"
 cust_fringing = "1.000000"
-ntsc_rainbow1 = "1.000000"
 ntsc_taps = "24.000000"
 ntsc_sharp = "3.500000"
 ntsc_shape = "0.750000"

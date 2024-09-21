@@ -119,7 +119,6 @@ wrap_mode11 = "clamp_to_edge"
 
 cust_artifacting = "1.000000"
 cust_fringing = "0.500000"
-ntsc_rainbow1 = "1.000000"
 ntsc_taps = "24.000000"
 ntsc_cscale = "4.000000"
 ntsc_cscale1 = "2.250000"
