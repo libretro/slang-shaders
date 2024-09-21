@@ -1,7 +1,0 @@
-#reference "../../crt/crt-royale-fast.slangp"
-lcd_gamma = "2.400000"
-bloom_underestimate_levels = "1.000000"
-beam_min_sigma = "0.150000"
-beam_max_sigma = "0.270000"
-mask_type = "1.000000"
-mask_triad_size_desired = "3.000000"

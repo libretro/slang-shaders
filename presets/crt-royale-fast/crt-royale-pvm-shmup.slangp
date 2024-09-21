@@ -1,8 +1,0 @@
-#reference "../../crt/crt-royale-fast.slangp"
-mask_triad_size_desired = "1.000000"
-geom_curvature = "1.000000"
-geom_R = "6.000000"
-geom_d = "0.600000"
-geom_invert_aspect = "1.000000"
-geom_x_tilt = "0.500000"
-geom_overscany = "75.000000"

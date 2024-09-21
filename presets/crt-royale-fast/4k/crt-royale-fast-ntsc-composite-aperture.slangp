@@ -117,16 +117,10 @@ scale11 = "1.0"
 srgb_framebuffer11 = "true"
 wrap_mode11 = "clamp_to_edge"
 
-
-cust_artifacting = "1.000000"
-cust_fringing = "0.500000"
-ntsc_taps = "24.000000"
 ntsc_cscale = "4.000000"
 ntsc_cscale1 = "2.250000"
-ntsc_rainbow1 = "1.000000"
 ntsc_sharp = "3.500000"
 ntsc_shape = "0.750000"
 beam_horiz_filter = "3.000000"
 mask_type = "0.000000"
-mask_triad_size_desired = "3.000000"
-
+mask_triad_size_desired = "4.000000"
