@@ -353,15 +353,7 @@ float corner(vec2 coord)
       return clamp((cdist.y - dist)*registers.cornersmooth, 0.0, 1.0);
 }
 
-// A collection of CRT mask effects that work with LCD subpixel structures for
-// small details
-//
-// author: hunterk
-// license: public domain
-//
-// Many of these mask arrays are adapted from cgwg's crt-geom-deluxe LUTs, and
-// those have their filenames included for easy identification
-
+// Masks adapted from cgwg's crt-geom-deluxe LUTs.
 vec3 mask_weights_alpha(vec2 coord, float mask_intensity, int phosphor_layout, out float alpha){
    vec3 weights = vec3(1.,1.,1.);
    float on = 1.;
