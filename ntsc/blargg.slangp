@@ -1,0 +1,14 @@
+shaders = "3"
+
+shader0 = "../stock.slang"
+filter_linear0 = "false"
+scale_type_x0 = "absolute"
+scale_x0 = "640.000000"
+scale_type_y0 = "source"
+scale_y0 = "1.000000"
+
+shader1 = "shaders/blargg/blargg-0.slang"
+filter_linear1 = false
+
+shader2 = "shaders/blargg/blargg-1.slang"
+filter_linear2 = false
