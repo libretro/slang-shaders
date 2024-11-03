@@ -533,7 +533,7 @@ These builtin variables may be part of a UBO block and/or a push constant block.
  - FrameCount: a uint variable taking a value which increases by one every frame.
    This value could be pre-wrapped by modulo if specified in preset.
    This is useful for creating time-dependent effects.
- - Rotation: a uint variable with values from 0 to 4 describing the rotation of the content; respectively: 0°,90°,180°,270° 
+ - Rotation: a uint variable with values from 0 to 3 describing the rotation of the content; respectively: 0°,90°,180°,270° 
  - OriginalAspect: a float value describing the aspect ratio intended by the current core.
  - OriginalAspectRotated: a float value that:
    Is the same as OriginalAspect for no rotated and 180° rotated content.
