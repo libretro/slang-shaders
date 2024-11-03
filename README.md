@@ -540,11 +540,10 @@ These builtin variables may be part of a UBO block and/or a push constant block.
    Is 1/OriginalAspect for 90° and 270° rotated content.
 
 #### Checking for builtin uniform variables availability.
-It's advisable to check for the availability of specific uniforms before using them in shaders.<br>
-This prevents compilation errors when trying to use new uniforms with an older retroarch version.
+It's advisable to check for the availability of specific uniforms before using them in shaders, because this prevents compilation errors when trying to use new uniforms with an older retroarch version.
 
 RetroArch provides the following defines:
- - _HAS_ORIGINALASPECT_UNIFORMS: Indicates whether the OriginalAspect and OriginalAspectRotated uniform is available.
+ - _HAS_ORIGINALASPECT_UNIFORMS: Indicates whether OriginalAspect and OriginalAspectRotated uniforms are available.
 
 #### Aliases
 Aliases can give meaning to arbitrary names in a slang file.
