@@ -1,0 +1,5 @@
+# If you want to use another base-preset, change the reference path here.
+
+#reference "base_presets/ambient-light/ambient-light-crt-nobody.slangp"
+//#reference "base_presets/ambient-light/ambient-light-crt-geom.slangp"
+
