@@ -1,0 +1,9 @@
+shaders = 1
+
+shader0 = shaders/motionblur_test/shaders/motionblur_test.slang
+
+textures = "base;twoSub;threeSub;fourSub"
+base = shaders/motionblur_test/resources/60.png
+twoSub = shaders/motionblur_test/resources/120.png
+threeSub = shaders/motionblur_test/resources/180.png
+fourSub = shaders/motionblur_test/resources/240.png
