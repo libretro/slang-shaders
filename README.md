@@ -533,6 +533,21 @@ These builtin variables may be part of a UBO block and/or a push constant block.
  - FrameCount: a uint variable taking a value which increases by one every frame.
    This value could be pre-wrapped by modulo if specified in preset.
    This is useful for creating time-dependent effects.
+ - Rotation: a uint variable with values from 0 to 3 describing the rotation of the content; respectively: 0°,90°,180°,270° 
+ - OriginalAspect: a float value describing the aspect ratio intended by the current core.
+ - OriginalAspectRotated: a float value that:
+   Is the same as OriginalAspect for no rotated and 180° rotated content.
+   Is 1/OriginalAspect for 90° and 270° rotated content.
+ - OriginalFPS: a float value describing the frame rate set by the core.
+ - FrameTimeDelta: a uint value describing the time difference (in microseconds) between the previous and the current frame.
+
+#### Checking for builtin uniform variables availability.
+
+It's advisable to check for the availability of specific uniforms before using them in shaders, because this prevents compilation errors when trying to use new uniforms with an older retroarch version.
+
+RetroArch provides the following defines:
+ - _HAS_ORIGINALASPECT_UNIFORMS: Indicates whether OriginalAspect and OriginalAspectRotated uniforms are available.
+ - _HAS_FRAMETIME_UNIFORMS: Indicates wheter OriginalFPS and FrameTimeDelta uniforms are available.
 
 #### Aliases
 Aliases can give meaning to arbitrary names in a slang file.
