@@ -1,16 +1,20 @@
 #version 450
 
+// motionblur test
+// by hunterk
+// license: public domain
+
 layout(push_constant) uniform Push
 {
-	vec4 SourceSize;
-	vec4 OriginalSize;
-	vec4 OutputSize;
-	uint FrameCount;
-	uint TotalSubFrames;
-	uint CurrentSubFrame;
-	vec4 FinalViewportSize;
-	float inv_speed;
-	float OriginalAspect;
+   vec4 SourceSize;
+   vec4 OriginalSize;
+   vec4 OutputSize;
+   uint FrameCount;
+   uint TotalSubFrames;
+   uint CurrentSubFrame;
+   vec4 FinalViewportSize;
+   float inv_speed;
+   float OriginalAspect;
 } params;
 
 #pragma parameter inv_speed "Invader Speed" 1.0 1.0 20.0 1.0

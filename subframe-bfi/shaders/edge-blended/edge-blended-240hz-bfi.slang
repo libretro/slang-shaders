@@ -1,11 +1,15 @@
 #version 450
 
+// edge-blended 240Hz BFI
+// by hunterk
+// license: public domain
+
 layout(push_constant) uniform Push
 {
-	vec4 SourceSize;
-	vec4 OriginalSize;
-	vec4 OutputSize;
-	uint FrameCount;
+   vec4 SourceSize;
+   vec4 OriginalSize;
+   vec4 OutputSize;
+   uint FrameCount;
    uint CurrentSubFrame;
    uint TotalSubFrames;
    float favor_black;
