@@ -61,8 +61,8 @@ Vulkan GLSL is a GLSL dialect designed for Vulkan and SPIR-V intermediate repres
 The good part is that we can use whatever GLSL version we want when writing shaders, as it is decoupled from the GL runtime.
 
 In runtime, we can have a vendor-neutral mature compiler,
-[https://github.com/KhronosGroup/glslang](glslang) which compiles our Vulkan GLSL to SPIR-V.
-Using [https://github.com/KhronosGroup/SPIRV-Cross](SPIRV-Cross), we can then do reflection on the SPIR-V binary to deduce our filter chain layout.
+[glslang](https://github.com/KhronosGroup/glslang) which compiles our Vulkan GLSL to SPIR-V.
+Using [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross), we can then do reflection on the SPIR-V binary to deduce our filter chain layout.
 We can also disassemble back to our desired GLSL dialect in the GL backend based on which GL version we're running,
 which effectively means we can completely sidestep all our current problems with a pure GLSL based shading system.
 
