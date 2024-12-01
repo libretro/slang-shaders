@@ -25,7 +25,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter mode "Color Profile (1=sRGB, 2=DCI, 3=Rec2020)" 1.0 1.0 3.0 1.0
 int color_mode = int(global.mode);
 
-#pragma parameter lighten_screen "Lighten Screen" 0.5 0.0 1.0 0.05
+#pragma parameter lighten_screen "External Lighten Screen" 0.0 0.0 1.0 0.05
 
 #define target_gamma 2.2
 #define display_gamma 2.2
@@ -39,24 +39,24 @@ We'll define our color weights in this pattern:
 */
 
 const mat4 GBC_sRGB = mat4(
-	0.80, 0.135, 0.195, 0.0,  //red channel
-	0.275, 0.64, 0.155, 0.0,  //green channel
-	-0.075, 0.225, 0.65, 0.0,  //blue channel
-	0.0,  0.0,  0.0,  0.93   //alpha channel
+	0.905, 0.10, 0.1575, 0.0,  //red channel
+	0.195, 0.65, 0.1425, 0.0,  //green channel
+	-0.10, 0.25, 0.70, 0.0,  //blue channel
+	0.0,  0.0,  0.0,  0.91   //alpha channel
 ); 
 
 const mat4 GBC_DCI = mat4(
-	0.685, 0.16, 0.20, 0.0,  //red channel
-	0.34, 0.629, 0.19, 0.0,  //green channel
-	-0.025, 0.211, 0.61, 0.0,  //blue channel
-	0.0,  0.0,  0.0,  0.975  //alpha channel
+	0.76, 0.125, 0.16, 0.0,  //red channel
+	0.27, 0.6375, 0.18, 0.0,  //green channel
+	-0.03, 0.2375, 0.66, 0.0,  //blue channel
+	0.0,  0.0,  0.0,  0.97  //alpha channel
 ); 
 
 const mat4 GBC_Rec2020 = mat4(
-	0.555, 0.1825, 0.20, 0.0,  //red channel
-	0.395, 0.61, 0.195, 0.0,  //green channel
-	0.05, 0.2075, 0.605, 0.0,  //blue channel
-	0.0,   0.0,  0.0,   1.0  //alpha channel
+	0.61, 0.155, 0.16, 0.0,  //red channel
+	0.345, 0.615, 0.1875, 0.0,  //green channel
+	0.045, 0.23, 0.6525, 0.0,  //blue channel
+	0.0,  0.0,  0.0,   1.0  //alpha channel
 );
 
 #pragma stage vertex

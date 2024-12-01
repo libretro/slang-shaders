@@ -7,7 +7,6 @@
    License: Public domain
 */
 // Shader that replicates the LCD Colorspace from a Gameboy SP 101 (backlit version) --
-// (Note: This is also very close to what DS-Lite and DSi line colorspace looks)
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -15,17 +14,14 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	vec4 OutputSize;
 	vec4 OriginalSize;
 	vec4 SourceSize;
-	float mode, white_toggle;
+	float mode;
 } global;
 
 #pragma parameter mode "Color Profile (1=sRGB, 2=DCI, 3=Rec2020)" 1.0 1.0 3.0 1.0
 int color_mode = int(global.mode);
 
-#pragma parameter white_toggle "Toggle White Balance" 1.0 0.0 1.0 1.0
-bool white = bool(global.white_toggle);
-
-#define target_gamma 2.0
-#define display_gamma 2.0
+#define target_gamma 2.2
+#define display_gamma 2.2
 
 /*
 We'll define our color weights in this pattern:
@@ -35,45 +31,24 @@ We'll define our color weights in this pattern:
 	blr, blg, blb, lum   //alpha channel; we'll hide lum at the end, too
 */
 
-const mat4 NDS_sRGB = mat4(
-	0.86, 0.03, 0.0025, 0.0,  //red channel
-	0.10, 0.745, -0.03, 0.0,  //green channel
-	-0.06, 0.0675, 1.0275, 0.0,  //blue channel
-	0.0,  0.0,  0.0,  0.97   //alpha channel
+const mat4 SP1_sRGB = mat4(
+	0.96, 0.0325, 0.001, 0.0,  //red channel
+	0.11, 0.89, -0.03, 0.0,  //green channel
+	-0.07, 0.0775, 1.029, 0.0,  //blue channel
+	0.0,  0.0,  0.0,  0.935   //alpha channel
 ); 
 
-const mat4 NDS_sRGB_white = mat4(
-	0.955, 0.0375, 0.0025, 0.0,  //red channel
-	0.11, 0.885, -0.03, 0.0,  //green channel
-	-0.065, 0.0775, 1.0275, 0.0,  //blue channel
-	0.0,  0.0,  0.0,  0.94   //alpha channel
+const mat4 SP1_DCI = mat4(
+	0.805, 0.0675, 0.017, 0.0,  //red channel
+	0.24, 0.86, 0.02, 0.0,  //green channel
+	-0.045, 0.0725, 0.963, 0.0,  //blue channel
+	0.0,   0.0,   0.0,   0.955  //alpha channel
 ); 
 
-const mat4 NDS_DCI = mat4(
-	0.725, 0.06, 0.02, 0.0,  //red channel
-	0.215, 0.73, 0.0225, 0.0,  //green channel
-	-0.04, 0.065, 0.9575, 0.0,  //blue channel
-	0.0,   0.0,   0.0,   1.0  //alpha channel
-); 
-
-const mat4 NDS_DCI_white = mat4(
-	0.805, 0.07, 0.02, 0.0,  //red channel
-	0.235, 0.8575, 0.0225, 0.0,  //green channel
-	-0.04, 0.0725, 0.9575, 0.0,  //blue channel
-	0.0,   0.0,   0.0,   0.96  //alpha channel
-); 
-
-const mat4 NDS_Rec2020 = mat4(
-	0.56, 0.091, 0.02, 0.0,  //red channel
-	0.31, 0.695, 0.035, 0.0,  //green channel
-	0.0275, 0.07, 0.945, 0.0,  //blue channel
-	0.0,   0.0,   0.0,   1.0  //alpha channel
-); 
-
-const mat4 NDS_Rec2020_white = mat4(
-	0.625, 0.105, 0.02, 0.0,  //red channel
-	0.345, 0.815, 0.035, 0.0,  //green channel
-	0.03, 0.08, 0.945, 0.0,  //blue channel
+const mat4 SP1_Rec2020 = mat4(
+	0.625, 0.10, 0.015, 0.0,  //red channel
+	0.35, 0.82, 0.0325, 0.0,  //green channel
+	0.025, 0.08, 0.9525, 0.0,  //blue channel
 	0.0,   0.0,   0.0,   1.0  //alpha channel
 ); 
 
@@ -88,9 +63,9 @@ void main()
 	gl_Position = global.MVP * Position;
 	vTexCoord = TexCoord;
 
-	if (color_mode == 1) profile = (!white) ? NDS_sRGB : NDS_sRGB_white;
-	else if (color_mode == 2) profile = (!white) ? NDS_DCI : NDS_DCI_white;
-	else if (color_mode == 3) profile = (!white) ? NDS_Rec2020 : NDS_Rec2020_white;
+	if (color_mode == 1) profile = SP1_sRGB;
+	else if (color_mode == 2) profile = SP1_DCI;
+	else if (color_mode == 3) profile = SP1_Rec2020;
 }
 
 #pragma stage fragment

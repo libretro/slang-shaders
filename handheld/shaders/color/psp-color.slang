@@ -14,17 +14,14 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	vec4 OutputSize;
 	vec4 OriginalSize;
 	vec4 SourceSize;
-	float mode, white_toggle;
+	float mode;
 } global;
 
 #pragma parameter mode "Color Profile (1=sRGB, 2=DCI, 3=Rec2020)" 1.0 1.0 3.0 1.0
 int color_mode = int(global.mode);
 
-#pragma parameter white_toggle "Toggle White Balance" 1.0 0.0 1.0 1.0
-bool white = bool(global.white_toggle);
-
-#define target_gamma 2.0
-#define display_gamma 2.0
+#define target_gamma 2.2
+#define display_gamma 2.2
 
 /*
 We'll define our color weights in this pattern:
@@ -35,44 +32,23 @@ We'll define our color weights in this pattern:
 */
 
 const mat4 PSP_sRGB = mat4(
-	0.835, 0.0425, 0.0225, 0.0,  //red channel
-	0.16, 0.745, 0.015, 0.0,  //green channel
-	-0.13, 0.155, 0.9625, 0.0,  //blue channel
-	0.0,  0.0,  0.0,  1.0   //alpha channel
-); 
-
-const mat4 PSP_sRGB_white = mat4(
-	0.965, 0.045, 0.0225, 0.0,  //red channel
-	0.185, 0.79, 0.015, 0.0,  //green channel
-	-0.15, 0.165, 0.9625, 0.0,  //blue channel
+	0.965, 0.0425, 0.0175, 0.0,  //red channel
+	0.185, 0.79, 0.01, 0.0,  //green channel
+	-0.15, 0.1675, 0.9725, 0.0,  //blue channel
 	0.0,  0.0,  0.0,  0.87   //alpha channel
 ); 
 
 const mat4 PSP_DCI = mat4(
-	0.725, 0.07, 0.0375, 0.0,  //red channel
-	0.235, 0.73, 0.0775, 0.0,  //green channel
-	-0.08, 0.1475, 0.885, 0.0,  //blue channel
-	0.0,   0.0,   0.0,   1.0  //alpha channel
-); 
-
-const mat4 PSP_DCI_white = mat4(
-	0.825, 0.075, 0.0375, 0.0,  //red channel
-	0.27, 0.77, 0.0775, 0.0,  //green channel
-	-0.095, 0.155, 0.885, 0.0,  //blue channel
+	0.79, 0.07, 0.0325, 0.0,  //red channel
+	0.305, 0.77, 0.07, 0.0,  //green channel
+	-0.095, 0.16, 0.8975, 0.0,  //blue channel
 	0.0,   0.0,   0.0,   0.91  //alpha channel
 ); 
 
 const mat4 PSP_Rec2020 = mat4(
-	0.56, 0.10, 0.0375, 0.0,  //red channel
-	0.325, 0.70, 0.09, 0.0,  //green channel
-	0.0125, 0.1475, 0.8725,  0.0,  //blue channel
-	0.0,   0.0,  0.0,   1.0  //alpha channel
-); 
-
-const mat4 PSP_Rec2020_white = mat4(
-	0.625, 0.105, 0.0375, 0.0,  //red channel
-	0.36, 0.7375, 0.09, 0.0,  //green channel
-	0.015, 0.1575, 0.8725,  0.0,  //blue channel
+	0.605, 0.10, 0.0325, 0.0,  //red channel
+	0.385, 0.74, 0.0825, 0.0,  //green channel
+	0.01, 0.16, 0.885,  0.0,  //blue channel
 	0.0,   0.0,  0.0,   1.0  //alpha channel
 ); 
 
@@ -87,9 +63,9 @@ void main()
 	gl_Position = global.MVP * Position;
 	vTexCoord = TexCoord;
 
-	if (color_mode == 1) profile = (!white) ? PSP_sRGB : PSP_sRGB_white;
-	else if (color_mode == 2) profile = (!white) ? PSP_DCI : PSP_DCI_white;
-	else if (color_mode == 3) profile = (!white) ? PSP_Rec2020 : PSP_Rec2020_white;
+	if (color_mode == 1) profile = PSP_sRGB;
+	else if (color_mode == 2) profile = PSP_DCI;
+	else if (color_mode == 3) profile = PSP_Rec2020;
 }
 
 #pragma stage fragment

@@ -9,11 +9,6 @@
 // Shader that replicates the Nintendo Switch Online's GBC color filter --
 // (Experimental WIP shader. Due to how complex the NSO GBC filter used (using different gamma ramps and greyscale temperatures), it couldn't be replicated to a shader as of now completely, so a side effect of using correct color metrics for RGB, is warm greyscales. This is not an issue with NSO GBA Filter which was easy to replicate. If you want an actual NSO GBC replication, use Reshade NSO-GBC shader pack instead that uses Reshade LUT shader)
 
-layout(push_constant) uniform Push
-{
-   float lighten_screen;
-} params;
-
 layout(std140, set = 0, binding = 0) uniform UBO
 {
 	mat4 MVP;
@@ -25,11 +20,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter mode "Color Profile (1=sRGB, 2=DCI, 3=Rec2020)" 1.0 1.0 3.0 1.0
 int color_mode = int(global.mode);
-
-#pragma parameter lighten_screen "Lighten Screen" 1.0 0.0 2.0 0.05
-
-#define target_gamma 1.0
-#define display_gamma 1.0
 
 /*
 We'll define our color weights in this pattern:
@@ -47,17 +37,17 @@ const mat4 GBC_sRGB = mat4(
 ); 
 
 const mat4 GBC_DCI = mat4(
-	0.69, 0.17, 0.195, 0.0,  //red channel
-	0.31, 0.61, 0.165, 0.0,  //green channel
-	0.0, 0.22, 0.64, 0.0,  //blue channel
-	0.0,   0.0,   0.0,   1.0  //alpha channel
+	0.84, 0.105, 0.15, 0.0,  //red channel
+	0.265, 0.67, 0.30, 0.0,  //green channel
+	0.0, 0.24, 0.525, 0.0,  //blue channel
+	0.175,  0.18,  0.18,  1.0   //alpha channel
 ); 
 
 const mat4 GBC_Rec2020 = mat4(
-	0.57, 0.195, 0.195, 0.0,  //red channel
-	0.37, 0.605, 0.175, 0.0,  //green channel
-	0.06, 0.22, 0.63,  0.0,  //blue channel
-	0.0,   0.0,  0.0,   1.0  //alpha channel
+	0.84, 0.105, 0.15, 0.0,  //red channel
+	0.265, 0.67, 0.30, 0.0,  //green channel
+	0.0, 0.24, 0.525, 0.0,  //blue channel
+	0.175,  0.18,  0.18,  1.0   //alpha channel
 ); 
 
 #pragma stage vertex
@@ -88,9 +78,9 @@ void main()
 	float lum = profile[3].w;
 
 	// our adjustments need to happen in linear gamma
-	vec4 screen = pow(texture(Source, vTexCoord), vec4(target_gamma + (1.0 - params.lighten_screen))).rgba;
+	vec4 screen = pow(texture(Source, vTexCoord), vec4(1.24, 0.8, 0.7, 1.0)).rgba;
 
 	screen = clamp(screen * lum, 0.0, 1.0);
 	screen = profile * screen;
-	FragColor = pow(screen, vec4(1.0 / display_gamma));
+	FragColor = pow(screen, vec4(1.0));
 }

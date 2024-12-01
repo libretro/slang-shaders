@@ -14,17 +14,14 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	vec4 OutputSize;
 	vec4 OriginalSize;
 	vec4 SourceSize;
-	float mode, white_toggle;
+	float mode;
 } global;
 
 #pragma parameter mode "Color Profile (1=sRGB, 2=DCI, 3=Rec2020)" 1.0 1.0 3.0 1.0
 int color_mode = int(global.mode);
 
-#pragma parameter white_toggle "Toggle White Balance" 1.0 0.0 1.0 1.0
-bool white = bool(global.white_toggle);
-
-#define target_gamma 2.0
-#define display_gamma 2.0
+#define target_gamma 2.2
+#define display_gamma 2.2
 
 /*
 We'll define our color weights in this pattern:
@@ -35,44 +32,23 @@ We'll define our color weights in this pattern:
 */
 
 const mat4 NDS_sRGB = mat4(
-	0.705, 0.09, 0.1075, 0.0,  //red channel
-	0.235, 0.585, 0.1725, 0.0,  //green channel
-	-0.075, 0.24, 0.72, 0.0,  //blue channel
-	0.0,  0.0,  0.0,  1.0   //alpha channel
-); 
-
-const mat4 NDS_sRGB_white = mat4(
-	0.815, 0.10, 0.1075, 0.0,  //red channel
-	0.275, 0.64, 0.1725, 0.0,  //green channel
-	-0.09, 0.26, 0.72, 0.0,  //blue channel
-	0.0,  0.0,  0.0,  0.915   //alpha channel
+	0.835, 0.10, 0.105, 0.0,  //red channel
+	0.27, 0.6375, 0.175, 0.0,  //green channel
+	-0.105, 0.2625, 0.72, 0.0,  //blue channel
+	0.0,   0.0,   0.0,   0.905   //alpha channel
 ); 
 
 const mat4 NDS_DCI = mat4(
-	0.605, 0.115, 0.115, 0.0,  //red channel
-	0.295, 0.575, 0.205, 0.0,  //green channel
-	-0.03, 0.23, 0.68, 0.0,  //blue channel
-	0.0,   0.0,   0.0,   1.0  //alpha channel
-); 
-
-const mat4 NDS_DCI_white = mat4(
-	0.69, 0.125, 0.12, 0.0,  //red channel
-	0.335, 0.625, 0.20, 0.0,  //green channel
-	-0.025, 0.25, 0.68, 0.0,  //blue channel
-	0.0,   0.0,   0.0,   0.975  //alpha channel
+	0.70, 0.125, 0.12, 0.0,  //red channel
+	0.34, 0.625, 0.20, 0.0,  //green channel
+	-0.04, 0.25, 0.68, 0.0,  //blue channel
+	0.0,   0.0,   0.0,   0.96  //alpha channel
 ); 
 
 const mat4 NDS_Rec2020 = mat4(
-	0.495, 0.135, 0.1175, 0.0,  //red channel
-	0.345, 0.555, 0.2075, 0.0,  //green channel
-	0.055, 0.225, 0.675, 0.0,  //blue channel
-	0.0,   0.0,   0.0,   1.0  //alpha channel
-); 
-
-const mat4 NDS_Rec2020_white = mat4(
-	0.55, 0.1475, 0.1175, 0.0,  //red channel
-	0.39, 0.61, 0.2075, 0.0,  //green channel
-	0.06, 0.2425, 0.675, 0.0,  //blue channel
+	0.555, 0.1475, 0.1175, 0.0,  //red channel
+	0.39, 0.6075, 0.2075, 0.0,  //green channel
+	0.055, 0.245, 0.675, 0.0,  //blue channel
 	0.0,   0.0,   0.0,   1.0  //alpha channel
 ); 
 
@@ -87,9 +63,9 @@ void main()
 	gl_Position = global.MVP * Position;
 	vTexCoord = TexCoord;
 
-	if (color_mode == 1) profile = (!white) ? NDS_sRGB : NDS_sRGB_white;
-	else if (color_mode == 2) profile = (!white) ? NDS_DCI : NDS_DCI_white;
-	else if (color_mode == 3) profile = (!white) ? NDS_Rec2020 : NDS_Rec2020_white;
+	if (color_mode == 1) profile = NDS_sRGB;
+	else if (color_mode == 2) profile = NDS_DCI;
+	else if (color_mode == 3) profile = NDS_Rec2020;
 }
 
 #pragma stage fragment

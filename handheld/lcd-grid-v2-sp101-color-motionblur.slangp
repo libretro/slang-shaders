@@ -1,21 +1,31 @@
-shaders = "3"
+shaders = "4"
 
 shader0 = "../motionblur/shaders/response-time.slang"
 filter_linear0 = "false"
 scale_type0 = "source"
 scale0 = "1.0"
 
-shader1 = "shaders/lcd-cgwg/lcd-grid-v2.slang"
-filter_linear1 = "false"
-scale_type1 = "viewport"
-scale1 = "1.0"
+shader1 = "../reshade/shaders/LUT/multiLUT.slang"
+filter_linear1 = false
+scale_type1 = source
+scale1 = 1.0
 
-shader2 = "shaders/color/sp101-color.slang"
+shader2 = "shaders/lcd-cgwg/lcd-grid-v2.slang"
 filter_linear2 = "false"
-scale_type2 = "source"
+scale_type2 = "viewport"
 scale2 = "1.0"
 
-parameters = "RSUBPIX_R;RSUBPIX_G;RSUBPIX_B;GSUBPIX_R;GSUBPIX_G;GSUBPIX_B;BSUBPIX_R;BSUBPIX_G;BSUBPIX_B;gain;gamma;blacklevel;ambient;BGR"
+shader3 = "shaders/color/sp101-color.slang"
+filter_linear3 = "false"
+scale_type3 = "source"
+scale3 = "1.0"
+
+textures = SamplerLUT1;SamplerLUT2
+response_time = "0.333"
+SamplerLUT1 = ../reshade/shaders/LUT/64.png
+SamplerLUT1_linear = true
+SamplerLUT2 = shaders/color/lut/sp101-grey.png
+SamplerLUT2_linear = true
 RSUBPIX_R = "1"
 RSUBPIX_G = "0"
 RSUBPIX_B = "0"
@@ -29,4 +39,4 @@ gain = "1"
 gamma = "2.2"
 blacklevel = "0"
 ambient = "0"
-BGR = "0"
+BGR = "1"

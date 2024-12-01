@@ -1,16 +1,15 @@
 shaders = 1
 
-shader0 = ../shaders/LUT/LUT.slang
+shader0 = ../shaders/LUT/multiLUT.slang
 filter_linear0 = "false"
 scale_type_x0 = "source"
 scale_x0 = "1.000000"
 scale_type_y0 = "source"
 scale_y0 = "1.000000"
 
-textures = SamplerLUT
+textures = SamplerLUT1;SamplerLUT2
 
-SamplerLUT = ../shaders/LUT/handheld/GBC-sRGB.png
-SamplerLUT_linear = true
-
-parameters = "LUT_Size"
-LUT_Size = "32.000000"
+SamplerLUT1 = ../shaders/LUT/handheld/GBC-sRGB.png
+SamplerLUT1_linear = true
+SamplerLUT2 = ../shaders/LUT/handheld/GBC-sRGB-Cold.png
+SamplerLUT2_linear = true

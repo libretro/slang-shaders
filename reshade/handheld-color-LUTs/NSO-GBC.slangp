@@ -11,6 +11,3 @@ textures = SamplerLUT
 
 SamplerLUT = ../shaders/LUT/handheld/NSO-GBC.png
 SamplerLUT_linear = true
-
-parameters = "LUT_Size"
-LUT_Size = "32.000000"

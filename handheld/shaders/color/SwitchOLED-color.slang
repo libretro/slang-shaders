@@ -23,8 +23,8 @@ int color_mode = int(global.mode);
 #pragma parameter white_toggle "Full White Scale" 1.0 0.0 1.0 1.0
 bool white = bool(global.white_toggle);
 
-#define target_gamma 2.0
-#define display_gamma 2.0
+#define target_gamma 2.2
+#define display_gamma 2.2
 
 /*
 We'll define our color weights in this pattern:
