@@ -53,6 +53,7 @@ layout(push_constant) uniform Push
     float box_scale;
     float in_res_x;
     float in_res_y;
+    float ub_rotate;
 } params;
 
 #pragma parameter frame_nonono       "FRAME:"                           0.0  0.0 1.0 1.0
@@ -61,6 +62,7 @@ layout(push_constant) uniform Push
 #pragma parameter in_res_y           "    Viewport Size Y"            240.0 64.0 512.0 1.0
 #pragma parameter geom_center_x      "    Center X"                     0.0 -1.0 1.0 0.001
 #pragma parameter geom_center_y      "    Center Y"                     0.0 -1.0 1.0 0.01
+#pragma parameter ub_rotate          "    Rotate (TATE)"                0.0  0.0 1.0 1.0
 
 #pragma parameter geom_nonono        "GEOM'S CURVATURE:"                0.0  0.0 1.0 1.0
 #pragma parameter geom_curvature     "    Curvature Toggle"             0.0 0.0 1.0 1.0
@@ -115,6 +117,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     vec4 OriginalSize;
     vec4 OutputSize;
     uint FrameCount;
+    uint Rotation;
     mat4 MVP;
 } global;
 
@@ -236,10 +239,13 @@ void main()
 {
     gl_Position = global.MVP * Position;
 
+    vTexCoord = mix(TexCoord.xy, vec2(1.0-TexCoord.y, TexCoord.x), params.ub_rotate);
+//   vTexCoord = mix(TexCoord.xy, vec2(1.0-TexCoord.y, TexCoord.x), float(global.Rotation==1.0)); // Doesn't work in this pass...
+
    vec2 corrected_size = vec2(params.in_res_x, params.in_res_y) * params.box_scale;
    vec2 scale  = vec2(1920.0, 1080.0) / corrected_size;
    vec2 middle = vec2(params.geom_center_x, params.geom_center_y) + vec2(0.5, 0.5);
-   vec2 diff   = TexCoord.xy - middle;
+   vec2 diff   = vTexCoord - middle;
    vTexCoord   = middle + diff * scale;
 
     // Precalculate a bunch of useful values we'll need in the fragment
