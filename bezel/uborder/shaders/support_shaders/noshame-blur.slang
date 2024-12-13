@@ -21,7 +21,7 @@ layout(location = 0) out vec2 vTexCoord;
 void main()
 {
    gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord;
+   vTexCoord = TexCoord*vec2(1.01, 1.01); // Fix shifted Mipmap when lod > 3.0.
 }
 
 #pragma stage fragment
