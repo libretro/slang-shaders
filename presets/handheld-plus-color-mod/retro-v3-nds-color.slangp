@@ -1,0 +1,9 @@
+shaders = 2
+
+shader0 = "../../handheld/shaders/color/nds-color.slang"
+filter_linear0 = "false"
+
+shader1 = "../../handheld/shaders/retro-v3.slang"
+filter_linear1 = "false"
+scale_type1 = "viewport"
+
