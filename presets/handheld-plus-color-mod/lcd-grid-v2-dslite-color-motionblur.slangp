@@ -1,0 +1,42 @@
+shaders = "4"
+
+shader0 = "../../motionblur/shaders/response-time.slang"
+filter_linear0 = "false"
+scale_type0 = "source"
+scale0 = "1.0"
+
+shader1 = "../../reshade/shaders/LUT/multiLUT.slang"
+filter_linear1 = false
+scale_type1 = source
+scale1 = 1.0
+
+shader2 = "../../handheld/shaders/lcd-cgwg/lcd-grid-v2.slang"
+filter_linear2 = "false"
+scale_type2 = "viewport"
+scale2 = "1.0"
+
+shader3 = "../../handheld/shaders/color/dslite-color.slang"
+filter_linear3 = "false"
+scale_type3 = "source"
+scale3 = "1.0"
+
+textures = SamplerLUT1;SamplerLUT2
+response_time = "0.333"
+SamplerLUT1 = ../../reshade/shaders/LUT/64.png
+SamplerLUT1_linear = true
+SamplerLUT2 = ../../handheld/shaders/color/lut/dslite-grey.png
+SamplerLUT2_linear = true
+RSUBPIX_R = "1"
+RSUBPIX_G = "0"
+RSUBPIX_B = "0"
+GSUBPIX_R = "0"
+GSUBPIX_G = "1"
+GSUBPIX_B = "0"
+BSUBPIX_R = "0"
+BSUBPIX_G = "0"
+BSUBPIX_B = "1"
+gain = "1"
+gamma = "2.2"
+blacklevel = "0"
+ambient = "0"
+BGR = "1"

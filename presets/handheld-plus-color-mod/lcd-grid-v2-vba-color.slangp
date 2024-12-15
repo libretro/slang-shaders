@@ -1,0 +1,28 @@
+shaders = "2"
+
+shader0 = "../../handheld/shaders/lcd-cgwg/lcd-grid-v2.slang"
+filter_linear0 = "false"
+scale_type0 = "viewport"
+scale0 = "1.0"
+
+shader1 = "../../handheld/shaders/color/vba-color.slang"
+filter_linear1 = "false"
+scale_type1 = "source"
+scale1 = "1.0"
+
+RSUBPIX_R = "1"
+RSUBPIX_G = "0"
+RSUBPIX_B = "0"
+GSUBPIX_R = "0"
+GSUBPIX_G = "1"
+GSUBPIX_B = "0"
+BSUBPIX_R = "0"
+BSUBPIX_G = "0"
+BSUBPIX_B = "1"
+gain = "1"
+gamma = "3.2"
+blacklevel = "0"
+ambient = "0.02"
+BGR = "0"
+color_mode = 2
+darken_screen = "0"

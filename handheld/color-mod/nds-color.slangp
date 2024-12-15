@@ -1,0 +1,17 @@
+shaders = 2
+
+shader0 = ../../reshade/shaders/LUT/multiLUT.slang
+filter_linear0 = false
+scale_type0 = source
+scale0 = 1.0
+shader1 = ../shaders/color/nds-color.slang
+filter_linear1 = false
+scale_type1 = source
+scale1 = 1.0
+
+textures = SamplerLUT1;SamplerLUT2
+
+SamplerLUT1 = ../../reshade/shaders/LUT/64.png
+SamplerLUT1_linear = true
+SamplerLUT2 = ../shaders/color/lut/nds-grey.png
+SamplerLUT2_linear = true
