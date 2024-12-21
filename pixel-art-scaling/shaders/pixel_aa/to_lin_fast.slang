@@ -11,8 +11,8 @@ layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 
 void main() {
-  gl_Position = global.MVP * Position;
-  vTexCoord = TexCoord;
+    gl_Position = global.MVP * Position;
+    vTexCoord = TexCoord;
 }
 
 #pragma stage fragment
@@ -21,6 +21,6 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main() {
-  const vec3 s = texture(Source, vTexCoord).rgb;
-  FragColor = vec4(s * s, 1.0);
+    const vec3 s = texture(Source, vTexCoord).rgb;
+    FragColor = vec4(s * s, 1.0);
 }

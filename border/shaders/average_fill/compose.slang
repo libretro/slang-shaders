@@ -231,8 +231,8 @@ void main() {
             } else {
                 // Do a sharp anti-aliased interpolation.
                 FragColor.rgb = pixel_aa(Input, tx_per_px, tx_to_uv, tx_coord, param.PIX_AA_SHARP,
-                                     param.PIX_AA_SUBPX > 0.5, uint(param.PIX_AA_SUBPX_ORIENTATION),
-                                     param.Rotation);
+                                         param.PIX_AA_SUBPX > 0.5,
+                                         uint(param.PIX_AA_SUBPX_ORIENTATION), param.Rotation);
             }
         } else {
             if (extend_fill.y < 0.5) {
