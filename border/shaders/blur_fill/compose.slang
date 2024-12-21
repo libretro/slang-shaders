@@ -97,20 +97,17 @@ layout(location = 4) out vec4 input_corners;
 void main() {
     gl_Position = global.MVP * Position;
     vTexCoord = TexCoord;
-    const vec4 crop = vec4(param.OS_CROP_TOP, param.OS_CROP_LEFT,
-                           param.OS_CROP_BOTTOM, param.OS_CROP_RIGHT);
+    const vec4 crop =
+        vec4(param.OS_CROP_TOP, param.OS_CROP_LEFT, param.OS_CROP_BOTTOM, param.OS_CROP_RIGHT);
     const vec2 scale_i2o = get_scale_i2o(
-        param.InputSize.xy, param.OutputSize.xy, crop, param.Rotation,
-        param.CENTER_AFTER_CROPPING, param.FORCE_ASPECT_RATIO,
-        vec2(param.ASPECT_H, param.ASPECT_V),
-        vec2(param.FORCE_INTEGER_SCALING_H, param.FORCE_INTEGER_SCALING_V),
-        param.OVERSCALE);
+        param.InputSize.xy, param.OutputSize.xy, crop, param.Rotation, param.CENTER_AFTER_CROPPING,
+        param.FORCE_ASPECT_RATIO, vec2(param.ASPECT_H, param.ASPECT_V),
+        vec2(param.FORCE_INTEGER_SCALING_H, param.FORCE_INTEGER_SCALING_V), param.OVERSCALE);
     const vec2 shift = vec2(param.SHIFT_H, param.SHIFT_V);
-    const vec2 input_center = get_input_center(
-        param.InputSize.xy, param.OutputSize.xy, scale_i2o, crop, shift,
-        param.Rotation, param.CENTER_AFTER_CROPPING);
-    tx_coord = transform(TexCoord, vec2(0.5), param.OutputSize.xy / scale_i2o,
-                         input_center);
+    const vec2 input_center =
+        get_input_center(param.InputSize.xy, param.OutputSize.xy, scale_i2o, crop, shift,
+                         param.Rotation, param.CENTER_AFTER_CROPPING);
+    tx_coord = transform(TexCoord, vec2(0.5), param.OutputSize.xy / scale_i2o, input_center);
     tx_per_px = 1.0 / scale_i2o;
     tx_to_uv = param.InputSize.zw;
     input_corners = get_input_corners(param.InputSize.xy, crop, param.Rotation);
@@ -132,37 +129,26 @@ void main() {
         any(greaterThanEqual(tx_coord, input_corners.zw))) {
         if (param.BLUR_RADIUS > 0.0) {
             // Sample blur.
-            FragColor = vec4(
-                pow(texture(Blurred, vTexCoord).rgb, vec3(param.FILL_GAMMA)),
-                1.0);
+            FragColor = vec4(pow(texture(Blurred, vTexCoord).rgb, vec3(param.FILL_GAMMA)), 1.0);
         } else {
             // Sample tiled pattern.
             // Do a perfectly sharp (nearest neighbor) resampling.
-            FragColor =
-                vec4(pow(texture(Tiled,
-                                 (floor(vTexCoord * param.TiledSize.xy) + 0.5) *
-                                     param.TiledSize.zw)
-                             .rgb,
-                         vec3(param.FILL_GAMMA)),
-                     1.0);
+            FragColor = vec4(pow(texture(Tiled, (floor(vTexCoord * param.TiledSize.xy) + 0.5) *
+                                                    param.TiledSize.zw)
+                                     .rgb,
+                                 vec3(param.FILL_GAMMA)),
+                             1.0);
         }
     } else {
         // Sample original.
-        if (param.FORCE_INTEGER_SCALING_H > 0.5 &&
-            param.FORCE_INTEGER_SCALING_V > 0.5) {
+        if (param.FORCE_INTEGER_SCALING_H > 0.5 && param.FORCE_INTEGER_SCALING_V > 0.5) {
             // Do a perfectly sharp (nearest neighbor) sampling.
-            FragColor = vec4(
-                texture(Input, (floor(tx_coord) + 0.5) * param.InputSize.zw)
-                    .rgb,
-                1.0);
+            FragColor = vec4(texture(Input, (floor(tx_coord) + 0.5) * param.InputSize.zw).rgb, 1.0);
         } else {
             // Do a sharp anti-aliased interpolation.
-            // Do not correct for gamma additionally because the input is
-            // already in linear color space.
-            FragColor = pixel_aa(
-                Input, tx_per_px, tx_to_uv, tx_coord, param.PIX_AA_SHARP,
-                /* gamma_correct = */ false, param.PIX_AA_SUBPX > 0.5,
-                uint(param.PIX_AA_SUBPX_ORIENTATION), param.Rotation);
+            FragColor.rgb = pixel_aa(Input, tx_per_px, tx_to_uv, tx_coord, param.PIX_AA_SHARP,
+                                 param.PIX_AA_SUBPX > 0.5, uint(param.PIX_AA_SUBPX_ORIENTATION),
+                                 param.Rotation);
         }
     }
 }
