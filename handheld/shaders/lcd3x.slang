@@ -25,7 +25,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	mat4 MVP;
 } global;
 
-vec2 omega = vec2(3.141592654) * vec2(2.0) * params.SourceSize.xy;
+vec2 omega = vec2(3.141592654) * vec2(2.0) * params.OriginalSize.xy;
 const vec3 offsets = vec3(3.141592654) * vec3(1.0/2,1.0/2 - 2.0/3,1.0/2-4.0/3);
 
 #pragma stage vertex
