@@ -67,14 +67,14 @@ void main()
    // Generate LCD grid effect
    // > Note the 0.25 pixel offset -> required to ensure that
    //   scanlines occur *between* pixels
-   vec2 pixelCoord = vTexCoord.xy * registers.SourceSize.xy;
+   vec2 pixelCoord = vTexCoord * registers.OriginalSize.xy;
    vec2 angle = 2.0 * PI * (pixelCoord - 0.25);
 
    float yfactor = (registers.BRIGHTEN_SCANLINES + sin(angle.y)) / (registers.BRIGHTEN_SCANLINES + 1.0);
    float xfactor = (registers.BRIGHTEN_LCD + sin(angle.x)) / (registers.BRIGHTEN_LCD + 1.0);
 
    // Get colour sample
-   vec3 colour = texture(Source, registers.SourceSize.zw * pixelCoord.xy).rgb;
+   vec3 colour = texture(Source, vTexCoord).rgb;
 
    // Apply LCD grid effect
    colour.rgb = yfactor * xfactor * colour.rgb;

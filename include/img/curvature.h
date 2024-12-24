@@ -125,4 +125,36 @@ float corner(vec2 coord)
     return clamp((cdist.x - dist)*cornersmooth, 0.0, 1.0);
 }
 
+// Hyllian's Curvature
+
+const float h_radius       = 4.0; // Should be a user param.
+const float h_shape        = 0.0; // Sphere=0.0, Cylinder=1.0 // Should be a user param.
+const float h_cornersize   = 0.05; // Should be a user param.
+const float h_cornersmooth = 0.005; // Should be a user param.
+const vec2  h_aspect       = vec2(1.0, 0.75); // Use (params.OutputSize.y/params.OutputSize.x) instead 0.75
+float r2                   = h_radius * h_radius;
+float h_csize              = h_cornersize * min(h_aspect.x, h_aspect.y);
+vec2  max_size             = vec2(sqrt( (r2 - 2.0) / (r2 - 1.0) ), 1.0);
+
+vec2 h_warp(vec2 uv)
+{
+    uv = 2.0*uv - 1.0;
+
+    vec2 cylinder = sqrt( (r2 - uv.x*uv.x) / (r2 - 2.0*uv.x*uv.x) )*max_size;
+    vec2 sphere   = sqrt( (r2 - 1.0      ) / (r2 - dot(uv, uv))   ).xx;
+
+    uv *= mix(sphere, cylinder, h_shape);
+
+    return uv*0.5 + 0.5;
+}
+
+float h_corner(vec2 uv)
+{
+    vec2  d          = abs((2.0*uv - 1.0) * h_aspect) - (h_aspect - h_csize.xx);
+    float borderline = length(max(d, 0.0.xx)) + min(max(d.x, d.y), 0.0) - h_csize;
+
+    return smoothstep(h_cornersmooth, -h_cornersmooth, borderline);
+}
+
+
 #endif

@@ -1,7 +1,7 @@
 #version 450
 
 /*
-    Pixel AA v1.6 by fishku
+    Pixel AA by fishku
     Copyright (C) 2023-2024
     Public domain license (CC0)
 
@@ -24,6 +24,7 @@
     subpixel anti-aliasing, results are identical to the "pixellate" shader.
 
     Changelog:
+    v1.7: Upstream optimizations from GLSL port.
     v1.6: Update input transform library.
     v1.5: Upstream optimizations from GLSL port. Add free transform preset.
     v1.4: Enable subpixel sampling for all four pixel layout orientations,
@@ -43,7 +44,6 @@ layout(push_constant) uniform Push {
     vec4 OutputSize;
     uint Rotation;
     float PIX_AA_SHARP;
-    float PIX_AA_GAMMA;
     float PIX_AA_SUBPX;
     float PIX_AA_SUBPX_ORIENTATION;
 }
@@ -57,25 +57,22 @@ layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 tx_coord;
 layout(location = 1) out vec2 tx_per_px;
-layout(location = 2) out vec2 tx_to_uv;
 
 void main() {
     gl_Position = global.MVP * Position;
     tx_coord = TexCoord * param.SourceSize.xy;
     tx_per_px = param.SourceSize.xy * param.OutputSize.zw;
-    tx_to_uv = param.SourceSize.zw;
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 tx_coord;
 layout(location = 1) in vec2 tx_per_px;
-layout(location = 2) in vec2 tx_to_uv;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main() {
-    FragColor =
-        pixel_aa(Source, tx_per_px, tx_to_uv, tx_coord, param.PIX_AA_SHARP,
-                 param.PIX_AA_GAMMA > 0.5, param.PIX_AA_SUBPX > 0.5,
-                 uint(param.PIX_AA_SUBPX_ORIENTATION), param.Rotation);
+    FragColor.rgb =
+        pixel_aa(Source, tx_per_px, param.SourceSize.zw, tx_coord, param.PIX_AA_SHARP,
+                 param.PIX_AA_SUBPX > 0.5, uint(param.PIX_AA_SUBPX_ORIENTATION), param.Rotation);
+    FragColor.rgb = pow(FragColor.rgb, vec3(1.0 / 2.2));
 }

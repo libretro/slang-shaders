@@ -94,14 +94,14 @@ void main()
    //   scanlines occur *between* pixels
    // > Divide pixel coordinate by current scale factor
    //   (input_video_height / nds_screen_height)
-   vec2 pixelCoord = vTexCoord.xy * registers.SourceSize.xy;
-   vec2 angle = 2.0 * PI * ((pixelCoord * NDS_SCREEN_HEIGHT * registers.SourceSize.w) - 0.25);
+   vec2 pixelCoord = vTexCoord * registers.OriginalSize.xy;
+   vec2 angle = 2.0 * PI * ((pixelCoord * NDS_SCREEN_HEIGHT * registers.OriginalSize.w) - 0.25);
 
    float yfactor = (registers.BRIGHTEN_SCANLINES + sin(angle.y)) / (registers.BRIGHTEN_SCANLINES + 1.0);
    float xfactor = (registers.BRIGHTEN_LCD + sin(angle.x)) / (registers.BRIGHTEN_LCD + 1.0);
 
    // Get colour sample
-   vec3 colour = texture(Source, registers.SourceSize.zw * pixelCoord.xy).rgb;
+   vec3 colour = texture(Source, vTexCoord).rgb;
 
    // Apply colour correction
    colour.rgb = pow(colour.rgb, vec3(TARGET_GAMMA));

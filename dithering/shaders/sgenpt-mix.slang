@@ -1,7 +1,7 @@
 #version 450
 
 /*
-   SGENPT-MIX - Sega Genesis Pseudo Transparency Mixer Shader - v9b
+   SGENPT-MIX - Sega Genesis Pseudo Transparency Mixer Shader - v10
    
    2011-2024 Hyllian - sergiogdb@gmail.com
 
@@ -38,10 +38,11 @@ layout(push_constant) uniform Push
 	float SGPT_LINEAR_GAMMA;
 } params;
 
-#pragma parameter SGPT_BLEND_OPTION "0: OFF | 1: VL+CB | 2: Only VL | 3: Only CB" 1.0 0.0 3.0 1.0
-#pragma parameter SGPT_BLEND_LEVEL "SGENPT-MIX Blend Level" 0.85 0.0 1.0 0.05
-#pragma parameter SGPT_ADJUST_VIEW "SGENPT-MIX Adjust View" 0.0 0.0 1.0 1.0
-#pragma parameter SGPT_LINEAR_GAMMA "SGENPT-MIX Use Linear Gamma" 1.0 0.0 1.0 1.0
+#pragma parameter SGPT_NONONO       "SGENPT-MIX v10:"                                 0.0 0.0 1.0 1.0
+#pragma parameter SGPT_BLEND_OPTION "    0: OFF | 1: VL+CB | 2: VL | 3: CB"           1.0 0.0 3.0 1.0
+#pragma parameter SGPT_BLEND_LEVEL  "    Blend Level"                                 0.85 0.0 1.0 0.05
+#pragma parameter SGPT_ADJUST_VIEW  "    Adjust View"                                 0.0 0.0 1.0 1.0
+#pragma parameter SGPT_LINEAR_GAMMA "    Use Linear Gamma"                            1.0 0.0 1.0 1.0
 #define SGPT_BLEND_OPTION params.SGPT_BLEND_OPTION
 #define SGPT_BLEND_LEVEL params.SGPT_BLEND_LEVEL
 #define SGPT_ADJUST_VIEW params.SGPT_ADJUST_VIEW

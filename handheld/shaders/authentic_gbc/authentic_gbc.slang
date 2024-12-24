@@ -1,7 +1,7 @@
 #version 450
 
 /*
-    Authentic GBC v1.0 by fishku
+    Authentic GBC by fishku
     Copyright (C) 2024
     Public domain license (CC0)
 
@@ -15,6 +15,7 @@
    https://www.reddit.com/r/AnaloguePocket/comments/1azaxgd/ive_made_some_improvements_to_my_analogue_pocket/
 
     Changelog:
+    v1.1: Use OriginalSize instead of SourceSize to better work with combined presets.
     v1.0: Initial release.
 */
 
@@ -22,7 +23,7 @@
 #include "shared.inc"
 
 layout(push_constant) uniform Push {
-    vec4 SourceSize;
+    vec4 OriginalSize;
     vec4 OutputSize;
     float AUTH_GBC_BRIG;
 }
@@ -44,7 +45,7 @@ layout(location = 5) out float subpx_orig_y;
 void main() {
     gl_Position = global.MVP * Position;
 
-    auth_gbc_vert_shader(param.SourceSize.xy, param.OutputSize.xy,
+    auth_gbc_vert_shader(param.OriginalSize.xy, param.OutputSize.xy,
                          param.AUTH_GBC_BRIG, TexCoord, px_rect, tx_coord,
                          tx_to_px, subpx_size, notch_size, subpx_orig_y);
 }
@@ -79,10 +80,10 @@ void main() {
     // Sample.
     // Apply square for fast "gamma correction".
     vec3 samples[] = {
-        texture(Source, (tx_origins[0] + 0.5) * param.SourceSize.zw).rgb,
-        texture(Source, (tx_origins[1] + 0.5) * param.SourceSize.zw).rgb,
-        texture(Source, (tx_origins[2] + 0.5) * param.SourceSize.zw).rgb,
-        texture(Source, (tx_origins[3] + 0.5) * param.SourceSize.zw).rgb};
+        texture(Source, (tx_origins[0] + 0.5) * param.OriginalSize.zw).rgb,
+        texture(Source, (tx_origins[1] + 0.5) * param.OriginalSize.zw).rgb,
+        texture(Source, (tx_origins[2] + 0.5) * param.OriginalSize.zw).rgb,
+        texture(Source, (tx_origins[3] + 0.5) * param.OriginalSize.zw).rgb};
     samples[0] *= samples[0];
     samples[1] *= samples[1];
     samples[2] *= samples[2];
