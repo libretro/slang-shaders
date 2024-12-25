@@ -3,6 +3,7 @@
 layout(std140, set = 0, binding = 0) uniform UBO
 {
    mat4 MVP;
+   vec4 SourceSize;
 } global;
 
 #pragma stage vertex
@@ -23,6 +24,7 @@ layout(set = 0, binding = 1) uniform usampler2D Source;
 
 void main()
 {
-   vec4 current = unpackUnorm4x8(texture(Source, vTexCoord).r);
+// Sampling non-float textures is not supported in HLSL, so use texelFetch() instead of texture()
+   vec4 current = unpackUnorm4x8(texelFetch(Source, ivec2(vTexCoord.xy * global.SourceSize.xy), 0).r);
    FragColor = current;
 }

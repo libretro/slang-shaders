@@ -1,9 +1,15 @@
-shaders = "1"
+shaders = "3"
 
-shader0 =  "../../shaders/mixed-res/output.slang"
-filter_linear0 =  false
-wrap_mode0 =  "clamp_to_border"
-scale_type0 =  "source"
-scale0 =  "1.000000"
+shader0 = "../../../stock.slang"
+alias0 = HiresSource
+
+shader1 = "../../../stock.slang"
+alias1 = BlurSource
+
+shader2 =  "../../shaders/mixed-res/output.slang"
+filter_linear2 =  false
+wrap_mode2 =  "clamp_to_border"
+scale_type2 =  "source"
+scale2 =  "1.000000"
 
 B_HL = "0.0" 

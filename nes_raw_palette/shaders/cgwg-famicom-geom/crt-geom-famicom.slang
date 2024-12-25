@@ -6,7 +6,7 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float CURVATURE_toggle, CRTgamma, overscan_x, overscan_y, distance, radius, tiltangle_x, tiltangle_y, cornersize, cornersmooth;
+	float CURVATURE_toggle, CRTgamma, overscan_x, overscan_y, distance_cgwg, radius, tiltangle_x, tiltangle_y, cornersize, cornersmooth;
 } params;
 
 #pragma parameter CURVATURE_toggle "Curvature Toggle" 1.0 0.0 1.0 1.0
@@ -18,8 +18,8 @@ layout(push_constant) uniform Push
 #pragma parameter overscan_x "Overscan X" 1.0 0.0 2.0 0.01
 #pragma parameter overscan_y "Overscan Y" 1.0 0.0 2.0 0.01
 #define overscan vec2(params.overscan_x, params.overscan_y)
-#pragma parameter distance "Viewing Distance" 2.0 0.1 5.0 0.1
-#define distance params.distance
+#pragma parameter distance_cgwg "Viewing Distance" 2.0 0.1 5.0 0.1
+#define distance_cgwg params.distance_cgwg
 // radius of curvature
 #pragma parameter radius "Curvature Radius" 2.0 0.1 5.0 0.1
 #define radius params.radius
@@ -48,7 +48,7 @@ layout(location = 0) out vec2 texCoord;
 layout(location = 1) out vec3 stretch;
 
 const vec2 aspect = vec2(1.0, 0.75);
-float d = distance;
+float d = distance_cgwg;
 float R = radius;
 vec2 sinangle = sin(tiltangle);
 vec2 cosangle = cos(tiltangle);
@@ -133,7 +133,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 const vec2 aspect = vec2(1.0, 0.75);
 // lengths are measured in units of (approximately) the width of the monitor
 // simulated distance from viewer to monitor
-float d = distance;
+float d = distance_cgwg;
 float R = radius;
 
 vec2 sinangle = sin(tiltangle);
