@@ -95,7 +95,7 @@ layout(push_constant) uniform Push
 	uint FrameCount;
 	uint TotalSubFrames;
 	uint CurrentSubFrame;
-	float GAIN_VS_BLUR, GAMMA, FPS_DIVISOR, LCD_ANTI_RETENTION_TOGGLE, PosMod;
+	float GAIN_VS_BLUR, GAMMA, FPS_DIVISOR, LCD_ANTI_RETENTION_TOGGLE, POS_MOD;
 } params;
 
 //------------------ Constants migrated to runtime params --------------------//
@@ -122,8 +122,8 @@ layout(push_constant) uniform Push
 #pragma parameter LCD_ANTI_RETENTION_TOGGLE "LCD Anti-Retention On/Off" 1.0 0.0 1.0 1.0
 bool LCD_ANTI_RETENTION = bool(params.LCD_ANTI_RETENTION_TOGGLE);
 
-#pragma parameter PosMod "Raster Position Mod" 0.0 -10.0 10.0 0.01
-#define PosMod params.PosMod
+#pragma parameter POS_MOD "Raster Position Mod" 0.0 -10.0 10.0 0.01
+#define POS_MOD params.POS_MOD
 
 //----------------------------------------------------------------------------//
 
@@ -341,20 +341,17 @@ vec3 getPixelFromSimulatedCRT(vec2 uv, float crtRasterPos, float crtHzCounter, f
     float tubePos = (1.0 - uv.x);  // Right to left
 #endif
 
-// have to unroll the loop and arrays here to appease D3D compilers
+    // Process each color channel independently
+    for (int ch = 0; ch < 3; ch++) 
+    {
         // Get brightness lengths for all three cycles
-        vec3 Lprev2 = colorPrev2.xyz;
-        vec3 Lprev1 = colorPrev1.xyz;
-        vec3 Lcurr  = colorCurr.xyz;
+        float Lprev2 = colorPrev2[ch];
+        float Lprev1 = colorPrev1[ch];
+        float Lcurr  = colorCurr[ch];
         
-        if (Lprev2.x <= 0.0 && Lprev1.x <= 0.0 && Lcurr.x <= 0.0) {
-            result.x = 0.0;
-        }
-        if (Lprev2.y <= 0.0 && Lprev1.y <= 0.0 && Lcurr.y <= 0.0) {
-            result.y = 0.0;
-        }
-        if (Lprev2.z <= 0.0 && Lprev1.z <= 0.0 && Lcurr.z <= 0.0) {
-            result.z = 0.0;
+        if (Lprev2 <= 0.0 && Lprev1 <= 0.0 && Lcurr <= 0.0) {
+            result[ch] = 0.0;
+            continue;
         }
         
         // TODO: Optimize to use only 2 frames.
@@ -366,37 +363,32 @@ vec3 getPixelFromSimulatedCRT(vec2 uv, float crtRasterPos, float crtHzCounter, f
         // (Will attempt later)
 
         // Convert normalized values to frame space
-        vec3 tubeFrame = vec3(tubePos * framesPerHz);
-        vec3 fStart = vec3(crtRasterPos * framesPerHz);
-        vec3 fEnd = vec3(fStart + 1.0);
+        float tubeFrame = tubePos * framesPerHz;
+        float fStart = crtRasterPos * framesPerHz;
+        float fEnd = fStart + 1.0;
 
         // Define intervals for all three trailing refresh cycles
-        vec3 startPrev2 = vec3(tubeFrame - framesPerHz);
-        vec3 endPrev2   = startPrev2 + Lprev2;
+        float startPrev2 = tubeFrame - framesPerHz;
+        float endPrev2   = startPrev2 + Lprev2;
 
-        vec3 startPrev1 = vec3(tubeFrame);
-        vec3 endPrev1   = startPrev1 + Lprev1;
+        float startPrev1 = tubeFrame;
+        float endPrev1   = startPrev1 + Lprev1;
 
-        vec3 startCurr  = vec3(tubeFrame + framesPerHz); // Fix seam for top edge
-        vec3 endCurr    = startCurr + Lcurr;
+        float startCurr  = tubeFrame + framesPerHz; // Fix seam for top edge
+        float endCurr    = startCurr + Lcurr;
         
         // Calculate overlaps for all three cycles
         #define INTERVAL_OVERLAP(Astart, Aend, Bstart, Bend) max(0.0, min(Aend, Bend) - max(Astart, Bstart))
-        vec3 overlapPrev2 = vec3(
-           INTERVAL_OVERLAP(startPrev2.x, endPrev2.x, fStart.x, fEnd.x),
-           INTERVAL_OVERLAP(startPrev2.y, endPrev2.y, fStart.y, fEnd.y),
-           INTERVAL_OVERLAP(startPrev2.z, endPrev2.z, fStart.z, fEnd.z));
-        vec3 overlapPrev1 = vec3(
-           INTERVAL_OVERLAP(startPrev1.x, endPrev1.x, fStart.x, fEnd.x),
-           INTERVAL_OVERLAP(startPrev1.y, endPrev1.y, fStart.y, fEnd.y),
-           INTERVAL_OVERLAP(startPrev1.z, endPrev1.z, fStart.z, fEnd.z));
-        vec3 overlapCurr  = vec3(
-           INTERVAL_OVERLAP(startCurr.x,  endCurr.x,  fStart.x, fEnd.x),
-           INTERVAL_OVERLAP(startCurr.y,  endCurr.y,  fStart.y, fEnd.y),
-           INTERVAL_OVERLAP(startCurr.z,  endCurr.z,  fStart.z, fEnd.z));
+        float overlapPrev2 = INTERVAL_OVERLAP(startPrev2, endPrev2, fStart, fEnd);
+        float overlapPrev1 = INTERVAL_OVERLAP(startPrev1, endPrev1, fStart, fEnd);
+        float overlapCurr  = INTERVAL_OVERLAP(startCurr,  endCurr,  fStart, fEnd);
 
         // Sum all overlaps for final brightness
-        result.xyz = overlapPrev2 + overlapPrev1 + overlapCurr;
+        float tempvar = overlapPrev2 + overlapPrev1 + overlapCurr;
+        if(ch == 0) result.x = tempvar;
+        if(ch == 1) result.y = tempvar;
+        if(ch == 2) result.z = tempvar;
+    }
 
     return linear2srgb(result);
 }
@@ -419,7 +411,7 @@ void main()
     float effectiveFrame = floor(float(iFrame) * FPS_DIVISOR);
 
     // Normalized raster position [0..1] representing current position of simulated CRT electron beam
-    float crtRasterPos = mod(effectiveFrame, EFFECTIVE_FRAMES_PER_HZ) / EFFECTIVE_FRAMES_PER_HZ + PosMod;
+    float crtRasterPos = mod(effectiveFrame, EFFECTIVE_FRAMES_PER_HZ) / EFFECTIVE_FRAMES_PER_HZ + POS_MOD;
 
     // CRT refresh cycle counter
     float crtHzCounter = floor(effectiveFrame / EFFECTIVE_FRAMES_PER_HZ);
