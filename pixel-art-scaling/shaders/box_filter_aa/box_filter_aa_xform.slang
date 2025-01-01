@@ -56,25 +56,19 @@ layout(location = 5) out vec2 tx_coord;
 void main() {
     gl_Position = global.MVP * Position;
 
-    px_rect = vec4(TexCoord * param.OutputSize.xy - 0.5,
-                   TexCoord * param.OutputSize.xy + 0.5);
-    const vec4 crop = vec4(param.OS_CROP_TOP, param.OS_CROP_LEFT,
-                           param.OS_CROP_BOTTOM, param.OS_CROP_RIGHT);
+    px_rect = vec4(TexCoord * param.OutputSize.xy - 0.5, TexCoord * param.OutputSize.xy + 0.5);
+    const vec4 crop =
+        vec4(param.OS_CROP_TOP, param.OS_CROP_LEFT, param.OS_CROP_BOTTOM, param.OS_CROP_RIGHT);
     scale_i2o = get_scale_i2o(
-        param.SourceSize.xy, param.OutputSize.xy, crop, param.Rotation,
-        param.CENTER_AFTER_CROPPING, param.FORCE_ASPECT_RATIO,
-        vec2(param.ASPECT_H, param.ASPECT_V),
-        vec2(param.FORCE_INTEGER_SCALING_H, param.FORCE_INTEGER_SCALING_V),
-        param.OVERSCALE);
+        param.SourceSize.xy, param.OutputSize.xy, crop, param.Rotation, param.CENTER_AFTER_CROPPING,
+        param.FORCE_ASPECT_RATIO, vec2(param.ASPECT_H, param.ASPECT_V),
+        vec2(param.FORCE_INTEGER_SCALING_H, param.FORCE_INTEGER_SCALING_V), param.OVERSCALE);
     const vec2 shift = vec2(param.SHIFT_H, param.SHIFT_V);
-    input_center = get_input_center(param.SourceSize.xy, param.OutputSize.xy,
-                                    scale_i2o, crop, shift, param.Rotation,
-                                    param.CENTER_AFTER_CROPPING);
-    tx_coord = transform(TexCoord, vec2(0.5), param.OutputSize.xy / scale_i2o,
-                         input_center);
+    input_center = get_input_center(param.SourceSize.xy, param.OutputSize.xy, scale_i2o, crop,
+                                    shift, param.Rotation, param.CENTER_AFTER_CROPPING);
+    tx_coord = transform(TexCoord, vec2(0.5), param.OutputSize.xy / scale_i2o, input_center);
     output_center = 0.5 * param.OutputSize.xy;
-    input_corners =
-        get_input_corners(param.SourceSize.xy, crop, param.Rotation);
+    input_corners = get_input_corners(param.SourceSize.xy, crop, param.Rotation);
 }
 
 #pragma stage fragment
@@ -91,20 +85,17 @@ void main() {
     // Figure out 4 nearest texels in source texture.
     // Clamp tx_coord for proper cropping.
     vec2 tx_coord_i;
-    const vec2 tx_coord_f =
-        modf(clamp(tx_coord, input_corners.xy, input_corners.zw), tx_coord_i);
+    const vec2 tx_coord_f = modf(clamp(tx_coord, input_corners.xy, input_corners.zw), tx_coord_i);
     const vec2 tx_coord_off = step(vec2(0.5), tx_coord_f) * 2.0 - 1.0;
     vec2 tx_origins[] = {tx_coord_i, tx_coord_i + vec2(tx_coord_off.x, 0.0),
-                         tx_coord_i + vec2(0.0, tx_coord_off.y),
-                         tx_coord_i + tx_coord_off};
+                         tx_coord_i + vec2(0.0, tx_coord_off.y), tx_coord_i + tx_coord_off};
 
     // Sample.
     // Apply square for fast "gamma correction".
-    vec3 samples[] = {
-        texture(Source, (tx_origins[0] + 0.5) * param.SourceSize.zw).rgb,
-        texture(Source, (tx_origins[1] + 0.5) * param.SourceSize.zw).rgb,
-        texture(Source, (tx_origins[2] + 0.5) * param.SourceSize.zw).rgb,
-        texture(Source, (tx_origins[3] + 0.5) * param.SourceSize.zw).rgb};
+    vec3 samples[] = {texture(Source, (tx_origins[0] + 0.5) * param.SourceSize.zw).rgb,
+                      texture(Source, (tx_origins[1] + 0.5) * param.SourceSize.zw).rgb,
+                      texture(Source, (tx_origins[2] + 0.5) * param.SourceSize.zw).rgb,
+                      texture(Source, (tx_origins[3] + 0.5) * param.SourceSize.zw).rgb};
     samples[0] *= samples[0];
     samples[1] *= samples[1];
     samples[2] *= samples[2];
@@ -112,24 +103,16 @@ void main() {
 
     // Apply shader.
     // Transform tx_origins into pixel output space.
-    tx_origins[0] =
-        transform(tx_origins[0], input_center, scale_i2o, output_center);
-    tx_origins[1] =
-        transform(tx_origins[1], input_center, scale_i2o, output_center);
-    tx_origins[2] =
-        transform(tx_origins[2], input_center, scale_i2o, output_center);
-    tx_origins[3] =
-        transform(tx_origins[3], input_center, scale_i2o, output_center);
+    tx_origins[0] = transform(tx_origins[0], input_center, scale_i2o, output_center);
+    tx_origins[1] = transform(tx_origins[1], input_center, scale_i2o, output_center);
+    tx_origins[2] = transform(tx_origins[2], input_center, scale_i2o, output_center);
+    tx_origins[3] = transform(tx_origins[3], input_center, scale_i2o, output_center);
 
     const vec3 res =
-        samples[0] * rect_coverage(px_rect, vec4(tx_origins[0],
-                                                 tx_origins[0] + scale_i2o)) +
-        samples[1] * rect_coverage(px_rect, vec4(tx_origins[1],
-                                                 tx_origins[1] + scale_i2o)) +
-        samples[2] * rect_coverage(px_rect, vec4(tx_origins[2],
-                                                 tx_origins[2] + scale_i2o)) +
-        samples[3] * rect_coverage(px_rect, vec4(tx_origins[3],
-                                                 tx_origins[3] + scale_i2o));
+        samples[0] * intersect_rect_area(px_rect, vec4(tx_origins[0], tx_origins[0] + scale_i2o)) +
+        samples[1] * intersect_rect_area(px_rect, vec4(tx_origins[1], tx_origins[1] + scale_i2o)) +
+        samples[2] * intersect_rect_area(px_rect, vec4(tx_origins[2], tx_origins[2] + scale_i2o)) +
+        samples[3] * intersect_rect_area(px_rect, vec4(tx_origins[3], tx_origins[3] + scale_i2o));
 
     // Apply sqrt for fast "gamma correction".
     FragColor = vec4(sqrt(res), 1.0);

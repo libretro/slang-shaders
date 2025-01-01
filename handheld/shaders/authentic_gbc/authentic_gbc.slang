@@ -61,14 +61,6 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main() {
-#if 0
-    // Debug
-    vec3 res = pixel_color(px_rect, vec2(500.0), vec2(100.0));
-    res += pixel_color(px_rect, vec2(500.0), vec2(600.0, 100.0));
-    res += pixel_color(px_rect, vec2(500.0), vec2(100.0, 600.0));
-    res += pixel_color(px_rect, vec2(500.0), vec2(600.0));
-    FragColor = vec4(res, 1.0);
-#else
     // Figure out 4 nearest texels in source texture
     vec2 tx_coord_i;
     const vec2 tx_coord_f = modf(tx_coord, tx_coord_i);
@@ -102,5 +94,4 @@ void main() {
 
     // Apply sqrt for fast "gamma correction".
     FragColor = vec4(sqrt(res), 1.0);
-#endif
 }
