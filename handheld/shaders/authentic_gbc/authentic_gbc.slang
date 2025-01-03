@@ -2,7 +2,7 @@
 
 /*
     Authentic GBC by fishku
-    Copyright (C) 2024
+    Copyright (C) 2024-2025
     Public domain license (CC0)
 
     Attempts to render GBC subpixels authentically.
@@ -15,6 +15,8 @@
    https://www.reddit.com/r/AnaloguePocket/comments/1azaxgd/ive_made_some_improvements_to_my_analogue_pocket/
 
     Changelog:
+    v2.0: Add smoothed rectangle rendering for better AA. Optimize. Improve numerical stability.
+          Split out "fast" shader. Tweak defaults to be brighter and smoother.
     v1.1: Use OriginalSize instead of SourceSize to better work with combined presets.
     v1.0: Initial release.
 */
@@ -25,7 +27,11 @@
 layout(push_constant) uniform Push {
     vec4 OriginalSize;
     vec4 OutputSize;
+    uint Rotation;
     float AUTH_GBC_BRIG;
+    float AUTH_GBC_BLUR;
+    float AUTH_GBC_SUBPX;
+    float AUTH_GBC_SUBPX_ORIENTATION;
 }
 param;
 
@@ -35,63 +41,92 @@ global;
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
-layout(location = 0) out vec4 px_rect;
-layout(location = 1) out vec2 tx_coord;
-layout(location = 2) out vec2 tx_to_px;
-layout(location = 3) out vec2 subpx_size;
-layout(location = 4) out vec2 notch_size;
-layout(location = 5) out float subpx_orig_y;
+layout(location = 0) out vec4 lcd_subpx_rect1;
+layout(location = 1) out vec4 lcd_subpx_rect2;
+layout(location = 2) out vec2 subpx_offset_in_px;
+layout(location = 3) out vec2 tx_coord;
+layout(location = 4) out vec2 tx_to_px;
+layout(location = 5) out vec2 tx_orig_offs;
+layout(location = 6) out float eff_blur_in_px;
 
 void main() {
     gl_Position = global.MVP * Position;
 
-    auth_gbc_vert_shader(param.OriginalSize.xy, param.OutputSize.xy,
-                         param.AUTH_GBC_BRIG, TexCoord, px_rect, tx_coord,
-                         tx_to_px, subpx_size, notch_size, subpx_orig_y);
+    const vec4 rot_corr = vec4(1.0, 0.0, -1.0, 0.0);
+    uint subpx_orientation = uint(param.AUTH_GBC_SUBPX_ORIENTATION);
+    subpx_offset_in_px = param.AUTH_GBC_SUBPX / 3.0 *
+                         vec2(rot_corr[(param.Rotation + subpx_orientation) % 4],
+                              rot_corr[(param.Rotation + subpx_orientation + 3) % 4]);
+
+    tx_coord = TexCoord * param.OriginalSize.xy;
+    tx_to_px = param.OutputSize.xy * param.OriginalSize.zw;
+
+    // Scale the subpixel and notch sizes with the brightness parameter.
+    vec2 lcd_subpx_size_in_px = tx_to_px * mix(subpx_ratio, vec2(0.75, 0.93), param.AUTH_GBC_BRIG);
+    vec2 notch_size_in_px = tx_to_px * mix(notch_ratio, vec2(0.29, 0.17), param.AUTH_GBC_BRIG);
+    lcd_subpx_rect1 = vec4(vec2(0.0), lcd_subpx_size_in_px - vec2(0.0, notch_size_in_px.y));
+    lcd_subpx_rect2 =
+        vec4(notch_size_in_px.x, lcd_subpx_size_in_px.y - notch_size_in_px.y, lcd_subpx_size_in_px);
+
+    tx_orig_offs = (tx_to_px - lcd_subpx_size_in_px) * 0.5;
+
+    // Blur strength is isotropic, so use the dimension that is most limiting.
+    eff_blur_in_px = param.AUTH_GBC_BLUR * min(tx_to_px.x, tx_to_px.y) * 0.5;
 }
 
 #pragma stage fragment
-layout(location = 0) in vec4 px_rect;
-layout(location = 1) in vec2 tx_coord;
-layout(location = 2) in vec2 tx_to_px;
-layout(location = 3) in vec2 subpx_size;
-layout(location = 4) in vec2 notch_size;
-layout(location = 5) in float subpx_orig_y;
+layout(location = 0) in vec4 lcd_subpx_rect1;
+layout(location = 1) in vec4 lcd_subpx_rect2;
+layout(location = 2) in vec2 subpx_offset_in_px;
+layout(location = 3) in vec2 tx_coord;
+layout(location = 4) in vec2 tx_to_px;
+layout(location = 5) in vec2 tx_orig_offs;
+layout(location = 6) in float eff_blur_in_px;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
+#include "../../../misc/shaders/coverage/coverage.inc"
+
+float subpx_coverage(vec4 px_square, vec2 subpx_orig) {
+    // To render the "notch" present in the original subpixels, compose two rectangles.
+    return intersect_blurred_rect_area(px_square, subpx_orig.xyxy + lcd_subpx_rect1,
+                                       eff_blur_in_px) +
+           intersect_blurred_rect_area(px_square, subpx_orig.xyxy + lcd_subpx_rect2,
+                                       eff_blur_in_px);
+}
+
+vec3 pixel_color(vec2 tx_orig) {
+    return vec3(subpx_coverage(vec4(-subpx_offset_in_px - 0.5, -subpx_offset_in_px + 0.5),
+                               tx_orig + vec2(tx_orig_offs.x - tx_to_px.x / 3.0, tx_orig_offs.y)),
+                subpx_coverage(vec4(vec2(-0.5), vec2(0.5)), tx_orig + tx_orig_offs),
+                subpx_coverage(vec4(subpx_offset_in_px - 0.5, subpx_offset_in_px + 0.5),
+                               tx_orig + vec2(tx_orig_offs.x + tx_to_px.x / 3.0, tx_orig_offs.y)));
+}
+
 void main() {
-    // Figure out 4 nearest texels in source texture
+    // Figure out four nearest texels in source texture and sample them.
     vec2 tx_coord_i;
     const vec2 tx_coord_f = modf(tx_coord, tx_coord_i);
     const vec2 tx_coord_off = step(vec2(0.5), tx_coord_f) * 2.0 - 1.0;
-    const vec2 tx_origins[] = {
-        tx_coord_i, tx_coord_i + vec2(tx_coord_off.x, 0.0),
-        tx_coord_i + vec2(0.0, tx_coord_off.y), tx_coord_i + tx_coord_off};
+    const vec2 tx_coord_offs[] = {vec2(0.0), vec2(tx_coord_off.x, 0.0), vec2(0.0, tx_coord_off.y),
+                                  tx_coord_off};
 
-    // Sample.
-    // Apply square for fast "gamma correction".
     vec3 samples[] = {
-        texture(Source, (tx_origins[0] + 0.5) * param.OriginalSize.zw).rgb,
-        texture(Source, (tx_origins[1] + 0.5) * param.OriginalSize.zw).rgb,
-        texture(Source, (tx_origins[2] + 0.5) * param.OriginalSize.zw).rgb,
-        texture(Source, (tx_origins[3] + 0.5) * param.OriginalSize.zw).rgb};
+        texture(Source, (tx_coord_i + tx_coord_offs[0] + 0.5) * param.OriginalSize.zw).rgb,
+        texture(Source, (tx_coord_i + tx_coord_offs[1] + 0.5) * param.OriginalSize.zw).rgb,
+        texture(Source, (tx_coord_i + tx_coord_offs[2] + 0.5) * param.OriginalSize.zw).rgb,
+        texture(Source, (tx_coord_i + tx_coord_offs[3] + 0.5) * param.OriginalSize.zw).rgb};
     samples[0] *= samples[0];
     samples[1] *= samples[1];
     samples[2] *= samples[2];
     samples[3] *= samples[3];
 
-    // Apply shader.
-    const vec3 res =
-        samples[0] * pixel_color(px_rect, tx_to_px, tx_origins[0] * tx_to_px,
-                                 subpx_orig_y, subpx_size, notch_size) +
-        samples[1] * pixel_color(px_rect, tx_to_px, tx_origins[1] * tx_to_px,
-                                 subpx_orig_y, subpx_size, notch_size) +
-        samples[2] * pixel_color(px_rect, tx_to_px, tx_origins[2] * tx_to_px,
-                                 subpx_orig_y, subpx_size, notch_size) +
-        samples[3] * pixel_color(px_rect, tx_to_px, tx_origins[3] * tx_to_px,
-                                 subpx_orig_y, subpx_size, notch_size);
+    // The four nearest texels define a set of vector graphics which are rasterized.
+    // The coordinate origin is shifted to px_coord = tx_coord * tx_to_px.
+    const vec3 res = samples[0] * pixel_color((tx_coord_offs[0] - tx_coord_f) * tx_to_px) +
+                     samples[1] * pixel_color((tx_coord_offs[1] - tx_coord_f) * tx_to_px) +
+                     samples[2] * pixel_color((tx_coord_offs[2] - tx_coord_f) * tx_to_px) +
+                     samples[3] * pixel_color((tx_coord_offs[3] - tx_coord_f) * tx_to_px);
 
-    // Apply sqrt for fast "gamma correction".
     FragColor = vec4(sqrt(res), 1.0);
 }
