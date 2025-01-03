@@ -1,0 +1,9 @@
+shaders = 2
+
+shader0 = shaders/authentic_gbc/to_lin_fast.slang
+filter_linear0 = false
+scale_type0 = source
+
+shader1 = shaders/authentic_gbc/authentic_gbc_fast.slang
+filter_linear1 = false
+scale_type1 = viewport

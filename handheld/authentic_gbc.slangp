@@ -1,5 +1,9 @@
-shaders = 1
+shaders = 2
 
-shader0 = shaders/authentic_gbc/authentic_gbc.slang
+shader0 = shaders/authentic_gbc/to_lin.slang
 filter_linear0 = false
-scale_type0 = viewport
+scale_type0 = source
+
+shader1 = shaders/authentic_gbc/authentic_gbc.slang
+filter_linear1 = false
+scale_type1 = viewport
