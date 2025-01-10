@@ -15,6 +15,7 @@
    https://www.reddit.com/r/AnaloguePocket/comments/1azaxgd/ive_made_some_improvements_to_my_analogue_pocket/
 
     Changelog:
+    v2.1: Fix quantization issue introduced by last version.
     v2.0: Add smoothed rectangle rendering for better AA. Add subpixel rendering. Optimize. Improve
           numerical stability. Split out "fast" shader. Tweak defaults to be brighter and smoother.
     v1.1: Use OriginalSize instead of SourceSize to better work with combined presets.

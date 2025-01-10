@@ -24,6 +24,8 @@
     subpixel anti-aliasing, results are identical to the "pixellate" shader.
 
     Changelog:
+    v1.8: Fix quantization issue introduced by last version. Thanks to CrystalUnclear for bringing
+          this to my attention and for running some tests.
     v1.7: Upstream optimizations from GLSL port.
     v1.6: Update input transform library.
     v1.5: Upstream optimizations from GLSL port. Add free transform preset.
