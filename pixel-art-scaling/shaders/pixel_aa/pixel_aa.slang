@@ -24,7 +24,7 @@
     subpixel anti-aliasing, results are identical to the "pixellate" shader.
 
     Changelog:
-    v1.9: Add "single pass" preset. Refactor.
+    v1.9: Add "single pass" preset. Remove "no gamma correction" preset. Refactor.
     v1.8: Fix quantization issue introduced by last version. Thanks to CrystalUnclear for bringing
           this to my attention and for running some tests.
     v1.7: Upstream optimizations from GLSL port.
