@@ -1,23 +1,26 @@
 #version 450
 
+#pragma parameter gamma "Dot Gamma" 2.4 0.0 5.0 0.05
+#pragma parameter shine "Dot Shine" 0.05 0.0 0.5 0.01
+#pragma parameter blend "Dot Blend" 0.65 0.0 1.0 0.01
+#pragma parameter soft "Dot Soft" 0.0 0.0 1.0 0.1
+
 layout(std140, set = 0, binding = 0) uniform UBO
 {
    mat4 MVP;
-   vec4 OutputSize;
    vec4 OriginalSize;
-   vec4 SourceSize;
+   float gamma;
+   float shine;
+   float blend;
+   float soft;
 } global;
-
-#define gamma 2.4
-#define shine 0.05
-#define blend 0.65
 
 /*
    Author: Themaister
    License: Public domain
 */
 
-#define TEX(coord) texture(Source, vTexCoord).rgb
+#define TEX(coord) texture(Source, coord).rgb
 
 float dist(vec2 coord, vec2 source)
 {
@@ -29,14 +32,14 @@ float color_bloom(vec3 color)
 {
    const vec3 gray_coeff = vec3(0.30, 0.59, 0.11);
    float bright = dot(color, gray_coeff);
-   return mix(1.0 + shine, 1.0 - shine, bright);
+   return mix(1.0 + global.shine, 1.0 - global.shine, bright);
 }
 
 vec3 lookup(vec2 pixel_no, float offset_x, float offset_y, vec3 color)
 {
    vec2 offset = vec2(offset_x, offset_y);
    float delta = dist(fract(pixel_no), offset + vec2(0.5, 0.5));
-   return color * exp(-gamma * delta * color_bloom(color));
+   return color * exp(-global.gamma * delta * color_bloom(color));
 }
 
 #pragma stage vertex
@@ -55,16 +58,19 @@ void main()
 {
    gl_Position = global.MVP * Position;
    vTexCoord = TexCoord;
+
+   pixel_no = vTexCoord * global.OriginalSize.xy;
+   vec2 d =               global.OriginalSize.zw;
    
-   float dx = global.SourceSize.z;
-   float dy = global.SourceSize.w;
-   
-   c00_10 = vec4(vTexCoord + vec2(-dx, -dy), vTexCoord + vec2(0, -dy));
-   c20_01 = vec4(vTexCoord + vec2(dx, -dy), vTexCoord + vec2(-dx, 0));
-   c21_02 = vec4(vTexCoord + vec2(dx, 0), vTexCoord + vec2(-dx, dy));
-   c12_22 = vec4(vTexCoord + vec2(0, dy), vTexCoord + vec2(dx, dy));
-   c11 = vTexCoord;
-   pixel_no = vTexCoord * global.SourceSize.xy;
+   c00_10 = vec4((pixel_no + vec2(-1.0, -1.0) * global.soft) * d,
+                 (pixel_no + vec2( 0.0, -1.0) * global.soft) * d);
+   c20_01 = vec4((pixel_no + vec2( 1.0, -1.0) * global.soft) * d,
+                 (pixel_no + vec2(-1.0,  0.0) * global.soft) * d);
+   c21_02 = vec4((pixel_no + vec2( 1.0,  0.0) * global.soft) * d,
+                 (pixel_no + vec2(-1.0,  1.0) * global.soft) * d);
+   c12_22 = vec4((pixel_no + vec2( 0.0,  1.0) * global.soft) * d,
+                 (pixel_no + vec2( 1.0,  1.0) * global.soft) * d);
+   c11 = pixel_no * d;
 }
 
 #pragma stage fragment
@@ -92,7 +98,7 @@ void main()
    color += lookup(pixel_no, -1.0,  1.0, TEX(c21_02.zw));
    color += lookup(pixel_no,  0.0,  1.0, TEX(c12_22.xy));
    color += lookup(pixel_no,  1.0,  1.0, TEX(c12_22.zw));
-   vec3 out_color = mix(1.2 * mid_color, color, blend);
+   vec3 out_color = mix(1.2 * mid_color, color, global.blend);
    
    FragColor = vec4(out_color, 1.0);
 }
