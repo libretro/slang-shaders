@@ -58,7 +58,71 @@ vec3 pixel_aa_subpx(sampler2D tex, vec2 tx_coord, vec2 sub_tx_offset, vec2 tx_to
     return res;
 }
 
-// This is recurring vertex shader code.
+vec3 to_lin(vec3 x) { return pow(x, vec3(2.2)); }
+vec4 to_lin(vec4 x) { return pow(x, vec4(2.2)); }
+
+vec3 to_srgb(vec3 x) { return pow(x, vec3(1.0 / 2.2)); }
+
+vec3 pixel_aa_gamma(sampler2D tex, vec2 tx_coord, vec2 tx_to_uv, vec2 trans_lb, vec2 trans_ub,
+                    float trans_slope) {
+    const vec2 period = floor(tx_coord - 0.5);
+    const vec2 phase = tx_coord - 0.5 - period;
+
+    const vec2 offset = slopestep(trans_lb, trans_ub, phase, trans_slope);
+
+    // When the input is in a gamma-corrected color space, we have to do four taps and interpolate
+    // manually.
+    return to_srgb(
+        mix(mix(to_lin(texture(tex, (period + 0.5) * tx_to_uv).rgb),
+                to_lin(texture(tex, (period + vec2(1.5, 0.5)) * tx_to_uv).rgb), offset.x),
+            mix(to_lin(texture(tex, (period + vec2(0.5, 1.5)) * tx_to_uv).rgb),
+                to_lin(texture(tex, (period + 1.5) * tx_to_uv).rgb), offset.x),
+            offset.y));
+}
+
+vec3 pixel_aa_subpx_gamma(sampler2D tex, vec2 tx_coord, vec2 sub_tx_offset, vec2 tx_to_uv,
+                          vec2 trans_lb, vec2 trans_ub, float trans_slope) {
+    vec4 samples;
+    vec3 res;
+    vec2 period, phase, offset;
+
+    // Red
+    period = floor(tx_coord - sub_tx_offset - 0.5);
+    phase = tx_coord - sub_tx_offset - 0.5 - period;
+    offset = slopestep(trans_lb, trans_ub, phase, trans_slope);
+    samples = vec4(texture(tex, (period + 0.5) * tx_to_uv).r,
+                   texture(tex, (period + vec2(1.5, 0.5)) * tx_to_uv).r,
+                   texture(tex, (period + vec2(0.5, 1.5)) * tx_to_uv).r,
+                   texture(tex, (period + 1.5) * tx_to_uv).r);
+    samples = to_lin(samples);
+    res.r = mix(mix(samples.x, samples.y, offset.x), mix(samples.z, samples.w, offset.x), offset.y);
+
+    // Green
+    period = floor(tx_coord - 0.5);
+    phase = tx_coord - 0.5 - period;
+    offset = slopestep(trans_lb, trans_ub, phase, trans_slope);
+    samples = vec4(texture(tex, (period + 0.5) * tx_to_uv).g,
+                   texture(tex, (period + vec2(1.5, 0.5)) * tx_to_uv).g,
+                   texture(tex, (period + vec2(0.5, 1.5)) * tx_to_uv).g,
+                   texture(tex, (period + 1.5) * tx_to_uv).g);
+    samples = to_lin(samples);
+    res.g = mix(mix(samples.x, samples.y, offset.x), mix(samples.z, samples.w, offset.x), offset.y);
+
+    // Blue
+    period = floor(tx_coord + sub_tx_offset - 0.5);
+    phase = tx_coord + sub_tx_offset - 0.5 - period;
+    offset = slopestep(trans_lb, trans_ub, phase, trans_slope);
+    samples = vec4(texture(tex, (period + 0.5) * tx_to_uv).b,
+                   texture(tex, (period + vec2(1.5, 0.5)) * tx_to_uv).b,
+                   texture(tex, (period + vec2(0.5, 1.5)) * tx_to_uv).b,
+                   texture(tex, (period + 1.5) * tx_to_uv).b);
+    samples = to_lin(samples);
+    res.b = mix(mix(samples.x, samples.y, offset.x), mix(samples.z, samples.w, offset.x), offset.y);
+
+    return to_srgb(res);
+}
+
+// This is shared vertex shader code.
 void calculate_pixel_aa_params(vec2 tx_per_px, float sharpness, uint subpx_orientation,
                                uint rotation, inout vec2 trans_lb, inout vec2 trans_ub,
                                inout float trans_slope, inout vec2 sub_tx_offset) {

@@ -2,7 +2,7 @@
 
 /*
     Pixel AA by fishku
-    Copyright (C) 2023-2024
+    Copyright (C) 2023-2025
     Public domain license (CC0)
 
     Features:
@@ -24,6 +24,7 @@
     subpixel anti-aliasing, results are identical to the "pixellate" shader.
 
     Changelog:
+    v1.9: Add "single pass" preset. Refactor.
     v1.8: Fix quantization issue introduced by last version. Thanks to CrystalUnclear for bringing
           this to my attention and for running some tests.
     v1.7: Upstream optimizations from GLSL port.
