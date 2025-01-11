@@ -91,9 +91,11 @@ layout(location = 1) out vec2 vTexCoord;
 layout(location = 2) out vec2 scale_i2o;
 layout(location = 3) out vec2 input_center;
 layout(location = 4) out vec2 tx_coord;
-layout(location = 5) out vec2 tx_per_px;
-layout(location = 6) out vec2 tx_to_uv;
-layout(location = 7) out vec2 cropped_input_size;
+layout(location = 5) out vec2 cropped_input_size;
+layout(location = 6) out vec2 sub_tx_offset;
+layout(location = 7) out vec2 trans_lb;
+layout(location = 8) out vec2 trans_ub;
+layout(location = 9) out float trans_slope;
 
 void main() {
     gl_Position = global.MVP * Position;
@@ -108,13 +110,15 @@ void main() {
     input_center = get_input_center(param.InputSize.xy, param.OutputSize.xy, scale_i2o, crop, shift,
                                     param.Rotation, param.CENTER_AFTER_CROPPING);
     tx_coord = transform(TexCoord, vec2(0.5), param.OutputSize.xy / scale_i2o, input_center);
-    tx_per_px = 1.0 / scale_i2o;
-    tx_to_uv = param.InputSize.zw;
+    const vec2 tx_per_px = 1.0 / scale_i2o;
 
     input_corners = get_input_corners(param.InputSize.xy, crop, param.Rotation);
     const vec4 rotated_crop = get_rotated_crop(crop, param.Rotation);
     cropped_input_size =
         param.InputSize.xy - vec2(rotated_crop.y + rotated_crop.w, rotated_crop.x + rotated_crop.z);
+
+    calculate_pixel_aa_params(tx_per_px, param.PIX_AA_SHARP, uint(param.PIX_AA_SUBPX_ORIENTATION),
+                              param.Rotation, trans_lb, trans_ub, trans_slope, sub_tx_offset);
 }
 
 #pragma stage fragment
@@ -123,9 +127,11 @@ layout(location = 1) in vec2 vTexCoord;
 layout(location = 2) in vec2 scale_i2o;
 layout(location = 3) in vec2 input_center;
 layout(location = 4) in vec2 tx_coord;
-layout(location = 5) in vec2 tx_per_px;
-layout(location = 6) in vec2 tx_to_uv;
-layout(location = 7) in vec2 cropped_input_size;
+layout(location = 5) in vec2 cropped_input_size;
+layout(location = 6) in vec2 sub_tx_offset;
+layout(location = 7) in vec2 trans_lb;
+layout(location = 8) in vec2 trans_ub;
+layout(location = 9) in float trans_slope;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Input;
 layout(set = 0, binding = 3) uniform sampler2D Top;
@@ -230,9 +236,12 @@ void main() {
                     vec4(texture(Input, (floor(tx_coord) + 0.5) * param.InputSize.zw).rgb, 1.0);
             } else {
                 // Do a sharp anti-aliased interpolation.
-                FragColor.rgb = pixel_aa(Input, tx_per_px, tx_to_uv, tx_coord, param.PIX_AA_SHARP,
-                                         param.PIX_AA_SUBPX > 0.5,
-                                         uint(param.PIX_AA_SUBPX_ORIENTATION), param.Rotation);
+                FragColor.rgb =
+                    param.PIX_AA_SUBPX < 0.5
+                        ? pixel_aa(Input, tx_coord, param.InputSize.zw, trans_lb, trans_ub,
+                                   trans_slope)
+                        : pixel_aa_subpx(Input, tx_coord, sub_tx_offset, param.InputSize.zw,
+                                         trans_lb, trans_ub, trans_slope);
             }
         } else {
             if (extend_fill.y < 0.5) {

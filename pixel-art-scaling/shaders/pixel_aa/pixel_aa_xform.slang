@@ -46,6 +46,10 @@ layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec4 input_corners;
 layout(location = 1) out vec2 tx_coord;
 layout(location = 2) out vec2 tx_per_px;
+layout(location = 3) out vec2 sub_tx_offset;
+layout(location = 4) out vec2 trans_lb;
+layout(location = 5) out vec2 trans_ub;
+layout(location = 6) out float trans_slope;
 
 void main() {
     gl_Position = global.MVP * Position;
@@ -63,12 +67,19 @@ void main() {
     tx_coord = transform(TexCoord, vec2(0.5), param.OutputSize.xy / scale_i2o, input_center);
     tx_per_px = 1.0 / scale_i2o;
     input_corners = get_input_corners(param.SourceSize.xy, crop, param.Rotation);
+
+    calculate_pixel_aa_params(tx_per_px, param.PIX_AA_SHARP, uint(param.PIX_AA_SUBPX_ORIENTATION),
+                              param.Rotation, trans_lb, trans_ub, trans_slope, sub_tx_offset);
 }
 
 #pragma stage fragment
 layout(location = 0) in vec4 input_corners;
 layout(location = 1) in vec2 tx_coord;
 layout(location = 2) in vec2 tx_per_px;
+layout(location = 3) in vec2 sub_tx_offset;
+layout(location = 4) in vec2 trans_lb;
+layout(location = 5) in vec2 trans_ub;
+layout(location = 6) in float trans_slope;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -82,8 +93,10 @@ vec2 trapezoid(vec2 x, vec2 l, vec2 u, vec2 s) {
 
 void main() {
     FragColor.rgb =
-        pixel_aa(Source, tx_per_px, param.SourceSize.zw, tx_coord, param.PIX_AA_SHARP,
-                 param.PIX_AA_SUBPX > 0.5, uint(param.PIX_AA_SUBPX_ORIENTATION), param.Rotation);
+        param.PIX_AA_SUBPX < 0.5
+            ? pixel_aa(Source, tx_coord, param.SourceSize.zw, trans_lb, trans_ub, trans_slope)
+            : pixel_aa_subpx(Source, tx_coord, sub_tx_offset, param.SourceSize.zw, trans_lb,
+                             trans_ub, trans_slope);
 
     // Blend with background.
     const vec2 w = trapezoid(tx_coord, input_corners.xy, input_corners.zw, tx_per_px);
