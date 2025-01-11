@@ -111,7 +111,6 @@ void main() {
                          param.Rotation, param.CENTER_AFTER_CROPPING);
     tx_coord = transform(TexCoord, vec2(0.5), param.OutputSize.xy / scale_i2o, input_center);
     const vec2 tx_per_px = 1.0 / scale_i2o;
-    // tx_to_uv = param.InputSize.zw;
     input_corners = get_input_corners(param.InputSize.xy, crop, param.Rotation);
 
     calculate_pixel_aa_params(tx_per_px, param.PIX_AA_SHARP, uint(param.PIX_AA_SUBPX_ORIENTATION),
