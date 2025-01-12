@@ -1,6 +1,6 @@
 #version 450
 
-// See main shader file for copyright and other information.
+// See the main shader file for copyright and other information.
 
 layout(std140, set = 0, binding = 0) uniform UBO { mat4 MVP; }
 global;

@@ -1,4 +1,4 @@
-// See main shader file for copyright and other information.
+// See the main shader file for copyright and other information.
 
 // Similar to smoothstep, but has a configurable slope at x = 0.5.
 // Original smoothstep has a slope of 1.5 at x = 0.5

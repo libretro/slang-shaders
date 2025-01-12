@@ -1,6 +1,6 @@
 #version 450
 
-// See main shader file for copyright and other information.
+// See the main shader file for copyright and other information.
 
 layout(push_constant) uniform Push {
   vec4 SourceSize;

@@ -1,27 +1,6 @@
 #version 450
 
-/*
-    Authentic GBC by fishku
-    Copyright (C) 2024-2025
-    Public domain license (CC0)
-
-    Attempts to render GBC subpixels authentically.
-
-    Reference photos:
-    - https://gbcc.dev/technology/subpixels.jpg
-
-    Inspired by:
-    -
-   https://www.reddit.com/r/AnaloguePocket/comments/1azaxgd/ive_made_some_improvements_to_my_analogue_pocket/
-
-    Changelog:
-    v2.2: Add single pass preset to sync with GLSL v2.2.
-    v2.1: Fix quantization issue introduced by last version.
-    v2.0: Add smoothed rectangle rendering for better AA. Add subpixel rendering. Optimize. Improve
-          numerical stability. Split out "fast" shader. Tweak defaults to be brighter and smoother.
-    v1.1: Use OriginalSize instead of SourceSize to better work with combined presets.
-    v1.0: Initial release.
-*/
+// See the main shader file for copyright and other information.
 
 #include "parameters.inc"
 #include "shared.inc"
@@ -105,6 +84,12 @@ void main() {
         texture(Source, (tx_coord_i + tx_coord_offs[1] + 0.5) * param.OriginalSize.zw).rgb,
         texture(Source, (tx_coord_i + tx_coord_offs[2] + 0.5) * param.OriginalSize.zw).rgb,
         texture(Source, (tx_coord_i + tx_coord_offs[3] + 0.5) * param.OriginalSize.zw).rgb};
+    
+    // Single pass version: Apply linearization.
+    samples[0] = pow(samples[0], vec3(2.2));
+    samples[1] = pow(samples[1], vec3(2.2));
+    samples[2] = pow(samples[2], vec3(2.2));
+    samples[3] = pow(samples[3], vec3(2.2));
 
     // The four nearest texels define a set of vector graphics which are rasterized.
     // The coordinate origin is shifted to px_coord = tx_coord * tx_to_px.

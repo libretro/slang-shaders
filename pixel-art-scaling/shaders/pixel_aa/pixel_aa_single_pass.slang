@@ -1,6 +1,6 @@
 #version 450
 
-// See main shader file for copyright and other information.
+// See the main shader file for copyright and other information.
 
 #include "parameters.inc"
 #include "shared.inc"

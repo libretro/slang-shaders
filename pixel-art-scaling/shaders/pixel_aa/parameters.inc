@@ -1,4 +1,4 @@
-// See main shader file for copyright and other information.
+// See the main shader file for copyright and other information.
 
 // clang-format off
 #pragma parameter PIX_AA_SETTINGS "=== Pixel AA v1.9 settings ===" 0.0 0.0 1.0 1.0
