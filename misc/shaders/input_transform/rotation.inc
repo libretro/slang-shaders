@@ -39,3 +39,19 @@ vec2 get_rotated_vector(vec2 x, uint rotation) {
             return vec2(x.y, -x.x);
     }
 }
+
+// Use to unrotate coordinates.
+// It expects coordinates centered at (0.5,0.5).
+vec2 get_unrotated_coords(vec2 x, uint rotation) {
+    switch (rotation) {
+        case 0:
+        default:
+            return x;
+        case 1:
+            return vec2(x.y, 1.0-x.x);
+        case 2:
+            return 1.0-x;
+        case 3:
+            return vec2(1.0-x.y, x.x);
+    }
+}
