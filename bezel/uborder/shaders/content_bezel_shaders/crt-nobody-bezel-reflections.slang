@@ -47,20 +47,6 @@ layout(push_constant) uniform Push
     float CN_MONITOR_SUBPIXELS;
     float CN_InputGamma;
     float CN_OutputGamma;
-    float fr_zoom;
-    float fr_scale_x;
-    float fr_scale_y;
-    float fr_center_x;
-    float fr_center_y;
-    float h_shape;
-    float h_radius;
-    float h_cornersize;
-    float h_cornersmooth;
-    float h_overscan_x;
-    float h_overscan_y;
-    float h_angle_x;
-    float h_angle_y;
-    float h_curvature;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -71,8 +57,27 @@ layout(std140, set = 0, binding = 0) uniform UBO
     vec4 OutputSize;
     uint FrameCount;
     uint Rotation;
-    float bz_width;
-    float bz_height;
+
+    float all_zoom;
+
+    float fr_zoom;
+    float fr_aspect_x;
+    float fr_aspect_y;
+    float fr_center_x;
+    float fr_center_y;
+    float fr_i_scaling;
+    float fr_i_scaling_fac;
+
+    float h_shape;
+    float h_radius;
+    float h_cornersize;
+    float h_cornersmooth;
+    float h_overscan_x;
+    float h_overscan_y;
+    float h_angle_x;
+    float h_angle_y;
+    float h_curvature;
+
     float bz_shine_enable;
     float bz_shine;
     float bz_shine_size;
@@ -81,6 +86,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float bz_ambient_size;
     float bz_ref_str;
     float bz_lights;
+    float bz_transparent;
     float bz_inner_bezel_x;
     float bz_inner_bezel_y;
     float bz_middle_bezel_x;
@@ -100,64 +106,21 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float border_center_x;
     float border_center_y;
     float border_mirror_y;
+    float border_allow_rot;
     float ub_border_top;
-
-    float all_zoom;
+    float border_alpha;
 } global;
 
-#pragma parameter all_nonono           "ALL:"                             0.0    0.0   1.0 1.0
-#pragma parameter all_zoom             "    Zoom %"                     100.0   20.0 200.0 1.0
+#define USE_BEZEL_REFLECTIONS_COMMON
 
-#pragma parameter frame_nonono         "FRAME:"                           0.0    0.0   1.0 1.0
-#pragma parameter fr_zoom              "    Zoom %"                     100.0   20.0 200.0 1.0
-#pragma parameter fr_scale_x           "    Scale X%"                    75.0   20.0 200.0 0.2
-#pragma parameter fr_scale_y           "    Scale Y%"                   100.0   20.0 200.0 0.2
-#pragma parameter fr_center_x          "    Center X"                     0.0 -100.0 100.0 0.1
-#pragma parameter fr_center_y          "    Center Y"                     0.0 -100.0 100.0 0.1
+#include "include/uborder_bezel_reflections_params.inc"
 
-#pragma parameter bz_nonono            "BEZEL:"                           0.0   0.0   1.0  1.0
-#pragma parameter bz_lights            "    Lights  [ OUT | ON ]"         1.0   0.0   1.0  1.0
-#pragma parameter bz_shine_enable      "    Shine   [ OFF | ON ]"         1.0   0.0   1.0  1.0
-#pragma parameter bz_ambient_enable    "    Ambient [ OFF | ON ]"         1.0   0.0   1.0  1.0
-#pragma parameter bz_width             "    Content Width"                0.66  0.1   1.0  0.005
-#pragma parameter bz_height            "    Content Height"               0.66  0.1   1.0  0.005
-#pragma parameter bz_ref_str           "    Relflection Strength"         0.25  0.0   1.0  0.01
-#pragma parameter bz_inner_bezel_x     "    Bezel Inner Width"            0.1   0.0   1.0  0.01
-#pragma parameter bz_inner_bezel_y     "    Bezel Inner Height"           0.1   0.0   1.0  0.01
-#pragma parameter bz_middle_bezel_x    "    Bezel Middle Width"           0.2   0.0   1.0  0.01
-#pragma parameter bz_middle_bezel_y    "    Bezel Middle Height"          0.2   0.0   1.0  0.01
-#pragma parameter bz_outer_bezel_x     "    Bezel Outer Width"            0.3   0.0   1.0  0.01
-#pragma parameter bz_outer_bezel_y     "    Bezel Outer Height"           0.3   0.0   1.0  0.01
-#pragma parameter bz_outer_curve       "    Bezels Curvature [ OFF | ON ]" 0.0  0.0   1.0  1.0
-#pragma parameter bz_radius            "    Bezel Corner Radius"          0.05  0.005 1.0  0.01
-#pragma parameter bz_red               "    Bezel Color - Red"          128.0   0.0 255.0  1.0
-#pragma parameter bz_green             "    Bezel Color - Green"        128.0   0.0 255.0  1.0
-#pragma parameter bz_blue              "    Bezel Color - Blue"         128.0   0.0 255.0  1.0
-#pragma parameter bz_ref_dist          "    Reflection Distance"          0.0  -0.6   0.6  0.01
-#pragma parameter bz_shine             "    Shine Intensity"              0.25  0.0   1.0  0.01
-#pragma parameter bz_shine_size        "    Shine Size"                   0.75  0.0   1.0  0.01
-#pragma parameter bz_ambient           "    Ambient Intensity"            0.15  0.0   1.0  0.01
-#pragma parameter bz_ambient_size      "    Ambient Size"                 0.85  0.0   1.0  0.01
-#pragma parameter bz_ang               "    Inflec. Point Angle"          1.0   0.0  20.0  0.01
-#pragma parameter bz_pos               "    Inflec. Point Position"       0.0 -20.0  20.0  0.002
+#define ub_OutputSize     global.OutputSize
+#define ub_OriginalSize   global.OriginalSize
+#define ub_Rotation       global.Rotation
 
-#pragma parameter border_nonono        "BORDER:"                          0.0  0.0 1.0 1.0
-#pragma parameter ub_border_top        "    On top: [ Frame | Border ]"   0.0  0.0 1.0 1.0
-#pragma parameter border_scale         "    Border Scale"                 1.0  0.5 5.0 0.002
-#pragma parameter border_center_x      "    Border Center X"              0.0 -0.5 0.5 0.001
-#pragma parameter border_center_y      "    Border Center Y"              0.0 -0.5 0.5 0.001
-#pragma parameter border_mirror_y      "    Border Mirror (Y)"            0.0  0.0 1.0 1.0
+#include "include/uborder_bezel_reflections_common.inc"
 
-#pragma parameter h_nonono             "HYLLIAN'S CURVATURE:"             1.0  0.0   1.0 1.0
-#pragma parameter h_curvature          "    Curvature Toggle"             1.0  0.0   1.0 1.0
-#pragma parameter h_shape              "    Shape [ Sphere | Cylinder ]"  0.0  0.0   1.0 1.0
-#pragma parameter h_radius             "    Curvature Radius"             4.0  1.5  10.0 0.1
-#pragma parameter h_cornersize         "    Corner Size"                  0.05 0.01  1.0 0.01
-#pragma parameter h_cornersmooth       "    Corner Smoothness"            0.5  0.1   1.0 0.1
-#pragma parameter h_angle_x            "    Position X"                   0.0 -1.0   1.0 0.001
-#pragma parameter h_angle_y            "    Position Y"                   0.0 -1.0   1.0 0.001
-#pragma parameter h_overscan_x         "    Overscan X%"                100.0 20.0 200.0 0.2
-#pragma parameter h_overscan_y         "    Overscan Y%"                100.0 20.0 200.0 0.2
 
 #pragma parameter CN_NONONO            "CRT-NOBODY:"                     0.0  0.0   1.0 1.0
 #pragma parameter CN_BEAM_MIN_WIDTH    "    Min Beam Width"              0.80 0.0   1.0 0.01
@@ -185,19 +148,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define CN_MASK_STRENGTH     params.CN_MASK_STRENGTH
 #define CN_MONITOR_SUBPIXELS params.CN_MONITOR_SUBPIXELS
 
-#define bz_width       global.bz_width
-#define bz_height      global.bz_height
-#define bz_shine       global.bz_shine
-#define bz_ambient     global.bz_ambient
-#define bz_ref_str     global.bz_ref_str
-#define bz_lights      global.bz_lights
-#define bz_ref_dist    global.bz_ref_dist
-#define bz_r           global.bz_radius
-#define bz_ang         global.bz_ang
-#define bz_pos         global.bz_pos
-
-#define border_mirror_y  global.border_mirror_y
-
 #define GAMMA_IN(color)     CN_BRIGHTBOOST*pow(color, vec3(CN_InputGamma))
 #define GAMMA_OUT(color)    pow(color, vec3(1.0 / CN_OutputGamma))
 
@@ -208,57 +158,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
 float pix_sizex  = mix(PIX_SIZE, CN_SCAN_SIZE, CN_VSCANLINES);
 float scan_sizey = mix(CN_SCAN_SIZE, PIX_SIZE, CN_VSCANLINES);
 
-// Macros.
-#define FIX(c) max(abs(c), 1e-5);
-#define PI 3.141592653589
 
-float shine_size = (1.0 - global.bz_shine_size  );
-float amb_size   = (1.0 - global.bz_ambient_size);
+vec2  mask_size  = ub_OutputSize.xy* fr_scale * (1.0 - 0.5*global.h_curvature);
 
-vec2  fr_center  = vec2(params.fr_center_x, params.fr_center_y)/100.0;
-float all_zoom   = global.all_zoom/100.0;
-vec2  fr_scale   = vec2(params.fr_scale_x, params.fr_scale_y)*params.fr_zoom*all_zoom/10000.0;
-
-vec2  overscan   = vec2(params.h_overscan_x, params.h_overscan_y)/100.0;
-vec2  SIZE       = vec2(bz_width, bz_height);
-vec2  size_over  = overscan * SIZE;
-
-float r2           = params.h_radius * params.h_radius;
-vec2  max_size     = vec2(sqrt( (r2 - 2.0) / (r2 - 1.0) ), 1.0);
-vec2  aspect       = vec2(1.0, global.OutputSize.y/global.OutputSize.x);
-vec2  aspect_adj   = vec2(aspect.x, aspect.y*params.fr_scale_y/params.fr_scale_x);
-float cornersize   = params.h_cornersize * min(aspect.x, aspect.y);
-float cornersmooth = params.h_cornersmooth/100.0;
-
-const vec2  middle         = 0.5.xx;
-const vec2  shine_position = vec2(0.0, 1.0);
-const float SMTH           = 0.004;
-const vec2  bz_shadow      = vec2(0.0, -0.06);
-
-vec3 BZ_COLOR = vec3(global.bz_red, global.bz_green, global.bz_blue)/255.0;
-
-vec2 INN_BZ = vec2(global.bz_inner_bezel_x, global.bz_inner_bezel_y) + vec2(bz_width, bz_height);
-vec2 MID_BZ = vec2(global.bz_middle_bezel_x, global.bz_middle_bezel_y) + INN_BZ;
-vec2 OUT_BZ = vec2(global.bz_outer_bezel_x, global.bz_outer_bezel_y) + MID_BZ;
-
-float cyl_shape = (1.0-global.bz_outer_curve)*params.h_shape*params.h_curvature;
-
-float mb_aspect = global.bz_middle_bezel_y/global.bz_middle_bezel_x;
-
-#define R_BLUR_ITER 5
-#define R_BLUR_SIZE 0.02
-
-#define border_pos vec2(global.border_center_x,global.border_center_y)
-
-float rand(vec2 co){
-    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
-}
-
-
-const float on  = 1.;
-const float off = 0.;
-
-vec2  mask_size  = global.OutputSize.xy* fr_scale * (1.0 - 0.5*params.h_curvature);
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -288,17 +190,14 @@ void main()
 {
     gl_Position  = global.MVP * Position;
 
-    vec2 diff    = TexCoord.xy * vec2(1.000001) - middle;
-    vTexCoord    = middle + diff/fr_scale - fr_center;
+    vec2 diff = TexCoord.xy * vec2(1.000001) - middle;
+    vTexCoord = middle + diff/fr_scale - fr_center;
 
     uv           = 2.0*vTexCoord - 1.0;
 
     intl_profile = get_interlace_profile();
 
-
-    border_uv = mix( TexCoord.xy, vec2(     TexCoord.y, 1.0- TexCoord.x), float(global.Rotation==1.0));
-    border_uv = mix(border_uv.xy, vec2(1.0-border_uv.x, 1.0-border_uv.y), float(global.Rotation==2.0)); // It seems useless...
-    border_uv = mix(border_uv.xy, vec2(1.0-border_uv.y,     border_uv.x), float(global.Rotation==3.0));
+    border_uv = get_unrotated_coords(get_unrotated_coords(TexCoord.xy, ub_Rotation), int(global.border_allow_rot));
 
     border_uv.y = mix(border_uv.y, 1.0-border_uv.y, border_mirror_y);
 
@@ -306,7 +205,6 @@ void main()
 
     border_uv = border_uv.xy * vec2(1.000001);
 }
-
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
@@ -321,6 +219,10 @@ layout(set = 0, binding = 3) uniform sampler2D BORDER;
 /* Mask code pasted from subpixel_masks.h. Masks 3 and 4 added. */
 vec3 mask_weights(vec2 coord, float phosphor_layout){
    vec3 weights = vec3(1.,1.,1.);
+
+   const float on  = 1.;
+   const float off = 0.;
+
 
    const vec3 red     = vec3(off, off, on );
    const vec3 green   = vec3(off, on,  off);
@@ -553,101 +455,8 @@ float vignette(vec2 uv)
     return clamp( pow( params.CN_VIG_BASE * vignette, params.CN_VIG_EXP ), 0.0, 1.0 );
 }
 
-// Fast when two first params are constants.
-float fsmoothstep(float a, float b, float x) {
-    return clamp(x*(1.0/(b - a)) - (a/(b - a)), 0.0, 1.0);
-}
-
-vec2 fsmoothstep(vec2 a, vec2 b, vec2 x) {
-    return clamp(x*(1.0/(b - a)) - (a/(b - a)), 0.0, 1.0);
-}
-
-float h_corner(vec2 uv)
+vec3 get_content(vec2 vTex, vec2 uv)
 {
-    vec2  d          = abs((2.0*uv - 1.0) * aspect_adj*SIZE) - (aspect_adj*SIZE - cornersize.xx);
-    float borderline = length(max(d, 0.0.xx)) + min(max(d.x, d.y), 0.0) - cornersize;
-
-    return fsmoothstep(cornersmooth, -cornersmooth, borderline);
-}
-
-vec2 h_warp(vec2 uv)
-{
-    vec2 cylinder = sqrt( (r2 - uv.x*uv.x) / (r2 - 2.0*uv.x*uv.x) )*max_size;
-    vec2 sphere   = sqrt( (r2 - 1.0      ) / (r2 - dot(uv, uv))   ).xx;
-
-    uv *= mix(sphere, cylinder, params.h_shape);
-
-    return uv;
-}
-
-// uv must be in the interval (-1.0, 1.0)
-float RoundedRect(vec2 uv, vec2 size, float radius, vec2 blur)
-{
-    radius = radius * min(size.x, size.y);
-    vec2 d = (abs(uv) - (size-radius.xx));
-    float shape = length(max(d, 0.0.xx)) + min(max(d.x, d.y),  0.0) - radius;
-
-    return fsmoothstep(-blur.x, blur.y, shape);
-}
-
-// uv must be in the interval (-1.0, 1.0)
-vec2 RoundedRectVec(vec4 uv, vec4 size, vec2 radius, vec2 blur)
-{
-    radius = radius * min(size.xz, size.yw);
-    vec4 d = (abs(uv) - (size-radius.xxyy));
-    vec4 d4 = max(d, 0.0.xxxx);
-
-    vec2 shape = vec2(length(d4.xy), length(d4.zw)) + min(max(d.xz, d.yw),  0.0.xx) - radius;
-
-    return fsmoothstep(-blur, blur, shape);
-}
-
-
-// Calculate distance to get reflection coords
-vec2 ReflectionCoords(vec2 uv, float r)
-{
-    vec2 ref_coord;
-    vec2 size = (1.0-r).xx;
-
-    vec2 maxs = uv - max(0.0.xx, 2.0*(uv - size));
-    vec2 mins = uv - min(0.0.xx, 2.0*(uv + size));
-
-    ref_coord.x = (uv.x >= 0.0) ? maxs.x : mins.x;
-    ref_coord.y = (uv.y >= 0.0) ? maxs.y : mins.y;
-
-    return 0.5*ref_coord + 0.5;
-}
-
-
-void main()
-{
-// Bezels and border begins...
-
-    vec2 uvFC = mix(uv, h_warp(uv), params.h_curvature); // Frame content area
-    vec2 uvIB = uvFC;                                    // Inner bezel area
-    vec2 uvMB = mix(uv, uvFC, global.bz_outer_curve);    // In Between bezel area
-    vec2 uvOB = uvMB;                                    // Outer bezel area
-
-    uvFC = uvFC/size_over - 2.0*vec2(params.h_angle_x, params.h_angle_y);
-
-    vec2 area_out = RoundedRectVec(vec4(uvMB, uvOB), vec4(MID_BZ, OUT_BZ), bz_r.xx, vec2(SMTH, -SMTH));
-
-    vec4 border = texture(BORDER, border_uv);
-
-    border.rgb *= (bz_lights > 0.5) ? 1.0 : 0.5;
-    if (area_out.y < 0.5) {FragColor = vec4(border.rgb, 1.0); return;}
-
-// Bezels pause...
-
-// Content frame begins... (put content shader code here)
-// crt-nobody
-
-     vec2 vTex = 0.5*uvFC + 0.5;
-
-    float cval = h_corner(vTex)  *  step(0.0, fract(vTex.y));  // Discard off limit pixels
-
-    float vig = (params.CN_VIG_TOGGLE > 0.5) ? vignette(vTex) : 1.0;
-
     vec4  TextureSize = vec4(global.SourceSize.x, intl_profile.x, global.SourceSize.z, intl_profile.y);
     vec2  cn_offset   = vec2(CN_OFFSET     , intl_profile.z);
     vec2  scan_off    = vec2(CN_SCAN_OFFSET, intl_profile.w);
@@ -678,33 +487,62 @@ void main()
      ssy.x *= (CN_VSCANLINES > 0.5 ? 1.0 : lum0);
      ssy.y *= (CN_VSCANLINES > 0.5 ? 1.0 : lum1);
 
+    float vig = (params.CN_VIG_TOGGLE > 0.5) ? vignette(vTex) : 1.0;
+
     vec3  content = vig * (cc * wgt(vec2(pos.y, 1.0-pos.y) / ssy));
 
 // Mask
 
-    vec2 mask_coords = mix(vTexCoord, uv, params.h_curvature) * mask_size;
+    vec2 mask_coords = mix(vTexCoord, uv, global.h_curvature) * mask_size;
 
     mask_coords = mix(mask_coords.xy, mask_coords.yx, CN_VSCANLINES);
     vec3 mask_wgts = mask_weights(mask_coords, params.CN_PHOSPHOR_LAYOUT);
     mask_wgts = clamp(mask_wgts + vec3(1.0-CN_MASK_STRENGTH), 0.0, 1.0);
     mask_wgts = (CN_MONITOR_SUBPIXELS > 0.5) ? mask_wgts.bgr : mask_wgts;
 
-    content = GAMMA_OUT(content) * GAMMA_OUT(mask_wgts) * vec3(cval);
+    return GAMMA_OUT(content) * GAMMA_OUT(mask_wgts);
+}
 
-// Content frame ends.
+
+void main()
+{
+// Bezels and border begins...
+
+    vec2 uvFC = mix(uv, h_warp(uv), global.h_curvature); // Frame content area
+    vec2 uvIB = uvFC;                                    // Inner bezel area
+    vec2 uvMB = mix(uv, uvFC, global.bz_outer_curve);    // In Between bezel area
+    vec2 uvOB = uvMB;                                    // Outer bezel area
+
+    uvFC = uvFC*overscan - content_position;
+
+    vec2 area_out = RoundedRectVec(vec4(uvMB, uvOB), vec4(MID_BZ, OUT_BZ), bz_r.xx, vec2(SMTH, -SMTH));
+
+    vec4 border = texture(BORDER, border_uv);
+
+    border.rgb *= (bz_lights > 0.5) ? 1.0 : 0.5;
+    if (area_out.y < 1.0) {FragColor = vec4(border.rgb, 1.0); return;}
+
+// Bezels pause...
+
+     vec2 fcTex = 0.5*uvFC + 0.5;
+
+    float cval = h_corner(fcTex)  *  step(0.0, fract(fcTex.y));  // Discard off limit pixels
+
+// Call to content shader here.
+    vec3 content = get_content(fcTex, uv) * vec3(cval);
 
 // Bezels continue...
 
-    vec2 area_inn = RoundedRectVec(vec4(uvIB, uvMB), vec4(INN_BZ, MID_BZ), bz_r.xx, vec2(SMTH, -SMTH));
+    vec2  area_inn      = RoundedRectVec(vec4(uvIB, uvMB), vec4(INN_BZ, MID_BZ), bz_r.xx, vec2(SMTH, -SMTH));
 
-    float out_border = RoundedRect(uvOB, OUT_BZ, bz_r, SMTH.xx);
+    float out_border    = 1.0 - area_out.y;
 
-    vec3 frame_content = mix(content+border.rgb*out_border, mix(content.rgb, border.rgb, border.a), global.ub_border_top);
+    vec3  frame_content = mix(content, mix(content.rgb, border.rgb, border.a), global.ub_border_top);
 
-    const float ambient = bz_ambient;
+    const float ambient     = bz_ambient;
     const float ambient_out = 1.4*bz_ambient;
-    vec3 shine_content = 0.0.xxx;
-    vec3 ambient_content = 0.0.xxx;
+    vec3 shine_content      = 0.0.xxx;
+    vec3 ambient_content    = 0.0.xxx;
 
     if (bz_lights == 1.0)
     {
@@ -720,7 +558,12 @@ void main()
 
     frame_content += (global.bz_ambient_enable*ambient_content + global.bz_shine_enable*shine_content);
 
-    if (area_inn.x < 0.5) { FragColor = vec4(frame_content, 1.0); return;}
+    if (area_inn.x < 0.5)
+    {FragColor = vec4(mix(border.rgb, mix(border.rgb, frame_content, cval*(1.0-global.border_alpha)), float(max(fcTex.x, fcTex.y) <=1.0)), 1.0);
+
+//      FragColor = vec4(mix(border.rgb, frame_content, float(max(fcTex.x, fcTex.y) <=1.0)), 1.0);
+      return;
+     }
 
     float bezel_inner_area = area_inn.x * area_inn.y;
     float bezel_outer_area = area_out.x * area_out.y;
@@ -743,18 +586,19 @@ void main()
     IB = vec2(IB.x*mb_aspect, IB.y - MID_BZ.y + mb_aspect*MID_BZ.x);
     float corner = fsmoothstep(-bz_r, bz_r, IB.y - mix(IB.x, bz_ang*IB.x + bz_pos, cyl_shape));
 
+    if (global.bz_transparent > 0.5) BZ_COLOR = border.rgb;
+
     if (bz_lights == 1.0)
     {
-
-	// Bezel texture 
-    	vec3 bz_color = clamp(BZ_COLOR + rand(uvIB)*0.0125-0.00625, 0.0, 1.0) + 
+        // Bezel texture 
+        vec3 bz_color = clamp(BZ_COLOR + rand(uvIB)*0.0125-0.00625, 0.0, 1.0) + 
                                          rand(uvIB+1.0.xx)*0.0625 * cos(0.75*PI*uvIB.x);
-
         // Inner Bezel and Reflections
-        bezels += bz_color * bezel_inner_area * (Blur + 0.25*(1.0 + corner));
+        bezels += (bz_color + Blur) * bezel_inner_area * (0.25*(1.0 + corner));
 
     	// Outer Bezel
-   	bezels += bz_color * bezel_outer_area;
+   	bezels +=  mix(bz_color, BZ_COLOR, global.bz_transparent) * bezel_outer_area;
+
     }
     else
     {
@@ -763,13 +607,14 @@ void main()
                                 RoundedRect(uvOB, MID_BZ, bz_r, vec2(SMTH*2.0, -SMTH* 2.0));
 
         // Inner Bezel and Reflections
-        bezels += BZ_COLOR * bezel_inner_area * (ambient_out * (0.7 + 0.35*(1.0 - corner)) + Blur);
+        bezels += (BZ_COLOR + Blur) * bezel_inner_area * (ambient_out * (0.7 + 0.35*(1.0 - corner)) + Blur);
 
         // Outer Bezel
-        bezels += BZ_COLOR * bezel_outer_area * ambient_out;
+        bezels += BZ_COLOR * bezel_outer_area * mix(ambient_out, 1.0, global.bz_transparent);
+
     }
 
-    bezels = mix(bezels+border.rgb*out_border, mix(bezels, border.rgb, border.a), global.ub_border_top);
+    bezels = mix(bezels+border.rgb*bezel_inner_area*global.bz_transparent, mix(bezels, border.rgb, border.a), global.ub_border_top);
 
     FragColor = vec4(bezels, 1.0);
 }

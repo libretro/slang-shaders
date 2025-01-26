@@ -13,6 +13,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	mat4 MVP;
 } global;
 
+const vec3 Y = vec3(.2126, .7152, .0722);
+
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
@@ -31,5 +33,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
-   FragColor = vec4(textureLod(Source, vTexCoord, 4.0).rgb, 1.0);
+   vec3 color = textureLod(Source, vTexCoord, 4.0).rgb;
+
+   FragColor = vec4(color, dot(color, Y));
 }
