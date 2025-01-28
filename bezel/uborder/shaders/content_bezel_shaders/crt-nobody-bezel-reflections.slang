@@ -559,11 +559,10 @@ void main()
     frame_content += (global.bz_ambient_enable*ambient_content + global.bz_shine_enable*shine_content);
 
     if (area_inn.x < 0.5)
-    {FragColor = vec4(mix(border.rgb, mix(border.rgb, frame_content, cval*(1.0-global.border_alpha)), float(max(fcTex.x, fcTex.y) <=1.0)), 1.0);
-
-//      FragColor = vec4(mix(border.rgb, frame_content, float(max(fcTex.x, fcTex.y) <=1.0)), 1.0);
+    {
+FragColor = vec4(mix(border.rgb, mix(border.rgb, frame_content, (1.0-global.border_alpha)), float((fcTex.x*fcTex.y) <=1.1)), 1.0);
       return;
-     }
+    }
 
     float bezel_inner_area = area_inn.x * area_inn.y;
     float bezel_outer_area = area_out.x * area_out.y;

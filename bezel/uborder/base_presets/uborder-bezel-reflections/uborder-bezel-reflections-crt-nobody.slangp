@@ -21,7 +21,7 @@ BORDER_wrap_mode = "clamp_to_border"
 BORDER_mipmap = "false"
 
 fr_zoom = "37.800000"
-fr_i_scaling_fac = "-5.000000"
+fr_i_scaling_fac = "0.000000"
 bz_ref_str = "0.350000"
 bz_inner_bezel_x = "0.000000"
 bz_inner_bezel_y = "0.000000"
