@@ -36,10 +36,12 @@ const vec2  middle = 0.5.xx;
 // Fast when two first params are constants.
 float fsmoothstep(float a, float b, float x) {
     return clamp(x*(1.0/(b - a)) - (a/(b - a)), 0.0, 1.0);
+//    return smoothstep(a, b, x);
 }
 
 vec2 fsmoothstep(vec2 a, vec2 b, vec2 x) {
     return clamp(x*(1.0/(b - a)) - (a/(b - a)), 0.0, 1.0);
+//    return smoothstep(a, b, x);
 }
 
 float h_corner(vec2 uv)
@@ -62,7 +64,8 @@ vec2 h_warp(vec2 uv)
 
 #ifdef USE_BEZEL_REFLECTIONS_COMMON
 
-#define FIX(c) max(abs(c), 1e-5);
+#define BLVL(c) max(abs(c), 1e-2)  // Black Level for Arcade Vector Games
+#define FIX(c)  max(abs(c), 1e-5);
 #define PI 3.141592653589
 
 #define R_BLUR_ITER 5

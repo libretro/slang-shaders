@@ -45,7 +45,8 @@
 #pragma parameter border_center_y      "    Border Center Y"                 0.0 -0.5 0.5 0.001
 #pragma parameter border_mirror_y      "    Border Mirrored"                 0.0  0.0 1.0 1.0
 #pragma parameter border_allow_rot     "    Border Rotation [ 0 <--> 270 ]"  0.0  0.0 3.0 1.0
-#pragma parameter border_alpha         "    Border Alpha Over Content"       0.0  0.0 1.0 0.01
+#pragma parameter border_alpha         "    Border Alpha Over Content (BAOC)"0.0  0.0 1.0 0.01
+#pragma parameter black_baoc           "    (BAOC) Only On Black Content"    0.0  0.0 1.0 1.0
 #endif
 
 #pragma parameter h_nonono             "HYLLIAN'S CURVATURE:"                1.0  0.0   1.0 1.0

@@ -109,6 +109,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float border_allow_rot;
     float ub_border_top;
     float border_alpha;
+    float black_baoc;
 } global;
 
 #define USE_BEZEL_REFLECTIONS_COMMON
@@ -537,7 +538,7 @@ void main()
 
     float out_border    = 1.0 - area_out.y;
 
-    vec3  frame_content = mix(content, mix(content.rgb, border.rgb, border.a), global.ub_border_top);
+    content = mix(content, mix(content.rgb, border.rgb, border.a), global.ub_border_top);
 
     const float ambient     = bz_ambient;
     const float ambient_out = 1.4*bz_ambient;
@@ -556,12 +557,15 @@ void main()
 	ambient_content += max(0.0, ambient - amb_size*length(uvIB)) * RoundedRect(uvIB, INN_BZ, bz_r, -SMTH.xx);
     }
 
-    frame_content += (global.bz_ambient_enable*ambient_content + global.bz_shine_enable*shine_content);
+    vec3  frame_content = content + (global.bz_ambient_enable*ambient_content + global.bz_shine_enable*shine_content);
 
     if (area_inn.x < 0.5)
     {
-FragColor = vec4(mix(border.rgb, mix(border.rgb, frame_content, (1.0-global.border_alpha)), float((fcTex.x*fcTex.y) <=1.1)), 1.0);
-      return;
+    	float baoc = 1.0 - global.border_alpha*step(dot(content.rgb, 0.333333.xxx), BLVL(1.0 - global.black_baoc));
+
+        FragColor = vec4(mix(border.rgb, mix(border.rgb, frame_content, baoc), 1.0-step(1.0,fcTex.x*fcTex.y)), 1.0);
+
+        return;
     }
 
     float bezel_inner_area = area_inn.x * area_inn.y;
