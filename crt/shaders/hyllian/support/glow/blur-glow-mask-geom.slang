@@ -320,7 +320,7 @@ vec3 mask_weights(vec2 coord, float phosphor_layout){
 
    else if(phosphor_layout == 3.){
       // black and white aperture; good for weird subpixel layouts and low brightness; good for 1080p and lower
-      const vec3 aperture2[3] = vec3[](black, white, white);
+      const vec3 aperture2[3] = vec3[](black, white, black);
       
       z = int(floor(mod(coord.x, 3.0)));
       
