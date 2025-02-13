@@ -44,17 +44,22 @@
         Notable one is lcd antighosting feature.
         
     config/config-user.txt:
-        shader parameters that can be changed within Retroarch.
+        This file has been deprecated, since it could be overwritten by
+        a shader update, so use config/config-user-opional.txt
+        
+    config/config-user-optional.txt:    
+        Shader parameters that can be changed within Retroarch.
         can be set within this file too.
         PRO: The shader will be faster
         CON: The parameters can no longer be modified within Retroarch. 
+        Please read config-user-optional-template.txt for instructions.
         
     textures/background_under.png
-        This is the image that shown by default under the main content and under the bezel.
+        This is the image that shown by default under the game and the bezel.
         Read further for details. 
         
     textures/background_over.png
-        This is the image that shown by default over the main content and under the bezel.
+        This is the image that shown by default over the game and the bezel.
         Read further for details.
         
     textures/monitor_body_curved.png, textures/monitor_body_straight.png
@@ -78,12 +83,18 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
 
 **PARAMETERS:**
 
-**Gamma in:**
-        Input Gamma: set it around 2.2 to linearize values.
+**Gamma in:**<br>
+Input Gamma: set it around 2.2 to linearize values.
         
-**Gamma out:**
-        Output Gamma: set it around "1/Gamma in"; small tweaks allowed.
+**Gamma out:**<br>
+Output Gamma: set it around "1/Gamma in"; small tweaks allowed.
         
+**Clip to white:**<br>
+Human brain perceives strong colors as white, but <br>
+in crt shaders you don't want this to preserve colors.<br>
+However nice effects may be obtained (eg: with vector games). <br>
+        
+
 **Color corrections:**<br>
     Modify signal color at "input" stage.<br>
 
@@ -118,7 +129,7 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
 
 ** Dedither:**<br>
     Try to smooth dithering patterns.<br>
-    Enabling dedithering automatically disables  NTSC color artifacts:** generation.
+    Dedithering does not work as long as NTSC color artifacts are enabled.
     
     Sensitivity: Avoid to dedither "legit" zones by lowering this.
     Basic search strength: Blends basic dedithering and original image.
@@ -136,22 +147,18 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
     the image will be blurred in a way or another.<br>
     You can selectively keep the part of the image which does not contain<br>
     artifacts sharp by using the followin controls.<br>
-    This allow to selectively blend artifacts.
-
+    This allow to selectively blend artifacts.<br>
+    <br>Enabling this features automatically disabled dedithering feature.
+    
     Consider artifacts above this treshold:
         Tune this to select more or less artifacts, depending on their strength.
     Show selected artifacts mask (need glow/blur enabled)
         This will show only the part of the image that contains artifacts.
         Use it to for a better visual feedback of the following parameters.
         Please, enable "glow" to s
-
-    1* Under treshold: Cancel blur (Glow)
-        How much the glow/blur function will skip blurring "unartifacted" areas.
-    2* Under treshold: Cancel Bandwidth limited chroma
-        How much the Bandwidth limited chroma function will skip blurring 
-        "unartifacted" areas.
-    3* Under treshold: Cancel artifacts
-        How much the artifacts under the treshold will be completely removed.
+    Cancel artifacts under the treshold
+        How much of the artifacts under the treshold will be completely removed.
+        
     
 **CVBS: Bandwidth limited chroma:**<br>
     Will cause an horizontal chroma bleed which cheaply mimics the effect of<br>
@@ -161,7 +168,12 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
 
 **CVBS: Dot crawl**<br>
     Emulates rolling chroma->luma crosstalks observed in composite signals.<br>
-    You can switch between pal and ntsc.<br>
+    
+    Colorspace: You can switch between pal and ntsc behaviour.
+    Speed:
+        Lower absolute values gives a more visible effect.
+        A negative value will switch to verically crawling artifacts.
+    
     
 **Persistence of phosphors:**<br>
     This emulates the unexcited phosphors that continue to emit light.
@@ -177,15 +189,15 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
         The channels deconvergence offsets
     Deconvergence increases near edges:
         Increase the offsets near screen edge
-    Blur increases near edges when glow/blur is enabled:
-        When using Glow/Blur feature, the blur increases near screen edge.
+    Blur screen edges
+        Screen edges are blurred
     Focused Area:
         The area of the screen that will be in focus (affects previous 2 settings)
 
         
 ** RF Noise:**<br>
     Emulates radio frequency noise with a given strength<br>
-    1 produce noise after the Glow/Blur pass, while -1 will move it before it.
+    1 produce noise before the Glow/Blur pass, while -1 will move it after.
     Suggestions:
     If you're blurring the image, is better to use 1.<br>
     If you're glowing the image, prefer -1.<br>
@@ -193,6 +205,13 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
     Uniform noise: Balanced noise that ranges from -x to +x.
     Snow noise: Sparkling/Rarefied noise 
         
+**Megadrive fake transparencies:**<br>
+    Detect patterns used in some Megadrive/Genesis games to
+    fake transparent colors and blends them.
+    
+    Overridden X(Y)-sharpness: The lower, the blurrier.
+
+
         
 **Glow/Blur:**<br>
     Emulate the CRT glowing "feature", so that the brighter areas of<br>
@@ -235,12 +254,12 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
     The Hiher the value, the more the amplitude.
     
 **Hi-resolution scanlines handling:**<br>
-        There you can choose how to handle scanlines when a content is Hi-Resolution.<br>
+        There you can choose how to handle scanlines when a game is Hi-Resolution.<br>
         Special handling may be needed to mitigate glitches/moire at 1080p or lower resolutions.
         
     Consider Hi-Resolution above # lines:
         A value of 0.0 means that it will never consider anything hi-res.
-        A value of 1.0 means that it will always consider content hi-res.
+        A value of 1.0 means that it will always consider game hi-res.
         With values > 1.0, it will consider a frame as Hi-resolution if the lines number is above the configured value.
 
     Hi-Res scanlines type
@@ -257,7 +276,7 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
         *Lowering* this parameter compensates that and usually
         Values around 0.8 to 0.95 usually work good, for affected monitors.
         On low latency panels such as OLEDs, microleds, this is not an issue,
-        so you should keep it to 1.0, possibly locking its value too in config-user.txt
+        so you should keep it to 1.0, possibly locking its value too in config-user-optional.txt
          
     Scanlines flicker (0=off,1=on,2=if Hi-res):
         This setting emulates the flickering issues present on crt interlaced screens
@@ -283,7 +302,7 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
     Scanlines (*4)
             Scanlines emulation, set the strength of the effect here.
         Double-scan low input resolutions
-            Activate this if you want to double the number of scanlines when the content is low-res.
+            Activate this if you want to double the number of scanlines when the game is low-res.
             "low-res is defined via "Consider Hi-Resolution above # lines" parameter above.
             This option is useful if you want to emulate 30khz VGA CRT monitors.
             If you are on 1080p or lower, consider to activate 
@@ -294,7 +313,7 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
             A negative value will cause the shader to choose when it is appropriate to activate them.
               The decision will be based on the ratio of output dimensions and the core.
         Phosphors height Min, Max:
-            Try to keep scanline height between those values, depending on content brightness.
+            Try to keep scanline height between those values, depending on game brightness.
         Phosphors width min->max gamma:
             Since emulating phosphors with high Min-Max range changes the apparent gamma of the final image,
             it is advised, if needed, to use this option to compensate, instead of the main gamma correction.
@@ -310,7 +329,7 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
             When dealing with curvature and deep scanlines gaps, moire patterns could appear on screen.
             This setting staggers screen phosphors by the configured amount and that halps in mitigating
             the disturbing effect.
-            I observed that a value of 0.17 does a good job for low-res content rendered at 1080p height.
+            I observed that a value of 0.17 does a good job for low-res games rendered at 1080p height.
             Any value > 0.0 disables the, following functions: Slotmask(fake) and Deconvergence Y
         Slotmask(fake) offset(*):
             This will cause every cell to be vertically shifted by the configured amount to
@@ -353,9 +372,10 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
             if they appear too big.
         Mask type preset:
             You can have the shader generate a preconfigured mask for you:
-            1:gm 2:gmx 3:rgb 4:rgbx 5:rbg 6:rbgx 7:wx
+            1:gm 2:gmx 3:rgb 4:rgbx 5:rbg 6:rbgx 7:wx 8:rgxb 9:wwx
             1:GreenMagenta, 2:GreenMagentaGap, 3:RedGreenBlue, 4:RedGreenBlueGap, 5:RedBlueGreen, 6:RedBlueGreenGap
             7:WhiteGap (means r,g and b phosphors are completely overlapped, nice with scanline deconvergence)
+            8:RedGreenGapBlue 9:WhiteWhiteGap
             
             (beware that due to limitations of the actual implementation, masks ending in "x")
             works reliable when emulating slotmasks only at screen coordinates with multiplier = 1.0)
@@ -421,15 +441,17 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
             Beware, this may produce moiree.
 
     Shadowmask:
-            Emulates crt's shadowmask, it is advised to turn off "Vertical cell Mask above" for accurate results
+        Emulates crt's shadowmask.
         X staggering
             how much even rows have to be shifted, probably you want 1.0 or 1.5 here
-            for 2 or 4 sized masks (gm,rgbx,rbgx,wx) use 1.5
-            for 3 sized masks (gmx,rgb,rbg) use 1.0
+            for 2 or 4 sized masks (gm,rgbx,rbgx,wx): use 1.5
+            for 3 sized masks (gmx,rgb,rbg): use 1.0
+        X staggering fin
         Phosphor height
             If you are using a very High definition screen, you may want to set this higher than 1.0
             I also observed nice results by setting this to 3 when using 4 sized masks like rgbx or rbgx.
-
+            In those scenarios, you can use the "Vertical cell Mask" in the section above 
+            (without slot mask effect) to round the phosphors.
             
 **Dot matrix emulation:**<br>
     Emulates low refresh "boxed" screens used in old handheld consoles.<br>
@@ -443,12 +465,12 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
             How much should the grid be visible on background?
             More positive values -> more grid on bright
             More negative values -> more grid on dark
-    Refresh inertia:
+    Ghosting:
         Emulates a low refresh screen, set the power of the effect.<br>
-        Inertia on:
-            0: display is always slow to refresh
-            1: display is slow to refresh bright pixels
-            2: display is slow to refresh dark pixels
+        Apply on:
+            0: display is always slow to refresh (Game gear)
+            1: display is slow to refresh bright pixels (??)
+            2: display is slow to refresh dark pixels (Game Boy)
     Shadow strength:
         Emulates the typical shadow seen on Gameboy mono handhelds
         casted by on the underlying screen.
@@ -548,7 +570,7 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
 
         
 **Bezel:**<br>
-    Draws a monitor frame with simulated reflections from the game content.<br>
+    Draws a monitor frame with simulated reflections from the game.<br>
     The monitor frame is an image loaded by the shader and is shipped<br>
     in the "textures" shader subdirectory, named:<br>
     monitor_body_curved.png and monitor_body_straight.png<br>
@@ -556,13 +578,13 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
     only if you want to edit it; otherwise go on:<br>
     * The red channel represents the luminance information<br>
     * The green channel represents the highlights<br>
-    * The alpha channel in the inner frame represents the part of the bezel that will be filled by the game content<br>
+    * The alpha channel in the inner frame represents the part of the bezel that will be filled by the game.<br>
     * The blue channel represents the part of the bezel that will be filled by the game reflection.<br>
     
     Straight
         Use a straight bezel instead of a curved one.
     Frame alignment:
-        Allows to shrink or expand the monitor frame to fit game content and align reflections.
+        Allows to shrink or expand the monitor frame to fit the game and align reflections.
         "Aligning the reflections" is the ONLY scope of this option.
     Bezel color (red,green,blue) and contrast:
         Allows to choose the color of the monitor frame.
@@ -572,8 +594,10 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
         Show less reflections in corners
     Reflections sharpness
         Modulates from totally blurred to totally sharp reflection appearance.
-    Surface roughness
+    Inner surface roughness
         The amount of material roughness in reflection area
+    Inner shadows contrast
+        Add or remove contrast to the reflection area.
     Diffusion strength
         Mix an amount of high blurred reflection to simulate light diffusion
     Light fadeout distance
@@ -594,20 +618,20 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
     <br>
     **-> It is needed that you set retroarch aspect to "Full" <-**<br>
     ( Settings, Video, Scaling, Aspect Ratio = Full )<br>
-    The image is painted "under" the game content and under the monitor frame by<br>
+    The image is painted "under" the game and under the monitor frame by<br>
     default, and his alpha channel will let you see ambient lighs (see next).<br>
 
-    Image over content (alpha channel driven)?:
-        ...however you can paint the image over the game content and over the
+    Image over game (alpha channel driven)?:
+        ...however you can paint the image over the game and over the
         monitor frame itself by selecting this option.
         If you do so, the alpha channel of the background image will be used to
-        let you view the underlying content.
+        let you view the underlying game.
     Shift(Zoom) Image over X(Y) axis:
         move or zoom the whole background image.
     Rotate/flip image
         This could be needed when dealing with vertical games
         or when the core flips the image for whatever reason.
-        0     =  let the shader try to guess if the game content is rotated.
+        0     =  let the shader guess if the game is rotated.
         1, -1 = no change
         >+1   = manual rotation for straight games
         <-1   = manual rotation for rotated games
@@ -622,7 +646,7 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
         
 **Backdrop support:**<br>
     Some old arcades used a mirror trick to overlay the<br>
-    game content over an high definition printed image.<br>
+    game over an high definition printed image.<br>
     The image used by default, picked from the "textures" shader subdirectory,<br>
     is named: boothill.jpg<br>
     
@@ -632,12 +656,12 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
         
 **Ambient light leds:**<br>
     Emulates the presence of led strips behind the monitor that lights the<br>
-    surroundings according to the edges of the game content.<br>
+    surroundings according to the edges of the game.<br>
     **-> It is needed that you set retroarch aspect to "Full" <-**<br>
     ( Settings, Video, Scaling, Aspect Ratio = Full )<br>
     
     Slowness: 
-        How much will the leds will take to reflect the game content.
+        How much will the leds will take to adapt to the game.
         It may sound silly to make them slow, but if they reacts too fast,
         they may distract you.
         Keep in mynd that there is a scene detection logic that will make them
@@ -647,7 +671,7 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
     Led saturation:
         Leds saturation post gain.      
     Internalness (Led position):
-        The distance between the virtual led strip and the content.
+        The distance between the virtual led strip and the game area.
         High values will move leds behind it, while lower values will move
         leds around it.
     Internalness (Sampling point):
@@ -655,7 +679,7 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
         follow the color of what is in the center of the screen, lowering the value will
         color the leds as the edge of the screen.
     Widen lights:
-        Dumb stretch of the visible texture, operates on the whole content, instead of the
+        Dumb stretch of the visible texture, operates on the whole light, instead of the
         single led.
         Note: To avoid burn-in effects, keep Light Falloff + Led power not too high.
     Bezel Colorization intensity:
@@ -689,27 +713,30 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
 **Spot:**<br>
     Simulates external light reflected by the monitor glass.<br>
             
-**Aspect (active with ambient light or background image only):**<br>
-    If you set retroarch aspect ratio option to full, you have to provide<br>
-    the core aspect ratio to the shader manually via the following parameters.<br>
-    NOTE: The following parameters are ignored when not using ambient lights
-    or background/foreground images.
-    In those cases, use options under "Override content geometry" section.
+**Aspect (applies to virtual screen and bezel):**<br>
+    Manually forces an aspect for the virtual output screen.
     
     Use -6 for MAME cores that pre-rotates the game (TATE mode)<br>
     With Mame 2003 plus and fbneo cores, koko-aio detects if the<br>
     game is rotated or not without any user intervention.<br>
     
+    -7 and -8 will take the value as set by the core itself and
+    requires at least retroarch 1.20.
+    -7 will ignore aspect set by the core and returns 1.333
+    if a background or foreground image is used.
+    
     Aspect Ratio Numerator:
         Setting non positive value here will switch to a predefined
         aspect ratio from the following list:
-        0  = 1.33 MAME
+         0 = 1.33 MAME
         -1 = 1.55 NTSC
         -2 = 1.25 PAL
         -3 = 8/7  Snes
         -4 = 10/7 Megadrive 
         -5 = Uncorrected
         -6 = 0.75 MAME rotated 1.33 games in TATE mode
+        -7 = Use Core provided Aspect Ratio auto-off
+        -8 = Use Core provided Aspect Ratio always on
     Aspect Ratio Denominator:
         As long as Aspect Ratio Numerator is positive, this will
         be used as the denominator of the fraction.
@@ -750,33 +777,34 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
     Transition speed
         This modulates the smoothness of the animation between various crop values.
 
-**Override content geometry:**<br>
-    Contrary to the global aspect ratio control, this changes only the game geometry.<br>
-    Bezel stays the same.<br>
+**Override game geometry:**<br>
+    Contrary to the aspect ratio control that affects the virtual screen dimensions,
+    this changes only the game geometry, so bezel stays the same.<br>
     
     Integer scale:
-        Game content zoom height is rounded to nearest integer.
+        Game zoom height is rounded to nearest integer.
         Maximum integer scale: 
             Dont allow integer scaling more than this
             * beware: the following options in this group overrides the integer scale.
         Permit integer overscale by:
             When doing integer scaling, allow the image to be slightly overscanned (goes off screen).
+        Sharp hack through offset:
+            When using integer scaling, it may be not possible to draw sharp rounded lines.
+            This hack add a small offset to the image that allows for sharp lines 
+            at the cost of a slightly lower draw precision.
+            Use 0.0 to disable the hack.
     Aspect:
-        Change aspect ratio.
+        Forces an aspect ratio.
+        Use a negative value to use Core provided aspect ratio (requires RetroArch > 1.19.1)
+        Note that when 
     Vertical/Horizontal position:
         Shifts the game position
     Zoom: 
         Change the size
-    Sharp fix through offset:
-        When using integer scaling, it may be not possible to
-        draw sharp rounded lines.
-        This hack add a small (the higher, the smaller) offset
-        to the image that allow for sharp lines at the cost of a slightly
-        lower draw precision. Use 0.0 to disable the hack.
     
 
 **Tilt:**<br>
-    Put the bezel and the game content into perspective.<br>
+    Put the bezel and the game into perspective.<br>
     The implementation is basic, you can expect correct<br>
     results when tilting alongside a single axis or when<br>
     using both, but with small values.<br>
@@ -787,26 +815,88 @@ https://github.com/kokoko3k/koko-aio-slang-misc/tree/main
     Bezel multiplier:
         Can be used to adjust the bezel rotation
         in relation to the game tilt amount
+
+---------------------------
         
+        
+**Static features**
+---------------------------
+
+*The following shader functionalities are disabled by default and cannot be enabled by using runtime shader parameters.<br>
+To enable them, you have to edit the shader itself, save it, and reload.*
+
+---------------------------
+     
 **Delta Render:**<br>
     Koko-aio can render only the part of the screen that has been changed,<br>
     leading to a measurable power consumption reduction and mitigate throttling
     on mobile devices and laptops.<br>
-    This feature can, however, produce artifacts in some cases, so the feature<br>
-    is statically disabled by default by now.<br>
-    To use it, you have to manually set to 1.0, in file config-user.txt: <br>
-    #define DELTA_RENDER 0.0 <br>
-    to <br>
-    #define DELTA_RENDER 1.0 <br>
+    This feature can, however, produce artifacts in some cases.<br><br>
+    To use it, in file config-user-optional.txt, turn the line: <br>
+    ```// #define DELTA_RENDER```
+    <br>into: <br>
+    ```#define DELTA_RENDER```
     
-    Force refresh interval:
+**Delta Render configuration:**<br>
+    To configure delta render, uncomment DELTA_RENDER_FORCE_REFRESH and/or DELTA_RENDER_CHECK_AREA.
+
+    #define DELTA_RENDER_FORCE_REFRESH #number
         Forces a full screen refresh every #number of frames;
         if there was artifacts on the screen, they will be cleared.
         Power comsumption benefits will be lower.
-    Delta render area size
-        If you see artifacts, try to make this higher.
+    #define DELTA_RENDER_CHECK_AREA #number
+        If you see artifacts, try to make #number higher.
         Artifacts come basically from bloom.
         By highering this value, Delta render can take higher blur radiouses
         into account.
         Power comsumption benefits will be lower.
+        
+        
+**Higher quality defocus:**<br>
+    Use higher quality deconvergence by flattering rgb scanlines when <br>
+    deconvergence is high and by syncing them to the deconvergence settings.<br>
+    This has a measurable performance impact on lower spec GPUs.<br><br>
+    To use it, in file config-user-optional.txt, turn the line: <br>
+    ```// #define HQ_DECON```
+    <br>into: <br>
+    ```#define HQ_DECON```<br>
+
+    
+**FXAA tuning:**<br>
+    To change fxaa behaviour, in file config-user-optional.txt, turn the line: <br>
+    ```// #define FXAA_PRESET 2.0```
+    <br>into: <br>
+    ```#define FXAA_PRESET 2.0```<br>
+    You can use values from 1.0 to 5.0, where:<br>
+    1.0 is the fastest one, limited effect.<br>
+    2.0 is the default one, still fast, good for low resolution content.<br>
+    3.0 to 5.0 smooth the image more and are good for high resolution games.<br>
+    
+**LCD antighosting:** (not compatible with delta render)<br>
+    LCD displays often suffer from high pixel refresh times <br>
+    which produces ghosting when game changes on screen.<br>
+    By inducing larger color transitions, it prompts the LCD cells <br>
+    to adjust their states more rapidly, thereby reducing ghosting.<br><br>
+    To use it, in file config-user-optional.txt, turn the line: <br>
+    ```// #define LCD_ANTIGHOSTING 0.5```
+    <br>into: <br>
+    ```#define LCD_ANTIGHOSTING 0.5```<br><br>
+
+    
+    
+**Conditional FPS Halver**<br>
+    *[Warning:] Only on retroarch > 1.19.1*<br>
+    *[Warning:] This feature is not compatible with HALVE_BORDER_UPDATE* <br>
+    *[Warning:] This feature is not compatible with DELTA_RENDER* <br>
+    To optimize performance and battery life, this function halves the shader <br>
+    frame rate whenever the core frame rate surpasses 49 FPS.<br>
+    This is particularly useful for devices with weaker GPUs <br>
+    that may struggle to render shader at full speed. <br>
+    Furthermore, the shader frame rate will remain capped at 30 (/25) FPS <br>
+    if the core frame rate alternates between 60 (/50) and 30 (/25) FPS.<br><br>
+    To use it, in file config-user-optional.txt, turn the line: <br>
+    ```// #define FPS_HALVER```
+    <br>into: <br>
+    ```#define FPS_HALVER```<br><br>
+    
     

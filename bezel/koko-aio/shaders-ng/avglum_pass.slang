@@ -298,7 +298,7 @@ float get_next_autocrop_amount(float max_autocrop_amount) {
 float get_autocrop() {
     // This return a value that will be used  in the final pass to zoom the picture.
     float previous_autocrop_amount = AUTOCROP_MAX+1;
-    if (params.FrameCount < 30.0) {
+    if (params.FrameCount < 30) {
         previous_autocrop_amount =  AUTOCROP_MAX+1; //Good start point.
     } else {
         previous_autocrop_amount = texture(avglum_passFeedback,AUTOCROP_SAMPLING_POINT).a;

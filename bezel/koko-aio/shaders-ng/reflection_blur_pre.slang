@@ -8,27 +8,30 @@ layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec2 vCoordsAdapted;
 layout(location = 2) out vec2 vCoords_shade;
+layout(location = 5) out float vIn_Aspect;
+
 #include "includes/functions.include.slang"
 
 
 void main() {
    gl_Position = global.MVP * Position;
    vTexCoord = TexCoord;
+   vIn_Aspect = get_in_aspect();
    vCoordsAdapted = vTexCoord;
    //override aspect?
    if (DO_GAME_GEOM_OVERRIDE > 0.5)
       vCoordsAdapted = content_geom_override_zoom(vCoordsAdapted, GAME_GEOM_ASPECT, get_in_aspect(), GAME_GEOM_VSHIFT, GAME_GEOM_HSHIFT, GAME_GEOM_ZOOM);
 
    vCoordsAdapted = zoomout_coords( vCoordsAdapted, BEZEL_RFL_ZOOM*0.1);
-   
+
    vCoords_shade = zoom(vTexCoord,1.05);
-   
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec2 vCoordsAdapted;
 layout(location = 2) in vec2 vCoords_shade;
+layout(location = 5) in float vIn_Aspect;
 
 layout(location = 0) out vec4 FragColor;
 
@@ -55,6 +58,9 @@ float borders_gradient(vec2 co, float smoothness) {
 }
 
 void main() {
+   
+   if (fps_halver_is_skipped_frame())
+      return;
    
    if (DO_BEZEL == 0.0) return;
    
@@ -89,9 +95,12 @@ void main() {
       shade_sharp_blur =  shade_sharp_blur - BEZEL_RFL_BLR_SHD;
       
       shade_sharp_blur=clamp(shade_sharp_blur, 0.0,1.0);
-      float blur_radius=(shade_sharp_blur) * 2.0  ;
+      float blur_radius=(shade_sharp_blur) * 2.0;
+      vec2 blur_radius_adpt = radius_blur_adapt_ext_inaspect(blur_radius, vIn_Aspect);
       
-      vec3 pixel_out = bloom(shift_and_bleed_pass, coords, global.FinalViewportSize, vec2(blur_radius), 1.0, 0.0, 1.0) ;
+      
+      
+      vec3 pixel_out = bloom(shift_and_bleed_pass, coords, global.FinalViewportSize, blur_radius_adpt, 1.0, 0.0, 1.0) ;
 
    FragColor = vec4(pixel_out,shade_sharp_blur );
 //FragColor = vec4(shade_sharp_blur );

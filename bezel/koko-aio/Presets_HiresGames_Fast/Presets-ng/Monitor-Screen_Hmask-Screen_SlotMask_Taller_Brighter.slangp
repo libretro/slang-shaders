@@ -1,6 +1,6 @@
 #reference "Monitor-Screen_Hmask-Screen_SlotMask_Taller.slangp"
 
-GAMMA_OUT = "0.49"
+GAMMA_OUT = "0.44"
 
 IN_GLOW_SPREAD = "1.999999"
 IN_GLOW_SPREAD_SHARPNESS = "1.2"
@@ -30,7 +30,7 @@ DO_PIXELGRID = "1.000000"
 	HALO_VS_SCAN = "1.000000"
 
 	BLOOM_MIX = "0.1500"
-	BLOOM_POWER = "3.9"
+	BLOOM_POWER = "4.6"
 	BLOOM_EYE_INERTIA = "250.000000"
 	BLOOM_OVER_WHITE = "0.500000"
 	

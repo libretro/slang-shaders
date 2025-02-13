@@ -7,16 +7,10 @@
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
-// D3D/XBOX users should enable Direct3D workarounds to avoid glitches or crashes
-// by removing the leading "//" from the following line:
-
-// #define D3D_WORKAROUND
-
-
 // STATIC FEATURES ENABLE/DISABLE
-	
-// Enable lcd antighosting by using values > 0.0 (try around 0.25)
-	#define LCD_ANTIGHOSTING 0.0
+
+// In case you're running an old pRetrtoarch version (pre 1.16), please comment this (prepend: // )
+#define _HAS_ROTATION_UNIFORM
 
 
 // BEZEL STATIC CONFIG ////////////////////////////////////////////////////////
@@ -101,7 +95,6 @@
 
 
 
-
 // GLOW STATIC CONFIG ##########################################################################################
 
 	//Setting the glow/halo sharpness parameter to this
@@ -151,12 +144,13 @@
 
 // MISC STATIC CONFIG ##########################################################################################
 	//Static dithering applied over vignette and spot
-#define NOISEPOWER 5/1000.0
+#define NOISEPOWER ((1/255.0) * 1.2)
 	//Temporal noise strength applied on green channel when green is dark over ambient lights (multiplied by NOISEPOWER)
-#define NOISEPOWER_AMBI_MUL 3.0
+#define NOISEPOWER_AMBI (NOISEPOWER * 3.0)
 
 // This is an attempt to improve preceived motion clarity by flickering the moving part of the game
-#define FLICKER_IN_MOTION 0.0
+// uncomment/remove leading // to enable
+// #define FLICKER_IN_MOTION
 
 
 // STATIC CONFIG ENDS HERE ##########################################################################################

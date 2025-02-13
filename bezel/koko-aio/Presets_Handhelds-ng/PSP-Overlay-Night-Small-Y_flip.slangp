@@ -1,0 +1,4 @@
+#reference "PSP-Overlay-Night-Small.slangp" 
+
+GLOBAL_OFFY = "-0.030000"
+BG_IMAGE_ROTATION = "0.000000"

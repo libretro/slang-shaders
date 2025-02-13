@@ -12,6 +12,10 @@
     #define GAMMA_OUT	global.GAMMA_OUT
 #endif
 
+#ifndef CLIP_TO_WHITE
+    #define CLIP_TO_WHITE	global.CLIP_TO_WHITE
+#endif
+
 #ifndef SATURATION
     #define SATURATION	global.SATURATION
 #endif
@@ -100,12 +104,20 @@
     #define NTSC_PHASE_SHIFT		global.NTSC_PHASE_SHIFT
 #endif
 
-#ifndef NTSC_ARTF_NOBLUR
-    #define NTSC_ARTF_NOBLUR 		global.NTSC_ARTF_NOBLUR
+#ifndef DO_WTFL
+    #define DO_WTFL 		global.DO_WTFL
 #endif
 
-#ifndef NTSC_ARTF_NOBLEED
-    #define NTSC_ARTF_NOBLEED 		global.NTSC_ARTF_NOBLEED
+#ifndef WTFL_SHARPNESS_X
+    #define WTFL_SHARPNESS_X 		global.WTFL_SHARPNESS_X
+#endif
+
+#ifndef WTFL_SHARPNESS_Y
+    #define WTFL_SHARPNESS_Y 		global.WTFL_SHARPNESS_Y
+#endif
+
+#ifndef WTFL_THRESHOLD
+    #define WTFL_THRESHOLD 		global.WTFL_THRESHOLD
 #endif
 
 #ifndef NTSC_ARTF_TRSH
@@ -140,7 +152,7 @@
     #define DOT_C		global.DOT_C
 #endif
 
-#ifndef DOT_C_YIQ
+#ifndef DOT_C_YUV
     #define DOT_C_YUV		global.DOT_C_YUV
 #endif
 
@@ -419,6 +431,10 @@
 
 #ifndef BEZEL_ROUGHNESS
     #define BEZEL_ROUGHNESS		global.BEZEL_ROUGHNESS
+#endif
+
+#ifndef BEZEL_RFL_CONTRAST
+    #define BEZEL_RFL_CONTRAST		global.BEZEL_RFL_CONTRAST
 #endif
 
 #ifndef DO_SPOT
@@ -889,14 +905,6 @@
 
 #ifndef PIXELGRID_GAMMA_W
     #define PIXELGRID_GAMMA_W	global.PIXELGRID_GAMMA_W
-#endif
-
-#ifndef DELTA_RENDER_FORCE_REFRESH
-    #define DELTA_RENDER_FORCE_REFRESH global.DELTA_RENDER_FORCE_REFRESH
-#endif
-
-#ifndef DELTA_RENDER_CHECK_AREA
-    #define DELTA_RENDER_CHECK_AREA    global.DELTA_RENDER_CHECK_AREA
 #endif
 
 #ifndef DO_PPERSISTENCE

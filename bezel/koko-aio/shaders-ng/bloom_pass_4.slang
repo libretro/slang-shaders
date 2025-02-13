@@ -11,50 +11,23 @@ layout(location = 1) in vec2 TexCoord;
 
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec2 vFuzzy_main_pass_stage_1;
-layout(location = 2) out vec3 vTemperature_rgb;
-layout(location = 3) out vec3 vTemperature_rgb_gamma_in;
-layout(location = 4) out float vIn_aspect;
-//layout(location = 5) out vec2 vCo_avglum;
+layout(location = 5) out vec2 blur_radius_adpt;
 
 void main() {
     gl_Position = global.MVP * Position;
     vTexCoord = TexCoord;
-    
-    vIn_aspect = get_in_aspect();
-    
+    blur_radius_adpt = radius_blur_adapt(BLOOM_SIZE);
+
     //Get fuzzy mul and pow factor
         vFuzzy_main_pass_stage_1 = apply_fuzzy_main_pass_stage_1();
 
-    //BLOOM temperature note (**)    
-    /*  We would need to revert color temperature before the bloom 
-    * and then re-apply the temperature or bloom would colorize whites with the color
-    * temperature value!
-    * in theory the temperature "revert" should be done before the BLOOM_GAMMA (gamma in) application,
-    * so before bloom pass 1, but it seems we can do it in the final stage by dividing bloomed 
-    * for pow(vTemperature_rgb, BLOOM_GAMMA), apply bloom gains and tweaks, and then 
-    * multiply bloomed for vTemperature_rgb
-    */
-    
-    if (TEMPERATURE == 6500 || DO_CCORRECTION == 0.0) {
-        vTemperature_rgb = vec3(1.0);
-        vTemperature_rgb_gamma_in =  vec3(1.0);
-    } else {
-        vTemperature_rgb = kelvin2rgb(TEMPERATURE);
-        vTemperature_rgb_gamma_in = pow(vTemperature_rgb, vec3(BLOOM_GAMMA));
-    }
-    //debug
-    //vTemperature_rgb = vec3(1.0);
-    //vTemperature_rgb_gamma_in = vec3(1.0);
-    
 }
 
 #pragma stage fragment
 
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec2 vFuzzy_main_pass_stage_1;
-layout(location = 2) in vec3 vTemperature_rgb;
-layout(location = 3) in vec3 vTemperature_rgb_gamma_in;
-layout(location = 4) in float vIn_aspect;
+layout(location = 5) in vec2 blur_radius_adpt;
 //layout(location = 5) in vec2 vCo_avglum;
 
 layout(location = 0) out vec4 FragColor;
@@ -94,7 +67,7 @@ float get_avg_lum_from_mip(sampler2D tex, vec2 co, float lod) {
     float eye_adaption_speed;
     float luminance_from_feedback = rgb_to_gray(mip);
     
-    if (DELTA_RENDER == 0.0) {
+    if (delta_render_enabled() == 0.0) {
         //The following makes the adaption speed more constant:
         eye_adaption_speed = BLOOM_PUPIL_ADAPTION_SPEED * ( luminance_first_pass / luminance_from_feedback ) ;
 
@@ -117,21 +90,24 @@ float get_avg_lum_from_mip(sampler2D tex, vec2 co, float lod) {
 
 
 void main() {
-    if (DO_BLOOM == 0.0) return;
+    if (DO_BLOOM == 0.0) {
+        // Initialize bloom "Feedback" alpha to avoid glitches
+        // When enabling the effect runtime
+        FragColor.a = 1.0;
+        return;
+    }
     
     vec3 bloomed = bloom(
         Source,
         vTexCoord,
         params.SourceSize,
-        vec2(BLOOM_SIZE),
+        blur_radius_adpt,
         BLOOM_QUALITY,
         offset,
         0.0
     );
     
-    bloomed = bloomed / vTemperature_rgb_gamma_in;  //see note (**) in vertex shader
-    
-    
+
     bloomed = pow(bloomed,vec3(BLOOM_GAMMA_OUT));
     bloomed = pixel_push_luminance(bloomed, BLOOM_POWER);
     
@@ -174,8 +150,6 @@ void main() {
     if (BLOOM_BYPASS != 1.0)
         bloomed = bloomed * bloom_mix_adapted * over_white_correction ;
     
-
-    bloomed = bloomed * vTemperature_rgb; //see note (**) in vertex shader
     
     FragColor = vec4(bloomed, zone_luminance);   
     

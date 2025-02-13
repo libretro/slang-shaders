@@ -1,6 +1,6 @@
 #reference "../koko-aio-ng.slangp"
 
-bg_under = "../../textures/overlays/psp-e1000.jpg"
+bg_under = "../textures/overlays/psp-e1000.jpg"
 
 DO_CCORRECTION = "1.000000"
 	IN_GLOW_POWER = "1.300001"
@@ -43,7 +43,8 @@ DO_HALO = "1.000000"
 
 DO_BLOOM = "1.000000"
 	BLOOM_MIX = "0.500000"
-
+	BLOOM_POWER = "1.25"
+	
 DO_CURVATURE = "1.0"
 	GEOM_WARP_X = "0.000000"
 	GEOM_WARP_Y = "0.000000"

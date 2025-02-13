@@ -15,6 +15,8 @@ layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 
+layout(location = 3) out float vDynamicSeed;
+
 layout(location = 5) out vec4 vpt1;
 layout(location = 6) out vec4 vpt2;
 
@@ -33,8 +35,14 @@ void main() {
    gl_Position = global.MVP * Position;
    vTexCoord = TexCoord;
    
+   //noise
+   vDynamicSeed = mod(params.FrameCount, 120.0001);
+   
    //flickering helper
-   vDo_flickering  = float ( scanline_have_to_flicker(is_interlaced()) || FLICKER_IN_MOTION == 1.0  ) ; 
+   vDo_flickering  = float ( scanline_have_to_flicker(is_interlaced()) ) ; 
+   #ifdef FLICKER_IN_MOTION
+      vDo_flickering = 1.0;
+   #endif
    if (vDo_flickering == 1.0) {
       //Flicker one over 3 frames:
          float ModFlicker = params.FrameCount % 3;
@@ -81,6 +89,7 @@ void main() {
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 
+layout(location = 3) in float vDynamicSeed;
 
 layout(location = 5) in vec4 vpt1;
 layout(location = 6) in vec4 vpt2;
@@ -96,8 +105,9 @@ layout(location = 12) in float vDo_flickering;
 layout(location = 13) in vec2  vFlickerCoords;
 
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D upscale_passFeedback;
+layout(set = 0, binding = 4) uniform sampler2D colortools_and_ntsc_pass;
+layout(set = 0, binding = 5) uniform sampler2D colortools_and_ntsc_passFeedback;
 
 //#define _KOKO_AA_PRELINEARIZE
 #define _KOKO_AA_PRELINEARIZE_IN  (2.0)
@@ -551,7 +561,7 @@ vec3 pixel_flickering(vec3 pixel_cur) {
    //vec3 pixel_cur = texture(Source,vTexCoord).rgb;      
    //vec3 flickline = texture_NEAREST(upscale_passFeedback,vFlickerCoords, params.OriginalSize).rgb;
    //vec3 flickline = texture(upscale_passFeedback,vFlickerCoords).rgb;
-   vec3 flickline = texture(Source,vFlickerCoords).rgb;
+   vec3 flickline = texture(colortools_and_ntsc_pass,vFlickerCoords).rgb;
    //vec3 flickline = texture_NEAREST(Source,vFlickerCoords, params.OriginalSize).rgb;
    
    //float lumdiff = abs( flickline.r + flickline.g + flickline.b - pixel_cur.r - pixel_cur.g - pixel_cur.b);
@@ -560,25 +570,24 @@ vec3 pixel_flickering(vec3 pixel_cur) {
 
    lumdiff = min(lumdiff * PIXELGRID_INTR_FLICK_POWR, 1.0);
    
-   /*if (FLICKER_IN_MOTION == 1.0) {
+   #ifdef FLICKER_IN_MOTION
       lumdiff = 0.4;
       vec3 prev_frame = texture(colortools_and_ntsc_passFeedback, vTexCoord).rgb;
       vec3 cur_frame = texture(colortools_and_ntsc_pass, vTexCoord).rgb;
       float is_moving = float(prev_frame != cur_frame);
       lumdiff *= is_moving;
-   }*/
+   #endif
    
    return mix(pixel_cur.rgb,flickline.rgb,lumdiff);
-   //return vec4( mix(pixel_cur.rgb,flickline.rgb,lumdiff),
-   //             pixel_cur.a); //<-- wee need to return the alpha channel because it carries ntsc artifact mask
+
 }
 
 
 #ifndef FXAA_PRESET
-    #define FXAA_PRESET 0
+    #define FXAA_PRESET 2
 #endif
 
-#if (FXAA_PRESET == 0)  //Dumb preset, looks like others for 2x scaling, but skip search.
+#if (FXAA_PRESET == 1)  //Dumb preset, looks like others for 2x scaling, but skip search.
     #define FXAA_EDGE_THRESHOLD      (1.0/8.0)
     #define FXAA_EDGE_THRESHOLD_MIN  (1.0/24.0)
     #define FXAA_SEARCH_STEPS        0
@@ -587,41 +596,43 @@ vec3 pixel_flickering(vec3 pixel_cur) {
     #define FXAA_SUBPIX_TRIM         (1.0/8.0)
 #endif
 
-#if (FXAA_PRESET == 6)
-    #define FXAA_EDGE_THRESHOLD      (1.0/16.0)
-    #define FXAA_EDGE_THRESHOLD_MIN  (1.0/12.0)
+#if (FXAA_PRESET == 2) // Limited search, rounder
+    #define FXAA_EDGE_THRESHOLD      (1.0/8.0)
+    #define FXAA_EDGE_THRESHOLD_MIN  (1.0/24.0)
     #define FXAA_SEARCH_STEPS        4
     #define FXAA_SEARCH_THRESHOLD    (1.0/4.0)
-    #define FXAA_SUBPIX_CAP          (7.0/8.0)
-    #define FXAA_SUBPIX_TRIM         (1.0/8.0)
+    #undef  FXAA_SUBPIX_TRIM                     //koko: brighter edges
+    #define FXAA_SUBPIX_CAP          (3.0/4.0)   //koko: unused when FXAA_SUBPIX_TRIM is not defined
 #endif
 
 #if (FXAA_PRESET == 3)
-    #define FXAA_EDGE_THRESHOLD      (1.0/16.0)
-    #define FXAA_EDGE_THRESHOLD_MIN  (1.0/16.0)
-    #define FXAA_SEARCH_STEPS        16
-    #define FXAA_SEARCH_THRESHOLD    (1.0/4.0)
-    #define FXAA_SUBPIX_CAP          (3.0/4.0)
-    #define FXAA_SUBPIX_TRIM         (1.0/4.0)
+    #define FXAA_EDGE_THRESHOLD      (1.0/8.0)  
+    #define FXAA_EDGE_THRESHOLD_MIN  (1.0/16.0) 
+    #define FXAA_SEARCH_STEPS        16         
+    #define FXAA_SEARCH_THRESHOLD    (1.0/4.0)  
+    #define FXAA_SUBPIX_CAP          (3.0/4.0)  
+    #define FXAA_SUBPIX_TRIM         (1.0/4.0)  
 #endif
 #if (FXAA_PRESET == 4)
     #define FXAA_EDGE_THRESHOLD      (1.0/8.0)
     #define FXAA_EDGE_THRESHOLD_MIN  (1.0/24.0)
-    #define FXAA_SEARCH_STEPS        1
+    #define FXAA_SEARCH_STEPS        24
     #define FXAA_SEARCH_THRESHOLD    (1.0/4.0)
     #define FXAA_SUBPIX_CAP          (3.0/4.0)
-    #define FXAA_SUBPIX_TRIM         (1.0/8.0)
+    #define FXAA_SUBPIX_TRIM         (1.0/4.0)
 #endif
 #if (FXAA_PRESET == 5)
-    #define FXAA_EDGE_THRESHOLD      (1.0/16.0)
-    #define FXAA_EDGE_THRESHOLD_MIN  (1.0/12.0)
+    #define FXAA_EDGE_THRESHOLD      (1.0/8.0)
+    #define FXAA_EDGE_THRESHOLD_MIN  (1.0/24.0)
     #define FXAA_SEARCH_STEPS        32
     #define FXAA_SEARCH_THRESHOLD    (1.0/4.0)
-    #define FXAA_SUBPIX_CAP          (7.0/8.0)
-    #define FXAA_SUBPIX_TRIM         (1.0/8.0)
+    #define FXAA_SUBPIX_CAP          (3.0/4.0)
+    #define FXAA_SUBPIX_TRIM         (1.0/4.0)
 #endif
 
-#define FXAA_SUBPIX_TRIM_SCALE (1.0/(1.0 - FXAA_SUBPIX_TRIM))
+#ifdef FXAA_SUBPIX_TRIM
+   #define FXAA_SUBPIX_TRIM_SCALE (1.0/(1.0 - FXAA_SUBPIX_TRIM))
+#endif
 
 // Return the luma, the estimation of luminance from rgb inputs.
 // This approximates luma using one FMA instruction,
@@ -677,9 +688,13 @@ vec3 FxaaPixelShader(vec2 pos, sampler2D tex, vec4 sourcesize, vec4 outputsize) 
    float lumaL = (lumaN + lumaW + lumaE + lumaS) * 0.25;
    float rangeL = abs(lumaL - lumaM);
 
-   float blendL = max(0.0, (rangeL / range) - FXAA_SUBPIX_TRIM) * FXAA_SUBPIX_TRIM_SCALE; 
-   blendL = min(FXAA_SUBPIX_CAP, blendL);
-
+   #ifdef FXAA_SUBPIX_TRIM
+      float blendL = max(0.0, (rangeL / range) - FXAA_SUBPIX_TRIM) * FXAA_SUBPIX_TRIM_SCALE; 
+      blendL = min(FXAA_SUBPIX_CAP, blendL);
+   #else
+      float blendL = 0.0;
+   #endif
+   
    vec3 rgbNW = FxaaTexOff(tex, pos.xy, ivec2(-1,-1), sourcesize, outputsize).xyz;
    vec3 rgbNE = FxaaTexOff(tex, pos.xy, ivec2( 1,-1), sourcesize, outputsize).xyz;
    vec3 rgbSW = FxaaTexOff(tex, pos.xy, ivec2(-1, 1), sourcesize, outputsize).xyz;
@@ -798,13 +813,16 @@ vec3 FxaaPixelShader(vec2 pos, sampler2D tex, vec4 sourcesize, vec4 outputsize) 
    dstN = directionN ? dstN : dstP;
    float subPixelOffset = (0.5 + (dstN * (-1.0/spanLength))) * lengthSign;
 
+   
+   subPixelOffset *= 2.0; //<-- KOKO, hack.
+   
    vec2 smpco;
       
    if (horzSpan) {
       smpco.x = pos.x + 0.0;
-      smpco.y = coords_NEAREST( pos + subPixelOffset, params.SourceSize ).y;
+      smpco.y = coords_NEAREST( pos, params.SourceSize ).y + subPixelOffset;
    } else {
-      smpco.x = coords_NEAREST( pos + subPixelOffset, params.SourceSize ).x;
+      smpco.x = coords_NEAREST( pos, params.SourceSize ).x + subPixelOffset;
       smpco.y = pos.y + 0.0;
    }
 
@@ -814,14 +832,20 @@ vec3 FxaaPixelShader(vec2 pos, sampler2D tex, vec4 sourcesize, vec4 outputsize) 
 
 void main() {
    
+   if (fps_halver_is_skipped_frame())
+      return;
+   
    vec4 pixel_out;
-   pixel_out.rgb = texture_NEAREST(Source, vTexCoord, params.SourceSize).rgb;
-      
-   // If we sample ntsc articacts from a mipmap, we can smooth them
-   // which is good when slective blurring them.
+   pixel_out.rgb = texture_NEAREST(colortools_and_ntsc_pass, vTexCoord, params.SourceSize).rgb;
+   
+   pixel_out.a = texture(colortools_and_ntsc_pass, vTexCoord).a;//, params.SourceSize).a;
+   
+   // If we need to smooth waterfalls, it is good to smooth
+   // their detection mask too, maybe using an higher lod ist good tho,
+   // but we still require linear sampling.
    pixel_out.a = 0.0;
-   if (DO_NTSC_ARTIFACTS > 0.5) {
-      pixel_out.a = textureLod(Source, vTexCoord, 1.0).a;
+   if (DO_WTFL > 0.5) {
+      pixel_out.a = texture(colortools_and_ntsc_pass, vTexCoord).a;
    }
 
 
@@ -838,13 +862,13 @@ void main() {
 */
 
    if (DO_FXAA == 1.0) {
-      pixel_out.rgb = FxaaPixelShader(vTexCoord, Source, params.SourceSize, params.OutputSize);
+      pixel_out.rgb = FxaaPixelShader(vTexCoord, colortools_and_ntsc_pass, params.SourceSize, params.OutputSize);
       #ifdef _KOKO_AA_PRELINEARIZE
          pixel_out.rgb = pow(pixel_out.rgb, vec3(_KOKO_AA_PRELINEARIZE_OUT) );
       #endif
    } else
    if (DO_FXAA == 2.0) {
-      pixel_out.rgb = aa_ddtxbrlv1(Source, vTexCoord, vxt1);
+      pixel_out.rgb = aa_ddtxbrlv1(colortools_and_ntsc_pass, vTexCoord, vxt1);
       #ifdef _KOKO_AA_PRELINEARIZE
          pixel_out.rgb = pow(pixel_out.rgb, vec3(_KOKO_AA_PRELINEARIZE_OUT) );
       #endif
@@ -852,23 +876,23 @@ void main() {
 	
 /*
    if (DO_FXAA == 1.0) {
-      pixel_out.rgb = FxaaPixelShader(vTexCoord, Source, params.SourceSize, params.OutputSize);
+      pixel_out.rgb = FxaaPixelShader(vTexCoord, colortools_and_ntsc_pass, params.SourceSize, params.OutputSize);
    } else
    if (DO_FXAA == 2.0) {
-      pixel_out.rgb = aa_ddtxbrlv1(Source, vTexCoord, vxt1);
+      pixel_out.rgb = aa_ddtxbrlv1(colortools_and_ntsc_pass, vTexCoord, vxt1);
    } else
    if (DO_FXAA == 3.0) {
-      pixel_out.rgb =  aa_2xscalehq(Source, vTexCoord , vhqt1, vhqt2, vhqt3, vhqt4);
+      pixel_out.rgb =  aa_2xscalehq(colortools_and_ntsc_pass, vTexCoord , vhqt1, vhqt2, vhqt3, vhqt4);
    } else
    if (DO_FXAA == 4.0) {
-      pixel_out.rgb = aa_scale2xplus(Source, vTexCoord, vpt1, vpt2);
+      pixel_out.rgb = aa_scale2xplus(colortools_and_ntsc_pass, vTexCoord, vpt1, vpt2);
    } else
    if (DO_FXAA == 5.0) {
-      pixel_out.rgb = aa_super2x_sai(Source, vTexCoord);
+      pixel_out.rgb = aa_super2x_sai(colortools_and_ntsc_pass, vTexCoord);
    }
    
    #ifdef _KOKO_AA_PRELINEARIZE
-      pixel_out.rgb = pow(pixel_out.rgb, vec3(_KOKO_AA_PRELINEARIZE_OUT) );
+      pixel_out.rgb = pow(pixel_ozut.rgb, vec3(_KOKO_AA_PRELINEARIZE_OUT) );
    #endif
 */
 
@@ -876,6 +900,21 @@ void main() {
    if (vDo_flickering==1.0) 
       pixel_out.rgb = pixel_flickering(pixel_out.rgb).rgb;
    
+      
+   if (DO_RF_NOISE > 0.01 ) {
+      //Unfortunately we need to clamp to min 0.0 again after applying noise
+      //to avoid glitches on amd (and probably nvidia too).
+      //It should be possible to change the noise function to just emit positive
+      //numbers and pre-lowering the brightness of pixel_out in the very first pass tho.
+
+         float rfnoise = get_rf_noise(vTexCoord * vDynamicSeed);
+         pixel_out.rgb += rfnoise;
+         pixel_out.rgb = max(pixel_out.rgb, vec3(0.0));
+         
+   }
+   
+    //pixel_out.rgb = max(vec3(0.0), pixel_out.rgb); 
+    
    FragColor = pixel_out;
    
 }

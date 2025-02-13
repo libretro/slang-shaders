@@ -11,6 +11,7 @@ layout(location = 2) out vec2 vCoords_zoomout;
 layout(location = 3) out float vDo_Curvature;
 layout(location = 4) out vec2 vTexCoord_rotated_maybe;
 layout(location = 5) out vec3 vShadesUDS;
+layout(location = 6) out float vIn_Aspect;
 
 #include "includes/functions.include.slang"
 #include "includes/blooms.include.slang"
@@ -18,7 +19,7 @@ layout(location = 5) out vec3 vShadesUDS;
 void main() {
    gl_Position = global.MVP * Position;
    vTexCoord = TexCoord;
-
+   vIn_Aspect = get_in_aspect();
    //Get fuzzy mul and pow factor
       vFuzzy_main_pass_stage_1 = apply_fuzzy_main_pass_stage_1_no_gamma_in();  
      
@@ -38,19 +39,29 @@ void main() {
       vShadesUDS.y = _shade_down;
       vShadesUDS.z = _shade_side;
      
+      vShadesUDS = mix(vec3(0.0), vShadesUDS, max(BEZEL_RFL_CONTRAST, 0.0)  );
+      if (BEZEL_RFL_CONTRAST < 0.0)
+         vShadesUDS += abs(BEZEL_RFL_CONTRAST*0.1);
+      
       // multiply by 4 because the lut driving it has been divided by 4.0
       // This would eventually allow to modify the lut to alter the shades.
       vShadesUDS *= 4.0;
      
+      
       vTexCoord_rotated_maybe = vTexCoord;
      
-      if (params.Rotation == 1.0) { //90
-         vTexCoord_rotated_maybe.xy = vTexCoord.yx; //rotate helper lut
-         vShadesUDS.xy = vShadesUDS.yx; //swap shade up and shade down.
-      } else
-      if (params.Rotation == 3.0) { // 270
-         vTexCoord_rotated_maybe.xy = vTexCoord.yx; //rotate helper lut
-      }
+      #ifdef _HAS_ROTATION_UNIFORM
+         if (params.Rotation == 1.0) { //90
+            vTexCoord_rotated_maybe.xy = vTexCoord.yx; //rotate helper lut
+            vShadesUDS.xy = vShadesUDS.yx; //swap shade up and shade down.
+         } else
+         if (params.Rotation == 2.0) { // 180
+            vShadesUDS.xy = vShadesUDS.yx; //swap shade up and shade down.
+         } else
+         if (params.Rotation == 3.0) { // 270
+            vTexCoord_rotated_maybe.xy = vTexCoord.yx; //rotate helper lut
+         }
+      #endif
 
       //slight adaption to match bezel aspect ratio:
          vTexCoord_rotated_maybe.x = zoom1D(vTexCoord_rotated_maybe.x, 0.965);
@@ -64,6 +75,7 @@ layout(location = 2) in vec2 vCoords_zoomout;
 layout(location = 3) in float vDo_Curvature;
 layout(location = 4) in vec2 vTexCoord_rotated_maybe;
 layout(location = 5) in vec3 vShadesUDS;
+layout(location = 6) in float vIn_Aspect;
 
 layout(location = 0) out vec4 FragColor;
 
@@ -81,7 +93,15 @@ float light_fadeout(vec2 co) {
    return  (gradients.x * gradients.y );
 }
 
+float contrast(float col, float contrast) {
+   float con_max = fma(0.5, contrast, 0.5);
+   return scale_to_range(col, -con_max+1, con_max);  
+}
+
 void main() {
+   
+   if (fps_halver_is_skipped_frame())
+      return;
    
    if (DO_BEZEL == 0.0) return;
    
@@ -101,12 +121,14 @@ void main() {
    
       shade_sharp_blur = max(fcorners_shade, shade_sharp_blur);
 
-      float blur_radius=   (shade_sharp_blur) * 3.5  ;
+      float blur_radius = (shade_sharp_blur) * 3.5  ;
       blur_radius = max(blur_radius, 1.0);
    
+      vec2 blur_radius_adpt = radius_blur_adapt_ext_inaspect(blur_radius, vIn_Aspect);
+      
       float start_offset = (pi*2.0/8.0/4.0);
 
-      vec3 pixel_out = bloom(Source, vCoords_zoomout, global.FinalViewportSize, vec2(blur_radius), 1.0, start_offset, 0.0) ;
+      vec3 pixel_out = bloom(Source, vCoords_zoomout, global.FinalViewportSize, blur_radius_adpt, 1.0, start_offset, 0.0) ;
       pixel_out *= BEZEL_REFL_STRENGTH;
      
    //Next simulate a diffused light
@@ -131,11 +153,11 @@ void main() {
    // that identifies screen sides, we use them to shade the reflection area
       vec3 side_shade_lut_DRUL = textureLod(sideshade, vTexCoord_rotated_maybe.xy, 0.0).rgb;
       float side_shade = dot(side_shade_lut_DRUL, vShadesUDS.yzx );
-         
+            
    //Corners: less reflections:
       float fcorners_dark = 1 - corners_shade(vTexCoord, 1.125) * BEZEL_CORNER_DARK ;
 
    
-   FragColor.rgb = (pixel_out * fcorners_dark)+side_shade;
+   FragColor = vec4(pixel_out * fcorners_dark, side_shade);
 
 }

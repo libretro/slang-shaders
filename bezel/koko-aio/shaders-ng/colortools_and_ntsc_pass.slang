@@ -1,5 +1,6 @@
 #version 450
 
+//#pragma format R32G32B32A32_SFLOAT
 
 #define CWHITE  vec3(1.0)
 #define CGRAY   vec3(0.5)
@@ -18,10 +19,10 @@
 
 
 //#define DEBUG
-   #define DEBUG_COLOR_CALIB
+   //#define DEBUG_COLOR_CALIB
    //#define DEBUG_TIME_FADE
    //#define DEBUG_SOLID_COLOR
-   //#define DEBUG_STEP_GRADIENT
+   #define DEBUG_STEP_GRADIENT
    //#define DEBUG_STEP_GRADIENT_V
    //#define DEBUG_BLINK
    //#define DEBUG_BLINK_CIRCLE
@@ -109,6 +110,7 @@ void main() {
          vNTSC_weights[n] /= sum;
       }
    }
+   vTemperature_rgb = vec3(1.0);
    if (TEMPERATURE != 6500)
       vTemperature_rgb = kelvin2rgb(TEMPERATURE);
    
@@ -116,7 +118,9 @@ void main() {
       vPixelgrid_intr_gamma_adj = 1.0;
       if (pixelgrid_h_needed() && scanlines_will_alternate(is_interlaced()))
           vPixelgrid_intr_gamma_adj = PIXELGRID_INTR_GAMMA_ADJ;
-     
+   
+   vDebug = vec3(0.0); //need to initialize to something.
+   
    if (DO_TEST == 1.0) {
       vDebug = vec3(0.0);
    }
@@ -127,20 +131,23 @@ void main() {
       vDebug = vec3(1.0);
    }   
    else if (DO_TEST == 4.0) {
+      vDebug = vec3(vTexCoord.x);
+   }   
+   else if (DO_TEST == 5.0) {
       float cycle = mod(params.FrameCount / DEBUG_BLINK_TIME, 4);
            if (cycle <= 0) vDebug = vec3(vTexCoord.x);
       else if (cycle <= 1) vDebug = vec3(vTexCoord.x, 0.0, 0.0);
       else if (cycle <= 2) vDebug = vec3(0.0,vTexCoord.x,0.0);
       else if (cycle <= 3) vDebug = vec3(0.0,0.0,vTexCoord.x);
    }   
-   else if (DO_TEST == 5.0) {
+   else if (DO_TEST == 6.0) {
       float cycle = mod(params.FrameCount / DEBUG_BLINK_TIME, 4);
            if (cycle <= 0) vDebug = vec3(vTexCoord.y);
       else if (cycle <= 1) vDebug = vec3(vTexCoord.y, 0.0, 0.0);
       else if (cycle <= 2) vDebug = vec3(0.0,vTexCoord.y,0.0);
       else if (cycle <= 3) vDebug = vec3(0.0,0.0,vTexCoord.y);
    }   
-   else if (DO_TEST == 6.0) {
+   else if (DO_TEST == 7.0) {
       float cycle = mod(params.FrameCount / DEBUG_BLINK_TIME, 6);
            if (cycle <= 0) vDebug = vec3(vTexCoord.x, vTexCoord.y, 0.0);
       else if (cycle <= 1) vDebug = vec3(vTexCoord.x, 0.0,         vTexCoord.y);
@@ -149,28 +156,28 @@ void main() {
       else if (cycle <= 4) vDebug = vec3(0.0,         vTexCoord.x, vTexCoord.y);
       else if (cycle <= 5) vDebug = vec3(0.0,         vTexCoord.y, vTexCoord.x);
    }   
-   else if (DO_TEST == 7.0) {
+   else if (DO_TEST == 8.0) {
       if (mod(params.FrameCount, DEBUG_BLINK_TIME*2) < DEBUG_BLINK_TIME) 
          vDebug = vec3(0.0) ;
       else 
          vDebug = vec3(1.0) ;
    }
-   else if (DO_TEST == 8.0) {
+   else if (DO_TEST == 9.0) {
       float time_fade = abs(sin(params.FrameCount/3.14/20));
       vec3 color_fade = vec3(1.0) * time_fade;
       vDebug = color_fade;
    }      
-   else if (DO_TEST == 9.0) {
+   else if (DO_TEST == 10.0) {
       float time_fade = abs(sin(params.FrameCount/3.14/20));
       vec3 color_fade = vec3(1.0,0.0,0.0) * time_fade;
       vDebug = color_fade;
    }      
-   else if (DO_TEST == 10.0) {
+   else if (DO_TEST == 11.0) {
       float time_fade = abs(sin(params.FrameCount/3.14/20));
       vec3 color_fade = vec3(0.0, 1.0, 0.0) * time_fade;
       vDebug = color_fade;
    }      
-   else if (DO_TEST == 11.0) {
+   else if (DO_TEST == 12.0) {
       float time_fade = abs(sin(params.FrameCount/3.14/20));
       vec3 color_fade = vec3(0.0, 0.0, 1.0) * time_fade;
       vDebug = color_fade;
@@ -356,6 +363,146 @@ bool first_in_range_strict(float a, float lo, float hi) {
    return a == bounded;
 }
 
+float get_waterfall() {
+   
+   vec2 d = params.OriginalSize.zw;
+   
+   vec3 me_center = texture(Source, vTexCoord).rgb;
+   float lc = rgb_to_gray(me_center);
+   
+   float xblur = 0.0;
+   
+   if (WTFL_SHARPNESS_X < 3.0) {
+      vec3 me_est = texture(Source, vTexCoord + vec2(d.x,0.0) ).rgb;
+      vec3 me_west = texture(Source, vTexCoord + vec2(-d.x,0.0) ).rgb;
+      
+      //vec3 me_est2 = texture(Source, vTexCoord + vec2(d.x*2,0.0) ).rgb;
+      //vec3 me_west2 = texture(Source, vTexCoord + vec2(-d.x*2,0.0) ).rgb;   
+
+      float lw = rgb_to_gray(me_west);
+      float le = rgb_to_gray(me_est);
+      //float lw2 = rgb_to_gray(me_west2);
+      //float le2 = rgb_to_gray(me_est2);
+      
+     // bool m = ( (lc < lw && lc < le && (lw > lw2 || le > le2) ) || 
+     //          (  lc > lw && lc > le && (lw < lw2 || le < le2) ) );
+      
+     bool m = (  lc < lw && lc < le || 
+                 lc > lw && lc > le    );
+      if (m) {      
+         xblur = 1.0;
+         xblur = xblur - abs(lw - le);
+         //xblur = xblur - abs(lc - le2);
+         //xblur = xblur - abs(lc - lw2);
+         xblur = clamp(xblur, 0.0,1.0);
+      }
+   }
+
+      
+   float yblur = 0.0;
+   if (WTFL_SHARPNESS_Y < 3.0) {
+      vec3 me_nord = texture(Source, vTexCoord +    vec2(0.0, d.y) ).rgb;
+      vec3 me_nord2 = texture(Source, vTexCoord + vec2(0.0, 2*d.y) ).rgb;
+      vec3 me_sud = texture(Source, vTexCoord + vec2(0.0, -d.y) ).rgb;
+      vec3 me_sud2 =  texture(Source, vTexCoord + vec2(0.0, 2*-d.y) ).rgb;
+      float ln = rgb_to_gray(me_nord);
+      float ls = rgb_to_gray(me_sud);
+      float ln2 = rgb_to_gray(me_nord2);
+      float ls2 = rgb_to_gray(me_sud2);
+      
+      bool n = ( (lc < ls && lc < ln &&  (ls > ls2 || ln > ln2) ) ||
+               (  lc > ls && lc > ln &&  (ls < ls2 || ln < ln2) ) );
+      
+      if (n) {
+         yblur = 1;
+         yblur -= abs(ls-ln);
+         yblur -= abs(lc-ln2);
+         yblur -= abs(lc-ls2);
+         yblur = clamp(yblur, 0.0,1.0);
+      }
+   }
+   
+   return pack_21(vec2(xblur, yblur));
+}
+
+vec3  pixel_dedither2(float strength1, float strength2) {
+   
+   vec2 d = params.OriginalSize.zw;
+   
+   vec3 me_center = texture(Source, vTexCoord).rgb;
+   vec3 me_est = texture(Source, vTexCoord + vec2(d.x,0.0) ).rgb;
+   vec3 me_est2 = texture(Source, vTexCoord + vec2(d.x*2,0.0) ).rgb;
+   
+   vec3 me_west = texture(Source, vTexCoord + vec2(-d.x,0.0) ).rgb;
+   vec3 me_west2 = texture(Source, vTexCoord + vec2(-d.x*2,0.0) ).rgb;
+   
+   float lc = rgb_to_gray(me_center);
+   float lw = rgb_to_gray(me_west);
+   float le = rgb_to_gray(me_est);
+   float lw2 = rgb_to_gray(me_west2);
+   float le2 = rgb_to_gray(me_est2);
+   
+   float xblur = 0.0;
+   
+   bool m = ( (lc < lw && lc < le && (lw > lw2 || le > le2) ) || 
+            (  lc > lw && lc > le && (lw < lw2 || le < le2) ) );
+   if (m) {      
+      xblur = 1.0;
+      xblur = xblur - abs(lw - le);
+      xblur = xblur - abs(lc - le2)*2.0;
+      xblur = xblur - abs(lc - lw2)*2.0;
+      xblur = clamp(xblur, 0.0,1.0);
+   }
+   
+   vec3 me_nord =  texture(Source, vTexCoord + vec2(0.0, d.y) ).rgb;
+   vec3 me_nord2 = texture(Source, vTexCoord + vec2(0.0, 2*d.y) ).rgb;
+   vec3 me_sud =   texture(Source, vTexCoord + vec2(0.0, -d.y) ).rgb;
+   vec3 me_sud2 =  texture(Source, vTexCoord + vec2(0.0, 2*-d.y) ).rgb;
+
+   float yblur = 0.0;
+   if (WTFL_SHARPNESS_Y < 3.0) {
+      float ln = rgb_to_gray(me_nord);
+      float ls = rgb_to_gray(me_sud);
+      float ln2 = rgb_to_gray(me_nord2);
+      float ls2 = rgb_to_gray(me_sud2);
+      
+      m = ( (lc < ls && lc < ln &&  (ls > ls2 || ln > ln2) ) ||
+          (  lc > ls && lc > ln &&  (ls < ls2 || ln < ln2) ) );
+      if (m) {
+         yblur = 1;
+         yblur -= abs(ls-ln);
+         yblur -= abs(lc-ln2)*2.0;
+         yblur -= abs(lc-ls2)*2.0;
+         yblur = clamp(yblur, 0.0,1.0);
+         
+         
+         
+      }
+   }
+   
+//yblur = pow(yblur, 2.0);
+//xblur = pow(xblur, 2.0);
+   
+   vec3 x_blend = mix( me_center,  (me_west + me_est)/2.0, xblur * 0.5 * strength1);
+   vec3 y_blend = mix( me_center,  (me_sud + me_nord)/2.0, yblur * 0.5 * strength2);
+  
+  //return y_blend;
+   //devo ora prendere il blend che più si discosta dal pixel originale.
+
+   float x_blend_l = dot(x_blend , vec3(1/3.0));
+   float y_blend_l = dot(y_blend , vec3(1/3.0));
+   
+   float diff_x = abs(x_blend_l- lc);
+   float diff_y = abs(y_blend_l- lc);
+   
+   if (diff_x > diff_y)
+      return x_blend;
+   return y_blend;
+
+   
+}
+
+
 vec3 pixel_dedither(sampler2D tex, vec2 coords, vec4 sourcesize, float tmin, float tmax, float strength1, float strength2) {
    #define DX sourcesize.z
    #define DY sourcesize.w
@@ -491,32 +638,37 @@ void main() {
       pixel_in = vec3(0.0);
    
    vec3 pixel_out = pixel_in;
-   //This will go into alpha channel to make glow aware of it and blur more.
-   //It could be configurable.
-   float artifact_mask = 0.0;
 
+   float artifact_mask = 0.0;
    if (DO_NTSC_ARTIFACTS > 0.5) {
       //Get ntsc picture
          vec4 ntsc_decoded = ntscdec(co * 1.0001, pixel_in);
+         ntsc_decoded = clamp(ntsc_decoded, vec4(0.0), vec4(1.0));
+
       //apply the minimum treshold to artifact mask
          artifact_mask = smoothstep_fast(NTSC_ARTF_TRSH , 1.0, ntsc_decoded.a);
 
-         ntsc_decoded = clamp(ntsc_decoded, vec4(0.0), vec4(1.0));
-
       //Optionally completely cut-off artifacts under treshold:
          ntsc_decoded = mix(ntsc_decoded, vec4(pixel_in, 0.0) , (1-artifact_mask)*NTSC_ARTF_ZAP );
-         //Update the artifact mask if something has been cancelled
-            artifact_mask = min(artifact_mask, ntsc_decoded.a);
+      //Update the artifact mask if something has been cancelled
+         artifact_mask = min(artifact_mask, ntsc_decoded.a);
+         
 
-            //artifact_mask = clamp (artifact_mask*1.0, 0.0,1.0);
-            artifact_mask *= 2.0;
-            
-      pixel_out = ntsc_decoded.rgb;
+         artifact_mask *= 2.0;
+         artifact_mask = clamp (artifact_mask*1.0, 0.0,1.0); 
+         
+      if (NTSC_SHOW_ARTF_MASK == 1.0) {
+         FragColor = vec4(artifact_mask);
+         return;
+      } else {
+         pixel_out = ntsc_decoded.rgb;
+      }
       
    } else if (DO_DEDITHER > 0.5) {
       //vec3 pixel_dedither(vec2 coords, vec4 sourcesize, float tmin, float tmax, float strength) {
       float tmin = 0.0;
       pixel_out = pixel_dedither(Source, co, params.SourceSize, tmin, DEDITHER_TRESHMAX, DEDITHER_STRENGTH, DEDITHER_STRENGTH2);
+      //pixel_out = pixel_dedither2(DEDITHER_STRENGTH, DEDITHER_STRENGTH2);
    }
 
    pixel_out.rgb = mix(pixel_out, vDebug, min(DO_TEST, 1.0)  );
@@ -541,18 +693,29 @@ void main() {
    if (DO_DOT_MATRIX + DOT_M_MBLUR_STR > 1.0) {
       vec3 feedback = texture(colortools_and_ntsc_passFeedback, co).rgb;
       
-      vec3 m_blur_adapted = vec3(DOT_M_MBLUR_STR);
-
       //Dot matrix motion blur inertia on white or black (not both)?
+      vec3 adaption = mix_step (pixel_out - feedback,
+                                feedback - pixel_out,
+                                DOT_M_MBLUR_MODE -1);
+
+      // Since m_blur_adapted will be used to mix present and past pixel,
+      // we need to ensure the mix will reach 0.0.
+      // So we put it to 0.0 if the difference between past and present is low enough.
+      // The difference is obtained by "abs(adaption)".
+      // All this is needed because, we are on the very first pass,
+      // so the feedback has no "float framebuffer".
+      // 
+      vec3 m_blur_adapted = vec3(DOT_M_MBLUR_STR) * step(1/256.0, abs(adaption) );
+      
       if (DOT_M_MBLUR_MODE > 0.0) {
-         vec3 adaption = mix_step (pixel_out - feedback,
-                                   feedback - pixel_out,
-                                   DOT_M_MBLUR_MODE -1);
-            
-         //adaption = mix_step(adaption, -adaption, DOT_M_MBLUR_MODE -1);
          m_blur_adapted *= clamp( adaption, 0.0, 1.0 );
          m_blur_adapted = pow(m_blur_adapted, vec3(0.25));
       }
+      
+      vec3 diff = abs(pixel_out - feedback);
+      
+      
+      m_blur_adapted *= step(vec3(1/128.0), m_blur_adapted);
       pixel_out = mix(pixel_out, feedback, m_blur_adapted  );
    }
    
@@ -575,19 +738,18 @@ void main() {
    }
  
   
-   //Clamp artifacts to 0..1
    //Clamp RGB to 0..1000.0
    pixel_out = max(pixel_out, vec3(0.0));
    
-
    pixel_out.rgb = pow(pixel_out.rgb, vec3(vPixelgrid_intr_gamma_adj));
-        
-   artifact_mask = clamp(artifact_mask, 0.0, 1.0);
    
-   //pixel_out = pow(pixel_out, vec3(2.2));
-   
-   FragColor = vec4(pixel_out, artifact_mask);
-
+   // Store detected megadrive fake transparencies in the alpha channel
+   // to be consumed by in_glow_x and shift_and_bleed.
+   float waterfall = 0.0;
+   if (DO_WTFL == 1.0) {
+      waterfall = get_waterfall();
+   }
+   FragColor = vec4(pixel_out, waterfall);
 }
 
 

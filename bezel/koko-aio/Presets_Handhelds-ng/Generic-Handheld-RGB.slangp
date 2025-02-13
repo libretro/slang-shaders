@@ -39,7 +39,8 @@ HALO_VS_SCAN = "0.010000"
 
 DO_BLOOM = "1.000000"
     BLOOM_MIX = "0.500000"
-
+    BLOOM_POWER = "1.25"
+    
 DO_CURVATURE = "1.0"
     GEOM_WARP_X = "0.0"
     GEOM_WARP_Y = "0.0"

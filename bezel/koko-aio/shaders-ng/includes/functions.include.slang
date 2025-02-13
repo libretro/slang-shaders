@@ -1,3 +1,117 @@
+#define _prec 32.0
+#define mul_low (pow(_prec,0.0))
+#define mul_mid (pow(_prec,2.0))
+#define mul_hi  (pow(_prec,3.0))
+
+#define color_quant (2.0/_prec)
+
+float pack_21(vec2 color) {
+    color = clamp(color,0.0,1.0-color_quant);
+    color = floor(color*_prec)/_prec;
+    return (color.g * mul_mid) + (color.r * mul_hi) ;
+}
+
+vec2 unpack_21(float result, float compensation) {
+    float hi =  floor(result/mul_mid)*mul_mid;
+    float mid = floor((result - hi)/mul_low)*mul_low;
+    vec2 o = vec2( hi/mul_hi, mid/mul_mid ) * compensation;
+	return clamp(o,0.0,1.0);
+}
+
+
+
+#define pack_floats_precision 31.0
+#define pack_floats_clamp 1-(1/pack_floats_precision)
+float _pack_21(vec2 in_float){
+	//Clamp and round to 1/255 needed:
+	in_float = clamp(in_float, 0.0 , pack_floats_clamp);
+	in_float = floor(in_float*pack_floats_precision)/pack_floats_precision;
+	return in_float.x*pack_floats_precision + in_float.y;
+}
+
+
+vec2 _unpack_21(float f){
+	float fr = fract(f);
+	float fg = floor(f)/pack_floats_precision;
+	return vec2(fg,fr);
+}
+	
+
+/*
+#define _scale float(floor(SERVICE1*10000))
+float pack_21(vec2 ab) {
+  const float scale = _scale;
+  const float bias = 0.5 / scale;
+  return fract(ab.x * scale) + floor(ab.y * scale) / scale + bias;
+}
+
+
+vec2 unpack_21(float packed) {
+  const float scale = _scale;
+  float a = fract(packed * scale);
+  float b = floor(packed * scale) / scale;  // Calcolo di 'b'
+  return vec2(a, b);
+}
+*/
+
+float max3(vec3 v){
+	return max((v.x,v.y),v.z);
+}
+
+vec3 mask_enhance(vec3 mask, vec3 ref, float factor) {
+ return mix( factor * (mask - 0.5) + 0.5, mask, abs(ref - vec3(0.5)*2) );
+}
+
+float mask_enhance_float(float mask, vec3 ref, float factor) {
+	float fref = dot(ref, vec3(0.3333));
+ return mix( factor * (mask - 0.5) + 0.5, mask, abs(fref - 0.5*2) );
+}
+
+
+bool frame_is_even() {
+	return ((int(params.FrameCount) & 1) == 0);
+}
+
+bool is_rotated_new(){
+	return (params.Rotation == 1.0 || params.Rotation == 3.0);
+}
+
+
+bool fps_halver_is_skipped_frame()  {
+	#ifdef FPS_HALVER
+		#ifdef _HAS_FRAMETIME_UNIFORMS
+			if (global.OriginalFPS >= 49) {
+				if ( frame_is_even() ) {
+					return true;
+				}
+			}
+		#endif
+	#endif
+    return false;
+}
+
+bool is_rotated_old(){
+	//Keep this to retain some sort of compatibility with Retroarch pre 1.17
+	const float ar_tolerance = 0.005;
+	/*
+		For some reason, probably retroarch rotates the view only on final viewport stage, transparent to the shader passes,
+		The OutputSize of a pass that scales to viewport will have different aspect from the real final viewport.
+		We exploit this to understand when a game is rotated.
+		-->> This function only works if the calling pass scales to viewport.
+		This will fail for very particular cases, eg: when output window is extremely tall 
+	*/
+	return (abs((params.OutputSize.x/params.OutputSize.y) - (global.FinalViewportSize.x/global.FinalViewportSize.y)) > ar_tolerance);
+}
+	
+bool is_rotated() {
+	#ifdef _HAS_ROTATION_UNIFORM
+		return is_rotated_new();
+	#else
+		return is_rotated_old();
+	#endif
+}
+
+
 //	Colorspace conversion matrix for YIQ-to-RGB
 const mat3 YIQ2RGB = mat3(1.000, 1.000, 1.000,
                           0.956,-0.272,-1.106,
@@ -38,8 +152,8 @@ float smoothstep_cos(float edge0, float edge1, float x) {
 }
 
 vec3 texture_BILINEAR(sampler2D t, vec2 uv, vec4 texSize, float k) {
-       uv = uv -texSize.zw*0.5*k;
-       vec2 texelSize = texSize.zw * k;
+	uv = uv -texSize.zw*0.5*k;
+	vec2 texelSize = texSize.zw * k;
     vec2 f = fract( uv * texSize.xy );
     uv += ( .5 - f ) * texelSize;    // move uv to texel centre
     vec3 tl = texture(t, uv).rgb;
@@ -90,14 +204,11 @@ vec2 coords_QULEZ_faster(vec2 co, vec4 texsize){
 
 vec2 coords_QULEZ(vec2 co, vec4 texsize){
 	//https://iquilezles.org/articles/texture/
-	co = co * texsize.xy + vec2(0.5, 0.5);
-
+	co = co * texsize.xy + vec2(0.5);
 	vec2 i = floor(co);
 	vec2 f = co - i;
 	f = (f * f) *
 	    (f * (f * (f * 6.0 - vec2(15.0, 15.0)) + vec2(10.0, 10.0)));
-
-
 	co = i + f;
 	co = (co - vec2(0.5, 0.5)) * (texsize.zw);
 	return co;
@@ -108,10 +219,14 @@ vec4 texture_QUILEZ(sampler2D tex, vec2 co, vec4 texsize) {
 	return texture(tex, co);
 }
 
-
 vec2 coords_NEAREST(vec2 co, vec4 texsize) {
    vec2 integerCoords = floor(co.xy * texsize.xy);
    return (integerCoords + 0.5) * texsize.zw;
+}
+
+float coords_NEAREST_y(vec2 co, vec4 texsize) {
+   float integerCoords = floor(co.y * texsize.y);
+   return (integerCoords + 0.5) * texsize.w;
 }
 
 vec4 texture_NEAREST(sampler2D tex, vec2 co_linear, vec4 tex_size) {
@@ -128,14 +243,12 @@ vec4 texture_NEAREST_lod(sampler2D tex, vec2 co_linear, vec4 tex_size, float lod
    return textureLod(tex, co_nearest, 0.0);
 }
 
-float DigitBin( const int x )
-{
+float DigitBin( const int x ) {
     return x==0?480599.0:x==1?139810.0:x==2?476951.0:x==3?476999.0:x==4?350020.0:x==5?464711.0:x==6?464727.0:x==7?476228.0:x==8?481111.0:x==9?481095.0:0.0;
 }
 
 
-float PrintValue( vec2 vStringCoords, float fValue, float fMaxDigits, float fDecimalPlaces )
-{       
+float PrintValue( vec2 vStringCoords, float fValue, float fMaxDigits, float fDecimalPlaces ) {       
     if ((vStringCoords.y < 0.0) || (vStringCoords.y >= 1.0)) return 0.0;
     
     bool bNeg = ( fValue < 0.0 );
@@ -168,7 +281,6 @@ vec3 PrintValueVec3( vec2 vStringCoords, vec2 FragCoord,  float fValue, float fM
 	// Multiples of 4x5 work best
 	vec2 vFontSize = vec2(8.0, 15.0);
 
-
 	// Print a custom value
 	vec2 vPixelCoord1 = vec2(5.0, 5.0);
 
@@ -181,10 +293,6 @@ vec3 PrintValueVec3( vec2 vStringCoords, vec2 FragCoord,  float fValue, float fM
 
 	return vColour;
 }
-
-
-
-
 
 // mix_step returns a or b, depending on the mix value.
 // mix is supposed to have just 2 values, 1.0 or 0.0; //FIXME: mix argument could be vec.
@@ -273,52 +381,13 @@ vec3 PrintValueVec3( vec2 vStringCoords, vec2 FragCoord,  float fValue, float fM
 //REFLECTION RELATED ENDS
 
 
-
-
 vec3 pixel_push_luminance(vec3 c, float strength) {
+	//return c;
 	//if (strength == 0.0) return c; //lighter without the check.
-	float whiteness = max(max(c.r, c.g), c.b);
-	whiteness = clamp(whiteness, 0.0, 1.0);
+	float whiteness = clamp(max3(c), 0.0, 1.0);
 	//return c * (1 + ( (1-whiteness) * strength)	);
-	return fma(c,   vec3(fma(strength, -whiteness, strength)), c); //ASM PROOF: F
-	
-	
+	return fma(c,   vec3(fma(strength, -whiteness, strength)), c); //ASM PROOF
 }
-
-/*
- * Superseeded by stage1/stage2 
-vec3 apply_fuzzy_main_pass(vec3 color_in) {
-	vec3 color_out = color_in;
-
-
-	color_out = pow(color_out, vec3(IN_GLOW_GAMMA * GAMMA_OUT));
-
-	
-	if (DO_IN_GLOW == 1.0)
-		color_out = color_out*IN_GLOW_POWER;
-
-	
-	if (DO_PIXELGRID == 1.0) {
-		float m1 = (PIXELGRID_MAX_W + PIXELGRID_MIN_W) * 0.5;
-		m1 = mix(1.0, m1, DO_PIXELGRID_W);
-		
-		float m2 = (PIXELGRID_MAX_H + PIXELGRID_MIN_H) * 0.5;
-		m2 = mix(1.0, m2, DO_PIXELGRID_H);
-		
-		float m3 = mix(1.0, 0.75, PIXELGRID_Y_MASK);
-	
-		color_out = (color_out * m1) * (m2 * m3);
-	}
-
-	if (DO_HALO == 1.0)
-		color_out += pow(color_in,vec3(HALO_GAMMA))*HALO_POWER;
-
-	
-	if (DO_VIGNETTE == 1.0)
-		color_out *= 0.8 * (V_POWER);
-	return color_out;
-}
-*/
 
 float get_halo_ungain_factor() {
 	return mix(1.0, 
@@ -372,8 +441,6 @@ vec2 apply_fuzzy_main_pass_stage_1() {
 	if (DO_VIGNETTE == 1.0)
 		color_out *= 0.8 * (V_POWER);
 	
-
-	
 	return vec2(color_out/color_in, gamma_out );
 }
 
@@ -411,7 +478,6 @@ vec2 apply_fuzzy_main_pass_stage_1_no_gamma_in() {
 		color_out *= 1- PIXELGRID_Y_MASK * 0.2 ; //Strip at most 20% if level 2 ymask.
 	}
 
-
 	if (DO_HALO == 1.0) {
 		color_out += color_in*halo_power_adapted / HALO_GAMMA;
 		gamma_out = gamma_out * mix(1.0, HALO_GAMMA_OUT, halo_power_adapted*0.25) ;
@@ -419,7 +485,6 @@ vec2 apply_fuzzy_main_pass_stage_1_no_gamma_in() {
 	
 	if (DO_VIGNETTE == 1.0)
 		color_out *= 0.8 * (V_POWER);
-	
 	
 	return vec2(color_out/color_in, gamma_out );
 }
@@ -440,7 +505,8 @@ vec2 offsets_from_float(float in_param, int range){
 	return offsets;
 }
 
-/*vec2 circles(float param, float c_radius, float aspect, float directions) {
+/*
+   vec2 circles(float param, float c_radius, float aspect, float directions) {
    //given a 1d input param return full circles increasing radius.
    param = param*(pi/directions);
    float m = (c_radius * floor(param/pi)) * 100;
@@ -453,6 +519,7 @@ vec2 spiral(float param,float spr_radius,vec2 spr_offset, vec2 spr_scale) {
    return vec2(m * sin(param), m * cos(param)) * spr_scale + spr_offset;
 }
 */
+
 bool similar(float a, float b, float threshold) {
    return abs(a-b) < threshold;
 }
@@ -460,7 +527,6 @@ bool similar(float a, float b, float threshold) {
 bool vec2_similar(vec2 a, vec2 b, float threshold) {
    return abs(a.x-b.x) < threshold  && abs(a.y-b.y) < threshold;
 }
-
 
 vec2 zoom(vec2 co, float zoom_factor) {
 	return  0.5 + (co - 0.5) / zoom_factor;
@@ -478,7 +544,6 @@ vec2 zoomout_coords_aspect(vec2 in_coords, float zoom_out, float aspect) {
    // to convert to standard zoom:
    // zoomout_coords(x) = zoom( 1/(x+1) );
 
-	
    vec2 zoom   = vec2( 1 + zoom_out, 
                        1 + (zoom_out * aspect) 
                      );
@@ -490,7 +555,6 @@ vec2 zoomout_coords_aspect(vec2 in_coords, float zoom_out, float aspect) {
    return (in_coords * zoom) - offset;
 }
 
-
 vec2 zoomout_coords(vec2 in_coords, float zoom_out) {
    // to convert to standard zoom:
    // zoomout_coords(x) = zoom( 1/(x+1) );
@@ -499,21 +563,16 @@ vec2 zoomout_coords(vec2 in_coords, float zoom_out) {
    return (in_coords * zoom) - zoffset;
 }
 
-
 bool need_doublescan() {
-	return
-		(PIXELGRID_DOUBLESCAN == 1.0) && 
-		(params.OriginalSize.y < MIN_LINES_INTERLACED ) ;
+	return (PIXELGRID_DOUBLESCAN == 1.0) && 
+	       (params.OriginalSize.y < MIN_LINES_INTERLACED) ;
 }
-
-
 
 bool is_interlaced() {
-	return  // Content is interlaced if:
-		(MIN_LINES_INTERLACED) != 0.0 &&  // user wants interlacing
-		(params.OriginalSize.y > MIN_LINES_INTERLACED); //content has a lot of lines
+	return                                                 // Content is interlaced if:
+	       (MIN_LINES_INTERLACED) != 0.0 &&                // user wants interlacing and
+		   (params.OriginalSize.y > MIN_LINES_INTERLACED); // content has a lot of lines
 }
-
 
 bool scanline_have_to_flicker(bool is_interlaced) {
 	float scanline_flickering = PIXELGRID_INTR_FLICK_MODE;	
@@ -535,7 +594,7 @@ float scale_to_range(float x, float dmin, float dmax) {
 
 vec3 scale_to_range_vec3(vec3 x, float dmin, float dmax) {
     //Scales 0..1 range to a..b range
-    return ( x * (dmax-dmin)   ) + dmin; //ASM PROOF (fma slower)
+    return ( x * (dmax-dmin) ) + dmin; //ASM PROOF (fma slower)
 }
 
 vec3 scale_to_range_vec3(vec3 x, vec3 dmin, vec3 dmax) {
@@ -568,7 +627,6 @@ vec3 contrast_with_pivot(vec3 x, float c, float p){
 	return (x-1+p) * c + p;
 }
 
-
 vec3 apply_contrast_brightness(vec3 c, float contrast, float brightness) {
    return scale_to_range_vec3(c, -contrast, 1+contrast) + brightness;
 }
@@ -589,7 +647,9 @@ vec2 round_step(vec2 x, vec2 p) {
 #define RND_C 43758.5453
 
 float random(float power, vec2 seed) {
-	if (SKIP_RANDOM == 1.0) return 0.0;
+	#ifdef SKIP_RANDOM 
+		return 0.0;
+	#endif
     //From pal-singlepass.slang 
     //https://github.com/svofski/CRT
     //Copyright (c) 2016, Viacheslav Slavinsky
@@ -602,7 +662,6 @@ float random(float power, vec2 seed) {
     noise_out = scale_to_range(noise_out, -power, power);
     return noise_out;
 }
-
 
 float deband_static(vec2 co, float power) {
 	#define PI_HALF 1.5707963267949
@@ -621,7 +680,9 @@ float deband_temporal(vec2 co, float power) {
 
 //The following produces weird results when with dynamic seed like framecount.
 float random_fast(vec2 seed) {
-	if (SKIP_RANDOM == 1.0) return 0.0;
+	#ifdef SKIP_RANDOM 
+		return 0.0;
+	#endif
 	//return 0.0;
 	//return deband_static(seed, 0.001);
 	
@@ -638,7 +699,6 @@ vec3 screen_space_dither(vec2 frag_coord) {
 	return (dither.rgb - 0.5) / 255.0; 
 } 
 
-
 vec2 screen_space_displacement(vec2 co, vec2 outputsize, float size) { 
 	// Based on // Iestyn's RGB dither (7 asm instructions) from Portal 2 X360, slightly modified for VR. 
 	vec2 d = vec2(dot(vec2(171.0, 231.0), co*outputsize.xy)); 
@@ -646,349 +706,258 @@ vec2 screen_space_displacement(vec2 co, vec2 outputsize, float size) {
 	return d*size;
 } 
 
+float curvature_needed() {
+	return DO_CURVATURE * (GEOM_WARP_X + GEOM_WARP_Y);
+}
 
-//CURVATURE
-	float curvature_needed() {
-		return DO_CURVATURE * (GEOM_WARP_X + GEOM_WARP_Y);
-	}
+#define corner_aspect vec2(1.0,  0.75)
+float fn_border(vec2 coord) {	
+	//SIMD8 shader: 1271 instructions. 0 loops. 20568 cycles. 0:0 spills:fills, 23 sends, scheduled with mode top-down. Promoted 19 constants. Compacted 20336 to 15040 bytes (26%)
+	//SIMD16 shader: 1271 instructions. 0 loops. 22328 cycles. 0:0 spills:fills, 23 sends, scheduled with mode top-down. Promoted 19 constants. Compacted 20336 to 15040 bytes (26%)
+	coord = min(coord, vec2(1.0) - coord) * corner_aspect;
+	vec2 delta = GEOM_CORNER_SIZE - coord;
+	float dist = length(max(delta, vec2(0.0)));
+	float o = clamp( (GEOM_CORNER_SIZE - dist) * GEOM_CORNER_SMOOTH + 0.75, 0.0, 1.0);
+	return o;
+}
 
+//warp full new
+vec2 Warp(vec2 uv,float wx, float wy){
+	// Transform coordinates to range [-1, 1]
+	uv = uv * 2.0 - 1.0;
+	vec2 pow_exp = 1.0/(1.0+vec2(wx, wy) * 0.2 ) ;
+	//float curvedCoordsDistance = length(uv);
+	float curvedCoordsDistance = sqrt(uv.x*uv.x+uv.y*uv.y);
+	curvedCoordsDistance = clamp(curvedCoordsDistance, 0.0, 1.4142);
+	vec2 pow_base = vec2(1.0-(curvedCoordsDistance/1.4142135623730950488016887242097));
+	pow_base = abs(pow_base); // <-- this way intel and nvidia (probably amd) acts the same.
+	uv /= curvedCoordsDistance;
+	uv *= (1.0-pow(pow_base,  pow_exp ));
+	uv /= (1.0-pow(vec2(0.29289321881345247559915563789515),  pow_exp ));
+	// Transform coordinates back to [0, 1]
+	return uv* 0.5 + 0.5;
+}
 
+vec2 Warp_koko(vec2 co, vec2 w, float protrusion) {
+	vec2 coff    = w * 0.625;
+	float czoom  = 1 - distance(co, vec2(0.5));
+	czoom        = mix(czoom, czoom * 0.5, czoom);
+	vec2 czoom2d = mix(vec2(1.0), vec2(czoom), w);
+	return zoomxy(co, coff + czoom2d );
+}
 	
-	#define corner_aspect vec2(1.0,  0.75)
-	float fn_border(vec2 coord) {	
-		//SIMD8 shader: 1271 instructions. 0 loops. 20568 cycles. 0:0 spills:fills, 23 sends, scheduled with mode top-down. Promoted 19 constants. Compacted 20336 to 15040 bytes (26%)
-		//SIMD16 shader: 1271 instructions. 0 loops. 22328 cycles. 0:0 spills:fills, 23 sends, scheduled with mode top-down. Promoted 19 constants. Compacted 20336 to 15040 bytes (26%)
-		coord = min(coord, vec2(1.0) - coord) * corner_aspect;
-		vec2 delta = GEOM_CORNER_SIZE - coord;
-		float dist = length(max(delta, vec2(0.0)));
-		float o = clamp( (GEOM_CORNER_SIZE - dist) * GEOM_CORNER_SMOOTH + 0.75, 0.0, 1.0);
-		return o;
-	}
-
-
+float get_in_aspect() {	
+	if (ASPECT_X ==  0) return 1.333333; //all mame games, not rotated
+	if (ASPECT_X == -1) return 1.5;   // ntsc
+	if (ASPECT_X == -2) return 1.25;  // pal
+	if (ASPECT_X == -3) return 1.143; // 8/7 snes
+	if (ASPECT_X == -4) return 1.428; // 10/7 megadrive
+	if (ASPECT_X == -5) return params.OriginalSize.x/params.OriginalSize.y; //uncorrected
+	if (ASPECT_X == -6) return 0.75;  // 3/4, pre-rotated (TATE) 1.33 games.
 	
-	float border(vec2 coord) {
-		coord = (coord - vec2(0.5)) + vec2(0.5, 0.5);
-		coord = min(coord, vec2(1.0) - coord) * corner_aspect;
-		vec2 cdist = vec2(GEOM_CORNER_SIZE);
-		coord = (cdist - min(coord, cdist));
-		float dist = sqrt(dot(coord, coord));
-		return clamp((cdist.x - dist)*GEOM_CORNER_SMOOTH, 0.0, 1.0);
-	}
+	//Handle cases when core aspect cannot be retrived and just return 4/3.
+	float OriginalAspectRotated = 1.33333;
+	#ifdef _HAS_ORIGINALASPECT_UNIFORMS
+		OriginalAspectRotated = global.OriginalAspectRotated;
+	#endif
 	
-	vec2 Warp_06(vec2 uv) {
-		//Pre-calc version for curvature = 0.6,0.6
-		uv = uv * 2.0 - 1.0;
-		float curvedCoordsDistance = length(uv);
-		uv /= curvedCoordsDistance;
-		uv *= 1.0-pow(vec2(1.0-(curvedCoordsDistance/1.4142)), vec2(0.8928) );
-		uv /= 0.6659;
-		uv = uv* 0.5 + 0.5;
-		return uv;
-	}
-	
-	
-	//warp full new
-	vec2 Warp(vec2 uv,float wx, float wy){
-		// Transform coordinates to range [-1, 1]
-		uv = uv * 2.0 - 1.0;
-		vec2 pow_exp = 1.0/(1.0+vec2(wx, wy) * 0.2 ) ;
-		//float curvedCoordsDistance = length(uv);
-		float curvedCoordsDistance = sqrt(uv.x*uv.x+uv.y*uv.y);
-		curvedCoordsDistance = clamp(curvedCoordsDistance, 0.0, 1.4142);
-		vec2 pow_base = vec2(1.0-(curvedCoordsDistance/1.4142135623730950488016887242097));
-		pow_base = abs(pow_base); // <-- this way intel and nvidia (probably amd) acts the same.
-		uv /= curvedCoordsDistance;
-		uv *= (1.0-pow(pow_base,  pow_exp ));
-		uv /= (1.0-pow(vec2(0.29289321881345247559915563789515),  pow_exp ));
-		// Transform coordinates back to [0, 1]
-		return uv* 0.5 + 0.5;
-	}
-
-
-	vec2 Warp_noclamp(vec2 uv,float wx, float wy){
-		// Transform coordinates to range [-1, 1]
-		uv = uv * 2.0 - 1.0;
-		vec2 pow_exp = 1.0/(1.0+vec2(wx, wy) * 0.2 ) ;
-		//float curvedCoordsDistance = length(uv);
-		float curvedCoordsDistance = sqrt(uv.x*uv.x+uv.y*uv.y);
-		//curvedCoordsDistance = clamp(curvedCoordsDistance, 0.0, 1.4142);
-		vec2 pow_base = vec2(1.0-(curvedCoordsDistance/1.4142135623730950488016887242097));
-		pow_base = abs(pow_base); // <-- this way intel and nvidia (probably amd) acts the same.
-		uv /= curvedCoordsDistance;
-		uv *= (1.0-pow(pow_base,  pow_exp ));
-		uv /= (1.0-pow(vec2(0.29289321881345247559915563789515),  pow_exp ));
-		// Transform coordinates back to [0, 1]
-		return uv* 0.5 + 0.5;
+	if (ASPECT_X == -7) {
+		if (DO_BG_IMAGE==0.0)
+			return OriginalAspectRotated;
+		else
+			return 1.333333; //fallback to 4:3 when using background or foreground images.
 	}
 	
+	if (ASPECT_X == -8)
+			return OriginalAspectRotated;
 	
+	return ASPECT_X / ASPECT_Y ;
+}
 
-	vec2 Warp_koko(vec2 co, vec2 w, float protrusion) {
-		vec2 coff    = w * 0.625;
-		float czoom  = 1 - distance(co, vec2(0.5));
-		czoom        = mix(czoom, czoom * 0.5, czoom);
-		vec2 czoom2d = mix(vec2(1.0), vec2(czoom), w);
-		return zoomxy(co, coff + czoom2d );
-	}
+vec2 get_scaled_coords_aspect(vec2 pTexCoord, vec4 destsize, float in_aspect , bool is_rotated){
+	vec2 scale = vec2(1.0);
+	vec2 offst = vec2(0.0);
+
+	if (is_rotated)
+		destsize.xy=destsize.yx;
+
+	if (destsize.x > destsize.y*in_aspect) {
+		// fit width
+		scale.x = destsize.x/(destsize.y * in_aspect);
+	} else {
+		// fit height
+		scale.y = destsize.y/(destsize.x / in_aspect);
+	}	
+
+	offst = 0.5 * scale - 0.5;
+	vec2 scale_coord = pTexCoord * scale - offst;
+	return scale_coord;
+}
+
+
+vec2 get_scaled_coords_aspect_fgbg(vec2 pTexCoord, vec4 destsize, float aspect_image , bool is_rotated, float aspect_content){
+	vec2 scale = vec2(1.0);
+	vec2 offst = vec2(0.0);
+
+	if (is_rotated)
+		destsize.xy=destsize.yx;
+
+	vec2 off_adj = vec2(0.0);
 	
-	vec2 Warp_fast(vec2 uv, vec2 v_exp, vec2 arg2, float cut_ears) {
-		/*This version is exact and faster than the other implementation,
-		 * Just because it needs precalculed arguments that can live in
-		 * vertex shader
-		 */
-		// Transform coordinates to range [-1, 1]
-		uv = uv * 2.0 - 1.0;
-		//float curvedCoordsDistance = length(uv);
-		
-		float curvedCoordsDistance = sqrt(uv.x*uv.x+uv.y*uv.y);
-		curvedCoordsDistance = min(curvedCoordsDistance, cut_ears);
-		vec2 pow_base = vec2(1.0-(curvedCoordsDistance/1.4142));
-		pow_base = abs(pow_base); // <-- this way intel and nvidia (probably amd) acts the same.
-		uv /= curvedCoordsDistance;
-		uv *= 1.0-pow(pow_base, v_exp );
-		uv /= arg2;
-		// Transform coordinates back to [0, 1]
-		return uv * 0.5 + 0.5;
-	}
-	
-	
-//VIGNETTE - SPOT
-/*	float gauss(float x, float x0, float sx, float size, float power){
-		float arg = x-x0;
-		arg = -(1/size)/2.*arg*arg/sx;
-		float a = 1./(pow(2.*3.1415*sx, 0.5));
-		return a*exp(arg) * power;
-	}
-
-	float gauss_xy(float pos_x, float pos_y, float size, float power, float gmin, float gmax) {
-		vec2 uv = vTexCoord.xy + vec2(pos_x,pos_y);
-		float scale_uv = params.SourceSize.x / params.SourceSize.y;
-		float gx = gauss(uv.x* scale_uv,  0.5*scale_uv,  0.1,    size, power);
-		float gy = gauss(uv.y,            0.5,           0.1,    size, power);
-		float light = gx*gy;
-		return clamp(light,gmin,gmax);
-	}
-*/
-
-//AMBILIGHT RELATED
-	bool border_needed() {
-		//returns if we need to draw on the border
-		#ifdef STATIC_SUPPORT_BACKDROP
-		return true;
-		#else
-		return (DO_AMBILIGHT + DO_BG_IMAGE + DO_BACKDROP > 0.0);
-		#endif
-	}
-
-	
-	#define mark_useless(x) mark_outer_frame(x)	
-	vec4 mark_outer_frame(vec3 pixel) {
-		return vec4(pixel.rgb,0.0) ;
-		//For my mental sanity, I use a specific alpha channel value to mark a frame as a border
-		return vec4(pixel.r,pixel.g,pixel.b,alpha_mark) ;
-	}
-	#define is_useless(x) is_outer_frame(x)
-	bool is_outer_frame(vec4 pixel) {
-		return pixel.a <= 0.004; // about 1/256
-		/*Check if a pixel is marked as border by comparing the value of its alpha channel
-		Tolerance is needed, because precision can be as low as 1/256; since I don't need
-		alpha channel, use an even large tolerance.
-		*/
-		return  abs(pixel.a - alpha_mark) < 0.05; //<-- 0.05 allow about 20 alpha levels (1*0.05)
-	}
-
-	//#define ar_tolerance 0.005 //To compensate when comparing different A/R 
-	bool is_rotated() {
-		return (params.Rotation == 1.0 || params.Rotation == 3.0);
-		/*
-			For some reason, probably retroarch rotates the view only on final viewport stage, transparent to the shader passes,
-			The OutputSize of a pass that scales to viewport will have different aspect from the real final viewport.
-			We exploit this to understand when a game is rotated.
-			-->> This function only works if the calling pass scales to viewport.
-			This will fail for very particular cases, eg: when output window is extremely tall 
-		*/
-		//return (abs((params.OutputSize.x/params.OutputSize.y) - (global.FinalViewportSize.x/global.FinalViewportSize.y)) > ar_tolerance);
-	}
-
-	float get_in_aspect() {
-		if (!border_needed()) return global.FinalViewportSize.x/global.FinalViewportSize.y; //image adapts to game window.
-		if (ASPECT_X ==  0) return 1.3333333333333; //all mame games, not rotated
-		if (ASPECT_X == -1) return 1.5;   // ntsc
-		if (ASPECT_X == -2) return 1.25;  // pal
-		if (ASPECT_X == -3) return 1.143; // 8/7 snes
-		if (ASPECT_X == -4) return 1.428; // 10/7 megadrive
-		if (ASPECT_X == -5) return params.OriginalSize.x/params.OriginalSize.y; //uncorrected
-		if (ASPECT_X == -6) return 0.75;  // 3/4, pre-rotated (TATE) 1.33 games.
-
-		return ASPECT_X / ASPECT_Y ;
-	}
-
-	vec2 get_scaled_coords_aspect(vec2 pTexCoord, vec4 destsize, float in_aspect , bool is_rotated){
-		
-		if (!border_needed()) return pTexCoord;
-
-		vec2 scale = vec2(1.0);
-		vec2 offst = vec2(0.0);
-	
-	
-		if (is_rotated)
-			destsize.xy=destsize.yx;
-
-		if (destsize.x > destsize.y*in_aspect) {
-			// fit width
-			scale.x = destsize.x/(destsize.y * in_aspect);
-		} else {
-			// fit height
-			scale.y = destsize.y/(destsize.x / in_aspect);
-		}	
-
-	
-		offst = 0.5 * scale - 0.5;
-		vec2 scale_coord = pTexCoord * scale - offst;
-		return scale_coord;
-	}
-
-	
-	vec2 get_scaled_coords_aspect_fgbg(vec2 pTexCoord, vec4 destsize, float aspect_image , bool is_rotated, float aspect_content){
-		
-		if (!border_needed()) return pTexCoord;
-
-		vec2 scale = vec2(1.0);
-		vec2 offst = vec2(0.0);
-	
-		if (is_rotated)
-			destsize.xy=destsize.yx;
-
-		vec2 off_adj = vec2(0.0);
-		
-		if (destsize.x > destsize.y*aspect_content) {
-			// fit width
-			scale.x = destsize.x/(destsize.y * aspect_image);
-						
-			off_adj.x = -BG_IMAGE_OFFX *
-						 (1 - destsize.x/destsize.y) /
-						 aspect_image /
-						 BG_IMAGE_ZOOM;
-		} else {
-			// fit height
-			scale.x = aspect_content * (1.0/aspect_image);
-			scale.y = (destsize.y/destsize.x) * aspect_content ;			  
-			
-			off_adj.x = -BG_IMAGE_OFFX *
-						(1-aspect_content) /
+	if (destsize.x > destsize.y*aspect_content) {
+		// fit width
+		scale.x = destsize.x/(destsize.y * aspect_image);
+					
+		off_adj.x = -BG_IMAGE_OFFX *
+						(1 - destsize.x/destsize.y) /
 						aspect_image /
 						BG_IMAGE_ZOOM;
-			
-			off_adj.y = -BG_IMAGE_OFFY *
-			             (1 - (destsize.y*aspect_content)/destsize.x) /
-			             BG_IMAGE_ZOOM;
-		}	
+	} else {
+		// fit height
+		scale.x = aspect_content * (1.0/aspect_image);
+		scale.y = (destsize.y/destsize.x) * aspect_content ;			  
 		
-		offst = 0.5 * scale + off_adj - 0.5;
+		off_adj.x = -BG_IMAGE_OFFX *
+					(1-aspect_content) /
+					aspect_image /
+					BG_IMAGE_ZOOM;
+		
+		off_adj.y = -BG_IMAGE_OFFY *
+						(1 - (destsize.y*aspect_content)/destsize.x) /
+						BG_IMAGE_ZOOM;
+	}	
+	
+	offst = 0.5 * scale + off_adj - 0.5;
 
-		vec2 scale_coord = pTexCoord * scale - offst;
-		return scale_coord;
+	vec2 scale_coord = pTexCoord * scale - offst;
+	return scale_coord;
+}
+
+
+vec2 integer_scale(vec2 in_coords, float target_aspect, bool is_rotated, float do_tate, float uncorrected_aspect) {
+
+	float raw_in_aspect;
+
+	if (do_tate == 1.0) {
+		target_aspect = 1/target_aspect;
+		raw_in_aspect = params.OriginalSize.y/params.OriginalSize.x;
+	} else {
+		raw_in_aspect = params.OriginalSize.x/params.OriginalSize.y;
 	}
 
-	
-	vec2 integer_scale(vec2 in_coords, float target_aspect, bool is_rotated, float do_tate, float uncorrected_aspect) {
-
-		float raw_in_aspect;
-
-		if (do_tate == 1.0) {
-			target_aspect = 1/target_aspect;
-			raw_in_aspect = params.OriginalSize.y/params.OriginalSize.x;
-		} else {
-			raw_in_aspect = params.OriginalSize.x/params.OriginalSize.y;
-		}
-
-		float adapted_aspect = target_aspect / raw_in_aspect;
+	float adapted_aspect = target_aspect / raw_in_aspect;
 
 	//Keep aspect?
-			adapted_aspect = mix_step(adapted_aspect, 1.0, uncorrected_aspect);
-			if (do_tate == 0.0)
-				in_coords.x = zoom1D(in_coords.x, adapted_aspect);
-					else
-				in_coords.y = zoom1D(in_coords.y, adapted_aspect);
+	adapted_aspect = mix_step(adapted_aspect, 1.0, uncorrected_aspect);
+	if (do_tate == 0.0)
+		in_coords.x = zoom1D(in_coords.x, adapted_aspect);
+			else
+		in_coords.y = zoom1D(in_coords.y, adapted_aspect);
 
-		vec2 izoom;
-		if (!is_rotated) {
-			//This is 1X integer zoom:
-			izoom = params.OriginalSize.xy / global.FinalViewportSize.xy;
-			//Find the maximum zoom allowed
-			vec2 int_zoom = floor(global.FinalViewportSize.yx / (params.OriginalSize.yx/(GAME_GEOM_INT_SCALE_OVR) ));
-			int_zoom = clamp(int_zoom, 1.0, GAME_GEOM_INT_SCALE_MAX);
+	vec2 izoom;
+	if (!is_rotated) {
+		//This is 1X integer zoom:
+		izoom = params.OriginalSize.xy / global.FinalViewportSize.xy;
+		//Find the maximum zoom allowed
+		vec2 int_zoom = floor(global.FinalViewportSize.yx / (params.OriginalSize.yx/(GAME_GEOM_INT_SCALE_OVR) ));
+		int_zoom = clamp(int_zoom, 1.0, GAME_GEOM_INT_SCALE_MAX);
+		
+		if (raw_in_aspect < target_aspect)
+			izoom *= min(int_zoom.x*adapted_aspect, int_zoom.y);
+		else
 			izoom *= min(int_zoom.x, int_zoom.y/adapted_aspect);
-		} else {
-			izoom = params.OriginalSize.xy / global.FinalViewportSize.yx;
-			vec2 int_zoom = floor(global.FinalViewportSize.yx / (  (params.OriginalSize.xy*adapted_aspect)/(GAME_GEOM_INT_SCALE_OVR) ));
-			int_zoom = clamp(int_zoom, 1.0, GAME_GEOM_INT_SCALE_MAX);
-			izoom *= min(int_zoom.x, int_zoom.y*adapted_aspect);
-		}
-		return zoomxy(in_coords, izoom);
-	}
-
-	bool need_NO_integer_scale() {
-		//returns if no integer scaling is requested.
-		return DO_GAME_GEOM_OVERRIDE * GAME_GEOM_INT_SCALE == 0.0;
-	}
-
-	bool need_integer_scale() {
-		//return if integer scaling is requested.
-		//return DO_GAME_GEOM_OVERRIDE == 1.0 && GAME_GEOM_INT_SCALE > 0.01;
-		return DO_GAME_GEOM_OVERRIDE * GAME_GEOM_INT_SCALE != 0.0;
-	}
-
-
-	vec2 content_geom_override_shift(vec2 co, float aspect, float in_aspect, float vshift, float hshift, float out_zoom){
-		//Aspect (ASM PROOF: IFTHEN is better)
-		//shift
-		vec2 shift = round_step(vec2(hshift, vshift)*0.1, params.OriginalSize.xy);
-		co -= shift;
-		return co;
-	}
-	
-	vec2 content_geom_override_zoom(vec2 co, float aspect, float in_aspect, float vshift, float hshift, float out_zoom){
-		// see next (**)
-		float scale_y;
-		if (aspect > 0.01) 
-			scale_y = aspect/in_aspect;
-				else
-			scale_y = 1.0;
 		
-		float offset_y = (0.5 * scale_y ) - 0.5 ;
-		co.y = co.y*scale_y - offset_y;
-		//zoom
-		return zoom(co, out_zoom);
-	}	
-	
-	vec2 content_geom_override_zoom_inv(vec2 co, float aspect, float in_aspect, float vshift, float hshift, float out_zoom){
-		// (**) This has to be exactly has the not _inv version, it returns the same but with zoom counteracted, inverted. 
-		float scale_y;
-		if (aspect > 0.01) 
-			scale_y = aspect/in_aspect;
-				else
-			scale_y = 1.0;
-		
-		float offset_y = (0.5 * scale_y ) - 0.5 ;
-		co.y = co.y*scale_y - offset_y;
-		//zoom
-		return zoom(co, 1/out_zoom);
-	}	
-	
-	
-	vec2 content_geom_override(vec2 co, float aspect, float in_aspect, float vshift, float hshift, float out_zoom){
-		//cheap cardboard emulation:
-        //co = co*2.0 - vec2(0.0,0.5);
-        //if (co.x > 1.0) co.x -= 1;
-		vec2 co_shifted = content_geom_override_shift( co,  aspect,  in_aspect,  vshift,  hshift,  out_zoom);
-		vec2 co_shifted_zoomed = content_geom_override_zoom( co_shifted,  aspect,  in_aspect,  vshift,  hshift,  out_zoom);
-		return co_shifted_zoomed;
+	} else {
+		izoom = params.OriginalSize.xy / global.FinalViewportSize.yx;
+		vec2 int_zoom = floor(global.FinalViewportSize.yx / (  (params.OriginalSize.xy*adapted_aspect)/(GAME_GEOM_INT_SCALE_OVR) ));
+		int_zoom = clamp(int_zoom, 1.0, GAME_GEOM_INT_SCALE_MAX);
+		izoom *= min(int_zoom.x, int_zoom.y*adapted_aspect);
 	}
+	return zoomxy(in_coords, izoom);
+}
+
+bool need_NO_integer_scale() {
+	//returns if no integer scaling is requested.
+	return DO_GAME_GEOM_OVERRIDE * GAME_GEOM_INT_SCALE == 0.0;
+}
+
+bool need_integer_scale() {
+	//return if integer scaling is requested.
+	//return DO_GAME_GEOM_OVERRIDE == 1.0 && GAME_GEOM_INT_SCALE > 0.01;
+	return DO_GAME_GEOM_OVERRIDE * GAME_GEOM_INT_SCALE != 0.0;
+}
+
+vec2 content_geom_override_shift(vec2 co, float aspect, float in_aspect, float vshift, float hshift, float out_zoom){
+	//Aspect (ASM PROOF: IFTHEN is better)
+	//shift
+	vec2 shift = round_step(vec2(hshift, vshift)*0.1, params.OriginalSize.xy);
+	co -= shift;
+	return co;
+}
+
+vec2 content_geom_override_zoom(vec2 co, float aspect, float in_aspect, float vshift, float hshift, float out_zoom){
+	// see next (**)
+	float scale_y;
+	
+	#ifdef _HAS_ORIGINALASPECT_UNIFORMS
+		/* for aspect < 0.0, just use core aspect */
+		if (aspect < 0.0) {
+			aspect = global.OriginalAspectRotated;
+			scale_y = aspect/in_aspect;
+		} else		
+	#endif
+
+	if (aspect > 0.01) 
+		scale_y = aspect/in_aspect;
+	else
+		scale_y = 1.0;
+
+	
+	float offset_y = (0.5 * scale_y ) - 0.5 ;
+	co.y = co.y*scale_y - offset_y;
+	//zoom
+	return zoom(co, out_zoom);
+}	
+
+vec2 content_geom_override_zoom_inv(vec2 co, float aspect, float in_aspect, float vshift, float hshift, float out_zoom){
+	// (**) This has to be exactly has the not _inv version, it returns the same but with zoom counteracted, inverted. 
+	float scale_y;
+	if (aspect > 0.01) 
+		scale_y = aspect/in_aspect;
+			else
+		scale_y = 1.0;
+	
+	float offset_y = (0.5 * scale_y ) - 0.5 ;
+	co.y = co.y*scale_y - offset_y;
+	//zoom
+	return zoom(co, 1/out_zoom);
+}	
+
+vec2 content_geom_override(vec2 co, float aspect, float in_aspect, float vshift, float hshift, float out_zoom){
+	//cheap cardboard emulation:
+	//co = co*2.0 - vec2(0.0,0.5);
+	//if (co.x > 1.0) co.x -= 1;
+	vec2 co_shifted = content_geom_override_shift( co,  aspect,  in_aspect,  vshift,  hshift,  out_zoom);
+	vec2 co_shifted_zoomed = content_geom_override_zoom( co_shifted,  aspect,  in_aspect,  vshift,  hshift,  out_zoom);
+	return co_shifted_zoomed;
+}
 	
 //Blur/Glow
 #define PI 3.14159265359
+
+vec2 radius_blur_adapt_ext_inaspect(float bsize, float aspect){
+    vec2 r;
+    r.x = bsize / BLOOM_AND_HALO_SCALE_FACTOR;
+    r.y = r.x * aspect;
+    return r;
+}
+
+vec2 radius_blur_adapt(float bsize){
+    vec2 r;
+    r.x = bsize / BLOOM_AND_HALO_SCALE_FACTOR;
+    r.y = r.x *  get_in_aspect();
+    return r;
+}
 
 vec2 radius_blur_adapt(vec2 bsize){
     vec2 r;
@@ -1029,121 +998,117 @@ vec3 lanczos(sampler2D sampler_in, vec2 co, vec4 texsize, float sharpness ) {
    return col * sharpness;
 } 
 
-
-	vec3 blur9_x_box(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_x, float sharp_sub) {
-		//sharp_sub = -2*sharp_sub+1;
-		float resolution = sourcesize.x * sharpness_x;
-		vec3 color = vec3(0.0);
+vec3 blur9_x_box(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_x, float sharp_sub) {
+	//sharp_sub = -2*sharp_sub+1;
+	float resolution = sourcesize.x * sharpness_x;
+	vec3 color = vec3(0.0);
+	
+	vec2 off1 = vec2(1.0 / resolution, 0.0)  ;
+	vec2 off2 = vec2(2.0 / resolution, 0.0)  ;
 		
-		vec2 off1 = vec2(1.0 / resolution, 0.0)  ;
-		vec2 off2 = vec2(2.0 / resolution, 0.0)  ;
-			
-		color += texture(image, uv).rgb        ;
-		color += texture(image, uv + off1).rgb ;
-		color += texture(image, uv - off1).rgb ;
-		color += texture(image, uv + off2).rgb * sharp_sub;
-		color += texture(image, uv - off2).rgb * sharp_sub;
-		color = color/(3.0 + sharp_sub*2);
-		return max(vec3(0.0), color);
+	color += texture(image, uv).rgb        ;
+	color += texture(image, uv + off1).rgb ;
+	color += texture(image, uv - off1).rgb ;
+	color += texture(image, uv + off2).rgb * sharp_sub;
+	color += texture(image, uv - off2).rgb * sharp_sub;
+	color = color/(3.0 + sharp_sub*2);
+	return max(vec3(0.0), color);
 	}
 
-	vec3 blur9_y_box(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_y, float sharp_sub) {
-		//sharp_sub = -2*sharp_sub+1;
-		float resolution = sourcesize.y * sharpness_y;
-		vec3 color = vec3(0.0);
-		vec2 off1 = vec2(0.0, 1.0 / resolution) ;
-		vec2 off2 = vec2(0.0, 2.0 / resolution) ;
-		color += texture(image, uv).rgb                       ;
-		color += texture(image, uv + off1).rgb ;
-		color += texture(image, uv - off1).rgb ;
-		color += texture(image, uv + off2).rgb * sharp_sub;
-		color += texture(image, uv - off2).rgb * sharp_sub;
-		color = color/(3.0 + sharp_sub*2);
-		return max(vec3(0.0), color);
-	}
+vec3 blur9_y_box(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_y, float sharp_sub) {
+	//sharp_sub = -2*sharp_sub+1;
+	float resolution = sourcesize.y * sharpness_y;
+	vec3 color = vec3(0.0);
+	vec2 off1 = vec2(0.0, 1.0 / resolution) ;
+	vec2 off2 = vec2(0.0, 2.0 / resolution) ;
+	color += texture(image, uv).rgb                       ;
+	color += texture(image, uv + off1).rgb ;
+	color += texture(image, uv - off1).rgb ;
+	color += texture(image, uv + off2).rgb * sharp_sub;
+	color += texture(image, uv - off2).rgb * sharp_sub;
+	color = color/(3.0 + sharp_sub*2);
+	return max(vec3(0.0), color);
+}
+
+vec3 glow_dumb(sampler2D in_texture, float glow_power, float gamma, vec2 coords) {
+	return pow( texture(in_texture, coords).rgb, vec3(gamma) ) * glow_power;
+}
+
+vec3 blur9_x(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_x) {
+	float resolution = sourcesize.x * sharpness_x;
+	vec3 color = vec3(0.0);
+	vec2 off1 = vec2(1.3846153846 / resolution, 0.0);
+	vec2 off2 = vec2(3.2307692308 / resolution, 0.0);
+	color += texture(image, uv).rgb                       * 0.2270270270;
+	color += texture(image, uv + off1).rgb * 0.3162162162;
+	color += texture(image, uv - off1).rgb * 0.3162162162;
+	color += texture(image, uv + off2).rgb * 0.0702702703;
+	color += texture(image, uv - off2).rgb * 0.0702702703;
+	return color;
+}
+
+vec3 blur9_x_gamma(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_x, vec3 gamma) {
+	float resolution = sourcesize.x * sharpness_x;
+	vec3 color = vec3(0.0);
+	vec2 off1 = vec2(1.3846153846 / resolution, 0.0);
+	vec2 off2 = vec2(3.2307692308 / resolution, 0.0);
+	vec3 lookup = texture(image, uv).rgb;
+	color += pow(lookup, gamma) * 0.2270270270;
+	lookup = texture(image, uv + off1).rgb;
+	color += pow(lookup, gamma) * 0.3162162162;
+	lookup = texture(image, uv - off1).rgb;
+	color += pow(lookup, gamma) * 0.3162162162;
+	lookup = texture(image, uv + off2).rgb;
+	color += pow(lookup, gamma) *  0.0702702703;
+	lookup = texture(image, uv - off2).rgb;
+	color += pow(lookup, gamma) *  0.0702702703;
+	return color;
+}
+
+vec3 blur9_y_gamma(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_x, vec3 gamma) {
+	float resolution = sourcesize.x * sharpness_x;
+	vec3 color = vec3(0.0);
+	vec2 off1 = vec2(0.0, 1.3846153846 / resolution) ;
+	vec2 off2 = vec2(0.0, 3.2307692308 / resolution) ;
+	vec3 lookup = texture(image, uv).rgb;
+	color += pow(lookup, gamma) * 0.2270270270;
+	lookup = texture(image, uv + off1).rgb;
+	color += pow(lookup, gamma) * 0.3162162162;
+	lookup = texture(image, uv - off1).rgb;
+	color += pow(lookup, gamma) * 0.3162162162;
+	lookup = texture(image, uv + off2).rgb;
+	color += pow(lookup, gamma) *  0.0702702703;
+	lookup = texture(image, uv - off2).rgb;
+	color += pow(lookup, gamma) *  0.0702702703;
+	return color;
+}
+
+vec3 blur9_y(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_y) {
+	float resolution = sourcesize.y * sharpness_y;
+	vec3 color = vec3(0.0);
+	vec2 off1 = vec2(0.0, 1.3846153846 / resolution) ;
+	vec2 off2 = vec2(0.0, 3.2307692308 / resolution) ;
+	color += texture(image, uv).rgb       * 0.2270270270;
+	color += texture(image, uv + off1).rgb * 0.3162162162;
+	color += texture(image, uv - off1).rgb * 0.3162162162;
+	color += texture(image, uv + off2).rgb * 0.0702702703;
+	color += texture(image, uv - off2).rgb * 0.0702702703;
+	return color;
+}
+
+vec3 blur9_x_box1tap(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_x) {
+	float resolution = sourcesize.x * sharpness_x;
+	vec3 color = vec3(0.0);
 	
-	vec3 glow_dumb(sampler2D in_texture, float glow_power, float gamma, vec2 coords) {
-		return pow( texture(in_texture, coords).rgb, vec3(gamma) ) * glow_power;
-	}
-
-	vec3 blur9_x(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_x) {
-		float resolution = sourcesize.x * sharpness_x;
-		vec3 color = vec3(0.0);
-		vec2 off1 = vec2(1.3846153846 / resolution, 0.0);
-		vec2 off2 = vec2(3.2307692308 / resolution, 0.0);
-		color += texture(image, uv).rgb                       * 0.2270270270;
-		color += texture(image, uv + off1).rgb * 0.3162162162;
-		color += texture(image, uv - off1).rgb * 0.3162162162;
-		color += texture(image, uv + off2).rgb * 0.0702702703;
-		color += texture(image, uv - off2).rgb * 0.0702702703;
-		return color;
-	}
-
-	
-	
-	vec3 blur9_x_gamma(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_x, vec3 gamma) {
-		float resolution = sourcesize.x * sharpness_x;
-		vec3 color = vec3(0.0);
-		vec2 off1 = vec2(1.3846153846 / resolution, 0.0);
-		vec2 off2 = vec2(3.2307692308 / resolution, 0.0);
-		vec3 lookup = texture(image, uv).rgb;
-		color += pow(lookup, gamma) * 0.2270270270;
-		lookup = texture(image, uv + off1).rgb;
-		color += pow(lookup, gamma) * 0.3162162162;
-		lookup = texture(image, uv - off1).rgb;
-		color += pow(lookup, gamma) * 0.3162162162;
-		lookup = texture(image, uv + off2).rgb;
-		color += pow(lookup, gamma) *  0.0702702703;
-		lookup = texture(image, uv - off2).rgb;
-		color += pow(lookup, gamma) *  0.0702702703;
-		return color;
-	}
-
-	vec3 blur9_y_gamma(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_x, vec3 gamma) {
-		float resolution = sourcesize.x * sharpness_x;
-		vec3 color = vec3(0.0);
-		vec2 off1 = vec2(0.0, 1.3846153846 / resolution) ;
-		vec2 off2 = vec2(0.0, 3.2307692308 / resolution) ;
-		vec3 lookup = texture(image, uv).rgb;
-		color += pow(lookup, gamma) * 0.2270270270;
-		lookup = texture(image, uv + off1).rgb;
-		color += pow(lookup, gamma) * 0.3162162162;
-		lookup = texture(image, uv - off1).rgb;
-		color += pow(lookup, gamma) * 0.3162162162;
-		lookup = texture(image, uv + off2).rgb;
-		color += pow(lookup, gamma) *  0.0702702703;
-		lookup = texture(image, uv - off2).rgb;
-		color += pow(lookup, gamma) *  0.0702702703;
-		return color;
-	}
-	
-	vec3 blur9_y(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_y) {
-		float resolution = sourcesize.y * sharpness_y;
-		vec3 color = vec3(0.0);
-		vec2 off1 = vec2(0.0, 1.3846153846 / resolution) ;
-		vec2 off2 = vec2(0.0, 3.2307692308 / resolution) ;
-		color += texture(image, uv).rgb       * 0.2270270270;
-		color += texture(image, uv + off1).rgb * 0.3162162162;
-		color += texture(image, uv - off1).rgb * 0.3162162162;
-		color += texture(image, uv + off2).rgb * 0.0702702703;
-		color += texture(image, uv - off2).rgb * 0.0702702703;
-		return color;
-	}
-
-	vec3 blur9_x_box1tap(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_x) {
-		float resolution = sourcesize.x * sharpness_x;
-		vec3 color = vec3(0.0);
+	vec2 off1 = vec2(1.0 / resolution, 0.0)  ;
+	vec2 off2 = vec2(2.0 / resolution, 0.0)  ;
 		
-		vec2 off1 = vec2(1.0 / resolution, 0.0)  ;
-		vec2 off2 = vec2(2.0 / resolution, 0.0)  ;
-			
-		color += texture(image, uv).rgb        ;
-		color += texture(image, uv + off1).rgb ;
-		color += texture(image, uv - off1).rgb ;
-		color = color/3.0;
-		return color;
-	}
-	
+	color += texture(image, uv).rgb        ;
+	color += texture(image, uv + off1).rgb ;
+	color += texture(image, uv - off1).rgb ;
+	color = color/3.0;
+	return color;
+}
 	
 vec3 blur_px(sampler2D smp, vec2 co, vec2 r) {
     vec3 c=vec3(0.0);
@@ -1166,93 +1131,33 @@ vec3 blur_px(sampler2D smp, vec2 co, vec2 r) {
     //return min(c0, c/8.0);
     return c/8.0;
 }
-	
-	/*float is_scanline(vec2 uv){
-		return float(int(mod(uv.y * params.OutputSize.y , 2.0 )) !=0.0) ;
-	}
 
-	vec3 blur9_y_e_scanline(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_y) {
+vec3 blur5_x(sampler2D image, vec2 uv, float sourcesize_x, float sharpness_x, float lod) {
+	float resolution = sourcesize_x * sharpness_x;
+	vec3 color = vec3(0.0);
+	vec2 off1 = vec2(1.333333333333 / resolution, 0.0);
+	color += textureLod(image, uv, lod).rgb   * 0.29411764705882354;
+	color += textureLod(image, uv + off1, lod).rgb   * 0.35294117647058826;
+	color += textureLod(image, uv - off1, lod).rgb   * 0.35294117647058826;
+	return color;
+}
 
-		float mymod = int(mod(uv.y * params.OutputSize.y , 2.0 )) ;
-		float scanline = float(   (mymod != 0.0)   ) ;
-
-		vec2 resolution = sourcesize * sharpness_y;
-		vec3 color = vec3(0.0);
-		vec2 off1 = vec2(0.0, 1.3846153846) ;
-		vec2 off2 = vec2(0.0, 3.2307692308) ;
-		scanline = is_scanline(uv);
-		color += texture(image, uv).rgb   * scanline         * 0.2270270270;
-		scanline = is_scanline(uv + (off1 / resolution));
-		color += texture(image, uv + (off1 / resolution)).rgb * scanline * 0.3162162162;
-		scanline = is_scanline(uv - (off1 / resolution)  );
-		color += texture(image, uv - (off1 / resolution)).rgb * scanline *  0.3162162162;
-		scanline = is_scanline(uv + (off2 / resolution)  );
-		color += texture(image, uv + (off2 / resolution)).rgb * scanline *  0.0702702703;
-		scanline = is_scanline(uv - (off2 / resolution)  );
-		color += texture(image, uv - (off2 / resolution)).rgb * scanline *  0.0702702703;
-		return color;
-	}
-
-
-	vec3 blur9_y_alpha_aware(sampler2D image, vec2 uv, vec2 sourcesize, float sharpness_y) {
-		vec2 resolution = sourcesize * sharpness_y;
-		vec2 off1 = vec2(0.0, 1.3846153846) ;
-		vec2 off2 = vec2(0.0, 3.2307692308) ;
-		vec3 color = vec3(0.0);
-		vec4 lookup = texture(image, uv);                   color += lookup.a * lookup.rgb * 0.2270270270;
-		lookup = texture(image, uv  + (off1 / resolution)); color += lookup.a * lookup.rgb * 0.3162162162;
-		lookup = texture(image, uv  - (off1 / resolution)); color += lookup.a * lookup.rgb * 0.3162162162;
-		lookup = texture(image, uv  + (off2 / resolution)); color += lookup.a * lookup.rgb * 0.0702702703;
-		lookup = texture(image, uv  - (off2 / resolution)); color += lookup.a * lookup.rgb * 0.0702702703;
-		return color;
-	}
-	*/
-	
-	vec3 blur5_x(sampler2D image, vec2 uv, float sourcesize_x, float sharpness_x, float lod) {
-		float resolution = sourcesize_x * sharpness_x;
-		vec3 color = vec3(0.0);
-		vec2 off1 = vec2(1.333333333333 / resolution, 0.0);
-		color += textureLod(image, uv, lod).rgb   * 0.29411764705882354;
-		color += textureLod(image, uv + off1, lod).rgb   * 0.35294117647058826;
-		color += textureLod(image, uv - off1, lod).rgb   * 0.35294117647058826;
-		return color;
-	}
-	
-	vec3 blur5_y(sampler2D image, vec2 uv, float sourcesize_y, float sharpness_y, float lod) {
-		float resolution = sourcesize_y * sharpness_y;
-		vec3 color = vec3(0.0);
-		vec2 off1 = vec2(0.0, 1.333333333333 / resolution) ;
-		color += textureLod(image, uv, lod).rgb   * 0.29411764705882354;
-		color += textureLod(image, uv + off1, lod).rgb   * 0.35294117647058826;
-		color += textureLod(image, uv - off1, lod).rgb   * 0.35294117647058826;
-		return color;
-	}
+vec3 blur5_y(sampler2D image, vec2 uv, float sourcesize_y, float sharpness_y, float lod) {
+	float resolution = sourcesize_y * sharpness_y;
+	vec3 color = vec3(0.0);
+	vec2 off1 = vec2(0.0, 1.333333333333 / resolution) ;
+	color += textureLod(image, uv, lod).rgb   * 0.29411764705882354;
+	color += textureLod(image, uv + off1, lod).rgb   * 0.35294117647058826;
+	color += textureLod(image, uv - off1, lod).rgb   * 0.35294117647058826;
+	return color;
+}
 
 #define RGB2GRAY_VEC3 vec3(0.299, 0.587, 0.114)
 float rgb_to_gray(vec3 rgb) {
     return dot(rgb, RGB2GRAY_VEC3);
 }
 	
-	//smoothly shade x and y < 0.0, currently unused	
-	/*float blur_shade(vec2 co, float size) {
-		
-		float co_1D;	
-		(co.x < 0.0 || co.x > 1.0) ? co_1D = co.x : co_1D = co.y ;
 
-		float side_hi_switch = float(co_1D > 1.0);
-		float side_lo_switch = float(co_1D < 0.0);
-		
-		float smooth_min = 1.0 * side_hi_switch;
-		float smooth_max = smooth_min + ( 
-						( size * side_hi_switch) + 
-						(-size * side_lo_switch ) 
-						);	
-		
-		return smoothstep(smooth_min, smooth_max, co_1D);
-	}
-	*/
-
-	
 vec3 hsv2rgb(vec3 c){
 	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
 	vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
@@ -1277,21 +1182,44 @@ vec2 rgb2hv(vec3 c) {
     float d = q.x - min(q.w, q.y);
     return vec2(abs(q.z + (q.w - q.y) / (6.0 * d + 0.0001)), q.x);
 }
-	
+
+float delta_render_enabled(){
+    #ifdef DELTA_RENDER
+        return 1.0;
+    #else
+        return 0.0;
+    #endif
+}
+
+float delta_render_get_force_refresh() {
+	#ifdef DELTA_RENDER_FORCE_REFRESH
+		return DELTA_RENDER_FORCE_REFRESH;
+	#else
+		return 4.0;
+	#endif
+}
+
+float delta_render_get_check_area() {
+	#ifdef DELTA_RENDER_CHECK_AREA
+		return DELTA_RENDER_CHECK_AREA;
+	#else
+		return 1.0;
+	#endif
+}
+
 float get_dyn_zoom(sampler2D tex) {
-	if (DELTA_RENDER == 0.0)
+	if (delta_render_enabled() == 0.0)
 		return texture(tex, DYN_ZOOM_SAMPLING_POINT ).a * DO_DYNZOOM + 1.0 ;
 	else
 		return 1.0;
 }
 
 float get_autocrop_zoom(sampler2D tex) {
-	if (DELTA_RENDER == 0.0)
+	if (delta_render_enabled() == 0.0)
 		return texture(tex, AUTOCROP_SAMPLING_POINT).a;
 	else
 		return 1.0;
 }
-
 
 vec2 tilt2D(vec2 co, float is_rotated, vec2 tilt) {
 
@@ -1321,10 +1249,6 @@ vec2 tilt2D(vec2 co, float is_rotated, vec2 tilt) {
 
 }
 	
-/*float is_rotated_fake() {
-	return params.Rotation & 1;
-}*/
-	
 vec2 tilt(vec2 co, float is_rotated, float tilt) {
 
 	vec2 r_tilt = vec2( mix_step(tilt, 0.0, is_rotated),
@@ -1334,70 +1258,51 @@ vec2 tilt(vec2 co, float is_rotated, float tilt) {
 	vec2 tilt_min = 1 - r_tilt;
 	vec2 tilt_max = 1 + r_tilt;
 
-	
 	// X Tilt
 		float tilt_x_range = scale_to_range(co.y, tilt_min.x, tilt_max.x);
-		co = zoomxy(co, vec2(tilt_x_range));
-
 	// Y Tilt
 		float tilt_y_range = scale_to_range(co.x, tilt_min.y, tilt_max.y);
-		co = zoomxy(co, vec2(tilt_y_range));
-	
+		
+	// Zoom:
+		co = 0.5 + (co - 0.5) / (tilt_y_range * tilt_x_range);
+		
 	if (is_rotated > 0.5) //ASM PROOF
-		co.xy += -vec2(tilt, 0.0) * 0.5;
+		co.xy -= vec2(tilt, 0.0) * 0.5;
 	else
 		co.xy += vec2(0.0, tilt) * 0.5;
-	//	co.xy += mix_step(  vec2(0.0, tilt),   -vec2(tilt, 0.0), is_rotated) * 0.5;
 		
 	return co;
 }
 	
-vec2 tilt_bezel(vec2 co, float is_rotated, float tilt ) {
-
-	tilt*=BEZEL_TILT_MULTIPLIER;
+vec2 tilt_bezel(vec2 co, float is_rotated, float btilt ) {
+	
+	btilt*=BEZEL_TILT_MULTIPLIER;
 	
 	//ASM PROOF: if then is worse.
-	vec2 r_tilt = vec2( mix_step(tilt, 0.0, is_rotated),
-	                    mix_step(0.0, -tilt, is_rotated)
+	vec2 r_tilt = vec2( mix_step(btilt, 0.0, is_rotated),
+	                    mix_step(0.0, -btilt, is_rotated)
 					);
 	
 	vec2 tilt_min = 1 - r_tilt;
 	vec2 tilt_max = 1 + r_tilt;
 
-	
 	// X Tilt
 		float tilt_x_range = scale_to_range(co.y, tilt_min.x, tilt_max.x);
-		co = vec2( zoom1D(co.x, tilt_x_range),
-		           zoom1D(co.y, tilt_x_range)
-			);
-
 	// Y Tilt
 		float tilt_y_range = scale_to_range(co.x, tilt_min.y, tilt_max.y);
-		co = vec2( zoom1D(co.x, tilt_y_range),
-		           zoom1D(co.y, tilt_y_range)
-			);
-	
+
+	// Zoom:
+		co = 0.5 + (co - 0.5) / (tilt_y_range * tilt_x_range);
+		
 	if (is_rotated > 0.5) { //ASM PROOF
-		co.xy += -vec2( (tilt - tilt*BEZEL_TILT_Y_SHIFT)*0.5 , 0.0);
+		co.xy -= vec2( (btilt - btilt*BEZEL_TILT_Y_SHIFT)*0.5 , 0.0);
 	} else {
-		co.xy += vec2(0.0, (tilt-tilt*BEZEL_TILT_Y_SHIFT)*0.5);
+		co.xy += vec2(0.0, (btilt-btilt*BEZEL_TILT_Y_SHIFT)*0.5);
 	}
 	
 	return co;
 }
 	
-
-/*bool is_first_outside_rect(vec2 point, vec4 rect) {
-	return (point.x < rect.x || point.x > rect.z ||
-			point.y < rect.y || point.y > rect.w) ;
-}
-
-bool is_first_inside_rect(vec2 point, vec4 rect) {
-	return (point.x >= rect.x && point.x < rect.z &&
-			point.y >= rect.y && point.y < rect.w) ;
-}
-*/
-
 //Following is faster (ASM proof)
 bool is_first_inside_rect(vec2 point, vec4 rect) {
 	vec2 bounded = clamp(point, rect.xy, rect.zw);
@@ -1407,8 +1312,6 @@ bool is_first_outside_rect(vec2 point, vec4 rect) {
 	vec2 bounded = clamp(point, rect.xy, rect.zw);
 	return point != bounded;
 }
-
-
 
 // COLOR TOOLS
 
@@ -1434,7 +1337,7 @@ vec3 vibrance_set(vec3 c, float v) {
 }
 
 
-	vec3 kelvin2rgb(float k) {
+vec3 kelvin2rgb(float k) {
 	//Convert kelvin temperature to rgb factors
 	k = clamp(k,1000,40000);
 	k=k/100.0;
@@ -1456,15 +1359,15 @@ vec3 vibrance_set(vec3 c, float v) {
 		pixel_out.b = 138.51773122311 * log(k - 10) - 305.04479273072;
 
 	return pixel_out/255.0;
-	}
+}
 
-	vec3 adaptive_black(vec3 c_in, float lum_in, float range) {
-		float luminance_adapt = mix( 1-range, 1+range, lum_in);
-		return c_in * luminance_adapt - luminance_adapt + 1;
-		return fma(c_in, vec3(luminance_adapt), vec3(-luminance_adapt + 1)); //ASM_PROOF: SAME
-	}
+vec3 adaptive_black(vec3 c_in, float lum_in, float range) {
+	float luminance_adapt = mix( 1-range, 1+range, lum_in);
+	return c_in * luminance_adapt - luminance_adapt + 1;
+	return fma(c_in, vec3(luminance_adapt), vec3(-luminance_adapt + 1)); //ASM_PROOF: SAME
+}
 
-	vec3 color_tools(vec3 pixel_out, vec3 Temperature_rgb) {
+vec3 color_tools(vec3 pixel_out, vec3 Temperature_rgb) {
 	//Apply color corrections to input signal.
 
 	//Push luminance without clipping
@@ -1478,47 +1381,47 @@ vec3 vibrance_set(vec3 c, float v) {
 	//Modify color temperature
 		if (TEMPERATURE != 6500.0) pixel_out.rgb = pixel_out.rgb * Temperature_rgb;
 
-		//Colorization for monochrome display on hsv colorspace.
-		//Select different hues for dark and bright pixels and mix them depending on the brightness
-		if (COLOR_MONO_COLORIZE > 0.01) {
-			vec3 pixel_grayscale = vec3(dot(pixel_out.rgb, W_C_TO_GRAY));
-			vec3 pixel_in_hsv = rgb2hsv(pixel_grayscale); //FIXME needed? yes, checked.
-			float lum = pixel_in_hsv.z * pixel_in_hsv.z; //<-- looks way better!
+	//Colorization for monochrome display on hsv colorspace.
+	//Select different hues for dark and bright pixels and mix them depending on the brightness
+	if (COLOR_MONO_COLORIZE > 0.01) {
+		vec3 pixel_grayscale = vec3(dot(pixel_out.rgb, W_C_TO_GRAY));
+		vec3 pixel_in_hsv = rgb2hsv(pixel_grayscale); //FIXME needed? yes, checked.
+		float lum = pixel_in_hsv.z * pixel_in_hsv.z; //<-- looks way better!
 
-			//vec2 bias = mix_step( vec2(0.0, abs(COLOR_MONO_HUE_BIAS)), vec2(abs(COLOR_MONO_HUE_BIAS), 0.0), float(COLOR_MONO_HUE_BIAS > 0.0));
-			//Following should be faster (ASM PROOF)
-			vec2 bias;
-			if (COLOR_MONO_HUE_BIAS > 0.0) 
-				bias = vec2(abs(COLOR_MONO_HUE_BIAS),0.0);
-			else
-				bias = vec2(0.0,abs(COLOR_MONO_HUE_BIAS));
-				
-			lum=scale_to_range(lum, 0.0-bias.x, 1.0+bias.y);
-			pixel_in_hsv.y=1.0; //sat
+		//vec2 bias = mix_step( vec2(0.0, abs(COLOR_MONO_HUE_BIAS)), vec2(abs(COLOR_MONO_HUE_BIAS), 0.0), float(COLOR_MONO_HUE_BIAS > 0.0));
+		//Following should be faster (ASM PROOF)
+		vec2 bias;
+		if (COLOR_MONO_HUE_BIAS > 0.0) 
+			bias = vec2(abs(COLOR_MONO_HUE_BIAS),0.0);
+		else
+			bias = vec2(0.0,abs(COLOR_MONO_HUE_BIAS));
+			
+		lum=scale_to_range(lum, 0.0-bias.x, 1.0+bias.y);
+		pixel_in_hsv.y=1.0; //sat
 
-			//Mix hues in rgb colorspace:
-				vec3 pixel_rgb_hue1 = hsv2rgb( vec3(COLOR_MONO_HUE1, 1.0, pixel_in_hsv.z ) );
-				vec3 pixel_rgb_hue2 = hsv2rgb( vec3(COLOR_MONO_HUE2, 1.0, pixel_in_hsv.z ) );
-				vec3 pixel_rgb_hue12 = mix(pixel_rgb_hue2, pixel_rgb_hue1, vec3(lum));
-			//Mix original and colorized with a specified strength
-				pixel_out = mix(pixel_out, pixel_rgb_hue12, COLOR_MONO_COLORIZE);
-		}
-
-	//Modify Vibrance
-		if (VIBRANCE > 0.0) {
-			pixel_out.rgb = vibrance_set(pixel_out.rgb, VIBRANCE);
-		}
-		
-	//Modify saturation
-		if (SATURATION != 1.0) {
-			vec3 intensity = vec3(dot(pixel_out.rgb, W_C_TO_GRAY));
-			pixel_out.rgb = mix(intensity, pixel_out.rgb, SATURATION);
-		}
-
-	return pixel_out;
+		//Mix hues in rgb colorspace:
+			vec3 pixel_rgb_hue1 = hsv2rgb( vec3(COLOR_MONO_HUE1, 1.0, pixel_in_hsv.z ) );
+			vec3 pixel_rgb_hue2 = hsv2rgb( vec3(COLOR_MONO_HUE2, 1.0, pixel_in_hsv.z ) );
+			vec3 pixel_rgb_hue12 = mix(pixel_rgb_hue2, pixel_rgb_hue1, vec3(lum));
+		//Mix original and colorized with a specified strength
+			pixel_out = mix(pixel_out, pixel_rgb_hue12, COLOR_MONO_COLORIZE);
 	}
 
-vec4 PG_get_hmask_preset_floored() {
+//Modify Vibrance
+	if (VIBRANCE > 0.0) {
+		pixel_out.rgb = vibrance_set(pixel_out.rgb, VIBRANCE);
+	}
+	
+//Modify saturation
+	if (SATURATION != 1.0) {
+		vec3 intensity = vec3(dot(pixel_out.rgb, W_C_TO_GRAY));
+		pixel_out.rgb = mix(intensity, pixel_out.rgb, SATURATION);
+	}
+
+	return pixel_out;
+}
+
+vec4 PG_get_hmask_preset_floored_wrapped() {
     if (PIXELGRID_H_PRST == 0.0) // manual mask and size
         return vec4( PIXELGRID_R_SHIFT, PIXELGRID_G_SHIFT, PIXELGRID_B_SHIFT, PIXELGRID_H_COUNT);
     
@@ -1555,14 +1458,18 @@ vec4 PG_get_hmask_preset_floored() {
     if (PIXELGRID_H_PRST == 7.0)
         return vec4( vec3(0.0), 2); //WX, mask size 2
 
-    //if (PIXELGRID_H_PRST == 8.0) // Implicit, because we need a default return value (DX/D3D)
+    if (PIXELGRID_H_PRST == 8.0)
 		return vec4( vec3(1.0,
 					2.0,
 					4.0), 4); //rgxb, mask size 4
-
+		
+    //if (PIXELGRID_H_PRST == 9.0) // Implicit, because we need a default return value (DX/D3D)
+        return vec4( vec3(2.0,
+						  2.0,
+						  2.0), 3); //wwx, mask size 3
 }
 
-vec4 PG_get_hmask_preset_unfloored() {
+vec4 PG_get_hmask_preset_unfloored_wrapped() {
     if (PIXELGRID_H_PRST == 0.0) // manual mask and size
         return vec4( PIXELGRID_R_SHIFT, PIXELGRID_G_SHIFT, PIXELGRID_B_SHIFT, PIXELGRID_H_COUNT);
 
@@ -1599,19 +1506,45 @@ vec4 PG_get_hmask_preset_unfloored() {
     if (PIXELGRID_H_PRST == 7.0) 
         return vec4( vec3(0.0), 2); //WX, mask size 2
 		
-    //if (PIXELGRID_H_PRST == 8.0) // Implicit, because we need a default return value (DX/D3D)
+    if (PIXELGRID_H_PRST == 8.0) // Implicit, because we need a default return value (DX/D3D)
         return vec4( vec3(-1/4.0,
 						  0.0,
 						  +2/4.0)*4, 4); //rgxb, mask size 4  cambialo
+    //if (PIXELGRID_H_PRST == 9.0) // Implicit, because we need a default return value (DX/D3D)
 		
+        return vec4( vec3(0.0), 2); // WWX, mask size 2 can't be obtained, so just return  WX
+		                            // and user set a wider phosphor width
+		
+}
 
+vec4 PG_get_hmask_preset_floored() {
+	vec4 c = PG_get_hmask_preset_floored_wrapped();
+	//alternate submask color positions to help sample-and-hold induced blurring
+	#ifndef D3D_WORKAROUND
+		#ifdef ANTIGHOSTING_FLIP_MASK
+			if (frame_is_even())
+			c.xyz = c.zxy;
+		#endif
+	#endif
+	return c;
+}
 
+vec4 PG_get_hmask_preset_unfloored() {
+	vec4 c = PG_get_hmask_preset_unfloored_wrapped();
+	//alternate submask color positions to help sample-and-hold induced blurring
+	#ifndef D3D_WORKAROUND
+		#ifdef ANTIGHOSTING_FLIP_MASK
+			if (frame_is_even())
+			c.xyz = c.zxy;
+		#endif
+	#endif
+	return c;
 }
 
 vec3 strobe( vec3 c) {
     #define STRENGTH_1 0.075 //effect strength
 
-    if (mod(params.FrameCount, 2.0 ) == 0.0) {
+    if ( frame_is_even() ) {
        return c * (1+STRENGTH_1);
     }else {
        return c * (1-STRENGTH_1);
@@ -1636,7 +1569,7 @@ vec3 adaptive_strobe( vec3 c) {
     c = ( (1+contrast_adj+contrast_adj)* c)-contrast_adj;
     c *= gain_adj;
 
-    if (mod(params.FrameCount, 2.0 ) == 0.0) {
+    if ( frame_is_even() ) {
        return c +  room / BRIGHT_BIAS;
     }else {
        return c -  room * BRIGHT_BIAS;
@@ -1696,7 +1629,7 @@ float lodmax(vec2 texsize) {
 }
 float is_deltarender_allowed(bool is_interlaced) {
 	// Delta render, mandatory conditions:
-    return float( ( params.FrameCount % int(DELTA_RENDER_FORCE_REFRESH) != 0.0 ) &&              // - We are in a frame that is not forced for full refresh
+    return float( ( params.FrameCount % int(delta_render_get_force_refresh()) != 0.0 ) &&              // - We are in a frame that is not forced for full refresh
     ( (! is_interlaced) || PIXELGRID_INTR_DISABLE_Y >= 1.0 || DO_PIXELGRID_H == 0.0)); // - screen is not interlaced or we disabled scanlines on interlaced content
 }
 
@@ -1711,10 +1644,6 @@ float delta_render_changed(sampler2D smp_past, sampler2D smp_now, vec2 co, float
    else
       return 1.0;
 
-}
-
-float max3(vec3 v){
-	return max((v.x,v.y),v.z);
 }
 
 float distance_from_edge(vec2 co, float gamma) {
@@ -1738,7 +1667,12 @@ float distance_from_edge_linear(vec2 co, float aoe_inv) {
 float get_rf_noise(vec2 seed) {
 	// Eg: seed = vTexCoord * mod(params.FrameCount, 120.0001);
 	float anoise = random_fast(seed);
-	return (anoise - 0.5) * RF_NOISE_STRENGTH*RF_NOISE_STRENGTH 
+	return scale_to_range(anoise, - RF_NOISE_STRENGTH * RF_NOISE_STRENGTH, RF_NOISE_STRENGTH * RF_NOISE_STRENGTH)
 	       + smoothstep_fast(0.98, 1.0, anoise) * RF_NOISE_SPARK;
 }
 
+vec3 clip_to_white_maybe(vec3 c) {
+	vec3 clips = max(vec3(0), c - 1 );
+	c.rgb += vec3(  clips.g+clips.b, clips.r+clips.b, clips.r+clips.g ) * CLIP_TO_WHITE;
+	return c;
+}

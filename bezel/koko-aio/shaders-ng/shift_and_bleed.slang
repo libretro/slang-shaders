@@ -12,9 +12,7 @@ layout(location = 2) out vec2 vG_offset;
 layout(location = 3) out vec2 vB_offset;
 layout(location = 4) out float vDo_shadow_mode;
 layout(location = 5) out float vDecon_or_JustShadow;
-layout(location = 6) out float vShow_artifact_mask;
-layout(location = 7) out float vDo_noise;
-layout(location = 8) out float vDynamicSeed;
+
 layout(location = 9) out float vDotCrawlShift;
 layout(location = 10) out vec4 vDotCrawlCoords_and_period;
 #include "includes/functions.include.slang"
@@ -46,18 +44,16 @@ void main()
    //Precalc some conditions:
    bool do_shadow = (DO_DOT_MATRIX == 1.0 && DOT_M_SHADOW_STR > 0.0);
    vDecon_or_JustShadow =  float(DO_SHIFT_RGB > 0.0 || do_shadow    );
-   vShow_artifact_mask = float(NTSC_SHOW_ARTF_MASK + DO_NTSC_ARTIFACTS == 2.0);
-   
-   //noise?
-   vDo_noise = float( DO_RF_NOISE < -0.5 || ( DO_RF_NOISE > 0.5 && DO_IN_GLOW < 0.5 ));
-   vDynamicSeed = mod(params.FrameCount, 120.0001);
+
    
    //Mod framecount for animating dot crawl (needed to avoid precision errors)   
       float dot_c_steps = 6.0; // frames needed to reach sin period; higher = slower;
       dot_c_steps = 22-( abs(DOT_C_SPEED) *2)+0.0001;
       vDotCrawlShift =((pi*2)/dot_c_steps) * mod(params.FrameCount, dot_c_steps);
    
-      vDotCrawlCoords_and_period = vec4(vTexCoord, params.OriginalSize.xy);
+      float dotc_w_adapted = 1.0; //320.0/params.OriginalSize.x;
+      
+      vDotCrawlCoords_and_period = vec4(vTexCoord, params.OriginalSize.xy * vec2( dotc_w_adapted, 1.0) );
    
       // switch to vertical movement
       if (DOT_C_SPEED < 0.0)
@@ -73,9 +69,7 @@ layout(location = 2) in vec2 vG_offset;
 layout(location = 3) in vec2 vB_offset;
 layout(location = 4) in float vDo_shadow_mode;
 layout(location = 5) in float vDecon_or_JustShadow;
-layout(location = 6) in float vShow_artifact_mask;
-layout(location = 7) in float vDo_noise;
-layout(location = 8) in float vDynamicSeed;
+
 layout(location = 9) in float vDotCrawlShift;
 layout(location = 10) in vec4 vDotCrawlCoords_and_period;
 
@@ -156,14 +150,11 @@ vec3 deconvergence_shadow(vec2 coords, sampler2D in_texture, vec3 source_pixel) 
 
 vec3 pixel_bleed_side_NTSC(vec4 pixel_in, vec2 co, float size, sampler2D in_texture, float sourcesize_z) {
    //apply strength modifier to blur ntsc artifacts more.
-   
-   float strength_modifier = mix(1.0, pixel_in.a, DO_NTSC_ARTIFACTS);
-   float w = SAT_BLEED_STRENGTH * clamp (strength_modifier, (1-NTSC_ARTF_NOBLEED), 1.0 );
+   float w = SAT_BLEED_STRENGTH;
+      
    vec3 blur_YIQ_l = pixel_in.rgb * mat3_RGB2YIQ;    //Work in YIQ space
    vec3 blur_YIQ_r = blur_YIQ_l;
 
-   if (vShow_artifact_mask == 1.0) return vec3(strength_modifier);
-   
    vec2 off_l = vec2(SIDE_LEFT  * sourcesize_z,0.0);
    vec2 off_r = vec2(SIDE_RIGHT * sourcesize_z,0.0);
    
@@ -184,9 +175,10 @@ vec3 pixel_bleed_side_NTSC(vec4 pixel_in, vec2 co, float size, sampler2D in_text
    return max(mix(blur_RGB_l,blur_RGB_r,0.5), 0.0);
 }
 
-vec3 pixel_bleed_side_PAL(vec3 pixel_in, vec2 co, float size, sampler2D in_texture, float sourcesize_z) {
+vec3 pixel_bleed_side_PAL(vec4 pixel_in, vec2 co, float size, sampler2D in_texture, float sourcesize_z) {
    float w = SAT_BLEED_STRENGTH;
-   vec3 blur_YUV_l = pixel_in * mat3_RGB2YUV;    //Work in YIQ space
+      
+   vec3 blur_YUV_l = pixel_in.rgb * mat3_RGB2YUV;    //Work in YIQ space
    vec3 blur_YUV_r = blur_YUV_l;
    
    vec2 off_l = vec2(SIDE_LEFT  * sourcesize_z,0.0);
@@ -262,13 +254,17 @@ vec4 pixel_bleed(vec4 pixel_in, vec2 co, sampler2D in_texture, float sourcesize_
    #endif
    
    if (SAT_BLEED_PAL == 1.0) {
-         return vec4 ( pixel_bleed_side_PAL(pixel_in.rgb, co, size, in_texture, sourcesize_z), pixel_in.a);
+         return vec4 ( pixel_bleed_side_PAL(pixel_in.rgba, co, size, in_texture, sourcesize_z), pixel_in.a);
    } else {
          return vec4 ( pixel_bleed_side_NTSC(pixel_in.rgba, co, size, in_texture, sourcesize_z), pixel_in.a);
    }
 }
 
 void main() {
+   
+   if (fps_halver_is_skipped_frame())
+      return;
+   
    vec4 pixel_out;
 
    pixel_out = texture(upscale_pass, vTexCoord);
@@ -279,9 +275,8 @@ void main() {
    // between the two.
    
    //bleed
-   if (DO_SAT_BLEED > 0.0)
+   if (DO_SAT_BLEED > 0.5)
       pixel_out = pixel_bleed(pixel_out, vTexCoord, upscale_pass, params.OriginalSize.z*0.5);
-
 
    //pixel_out.rgb = dotc(upscale_pass, vTexCoord, params.OriginalSize, mat3_RGB2YIQ, mat3_YIQ2RGB);
    if (DOT_C > 0.0) {
@@ -298,19 +293,17 @@ void main() {
 
 
    
-   //gamma-in
-   pixel_out.rgb = max(vec3(0.0), pixel_out.rgb);  //<-- before powing make sure everything is over 0.0
+
+   pixel_out.rgb = max(vec3(0.0), pixel_out.rgb);  //make sure everything is over 0.0
+
    
-   pixel_out.rgb = pow(pixel_out.rgb, vec3(IN_GLOW_GAMMA));
+   /*float waterfall = pixel_out.a;
+   float blur_radius = (1-smoothstep(0.9, 1.0, waterfall))*7.0+0.5;
+   pixel_out.rgb = blur9_x(upscale_pass, vTexCoord, params.SourceSize.xy, blur_radius).rgb;
+   */
+   pixel_out.rgb = pow(pixel_out.rgb, vec3(IN_GLOW_GAMMA)); //apply gamma in 
    
-   if (vDo_noise > 0.5 ) {
-      //Unfortunately we need to clamp to min 0.0 again after applying noise
-      //to avoid glitches on amd (and probably nvidi too).
-      //It should be possible to change the noise function to just emit positive
-      //numbers and pre-lowering the brightness of pixel_out in the very first pass tho.
-      pixel_out.rgb += get_rf_noise(vTexCoord * vDynamicSeed);
-      pixel_out.rgb = max(pixel_out.rgb, vec3(0.0));
-   }
+
    
    FragColor = pixel_out;
 }

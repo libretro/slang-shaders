@@ -2,9 +2,6 @@
 #include "config.inc"
 #include "includes/functions.include.slang"  
 
-//Dumbify glow under this treshold.
-#define GLOW_SHARP_MAX_ALTERNATE -2.0 
-
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
@@ -13,10 +10,14 @@ layout(location = 1) out float glow_h_inside_interval;
 layout(location = 2) out float vDoInGlowBias;
 layout(location = 3) out float vGlow_Gain;
 layout(location = 4) out float vSharp_sub;
+layout(location = 5) out float vDo_wtfl;
+layout(location = 6) out float vIn_glow_h_adapted;
 layout(location = 11) out float vDeltaRenderOk;
 layout(location = 12) out float vWarpedglow;
 layout(location = 13) out vec2 vWarpedglow_offsets;
 layout(location = 14) out float vDynamicSeed;
+layout(location = 15) out float vIn_glow_edge_sharpness;
+layout(location = 16) out float vIn_glow_edge_defocus_strength;
 
 void main() {
    gl_Position = global.MVP * Position;
@@ -30,8 +31,20 @@ void main() {
                             (abs(IN_GLOW_W) < GLOW_SHARP_MAX || IN_GLOW_H < GLOW_SHARP_MAX) &&
                             (DO_NTSC_ARTIFACTS + NTSC_SHOW_ARTF_MASK < 1.5)   );
    
-   glow_h_inside_interval = float(IN_GLOW_H < GLOW_SHARP_MAX  && IN_GLOW_H > GLOW_SHARP_MAX_ALTERNATE);
+   bool bDo_wtfl = (DO_WTFL > 0.9 && WTFL_SHARPNESS_Y < 3.0);
+   bool bDo_defocus = (DO_SHIFT_RGB > 0.5 && EDGE_DEFOCUS_DO_BLUR > 0.0);
    
+   vDo_wtfl = float(bDo_wtfl);
+   
+   //The following conditions are used to skip blur-x code.
+   bool bGlow_h_inside_interval = true;
+   if (IN_GLOW_H >= GLOW_SHARP_MAX) bGlow_h_inside_interval = false;             // radius falls in the allowed interval
+   if (DO_IN_GLOW < 0.5) bGlow_h_inside_interval = false;                       // Disabled if not user enabled
+   if (bDo_wtfl) bGlow_h_inside_interval = true;    //always active if need to blur the waterfalls.
+   if (bDo_defocus) bGlow_h_inside_interval = true; //always active if need to do defocusing.
+
+   glow_h_inside_interval = float( bGlow_h_inside_interval);
+
    vGlow_Gain = mix(1.0, IN_GLOW_POWER, DO_CCORRECTION);
    
   // if (IN_GLOW_H < 0.0) {
@@ -64,6 +77,36 @@ void main() {
    
    //Generate a seed that changes over time for temporal random noise
    vDynamicSeed = mod(params.FrameCount, 120.0001);
+   
+   if (EDGE_DEFOCUS_DO_BLUR*DO_SHIFT_RGB > 0.001) {
+      vIn_glow_edge_defocus_strength = EDGE_DEFOCUS_DO_BLUR;
+      //defocusing produces double scanlines, which is not the intended effect.
+      //so lower the effect when we use strong scanlines.
+         vIn_glow_edge_defocus_strength = mix(vIn_glow_edge_defocus_strength, 0.0, DO_PIXELGRID_H);
+         vIn_glow_edge_defocus_strength = max(0.0, vIn_glow_edge_defocus_strength);
+      //for legibility here, if pixelgrid is totally disabled (no scalnlines) use full defocus.
+         if (DO_PIXELGRID == 0.0) vIn_glow_edge_defocus_strength = EDGE_DEFOCUS_DO_BLUR;
+      //again, for legibility, if using HQ_DECON we can blur
+         #ifdef HQ_DECON
+            vIn_glow_edge_defocus_strength = EDGE_DEFOCUS_DO_BLUR;
+         #endif
+   } else {
+      vIn_glow_edge_defocus_strength = 0.0;
+   }
+   vIn_glow_edge_sharpness = mix(abs(in_glow_h), 0.3, vIn_glow_edge_defocus_strength);
+   //vIn_glow_edge_sharpness = max(vIn_glow_edge_sharpness, MIN_IN_GLOW_SHARP);
+   
+   vIn_glow_h_adapted = abs(IN_GLOW_H);
+   
+   
+  
+   //when not using glow/blur, set it to 7.0 if needed by fake transparency blurring
+   if (vDo_wtfl == 1.0  && DO_IN_GLOW == 0.0) 
+      vIn_glow_h_adapted = 7.0;
+   //..same goes for defocus
+   if (vIn_glow_edge_defocus_strength > 0.0 && DO_IN_GLOW == 0.0)
+      vIn_glow_h_adapted = 7.0;
+ 
 }
 
 
@@ -74,12 +117,17 @@ layout(location = 1) in float glow_h_inside_interval;
 layout(location = 2) in float vDoInGlowBias;
 layout(location = 3) in float vGlow_Gain;
 layout(location = 4) in float vSharp_sub;
+layout(location = 5) in float vDo_wtfl;
+layout(location = 6) in float vIn_glow_h_adapted;
 layout(location = 11) in float vDeltaRenderOk;
 layout(location = 12) in float vWarpedglow;
 layout(location = 13) in vec2 vWarpedglow_offsets;
 layout(location = 14) in float vDynamicSeed;
+layout(location = 15) in float vIn_glow_edge_sharpness;
+layout(location = 16) in float vIn_glow_edge_defocus_strength;
 
 layout(location = 0) out vec4 FragColor;
+layout(set = 0, binding = 4) uniform sampler2D upscale_pass;
 layout(set = 0, binding = 5) uniform sampler2D shift_and_bleed_pass;
 layout(set = 0, binding = 6) uniform sampler2D Source;
 layout(set = 0, binding = 8) uniform sampler2D colortools_and_ntsc_passFeedback;
@@ -95,24 +143,34 @@ vec3 glow_blur_bias(sampler2D source_tex, vec2 co, vec3 pixel_glowed, float bias
    return mix(proper_glow, pixel_glowed, max(0.0, bias));            
 }
 
-vec3 blur_select_wrap(sampler2D texture_in, vec2 co, vec4 sourcesize, float sharpness, bool use_gauss) {
+vec3 blur_select_wrap(sampler2D texture_in, vec2 co, vec4 sourcesize, float sharpness, bool use_gauss, float sharp_sub) {
    if (use_gauss)
       return blur9_y(texture_in, co, sourcesize.xy, sharpness);
          else
-      return blur9_y_box(texture_in, co, sourcesize.xy, sharpness, vSharp_sub);      
+      return blur9_y_box(texture_in, co, sourcesize.xy, sharpness, sharp_sub);      
 }
 
 
+vec3 apply_noise_to(vec3 c) {
+   c.rgb = pow(c.rgb, vec3(1/IN_GLOW_GAMMA));
+      c += get_rf_noise(vTexCoord * vDynamicSeed);
+      c = max(c, vec3(0.0));
+   c.rgb = pow(c.rgb, vec3(IN_GLOW_GAMMA));
+   return c;
+}
+
 
 void main() { 
-
+   
+   if (fps_halver_is_skipped_frame())
+      return;
 
    //Delta render?
    float DR_changed = 1.0;
-   if (DELTA_RENDER == 1.0) {
+   if (delta_render_enabled() == 1.0) {
      if (vDeltaRenderOk == 1.0) {
          DR_changed = delta_render_changed(colortools_and_ntsc_passFeedback, colortools_and_ntsc_pass,
-                                                      vTexCoord, DELTA_RENDER_CHECK_AREA);
+                                                      vTexCoord, delta_render_get_check_area() );
 
      }
    }
@@ -120,7 +178,7 @@ void main() {
    //Warped Glow Y
    //The result will be stored in the alpha channel to be consumed by final pass.
    float warpedglow_y = eps; //see down note: (**)
-   if (SKIP_WARPEDGLOW_Y == 0.0) {
+   #ifndef SKIP_WARPEDGLOW_Y
       if (DO_IN_GLOW == 1.0) {
          float max_inLum = max( 1.0, DO_CCORRECTION * apply_contrast_brightness(1.0, CONTRAST, BRIGHTNESS));
          vec3 gy = texture(Source, vTexCoord + vWarpedglow_offsets).rgb
@@ -132,12 +190,12 @@ void main() {
                                  
          warpedglow_y = pow( abs(warpedglow_y), IN_GLOW_WARPSHARP_GAMMA) * sign(warpedglow_y);
          
-         warpedglow_y = warpedglow_y *  vWarpedglow + (eps * DELTA_RENDER); 
+         warpedglow_y = warpedglow_y *  vWarpedglow + (eps * delta_render_enabled()); 
                                  
          // (**) This eps is needed because we multiplex deltarender and warpedglow and we NEED to have dr = 0.0 (and not a positive number)
          //To reuse old pixels, only that way (using 0.0 to reuse pixels) multiplexing is possible.
       }
-   }
+   #endif
 
 
    float warpedglow_or_DR = warpedglow_y;
@@ -145,35 +203,69 @@ void main() {
       warpedglow_or_DR = DR_changed;
    }
    
-   if (DO_IN_GLOW == 0.0) {
-      FragColor = vec4(texture(shift_and_bleed_pass, vTexCoord).rgb * vGlow_Gain, warpedglow_or_DR);
+   //Passthrough
+   if (glow_h_inside_interval == 0.0) {
+      vec3 glowed_passthrough = texture(Source, vTexCoord).rgb;
+      glowed_passthrough*=vGlow_Gain;
+      glowed_passthrough = clip_to_white_maybe(glowed_passthrough.rgb);      
+      if (DO_RF_NOISE < -0.5)
+         glowed_passthrough = apply_noise_to(glowed_passthrough);
+      
+      FragColor = vec4(glowed_passthrough, warpedglow_or_DR);
+   }
+   
+   
+   if (DO_IN_GLOW == 0.0 && WTFL_SHARPNESS_Y == 3.0 ) {
+      vec3 glowed = texture(shift_and_bleed_pass, vTexCoord).rgb * vGlow_Gain;
+      glowed = clip_to_white_maybe(glowed.rgb);      
+      FragColor = vec4(glowed, warpedglow_or_DR);
+      
+      if (DO_RF_NOISE < -0.5)
+          FragColor.rgb = apply_noise_to(FragColor.rgb);
+      
       return;
    }
 
+   float in_glow_h_adapted = vIn_glow_h_adapted;
+   
    vec3 pixel_glowed;
    
-   float IN_GLOW_H_ADAPTED = abs(IN_GLOW_H);
+   float sharp_sub_adapted = vSharp_sub;
    
-   if (DO_NTSC_ARTIFACTS == 1.0) {
-      float ntsc_artifacts = texture(shift_and_bleed_pass, vTexCoord).a;
-      //finally "add" them to the configured sharpness (-> less blur)
-      IN_GLOW_H_ADAPTED = IN_GLOW_H_ADAPTED +  ((1-ntsc_artifacts) * NTSC_ARTF_NOBLUR);
-   }
-
-   //don't allow lower values that look bad:
-   //   IN_GLOW_H_ADAPTED = max(IN_GLOW_H_ADAPTED, MIN_IN_GLOW_SHARP);
-
+   //Override Megadrive fake transparencies (like Sonic waterfalls)
+      if (vDo_wtfl == 1.0) {
+         float waterfall = texture_NEAREST_lod(colortools_and_ntsc_pass, vTexCoord, params.OriginalSize,0.0).a;
+         waterfall = unpack_21(waterfall, 1.2).y;
+         //FragColor = vec4(vec3(waterfall),0.0);return;
+         in_glow_h_adapted = mix(in_glow_h_adapted, WTFL_SHARPNESS_Y, waterfall);
+         //cancel sharp sub when doing fake transparencies blur.
+         sharp_sub_adapted = mix(sharp_sub_adapted, 1.0, waterfall );
+      }
+   
+   // Edge defocus:
+      float dist_from_edge = 1.0;
+      if (vIn_glow_edge_defocus_strength > 0.0) {
+         dist_from_edge = distance_from_edge_linear(vTexCoord, EDGE_DEFOCUS_AREA_INV);
+         
+         //never decrease blur:
+            float new_in_glow_h_adapted = mix(vIn_glow_edge_sharpness, in_glow_h_adapted,  dist_from_edge );
+            in_glow_h_adapted = min(new_in_glow_h_adapted, in_glow_h_adapted);
+            
+         //cancel sharp sub when doing defocus blur.
+         sharp_sub_adapted = mix(sharp_sub_adapted, 1.0, (1-dist_from_edge)*vIn_glow_edge_defocus_strength);
+         //FragColor = vec4(vec3(dist_from_edge), 0.0); return;
+      }
+   
    //Make it resolution independent.
-      IN_GLOW_H_ADAPTED = IN_GLOW_H_ADAPTED / NEW_SCALEMOD_Y;
+      in_glow_h_adapted = in_glow_h_adapted / NEW_SCALEMOD_Y;
 
    //Also, a little hacky adaption for when upscale_pass does not scale to 2X
       if (params.OutputSize.xy == params.OriginalSize.xy)
-         IN_GLOW_H_ADAPTED*=1.5;
+         in_glow_h_adapted*=1.5;
       
    //If over the max sharp, then just passthrough, else do the blur.
       if (glow_h_inside_interval == 1.0) {
-         pixel_glowed = blur_select_wrap(Source, vTexCoord, global.upscale_passSize, IN_GLOW_H_ADAPTED, (IN_GLOW_H >= 0.0) );
-         //pixel_glowed = blur9_y(Source, vTexCoord, params.SourceSize.xy, IN_GLOW_H_ADAPTED);
+         pixel_glowed = blur_select_wrap(Source, vTexCoord, global.upscale_passSize, in_glow_h_adapted, (IN_GLOW_H >= 0.0), sharp_sub_adapted );
       } else {
          pixel_glowed = texture(Source, vTexCoord).rgb;
       }
@@ -184,21 +276,17 @@ void main() {
    //Series of conditions to do in glow bias done in vertex shader:
       if (vDoInGlowBias == 1.0) {
          //edge defocus: the more near edge, the more the blur
-         float dist_from_edge = distance_from_edge_linear(vTexCoord, EDGE_DEFOCUS_AREA_INV);
          float in_glow_bias_faded = mix(IN_GLOW_BIAS, 1.0,  (1-dist_from_edge) *  (DO_SHIFT_RGB * EDGE_DEFOCUS_DO_BLUR ) );
-         //float in_glow_bias_faded = mix(IN_GLOW_BIAS,  1.0, (1-dist_from_edge) * (DO_SHIFT_RGB * EDGE_DEFOCUS_DO_BLUR)  );
          //FragColor = vec4(vec3(in_glow_bias_faded), 0.0);
          //return;
          pixel_glowed = glow_blur_bias(shift_and_bleed_pass, vTexCoord, pixel_glowed, in_glow_bias_faded);
       }
    
-   if (DO_RF_NOISE > 0.1) {
-      pixel_glowed += get_rf_noise(vTexCoord * vDynamicSeed);
-      pixel_glowed = max(pixel_glowed, vec3(0.0));
-   }
+   pixel_glowed = pixel_glowed * vGlow_Gain;
+   pixel_glowed = clip_to_white_maybe(pixel_glowed);
+   FragColor = vec4(pixel_glowed, warpedglow_or_DR);
    
-   
-   FragColor = vec4(pixel_glowed * vGlow_Gain, warpedglow_or_DR);
-   
+   if (DO_RF_NOISE < -0.5)
+       FragColor.rgb = apply_noise_to(FragColor.rgb);
 }
 

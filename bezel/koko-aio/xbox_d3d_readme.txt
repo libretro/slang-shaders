@@ -2,7 +2,7 @@ Unfortunately d3d10, d3d11 and d3d12 output drivera in Retroarch has some bugs p
 koko-aio from running properly or running at all.
 
 If you absolutely need to use one of those output drivers (xbox user?),
-then you NEED to open the file located in config\config-static.inc
+then you NEED to open the file located in config\config-user-optional.txt
 with a text editor and turn the line:
 
 // #define D3D_WORKAROUND

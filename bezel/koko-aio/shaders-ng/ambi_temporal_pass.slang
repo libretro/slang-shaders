@@ -287,8 +287,11 @@ vec4 pixel_ambilight(vec2 local_pre_pass_coords) {
 
 
 void main() {
-    if (DO_AMBILIGHT != 1.0)
+    if (DO_AMBILIGHT != 1.0) {
+        //set alpha to 1.0 to produce a fast switch to ambientlight.
+        FragColor = vec4(0,0,0,1);
         return;
+    }
     
     //Nvidia + flycast core + glcore goes crazy with modulo operation and instead of returning 0,1,2 0,1,2 they returns 1,2,3 1,2,3 and so on.
     //Don't check for != 0.0 here, but use != 1.0.
@@ -296,7 +299,6 @@ void main() {
     
     if ( vMod_FrameCount_FrameDivider != 1.0 ) { 
         vec4 past_sampler = texture(PastSampler, vTexCoord);
-        past_sampler = max(past_sampler, 0.0); // <- Sanitize input to avoid glitches when enabling the option runtime.
         FragColor = past_sampler;
         return;
     }

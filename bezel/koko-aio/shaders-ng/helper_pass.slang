@@ -16,12 +16,18 @@ void main() {
 	vTexCoord = TexCoord + 0.0001;
 	vIn_aspect = get_in_aspect();
 	vTexCoord_rotated_maybe = vTexCoord;
-	if (params.Rotation == 3.0) { // 270
-		vTexCoord_rotated_maybe.x = 1-vTexCoord_rotated_maybe.x;
-	} else
-	if (params.Rotation == 1.0) { // 90
-		vTexCoord_rotated_maybe.y = 1-vTexCoord_rotated_maybe.y;
-	}
+	#ifdef _HAS_ROTATION_UNIFORM
+		if (params.Rotation == 1.0) { // 90
+			vTexCoord_rotated_maybe.y = 1-vTexCoord_rotated_maybe.y;
+		} else
+		if (params.Rotation == 2.0){ // 180
+			vTexCoord_rotated_maybe = 1-vTexCoord_rotated_maybe;
+		} else
+		if (params.Rotation == 3.0) { // 270
+			vTexCoord_rotated_maybe.x = 1-vTexCoord_rotated_maybe.x;
+		}
+	#endif
+
 }
 
 #pragma stage fragment
@@ -39,6 +45,9 @@ layout(set = 0, binding = 2) uniform sampler2D monitor_body_curved;
 
 void main() {
 	
+	if (fps_halver_is_skipped_frame())
+		return;
+    
 	bool smp_range_1  = is_first_inside_rect(vTexCoord, SMP_RANGE1 );
 	
 	FragColor = vec4(0.0);
