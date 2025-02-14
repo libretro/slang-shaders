@@ -71,9 +71,9 @@
 // Valid range: 0..1
 // #define LCD_ANTIGHOSTING_CEIL 1.0
 
-// Flip mask subpixels over time, produces an intersting flicker
+// If uncommented, flips mask subpixels over time, produces an intersting flicker
 // if combined with LCD_ANTIGHOSTING
-// #define ANTIGHOSTING_FLIP_MASK 1.0
+// #define ANTIGHOSTING_FLIP_MASK
 
 ////////////////////////////////////////////////////////////////////////////
 //
