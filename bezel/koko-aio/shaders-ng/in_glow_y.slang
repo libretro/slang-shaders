@@ -162,8 +162,10 @@ vec3 apply_noise_to(vec3 c) {
 
 void main() { 
    
-   if (fps_halver_is_skipped_frame())
-      return;
+   #ifndef D3D_WORKAROUND
+      if (fps_halver_is_skipped_frame())
+         return;
+   #endif
 
    //Delta render?
    float DR_changed = 1.0;

@@ -261,10 +261,10 @@ vec4 pixel_bleed(vec4 pixel_in, vec2 co, sampler2D in_texture, float sourcesize_
 }
 
 void main() {
-   
-   if (fps_halver_is_skipped_frame())
-      return;
-   
+   #ifndef D3D_WORKAROUND
+      if (fps_halver_is_skipped_frame())
+         return;
+   #endif
    vec4 pixel_out;
 
    pixel_out = texture(upscale_pass, vTexCoord);

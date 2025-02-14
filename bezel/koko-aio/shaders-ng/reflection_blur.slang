@@ -100,8 +100,10 @@ float contrast(float col, float contrast) {
 
 void main() {
    
-   if (fps_halver_is_skipped_frame())
-      return;
+   #ifndef D3D_WORKAROUND
+      if (fps_halver_is_skipped_frame())
+         return;
+   #endif
    
    if (DO_BEZEL == 0.0) return;
    

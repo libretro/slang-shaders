@@ -36,8 +36,10 @@ layout(set = 0, binding = 4) uniform sampler2D in_glow_pass;
 
 void main() {
     
-    if (fps_halver_is_skipped_frame())
-        return;
+   #ifndef D3D_WORKAROUND
+      if (fps_halver_is_skipped_frame())
+         return;
+   #endif
     
     if (DO_HALO == 0.0 ) return;
         

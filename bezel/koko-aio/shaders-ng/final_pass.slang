@@ -1319,11 +1319,12 @@ vec2 quasirandom(vec2 n) {
 void main() {
 
     // If fps halver is active, stop processing asap
-    if (fps_halver_is_skipped_frame()) {
-        FragColor.rgb = texture(final_passFeedback, vOutputCoord).rgb ;
-        return;
-    }
-    
+    #ifndef D3D_WORKAROUND
+        if (fps_halver_is_skipped_frame()) {
+            FragColor.rgb = texture(final_passFeedback, vOutputCoord).rgb ;
+            return;
+        }
+    #endif
     
     // Initial content coords
     vec2 co_content = vTexCoord;

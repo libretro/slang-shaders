@@ -45,8 +45,10 @@ layout(set = 0, binding = 2) uniform sampler2D monitor_body_curved;
 
 void main() {
 	
-	if (fps_halver_is_skipped_frame())
-		return;
+   #ifndef D3D_WORKAROUND
+      if (fps_halver_is_skipped_frame())
+         return;
+   #endif
     
 	bool smp_range_1  = is_first_inside_rect(vTexCoord, SMP_RANGE1 );
 	

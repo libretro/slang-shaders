@@ -832,8 +832,10 @@ vec3 FxaaPixelShader(vec2 pos, sampler2D tex, vec4 sourcesize, vec4 outputsize) 
 
 void main() {
    
-   if (fps_halver_is_skipped_frame())
-      return;
+   #ifndef D3D_WORKAROUND
+      if (fps_halver_is_skipped_frame())
+         return;
+   #endif
    
    vec4 pixel_out;
    pixel_out.rgb = texture_NEAREST(colortools_and_ntsc_pass, vTexCoord, params.SourceSize).rgb;

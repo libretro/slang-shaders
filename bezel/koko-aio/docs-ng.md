@@ -13,10 +13,7 @@
 **RETROARCH OUTPUT DRIVERS** <br>
     koko-aio does not work by default on d3d12 and d3d11.<br>
     If you absolutely need it (Xbox?), you can edit the file <br>
-    config\config-static.inc <br>
-    and turn the line: <br>
-    // #define D3D_WORKAROUND <br>
-    into:<br>
+    config\config-user-optional.txt by writing in it:<br>
     #define D3D_WORKAROUND <br>
     <br>
     Vulkan ang Glcore have no problems, you can test both to see<br>

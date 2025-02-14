@@ -94,8 +94,10 @@ vec3 blur_select_wrap(sampler2D texture_in, vec2 co, vec4 sourcesize, float shar
 
 void main() { 
    
-   if (fps_halver_is_skipped_frame())
-      return;
+   #ifndef D3D_WORKAROUND
+      if (fps_halver_is_skipped_frame())
+         return;
+   #endif
    
    //Warped Glow X
    //The result will be stored in the alpha channel to be consumed by final pass.
