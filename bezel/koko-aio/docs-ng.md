@@ -734,6 +734,7 @@ However nice effects may be obtained (eg: with vector games). <br>
         -6 = 0.75 MAME rotated 1.33 games in TATE mode
         -7 = Use Core provided Aspect Ratio auto-off
         -8 = Use Core provided Aspect Ratio always on
+        -9 = Stretch to window
     Aspect Ratio Denominator:
         As long as Aspect Ratio Numerator is positive, this will
         be used as the denominator of the fraction.
@@ -861,13 +862,13 @@ To enable them, you have to edit the shader itself, save it, and reload.*
     
 **FXAA tuning:**<br>
     To change fxaa behaviour, in file config-user-optional.txt, turn the line: <br>
-    ```// #define FXAA_PRESET 2.0```
+    ```// #define FXAA_PRESET 2```
     <br>into: <br>
-    ```#define FXAA_PRESET 2.0```<br>
-    You can use values from 1.0 to 5.0, where:<br>
-    1.0 is the fastest one, limited effect.<br>
-    2.0 is the default one, still fast, good for low resolution content.<br>
-    3.0 to 5.0 smooth the image more and are good for high resolution games.<br>
+    ```#define FXAA_PRESET 2```<br>
+    You can use values from 1 to 5, where:<br>
+    1 is the fastest one, limited effect.<br>
+    2 is the default one, still fast, good for low resolution content.<br>
+    3 to 5 smooth the image more and are good for high resolution games.<br>
     
 **LCD antighosting:** (not compatible with delta render)<br>
     LCD displays often suffer from high pixel refresh times <br>
@@ -878,8 +879,6 @@ To enable them, you have to edit the shader itself, save it, and reload.*
     ```// #define LCD_ANTIGHOSTING 0.5```
     <br>into: <br>
     ```#define LCD_ANTIGHOSTING 0.5```<br><br>
-
-    
     
 **Conditional FPS Halver**<br>
     *[Warning:] Only on retroarch > 1.19.1*<br>

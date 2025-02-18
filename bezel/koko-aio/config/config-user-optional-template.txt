@@ -73,7 +73,7 @@
 
 // If uncommented, flips mask subpixels over time, produces an intersting flicker
 // if combined with LCD_ANTIGHOSTING
-// #define ANTIGHOSTING_FLIP_MASK
+// #define ANTIGHOSTING_FLIP_MASK    
 
 ////////////////////////////////////////////////////////////////////////////
 //
