@@ -55,10 +55,10 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter shadow_offset_y "Shadow Offset Vert" 1.0 -5.0 5.0 0.5
 
 // Screen offset - [-infinity, infinity] [DEFAULT: 0]
-#pragma parameter screen_offset_x "Screen Offset Horiz" 0.0 -5.0 5.0 0.5
+#pragma parameter screen_offset_x "Screen Offset Horiz" -1.0 -5.0 5.0 0.5
 
 // Screen offset - [-infinity, infinity] [DEFAULT: 0]
-#pragma parameter screen_offset_y "Screen Offset Vert" 0.0 -5.0 5.0 0.5    
+#pragma parameter screen_offset_y "Screen Offset Vert" -1.0 -5.0 5.0 0.5    
 
 ///////////////////////////////////////////////////////////////////////////
 //                                                                       //
