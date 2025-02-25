@@ -482,15 +482,18 @@ vec2 get_scaled_coords_for_bezel(vec2 co, float isrotated) {
 }
 
 vec3 fn_pixel_nightify(vec3 color_in, float strength, vec3 ambilight) {
+       
     if (strength == 0.0) return color_in;
 
-    color_in = clamp(color_in, 0.0, 1.0);
+    //color_in = clamp(color_in, 0.0, 1.0); //useless because bezel_color already clamps and fg/bg images are in 0-1 range.
 
     vec3 color_hsv_in = rgb2hsv(color_in);
 
     //If there is an ambientlight, then the strangth has to be lowered:
     vec3 strength_vec3 = vec3(strength - ambilight);
-    strength_vec3 = clamp(strength_vec3, 0.0,1.0);
+    strength_vec3 = clamp(strength_vec3, 0.0,1.0); //clamp under 1.0 should be useless, max(x,0.0) should suffice.
+                                                   //but cycles somehow increases, so keep clamp.
+    
     vec3 color_hsv_min = color_hsv_in;
     color_hsv_min.yz = scale_to_range_vec2(color_hsv_min.yz, -0.1, 0.1);
 
@@ -650,7 +653,6 @@ vec4 fn_pixel_grid(vec2 in_coords, vec4 pixel_in, float min_inLum, float max_inL
     //Scanlines and fake slotmask =========================================================================
         vec3 rgb_h = vec3(1.0);
         vec3 dedot_mix = vec3(0.0);
-
         //Pixelgrid: do horizontal if enabled, but skip it if user doesn't want it on interlaced content.
         //if (DO_PIXELGRID_H > 0.0 && !(PIXELGRID_INTR_DISABLE_Y==1.0 && vIsInterlaced==1.0)) { //103.1
         if (vDo_pixelgrid_h > 0.5) {
@@ -696,7 +698,7 @@ vec4 fn_pixel_grid(vec2 in_coords, vec4 pixel_in, float min_inLum, float max_inL
 
                 rgb_h = mix(vec3(1.0), rgb_h, DO_PIXELGRID_H);
                 
-                rgb_h = clamp(rgb_h, 0.0,1.0);
+                rgb_h = clamp(rgb_h, 0.0,1.0); //max(x,0.0) should suffice, but somehos produces slower code.
                 
                 #ifdef HQ_DECON
                     // Y Defocusing causes scanlines gaps to blend, so mix the scanlines mask with the original color
@@ -780,11 +782,24 @@ vec4 fn_pixel_grid(vec2 in_coords, vec4 pixel_in, float min_inLum, float max_inL
                 // return vec4(mask_shape);
 
             //Get per channel input luminance by clamping pixel_in and applying hmask
-                vec3 lum = clamp(pixel_in.rgb * rgb_w, 0.0, 1.0);
+                vec3 lum = clamp(pixel_in.rgb * rgb_w, 0.0, 1.0); //2 cycles less when using max or min, didn't bother.
             //Adapt the luminance effect via input parameter
                 vec3 lum_adapted = (1-lum*PIXELGRID_Y_MASK_ON_WHITE);
             //Calc final mask visibility as the minimum between tha configured visibility and luminosity effect
                 vec3 V=min( lum_adapted, vec3(PIXELGRID_Y_MASK) );
+                
+                //SlotMask de-Hive take 1: draws slotmask only on edges on dark parts. 109.45
+                //vec3 V_EVERYWHERE = V;
+                //vec3 V_JUST_EDGES =  V * (1-rgb_h);
+                //V = mix(V_EVERYWHERE, V_JUST_EDGES, pixel_in.rgb*max_inLum);
+
+                //SlotMask de-Hive Take 2: simply modulates slotmask visibility on dark colors. 109.5
+                //V=V* pow(pixel_in.rgb,vec3(SERVICE1));
+
+                //SlotMask de-Hive Take 3, takes care of phosphor height and scanlines visibility. 109.2
+                //vec3 slot_dehived = V*pow(phosphor_height,vec3(SERVICE1));
+                //V = mix(V, slot_dehived, vec3(DO_PIXELGRID_H));
+                
             //apply user visibility modifier to the mask
                 darklines_mask = 1-(mask_shape*V);
             //Try to get a more brillant/sparkling look by highering the darklines
@@ -984,7 +999,7 @@ vec3 bezel_color(float lum)  {
     //Colorize bezel frame
     vec3 col = vec3(BEZEL_R,BEZEL_G,BEZEL_B) + lum;
     float con_max = fma(0.5, BEZEL_CON, 0.5); // <<- same as: float con_max =  0.5 * BEZEL_CON + 0.5;
-    col= scale_to_range_vec3(col, -con_max+1, con_max);  
+    col= scale_to_range_vec3(col, -con_max+1, con_max); 
     return clamp(col,0.0,1.0);
 }
 
@@ -1230,8 +1245,7 @@ vec4 fn_pixel_bezel(vec2 coords_for_bezel, vec2 coords_for_mirror, float nightif
     //Exit if the bezel is completely transparent (the tube)
         if (bezel_in.a == 0.0) return vec4(0.0);
 
-    //Colorize the bezel (bezel.r expresses the luminance)
-        vec3 bezel_out = bezel_color(bezel_in.r);
+
 
     float lut_specular = bezel_in.g * BEZEL_SPCL_STRENGTH;
     float reflection_modifier = 0.0;
@@ -1283,7 +1297,10 @@ vec4 fn_pixel_bezel(vec2 coords_for_bezel, vec2 coords_for_mirror, float nightif
             vec3 ambi_over_bezel = (AMBI_OVER_BEZEL * pixel_ambilight) *
                                    (bezel_in.a * ambi_colorize_shade) *
                                    (1-reflection_modifier) ;
-
+                                   
+    //Colorize the bezel (bezel.r expresses the luminance)
+        vec3 bezel_out = bezel_color(bezel_in.r);
+    //Nightify the bezel
         bezel_out.rgb = fn_pixel_nightify(bezel_out.rgb, nightify_str, ambi_over_bezel )   ;
 
 
@@ -1342,11 +1359,6 @@ void main() {
     }
 
     
-    // Mirror/reflection coords need to be calculated here, before geom override, but after curvature.
-    // It is still not perfect but a reasonable tradeoff by now.
-    vec2 co_mirror = zoom(co_content, 1/BEZEL_REFL_ZOOMOUT_ROOM);
-        
-    
     // canvas_busy is a mask used to save GPU cycles by skipping already processed areas.
     // It is initialized as inner/outer border mask. 
     float canvas_busy = 0.0;
@@ -1355,7 +1367,10 @@ void main() {
     } else {
         canvas_busy = float(is_first_inside_rect(co_content, RECT01));
     }
-        
+
+    // Mirror/reflection coords need to be calculated here, before geom override, but after curvature.
+    // It is still not perfect but a reasonable tradeoff by now.
+    vec2 co_mirror = zoom(co_content, 1/BEZEL_REFL_ZOOMOUT_ROOM);
 
     // Apply other content coords modifiers
     if (DO_GAME_GEOM_OVERRIDE == 1.0)
@@ -1535,7 +1550,9 @@ void main() {
         //   that have a low alpha channel, that part would be black.
         if (DO_AMBILIGHT + AMBI_BG_IMAGE_BLEND_MODE == 2.0) {
             float ambi_mask = create_ambi_colorize_shade(co_bezel);
-            float alpha_selective = clamp(  pixel_fg_image.a + (1- canvas_busy) , 0.0, 1.0); 
+            float alpha_selective = clamp( pixel_fg_image.a + (1-canvas_busy) , 0.0, 1.0); 
+            //float alpha_selective = min( pixel_fg_image.a + (1-canvas_busy) , 1.0);  //<- this is enough, but cycles won't scale.
+            
             pixel_out = mix(pixel_out, pixel_fg_image.rgb, alpha_selective );
             float fg_image_alpha_adapted = max(pixel_fg_image.a - AMBI_BG_IMAGE_FORCE, 0.0);
             vec3 light = pixel_ambi.rgb * (ambi_mask) * (1- fg_image_alpha_adapted);

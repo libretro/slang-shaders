@@ -58,6 +58,11 @@ float max3(vec3 v){
 	return max((v.x,v.y),v.z);
 }
 
+float min3(vec3 v){
+	return max((v.x,v.y),v.z);
+}
+
+
 vec3 mask_enhance(vec3 mask, vec3 ref, float factor) {
  return mix( factor * (mask - 0.5) + 0.5, mask, abs(ref - vec3(0.5)*2) );
 }
@@ -758,9 +763,11 @@ float get_in_aspect() {
 	//Handle cases when core aspect cannot be retrived and just return 4/3.
 	float OriginalAspectRotated = 1.33333;
 	float StretchedAspect = global.FinalViewportSize.x/global.FinalViewportSize.y;
+	if ( is_rotated() )
+		StretchedAspect = global.FinalViewportSize.y/global.FinalViewportSize.x;
+	
 	#ifdef _HAS_ORIGINALASPECT_UNIFORMS
 		OriginalAspectRotated = global.OriginalAspectRotated;
-		StretchedAspect = global.FinalViewportSize.y/global.FinalViewportSize.x;
 	#endif
 	
 	if (ASPECT_X == -7) {

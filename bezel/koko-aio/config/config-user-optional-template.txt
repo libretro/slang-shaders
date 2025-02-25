@@ -103,10 +103,10 @@
 // #define HQ_DECON
 
 // FXAA tuning: select an FXAA preset here.
-// 1.0 is a dumb and fast preset, 2.0 is still fast, but rounder (the default)
+// 1 is a dumb and fast preset, 2 is still fast, but rounder (the default)
 // Higher numbers are useful to antialias high resolution content.
-// Allowed values from 1.0 to 5.0.
-// #define FXAA_PRESET 2.0
+// Allowed values from 1 to 5
+// #define FXAA_PRESET 2
 
 // Disallow texture wrapping as a shader parameter, comment to gain some performance.
 // But in that case the wrap mode has to be defined in the preset file.
