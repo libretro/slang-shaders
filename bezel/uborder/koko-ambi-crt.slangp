@@ -1,0 +1,12 @@
+# If you want to use another content-shader preset, change the reference path here.
+# Uncomment JUST ONE reference shader otherwise Retroarch will fail to load the shader!
+
+# CRT Shaders
+#reference "base_presets/koko-ambi/koko-ambi-crt-nobody.slangp"
+//#reference "base_presets/koko-ambi/koko-ambi-crt-geom.slangp"
+//#reference "base_presets/koko-ambi/koko-ambi-crt-aperture.slangp"
+//#reference "base_presets/koko-ambi/koko-ambi-crt-easymode.slangp"
+//#reference "base_presets/koko-ambi/koko-ambi-crt-gdv-mini.slangp"
+//#reference "base_presets/koko-ambi/koko-ambi-crt-guest-advanced.slangp"
+//#reference "base_presets/koko-ambi/koko-ambi-crt-lottes.slangp"
+

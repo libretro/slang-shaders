@@ -1,8 +1,18 @@
 // Rotation functions borrowed from fishku
 // See misc/shaders/input_transform/input_transform.inc for copyright and other information.
 // This path will be used eventually.
-#include "../../../../../misc/shaders/input_transform/rotation.inc"
-//#include "rotation.inc"
+//#include "../../../../../misc/shaders/input_transform/rotation.inc"
+#include "rotation.inc"
+#include "uborder_bezel_reflections_user_static_params.inc"
+
+
+#ifdef KEEP_BORDER_ASPECT_RATIO
+    #define RECALC_BORDER_ASPECT_RATIO                                                           \
+        vec2 border_size    = textureSize(BORDER, 0);                                            \
+        float border_aspect = border_size.y/border_size.x;                                       \
+        float asp_ratio     = border_aspect/aspect.y;                                            \
+        vec2 b_uv = border_uv * (asp_ratio > 1.0 ? vec2(1.0, 1.0/asp_ratio) : vec2(asp_ratio, 1.0)) + 0.5.xx;
+#endif
 
 float is_rotated  = mod(ub_Rotation, 2.);
 
@@ -20,7 +30,6 @@ vec2  int_scale         = OutputRotSize.xy * OriginalRotInvSize.y * rot_ar / int
 vec2  float_scale       = OutputRotSize.x * global.fr_zoom * all_zoom / (OutputRotSize.xy  * 100.0
                           * rot_ar);
 
-vec2 fr_scale = get_rotated_size(mix(float_scale, 1.0/int_scale, global.fr_i_scaling), ub_Rotation);
 
 vec2 overscan         = 100.0/(get_rotated_size(vec2(global.h_overscan_x, global.h_overscan_y), ub_Rotation));
 vec2 content_position = 2.0*get_rotated_vector(vec2(global.h_angle_x, global.h_angle_y), ub_Rotation);
@@ -30,6 +39,16 @@ vec2  max_size     = vec2(sqrt( (r2 - 2.0) / (r2 - 1.0) ), 1.0);
 vec2  aspect       = vec2(1.0, OutputRotSize.y/OutputRotSize.x);
 float cornersize   = global.h_cornersize * min(aspect.x, aspect.y);
 float cornersmooth = global.h_cornersmooth/100.0;
+vec2  tilt         = global.h_radius*sin(get_rotated_vector(vec2(global.h_x_tilt, global.h_y_tilt), ub_Rotation));
+
+
+#ifdef KEEP_BORDER_ASPECT_RATIO
+    float b_aux = ASPECT_TEX_Y/(aspect.y*ASPECT_TEX_X);
+    float border_to_output = max(b_aux, 1.0/b_aux);
+    vec2 fr_scale = border_to_output*get_rotated_size(mix(float_scale, 1.0/int_scale, global.fr_i_scaling), ub_Rotation);
+#else
+    vec2 fr_scale = get_rotated_size(mix(float_scale, 1.0/int_scale, global.fr_i_scaling), ub_Rotation);
+#endif
 
 const vec2  middle = 0.5.xx;
 
@@ -54,22 +73,39 @@ float h_corner(vec2 uv)
 
 vec2 h_warp(vec2 uv)
 {
-    vec2 cylinder = sqrt( (r2 - uv.x*uv.x) / (r2 - 2.0*uv.x*uv.x) )*max_size;
-    float sphere   =  sqrt( (r2 - 1.0) / ( r2 - dot(uv, uv) ) );
+    vec2 uvt = uv + tilt;
+
+    vec2 cylinder = sqrt( (r2 - uvt.x*uvt.x) / (r2 - 2.0*uvt.x*uvt.x) )*max_size;
+    float sphere   =  sqrt( (r2 - 1.0) / ( r2 - dot(uvt, uvt) ) );
 
     uv *= mix(sphere.xx, cylinder, global.h_shape);
 
     return uv;
 }
+/*
+vec4 h_warp(vec4 uv)
+{
+    vec4 uvt = uv + vec4(tilt, 0.0.xx);
+
+    vec4 cylinder = sqrt( (r4 - uvt.xz*uvt.xz) / (r4 - 2.0*uvt.xz*uvt.xz) )*max_size;
+    vec2 sphere   = sqrt( (r4 - 1.0) / ( r4 - vec2(dot(uvt.xy, uvt.xy), dot(uvt.zw, uvt.zw)) ) );
+
+    uv.xy *= mix(sphere.xx, cylinder.xy, global.h_shape);
+    uv.zw *= mix(sphere.yy, cylinder.zw, global.h_shape2);
+
+    return uv;
+}
+*/
 
 #ifdef USE_BEZEL_REFLECTIONS_COMMON
 
-#define BLVL(c) max(abs(c), 1e-2)  // Black Level for Arcade Vector Games
+#define BLVL(c) max(abs(c), 2e-2)  // Black Level for Arcade Vector Games
 #define FIX(c)  max(abs(c), 1e-5);
 #define PI 3.141592653589
 
-#define R_BLUR_ITER 5
 #define R_BLUR_SIZE 0.02
+
+vec2  bz_center   = get_rotated_vector(vec2(global.bz_center_x, global.bz_center_y)/100.0, ub_Rotation);
 
 float shine_size = (1.0 - global.bz_shine_size  );
 float amb_size   = (1.0 - global.bz_ambient_size);

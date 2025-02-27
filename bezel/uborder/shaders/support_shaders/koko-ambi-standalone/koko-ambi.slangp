@@ -1,0 +1,32 @@
+// Released under: See LICENSE.txt
+ 
+ 
+shaders = 4
+       shader0 = 0_koko-ambi-stock.slang
+filter_linear0 = true
+ mipmap_input0 = true
+   scale_type0 = source
+        scale0 = 1.0
+    wrap_mode0 = "clamp_to_border"
+
+       shader1 = 1_koko-ambi-avglum.slang
+        alias1 = avglum_pass
+filter_linear1 = true
+ mipmap_input1 = true
+   scale_type1 = source
+        scale1 = 1.0
+    wrap_mode1 = "mirrored_repeat"
+
+       shader2 = 2_koko-ambi-temporal.slang
+        alias2 = ambi_temporal_pass
+filter_linear2 = true
+ mipmap_input2 = false
+   scale_type2 = viewport
+        scale2 = 0.1
+float_framebuffer2 = true
+
+       shader3 = 3_koko-ambi-viewport.slang
+filter_linear3 = true
+ mipmap_input3 = false
+   scale_type3 = viewport
+        scale3 = 1.0
