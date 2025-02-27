@@ -14,11 +14,16 @@ scale_x0 = "1.000000"
 scale_type_y0 = "viewport"
 scale_y0 = "1.000000"
 
-textures = "BORDER"
+textures = "BORDER;LAYER2"
 BORDER = "../../textures/borders/default.jpg"
 BORDER_linear = "true"
 BORDER_wrap_mode = "clamp_to_border"
 BORDER_mipmap = "false"
+
+LAYER2 = "../../textures/borders/default_layer2.png"
+LAYER2_linear = "true"
+LAYER2_wrap_mode = "clamp_to_border"
+LAYER2_mipmap = "false"
 
 fr_zoom = "37.800000"
 fr_i_scaling_fac = "0.000000"
