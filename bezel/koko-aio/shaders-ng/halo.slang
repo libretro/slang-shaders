@@ -90,8 +90,9 @@ vec3 get_mask_helper() {
     vec3 mask_helper_pixel_in = texture(in_glow_pass, vTexCoord).rgb;
 
     vec3 mask_helper = (mask_helper_pixel_in.rgb - 1) / vMask_helper_gain ;
-    mask_helper = clamp(mask_helper, vec3(0.0), vec3(300.0));
-    mask_helper = pow( mask_helper, vec3(vMask_helper_gamma_compensation) );
+    mask_helper = max(mask_helper, vec3(0.0));
+    
+    mask_helper = pow(mask_helper, vec3(vMask_helper_gamma_compensation));
     
     return mask_helper * vMask_helper_max_power;
 }
