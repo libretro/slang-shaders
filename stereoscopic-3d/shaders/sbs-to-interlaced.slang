@@ -15,11 +15,11 @@ layout(push_constant) uniform Push
 	float split_dist, interlace_zoom, interlace_eye_swap, aspect_mod, crop, vert;
 } params;
 
-#pragma parameter split_dist "Eye Separation" 0.25 -1.0 1.0 0.001
+//#pragma parameter split_dist "Eye Separation" 0.25 -1.0 1.0 0.001
 #pragma parameter interlace_zoom "Interlace Zoom" 1.0 0.0 2.0 0.01
 #pragma parameter interlace_eye_swap "Interlace Swap Eyes" 0.0 0.0 1.0 1.0
-#pragma parameter aspect_mod "Aspect Mod" 1.0 0.0 2.0 0.01
-#pragma parameter crop "Crop Edges" 0.5 0.0 1.0 0.005
+#pragma parameter aspect_mod "Aspect Mod" 1.0 0.0 2.0 0.50
+//#pragma parameter crop "Crop Edges" 0.5 0.0 1.0 0.005
 #pragma parameter vert "Swap Interlacing Direction (horz / vert)" 1.0 0.0 1.0 1.0
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -38,8 +38,8 @@ void main()
 {
    gl_Position = global.MVP * Position;
    vTexCoord = (((TexCoord - 0.5) * params.interlace_zoom) * vec2(params.aspect_mod, 1.0)) + 0.5;
-   leftCoord = vTexCoord + vec2(params.split_dist, 0.);
-   rightCoord = vTexCoord - vec2(params.split_dist, 0.);
+   leftCoord = vTexCoord + vec2(0.25, 0.);
+   rightCoord = vTexCoord - vec2(0.25, 0.);
 }
 
 #pragma stage fragment
@@ -55,10 +55,10 @@ void main()
    float fragcoord = mix(gl_FragCoord.x, gl_FragCoord.y, params.vert);
    vec2 oscillator = vec2(mod(fragcoord, 2.0), mod(fragcoord + 1.0, 2.0));
    vec4 left_eye = texture(Source, leftCoord);
-   left_eye = (leftCoord.x < 1.0 && leftCoord.x > params.crop)
+   left_eye = (leftCoord.x < 1.0)
       ? left_eye : vec4(0.0);
    vec4 right_eye = texture(Source, rightCoord);
-   right_eye = (rightCoord.x > 0.0 && rightCoord.x < params.crop)
+   right_eye = (rightCoord.x > 0.0)
       ? right_eye : vec4(0.0);
    bool eye_picker = mix(oscillator.x, oscillator.y, params.interlace_eye_swap) > 1.0;
    FragColor = (eye_picker) ? left_eye : right_eye;
