@@ -8,11 +8,11 @@
 
 layout(push_constant) uniform Push
 {
-	vec4 SourceSize;
-	vec4 OriginalSize;
-	vec4 OutputSize;
-	uint FrameCount;
-	float anaglyph_selector, eye_swap, red;
+   vec4 SourceSize;
+   vec4 OriginalSize;
+   vec4 OutputSize;
+   uint FrameCount;
+   float anaglyph_selector, eye_swap, red;
 } params;
 
 #pragma parameter anaglyph_selector "Anaglyph Mode" 0.0 0.0 2.0 1.0
@@ -22,7 +22,7 @@ bool eye = bool(params.eye_swap);
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
-	mat4 MVP;
+   mat4 MVP;
 } global;
 
 #pragma stage vertex
@@ -47,21 +47,21 @@ void main()
    float frame1, frame2;
    
    if (params.anaglyph_selector == 0.0){ //red/blue and red/cyan
-	   frame1 = img.r;
-	   frame2 = max(img.g, img.b);
-	}
+      frame1 = img.r;
+      frame2 = max(img.g, img.b);
+   }
    else if (params.anaglyph_selector == 1.0){ //red/green and green/magenta
-	   frame1 = max(img.r, img.b);
-	   frame2 = img.g;
-	}
+      frame1 = max(img.r, img.b);
+      frame2 = img.g;
+   }
    else { //yellow and blue
-	   frame1 = max(img.r, img.g);
-	   frame2 = img.b;
-	}
+      frame1 = max(img.r, img.g);
+      frame2 = img.b;
+   }
 	
-	bool oscillator = bool(mod(floor(vTexCoord.y * params.OutputSize.y), 2.0));
-	oscillator = (eye) ? oscillator : !(oscillator);
-	float comb = (oscillator) ? frame1 : frame2;
-	float palette = mix(comb, 0.0, params.red);
+   bool oscillator = bool(mod(floor(vTexCoord.y * params.OutputSize.y), 2.0));
+   oscillator = (eye) ? oscillator : !(oscillator);
+   float comb = (oscillator) ? frame1 : frame2;
+   float palette = mix(comb, 0.0, params.red);
    FragColor = vec4(comb, palette, palette, 1.0);
 }
