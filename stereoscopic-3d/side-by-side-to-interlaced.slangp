@@ -1,4 +1,7 @@
-shaders = 1
+shaders = 2
 
-shader0 = shaders/sbs-to-interlaced.slang
-scale_type0 = source
+shader0 = ../stock.slang
+scale_type0 = viewport
+
+shader1 = shaders/sbs-to-interlaced.slang
+scale_type1 = source

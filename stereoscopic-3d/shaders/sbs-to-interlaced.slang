@@ -16,11 +16,11 @@ layout(push_constant) uniform Push
 } params;
 
 #pragma parameter split_dist "Eye Separation" 0.25 -1.0 1.0 0.001
-#pragma parameter interlace_zoom "Interlace Zoom" 0.8 0.0 2.0 0.01
+#pragma parameter interlace_zoom "Interlace Zoom" 1.0 0.0 2.0 0.01
 #pragma parameter interlace_eye_swap "Interlace Swap Eyes" 0.0 0.0 1.0 1.0
-#pragma parameter aspect_mod "Aspect Mod" 0.55 0.0 2.0 0.01
+#pragma parameter aspect_mod "Aspect Mod" 1.0 0.0 2.0 0.01
 #pragma parameter crop "Crop Edges" 0.5 0.0 1.0 0.005
-#pragma parameter vert "Swap Interlacing Direction (horz / vert)" 0.0 0.0 1.0 1.0
+#pragma parameter vert "Swap Interlacing Direction (horz / vert)" 1.0 0.0 1.0 1.0
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -53,7 +53,7 @@ void main()
 {
    // interlaced displays want every other physical pixel, so use gl_FragCoord
    float fragcoord = mix(gl_FragCoord.x, gl_FragCoord.y, params.vert);
-   vec2 oscillator = vec2(mod(fragcoord.x, 2.0), mod(fragcoord.x + 1.0, 2.0));
+   vec2 oscillator = vec2(mod(fragcoord, 2.0), mod(fragcoord + 1.0, 2.0));
    vec4 left_eye = texture(Source, leftCoord);
    left_eye = (leftCoord.x < 1.0 && leftCoord.x > params.crop)
       ? left_eye : vec4(0.0);
