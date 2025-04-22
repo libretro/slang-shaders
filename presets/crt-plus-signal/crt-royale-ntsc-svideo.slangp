@@ -230,6 +230,8 @@ scale_type15 = "viewport"
 mipmap_input15 = "true"
 texture_wrap_mode15 = "clamp_to_edge"
 
-parameters = "quality"
-quality = 0.0
+#parameters = "quality"
+#quality = 0.0
+cust_artifacting = "0.000000"
+cust_fringing = "0.000000"
 
