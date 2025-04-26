@@ -1,8 +1,7 @@
 shaders = "6"
 
-shader0 = "shaders/support/linearize.slang"
+shader0 = "shaders/support/luma.slang"
 filter_linear0 = false
-srgb_framebuffer0 = true
 scale_type0 = "source"
 scale0 = "1.000000"
 alias0 = XbrSource
@@ -35,6 +34,11 @@ srgb_framebuffer4 = true
 scale_type4 = "viewport"
 scale4 = "1.000000"
 
-shader5 = "shaders/support/delinearize.slang"
-filter_linear5 = false
+shader5 = "shaders/support/deblur-fast.slang"
+filter_linear5 = linear
+wrap_mode5 = clamp_to_edge
+
+XBR_EDGE_STR_P0 = "3.000000"
+XBR_EDGE_STR_P1 = "3.000000"
+XBR_EDGE_STR_P2 = "3.000000"
 

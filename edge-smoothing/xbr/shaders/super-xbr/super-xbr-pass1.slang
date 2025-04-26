@@ -175,38 +175,24 @@ void main()
 	vec2 g1 = (fp.x>0.5) ? vec2(0.5/params.SourceSize.x, 0.0) : vec2(0.0, 0.5/params.SourceSize.y);
 	vec2 g2 = (fp.x>0.5) ? vec2(0.0, 0.5/params.SourceSize.y) : vec2(0.5/params.SourceSize.x, 0.0);
 
-	vec3 P0 = texture(XbrSource,	vTexCoord -3.0*g1        ).xyz;
-	vec3 P1 = texture(Source,	vTexCoord         -3.0*g2).xyz;
-	vec3 P2 = texture(Source,	vTexCoord         +3.0*g2).xyz;
-	vec3 P3 = texture(XbrSource,	vTexCoord +3.0*g1        ).xyz;
+	vec4 P0_ = texture(XbrSource,	vTexCoord -3.0*g1        ); vec3 P0 = P0_.rgb; float p0 = P0_.a;
+	vec4 P1_ = texture(Source,	vTexCoord         -3.0*g2); vec3 P1 = P1_.rgb; float p1 = P1_.a;
+	vec4 P2_ = texture(Source,	vTexCoord         +3.0*g2); vec3 P2 = P2_.rgb; float p2 = P2_.a;
+	vec4 P3_ = texture(XbrSource,	vTexCoord +3.0*g1        ); vec3 P3 = P3_.rgb; float p3 = P3_.a;
 
-	vec3  B = texture(Source,	vTexCoord -2.0*g1     -g2).xyz;
-	vec3  C = texture(XbrSource,	vTexCoord     -g1 -2.0*g2).xyz;
-	vec3  D = texture(Source,	vTexCoord -2.0*g1     +g2).xyz;
-	vec3  E = texture(XbrSource,	vTexCoord     -g1        ).xyz;
-	vec3  F = texture(Source,	vTexCoord             -g2).xyz;
-	vec3  G = texture(XbrSource,	vTexCoord     -g1 +2.0*g2).xyz;
-	vec3  H = texture(Source,	vTexCoord             +g2).xyz;
-	vec3  I = texture(XbrSource,	vTexCoord     +g1        ).xyz;
+	vec4  B_ = texture(Source,	vTexCoord -2.0*g1     -g2); vec3  B =  B_.rgb; float  b =  B_.a;
+	vec4  C_ = texture(XbrSource,	vTexCoord     -g1 -2.0*g2); vec3  C =  C_.rgb; float  c =  C_.a;
+	vec4  D_ = texture(Source,	vTexCoord -2.0*g1     +g2); vec3  D =  D_.rgb; float  d =  D_.a;
+	vec4  E_ = texture(XbrSource,	vTexCoord     -g1        ); vec3  E =  E_.rgb; float  e =  E_.a;
+	vec4  F_ = texture(Source,	vTexCoord             -g2); vec3  F =  F_.rgb; float  f =  F_.a;
+	vec4  G_ = texture(XbrSource,	vTexCoord     -g1 +2.0*g2); vec3  G =  G_.rgb; float  g =  G_.a;
+	vec4  H_ = texture(Source,	vTexCoord             +g2); vec3  H =  H_.rgb; float  h =  H_.a;
+	vec4  I_ = texture(XbrSource,	vTexCoord     +g1        ); vec3  I =  I_.rgb; float  i =  I_.a;
 
-	vec3 F4 = texture(XbrSource,	vTexCoord     +g1 -2.0*g2).xyz;
-	vec3 I4 = texture(Source,	vTexCoord +2.0*g1     -g2).xyz;
-	vec3 H5 = texture(XbrSource,	vTexCoord     +g1 +2.0*g2).xyz;
-	vec3 I5 = texture(Source,	vTexCoord +2.0*g1     +g2).xyz;
-
-	float b = RGBtoYUV( B );
-	float c = RGBtoYUV( C );
-	float d = RGBtoYUV( D );
-	float e = RGBtoYUV( E );
-	float f = RGBtoYUV( F );
-	float g = RGBtoYUV( G );
-	float h = RGBtoYUV( H );
-	float i = RGBtoYUV( I );
-
-	float i4 = RGBtoYUV( I4 ); float p0 = RGBtoYUV( P0 );
-	float i5 = RGBtoYUV( I5 ); float p1 = RGBtoYUV( P1 );
-	float h5 = RGBtoYUV( H5 ); float p2 = RGBtoYUV( P2 );
-	float f4 = RGBtoYUV( F4 ); float p3 = RGBtoYUV( P3 );
+	vec4 F4_ = texture(XbrSource,	vTexCoord     +g1 -2.0*g2); vec3 F4 = F4_.rgb; float f4 = F4_.a;
+	vec4 I4_ = texture(Source,	vTexCoord +2.0*g1     -g2); vec3 I4 = I4_.rgb; float i4 = I4_.a;
+	vec4 H5_ = texture(XbrSource,	vTexCoord     +g1 +2.0*g2); vec3 H5 = H5_.rgb; float h5 = H5_.a;
+	vec4 I5_ = texture(Source,	vTexCoord +2.0*g1     +g2); vec3 I5 = I5_.rgb; float i5 = I5_.a;
 
 	/* Calc edgeness in diagonal directions. */
 	float d_edge  = (d_wd( wp1, wp2, wp3, wp4, wp5, wp6, d, b, g, e, c, p2, h, f, p1, h5, i, f4, i5, i4 ) - d_wd( wp1, wp2, wp3, wp4, wp5, wp6, c, f4, b, f, i4, p0, e, i, p3, d, h, i5, g, h5 ));
@@ -253,6 +239,6 @@ void main()
 	vec3 max_sample = max4( E, F, H, I );
 	color = clamp(color, min_sample, max_sample);
 	
-	FragColor = vec4(color, 1.0);
+	FragColor = vec4(color, RGBtoYUV(color));
 	}
 }
