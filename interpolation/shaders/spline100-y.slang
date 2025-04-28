@@ -1,11 +1,11 @@
 #version 450
 
 /*
-	Spline36 - PassY - by Hyllian 2022
+	Spline100 - PassY - by Hyllian 2025
 
-	Adapted from bicubic source shaders below.
+	Spline100 math sources: https://web.archive.org/web/20181105121248/http://www.geocities.jp/w_bean17/spline.html
 
-	Spline36 math sources: https://www.panotools.org/dersch/interpolator/interpolator.html
+	Adapted from bicubic xbmx source shaders below.
 */
 
 
@@ -39,12 +39,12 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float S36_ANTI_RINGING;
+	float S100_ANTI_RINGING;
 } params;
 
-#pragma parameter S36_ANTI_RINGING "Spline36 Anti-Ringing [ OFF | ON ]" 1.0 0.0 1.0 1.0
+#pragma parameter S100_ANTI_RINGING "Spline100 Anti-Ringing [ OFF | ON ]" 1.0 0.0 1.0 1.0
 
-#define S36_ANTI_RINGING params.S36_ANTI_RINGING
+#define S100_ANTI_RINGING params.S100_ANTI_RINGING
 
 #define AR_STRENGTH 0.8
 
@@ -78,21 +78,35 @@ float weight(float x)
 	{
 		return
 			(
-			 ( (   13.0/11.0  * x - 453.0/ 209.0 ) * x -   3.0/ 209.0  ) * x + 1.0
+			 ( (    61.0/51.0  * x -  9893.0/4505.0 ) * x -  1.0/13515.0  ) * x + 1.0
 			);
 	}
 	else if ((x >= 1.0) && (x < 2.0))
 	{
 		return
 			(
-			 ( ( -  6.0/11.0  * x + 612.0/ 209.0 ) * x - 1038.0/ 209.0  ) * x + 540.0/209.0
+			 ( (   -10.0/17.0  * x +  2844.0/901.0 ) * x -  4822.0/901.0  ) * x + 2508.0/901.0
 			);
 	}
 	else if ((x >= 2.0) && (x < 3.0))
 	{
 		return
 			(
-			 ( (    1.0/11.0  * x -  159.0/ 209.0 ) * x +  434.0/ 209.0  ) * x - 384.0/209.0
+			 ( (     8.0/51.0  * x -   5912.0/4505.0 ) * x +  9680.0/2703.0  ) * x - 14272.0/4505.0
+			);
+	}
+	else if ((x >= 3.0) && (x < 4.0))
+	{
+		return
+			(
+			 ( (   -2.0/51.0  * x +  2008.0/4505.0 ) * x -  22558.0/13515.0  ) * x + 9256.0/4505.0
+			);
+	}
+	else if ((x >= 4.0) && (x < 5.0))
+	{
+		return
+			(
+			 ( (      1.0/153.0  * x -    423.0/4505.0 ) * x +   18098.0/40545.0  ) * x -  632.0/901.0
 			);
 	}
 	else
@@ -101,10 +115,10 @@ float weight(float x)
 	}
 }
 
-
-vec3 weight3(float x)
+vec4 weight4(float x)
 {
-	return vec3(
+	return vec4(
+			weight(x - 2.0),
 			weight(x - 1.0),
 			weight(x),
 			weight(x + 1.0)
@@ -119,9 +133,9 @@ void main()
     vec2 pos = vTexCoord.xy + ps * vec2(0.0, 0.5);
     vec2 fp = fract(pos / ps);
 
-    vec2 xystart = (-2.5 - fp) * ps + pos;
+    vec2 xystart = (-4.5 - fp) * ps + pos;
 
-    float xpos = xystart.x  + ps.x * 3.0;
+    float xpos = xystart.x  + ps.x * 5.0;
 
     vec3 C0 = texture(Source, vec2(xpos, xystart.y             )).rgb;
     vec3 C1 = texture(Source, vec2(xpos, xystart.y + ps.y      )).rgb;
@@ -129,25 +143,27 @@ void main()
     vec3 C3 = texture(Source, vec2(xpos, xystart.y + ps.y * 3.0)).rgb;
     vec3 C4 = texture(Source, vec2(xpos, xystart.y + ps.y * 4.0)).rgb;
     vec3 C5 = texture(Source, vec2(xpos, xystart.y + ps.y * 5.0)).rgb; 
+    vec3 C6 = texture(Source, vec2(xpos, xystart.y + ps.y * 6.0)).rgb; 
+    vec3 C7 = texture(Source, vec2(xpos, xystart.y + ps.y * 7.0)).rgb; 
+    vec3 C8 = texture(Source, vec2(xpos, xystart.y + ps.y * 8.0)).rgb; 
+    vec3 C9 = texture(Source, vec2(xpos, xystart.y + ps.y * 9.0)).rgb; 
 
-    vec3 w1 = weight3(-1.0 - fp.y);
-    vec3 w2 = weight3( 2.0 - fp.y);
+    vec4 w1 = weight4(-2.0 - fp.y);
+    vec4 w2 = weight4( 2.0 - fp.y);
+    vec4 w3 = weight4( 6.0 - fp.y);
 
-    float sum   = dot(  w1, vec3(1)) + dot(  w2, vec3(1));
-    w1   /= sum;
-    w2   /= sum;
+    vec3 color = mat4x3( C0, C1, C2, C3 ) * w1 + mat4x3( C4, C5, C6, C7 ) * w2 + mat2x3( C8, C9 ) * w3.xy;
 
-    vec3 color = mat3( C0, C1, C2 ) * w1 +  mat3( C3, C4, C5) * w2;
+    color /= dot(w1+w2+vec4(w3.xy, 0.0, 0.0), vec4(1));
 
     // Anti-ringing
-    if (S36_ANTI_RINGING == 1.0)
+    if (S100_ANTI_RINGING == 1.0)
     {
         vec3 aux = color;
-        vec3 min_sample = min(min(C1, C2), min(C3, C4));
-        vec3 max_sample = max(max(C1, C2), max(C3, C4));
+        vec3 min_sample = min(min(C3, C4), min(C5, C6));
+        vec3 max_sample = max(max(C3, C4), max(C5, C6));
         color = clamp(color, min_sample, max_sample);
-        color = mix(aux, color, AR_STRENGTH*step(0.0, (C1-C2)*(C3-C4)));
-
+        color = mix(aux, color, step(0.0, (C3-C4)*(C5-C6)));
     }
 
     FragColor = vec4(color, 1.0);

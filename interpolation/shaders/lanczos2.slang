@@ -2,6 +2,9 @@
 
 /*
 
+   The old lanczos16, which is indeed lanczos2 (2-taps, 4x4=16 texture lookups).
+
+
    Copyright (C) 2007 guest(r) - guest.r@gmail.com
 
    This program is free software; you can redistribute it and/or
@@ -33,17 +36,17 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	mat4 MVP;
 } global;
 
-const float     floatpi     = 1.5707963267948966192313216916398;
+const float     halfpi     = 1.5707963267948966192313216916398;
 const float         pi     = 3.1415926535897932384626433832795;
 
 vec4 l(vec4 x)
 {
    vec4 res;
 
-   res.x = (x.x==0.0) ?  (pi*floatpi)  :  sin(x.x*floatpi)*sin(x.x*pi)/(x.x*x.x);
-   res.y = (x.y==0.0) ?  (pi*floatpi)  :  sin(x.y*floatpi)*sin(x.y*pi)/(x.y*x.y);
-   res.z = (x.z==0.0) ?  (pi*floatpi)  :  sin(x.z*floatpi)*sin(x.z*pi)/(x.z*x.z);
-   res.w = (x.w==0.0) ?  (pi*floatpi)  :  sin(x.w*floatpi)*sin(x.w*pi)/(x.w*x.w);
+   res.x = (x.x==0.0) ?  (pi*halfpi)  :  sin(x.x*halfpi)*sin(x.x*pi)/(x.x*x.x);
+   res.y = (x.y==0.0) ?  (pi*halfpi)  :  sin(x.y*halfpi)*sin(x.y*pi)/(x.y*x.y);
+   res.z = (x.z==0.0) ?  (pi*halfpi)  :  sin(x.z*halfpi)*sin(x.z*pi)/(x.z*x.z);
+   res.w = (x.w==0.0) ?  (pi*halfpi)  :  sin(x.w*halfpi)*sin(x.w*pi)/(x.w*x.w);
 
    return res;
 }
@@ -111,11 +114,13 @@ void main()
    vec3 c23 = texture(Source, t4.xw).xyz;
    vec3 c33 = texture(Source, t4.yw).xyz;
 
-   pix[0] = mat4x3(-c00, c10, c20, -c30) * abcd;
+   pix[0] = mat4x3( c00, c10, c20,  c30) * abcd;
    pix[1] = mat4x3( c01, c11, c21,  c31) * abcd;
    pix[2] = mat4x3( c02, c12, c22,  c32) * abcd;
-   pix[3] = mat4x3(-c03, c13, c23, -c33) * abcd;
+   pix[3] = mat4x3( c03, c13, c23,  c33) * abcd;
 
    // final sum and weight normalization
-   FragColor = vec4(((pix * pqrs))/((dot(abcd, vec4(1.0))*dot(pqrs, vec4(1.0)))-2*(abcd.x+abcd.w)*(pqrs.x+pqrs.w)),1);
+//   FragColor = vec4(((pix * pqrs))/((dot(abcd, vec4(1.0))*dot(pqrs, vec4(1.0)))-2*(abcd.x+abcd.w)*(pqrs.x+pqrs.w)),1);
+   FragColor = vec4( (pix * pqrs) / ( dot(abcd, vec4(1.0)) * dot(pqrs, vec4(1.0)) ), 1.0);
+
 }

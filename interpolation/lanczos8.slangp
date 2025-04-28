@@ -1,6 +1,6 @@
 shaders = 2
 
-shader0 = shaders/spline16-x.slang
+shader0 = shaders/lanczos8-x.slang
 filter_linear0 = false
 scale_type_x0 = viewport
 scale_type_y0 = source
@@ -8,8 +8,7 @@ scale0 = 1.0
 wrap_mode0 = "clamp_to_edge"
 float_framebuffer0 = "true"
 
-shader1 = shaders/spline16-y.slang
+shader1 = shaders/lanczos8-y.slang
 filter_linear1 = false
 wrap_mode1 = "clamp_to_edge"
 scale_type1 = viewport
-
