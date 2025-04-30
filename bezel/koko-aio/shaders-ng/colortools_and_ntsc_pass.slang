@@ -22,11 +22,11 @@
    //#define DEBUG_COLOR_CALIB
    //#define DEBUG_TIME_FADE
    //#define DEBUG_SOLID_COLOR
-   #define DEBUG_STEP_GRADIENT
+   //#define DEBUG_STEP_GRADIENT
    //#define DEBUG_STEP_GRADIENT_V
    //#define DEBUG_BLINK
    //#define DEBUG_BLINK_CIRCLE
-   //#define DEBUG_WALKING_CIRCLE
+   #define DEBUG_WALKING_CIRCLE
    //#define DEBUG_COLORWHEEL
    
    
@@ -39,6 +39,13 @@
 
 //Clamp min and max artifacts loop to unroll loops? Can't observe any speed increase (maybe a bit lower)
 //#define UNROLL_N
+
+#ifndef D3D_WORKAROUND
+   #define FPS_ESTIMATE_PASS halo_pre_gamma_passFeedback
+#else
+   #define FPS_ESTIMATE_PASS Original
+#endif
+
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -204,6 +211,7 @@ layout(set = 0, binding = 3) uniform sampler2D colortools_and_ntsc_passFeedback;
 #ifndef D3D_WORKAROUND
 layout(set = 0, binding = 4) uniform sampler2D avglum_passFeedback;
 #endif
+layout(set = 0, binding = 5) uniform sampler2D FPS_ESTIMATE_PASS;
 
 vec3 colorwheel(vec2 uv){
    float timeoffset = params.FrameCount / 120.0;
@@ -752,6 +760,29 @@ void main() {
    if (DO_WTFL == 1.0) {
       waterfall = get_waterfall();
    }
+   
+   
+
+
+   // Past field interlace emulation:
+   if (is_interlaced()) {
+      if ( !low_fps(FPS_ESTIMATE_PASS) ) {
+         
+         bool even_line = line_is_even(vTexCoord.y, params.OriginalSize.y);
+         vec3 past =  texture(colortools_and_ntsc_passFeedback, vTexCoord).rgb;
+         vec3 mymix = mix(pixel_out.rgb, past, PIXELGRID_INTR_PAST_FIELD);
+         
+         if (frame_is_even()) {
+            if (!even_line)
+               pixel_out.rgb = mymix;
+         } else {
+            if (even_line)
+               pixel_out.rgb = mymix;
+         }
+      }
+   }
+
+   
    FragColor = vec4(pixel_out, waterfall);
 }
 

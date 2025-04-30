@@ -183,6 +183,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 	float AUTOCROP_STEADINESS;
 	
 	float DO_BACKDROP; 
+	float BACKDROP_JUST_TUBE; 
 	float BACKDROP_OFFX;
 	float BACKDROP_OFFY;
 	float BACKDROP_ZOOM;
@@ -209,7 +210,6 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 	float PIXELGRID_OVERMASK;
 	float DO_PIXELGRID_W;
 	float DO_PIXELGRID_H;
-	float PIXELGRID_H_ANTIMOIRE;
 	float PIXELGRID_COREY_FAKE_SCAN;
 	float PIXELGRID_DOUBLESCAN;
 	float PIXELGRID_MIN_H;
@@ -222,8 +222,10 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 	float IN_GLOW_SPREAD_SHARPNESS;
 
 	float PIXELGRID_MUL_X;
-													
+	float PIXELGRID_TVL_X;													
+	
 	float PIXELGRID_OFFSET_CORE;
+	float PIXELGRID_OFFSET_CORE_W;
 	float PIXELGRID_NO_INTERBLEED_W;
 	float PIXELGRID_NO_INTERBLEED_H;
 	float PIXELGRID_H_DEDOT;
@@ -231,7 +233,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 	float PIXELGRID_INTR_FLICK_MODE;
 	float PIXELGRID_INTR_FLICK_POWR;
 	float PIXELGRID_INTR_DISABLE_Y;
-	
+	float PIXELGRID_INTR_PAST_FIELD;
 	
 	float PIXELGRID_DECON_R_H;
 	float PIXELGRID_DECON_G_H;
@@ -241,6 +243,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 	float PIXELGRID_Y_MASK_ON_WHITE;
 	float PIXELGRID_Y_MASK_HEIGHT;
 	float PIXELGRID_Y_MASK_OFFSET;
+	float PIXELGRID_Y_MASK_OFFSET_DEHIVE;
 	float PIXELGRID_Y_MASK_STEEP;
 	float PIXELGRID_Y_MASK_COORDS;
 	float PIXELGRID_Y_MASK_SHIFT;
@@ -307,6 +310,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 	float CLIP_TO_WHITE;
 	
 	float OriginalFPS;
+	uint FrameTimeDelta;
 	
 	float DO_WTFL;
 	float WTFL_SHARPNESS_X;
@@ -429,7 +433,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter IN_GLOW_H                "        Sharp Y (neg=use BOX unsharp)"		2.5	-2.0 7.0 0.05
 #pragma parameter IN_GLOW_WARPSHARP_X      "        Warped glow (X)"               0.4  0.0 2.0 0.01
 #pragma parameter IN_GLOW_WARPSHARP_Y      "        Warped glow (Y)"               0.4  0.0  2.0 0.01
-#pragma parameter IN_GLOW_WARPSHARP_GAMMA  "        Warped glow dynamics (1.0=linear)"  1.0  0.01 1.0 0.01
+#pragma parameter IN_GLOW_WARPSHARP_GAMMA  "        Warped glow dynamics (1.0=linear)"  1.0  0.2 1.0 0.01
 #pragma parameter LABEL0011 " " 0.0 0.0 0.0 1.0
 
 
@@ -441,12 +445,13 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 
 #pragma parameter LABEL_INTERLACE           "★ Hi-resolution scanlines behaviour" 1.0 1.0 1.0 0.0
 #pragma parameter MIN_LINES_INTERLACED      "    . Consider Hi-Resolution above # lines (0=never):"		380.0 	0.0 1024 1.0
-#pragma parameter PIXELGRID_INTR_DISABLE_Y  "    . Hi-Res scanlines type (read docs):"   -1.0 -2.0 2.0 1.0
+#pragma parameter PIXELGRID_INTR_PAST_FIELD "    . Real interlacing (display previous field)"    0.0 0.0 1.0 0.1
+#pragma parameter PIXELGRID_INTR_DISABLE_Y  "    . Hi-Res scanlines type (read docs):"           -1.0 -2.0 2.0 1.0
 #pragma parameter LABEL0036                 "      (-2: Faker-Interlaced, -1: Fake-Interlaced)"          0.0 0.0 0.0 1.0
 #pragma parameter LABEL0037                 "      ( 0: Interlaced, 1: No scanlines, 2: Don't interlace)" 0.0 0.0 0.0 1.0
 #pragma parameter PIXELGRID_INTR_GAMMA_ADJ  "    . Interlaced brighness push (less is more, not for OLEDs)" 0.9 0.5 1.0 0.01
 #pragma parameter PIXELGRID_INTR_FLICK_MODE "    . Scanlines flicker (0=off,1=on,2=if Hi-Res)"			2.0 	0.0 2.0 1.0
-#pragma parameter PIXELGRID_INTR_FLICK_POWR "        . Flicker power"		  		0.12 	0.0 8.0 0.01
+#pragma parameter PIXELGRID_INTR_FLICK_POWR "        . Flicker power"		  		0.20 	0.0 8.0 0.01
 
 #pragma parameter LABEL0014 " " 0.0 0.0 0.0 1.0
 
@@ -463,11 +468,11 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter PIXELGRID_MAX_H           "         . Phosphors height Max"           0.6 0.05 1.0 0.05
 
 #pragma parameter PIXELGRID_GAMMA_H         "         . Phosphors height min->max gamma:"	4.2 1.0 8.00 0.1
-#pragma parameter PIXELGRID_NO_INTERBLEED_H	"         . Inter line extra steepness (1.0 to disable)"	1.0 1.0 11.0 0.1
-#pragma parameter PIXELGRID_H_ANTIMOIRE     "         . Anti-moire sweet spot (disables Y deconvergence)"  0.0 0.0 1.0 0.01
-#pragma parameter PIXELGRID_OFFSET_CORE     "         . Slotmask(fake) offset (not with anti-moire) " 0.0 0.0 1.0 0.01
-#pragma parameter PIXELGRID_DECON_R_H       "         . Deconvergence Y: R phosphor" 0.0 -1.6 1.6 0.1
-#pragma parameter PIXELGRID_DECON_G_H       "         . Deconvergence Y: G phosphor" 0.0 -1.6 1.6 0.1
+#pragma parameter PIXELGRID_NO_INTERBLEED_H	  "         . Inter line extra steepness (1.0 to disable)"	1.0 1.0 11.0 0.1
+#pragma parameter PIXELGRID_OFFSET_CORE       "         . Slotmask(fake) offset" 0.0 0.0 1.0 0.01
+#pragma parameter PIXELGRID_OFFSET_CORE_W     "           . Slotmask(fake) width override (0=no override)"  0.0 0.0 4.0 1.0
+#pragma parameter PIXELGRID_DECON_R_H         "         . Deconvergence Y: R phosphor" 0.0 -1.6 1.6 0.1
+#pragma parameter PIXELGRID_DECON_G_H         "         . Deconvergence Y: G phosphor" 0.0 -1.6 1.6 0.1
 #pragma parameter PIXELGRID_DECON_B_H       "         . Deconvergence Y: B phosphor" 0.0   -1.6 1.6 0.1
 #pragma parameter PIXELGRID_H_DEDOT			"         . Dedot mask between scanlines (use only if needed!)"	0.0 0.0 2.0 0.1
 
@@ -477,6 +482,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter DO_PIXELGRID_W     "    ★ Horizontal mask (0 to disable)"    	1.0 0.0 1.0 0.01
 #pragma parameter PIXELGRID_SIZE_W   "       . Resolution: (core or screen)"	1.0 0.0 1.0 1.0
 #pragma parameter PIXELGRID_MUL_X    "       . Cell size multiplier x (neg=divider):"	1.0 -8.0 8.0 0.125
+#pragma parameter PIXELGRID_TVL_X    "       . TVL: core resolution only. >0 overrrides previous."	0.0 0.0 2048.0 5.0
 #pragma parameter PIXELGRID_H_PRST   "       . Mask type preset (0: for manual)"  3.0 0.0 9.0 1.0
 #pragma parameter LABEL0038          "         1:gm 2:gmx 3:rgb 4:rgbx 5:rbg 6:rbgx 7:wx 8:rgxb 9:wwx"  0.0 0.0 0.0 1.0
 #pragma parameter PIXELGRID_H_COUNT  "           . 0: Phosphors+gap count (mask size)"	3.0 1.0 4.0  1.0
@@ -489,14 +495,15 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter PIXELGRID_BASAL_GRID  "      . Black level of the unexcided phosphor grid"	0.0 0.0 10.0 0.01
 #pragma parameter LABEL0017 " " 0.0 0.0 0.0 1.0
 
-#pragma parameter PIXELGRID_Y_MASK           "      ★ Vertical cell Mask (aperturegrille/slotmask)"	0.5 0.0 1.0 0.05
-#pragma parameter PIXELGRID_Y_MASK_COORDS    "           . Resolution: (core or screen)"	1.0 0.0 1.0 1.0
-#pragma parameter PIXELGRID_Y_MASK_HEIGHT    "           . Height divider (neg = multiplier):"	0.5 -8.0 8.0 0.125
-#pragma parameter PIXELGRID_Y_MASK_OFFSET    "           . Even/odd Y offset (slotmask)"	1.0 0.0 1.0 1.0
-#pragma parameter PIXELGRID_Y_MASK_SHIFT     "           . Vertical shift (neg = auto)"	-0.01 -0.01 1.0 0.01
-#pragma parameter PIXELGRID_Y_MASK_STEEP     "           . Steepness"	2.0 1.0 30.0 1.0
-#pragma parameter PIXELGRID_Y_MASK_ON_WHITE  "           . Fadeout under light"	0.5 0.0 2.0 0.01
-#pragma parameter PIXELGRID_Y_SPARK          "           . Sparkling look punch"	0.0 0.0 8.0 0.1
+#pragma parameter PIXELGRID_Y_MASK               "      ★ Vertical cell Mask (aperturegrille/slotmask)"	0.5 0.0 1.0 0.05
+#pragma parameter PIXELGRID_Y_MASK_COORDS        "           . Resolution: (core or screen)"	1.0 0.0 1.0 1.0
+#pragma parameter PIXELGRID_Y_MASK_HEIGHT        "           . Height divider (neg = multiplier):"	0.5 -8.0 8.0 0.125
+#pragma parameter PIXELGRID_Y_MASK_OFFSET        "           . Even/odd Y offset (slotmask)"	1.0 0.0 1.0 1.0
+#pragma parameter PIXELGRID_Y_MASK_OFFSET_DEHIVE "           . Clears ''hives'' patterns (slotmask)"	0.00 0.00 4.0 0.1
+#pragma parameter PIXELGRID_Y_MASK_SHIFT         "           . Vertical shift (neg = auto)"	-0.01 -0.01 1.0 0.01
+#pragma parameter PIXELGRID_Y_MASK_STEEP         "           . Steepness"	2.0 1.0 30.0 1.0
+#pragma parameter PIXELGRID_Y_MASK_ON_WHITE      "           . Fadeout under light"	0.5 0.0 2.0 0.01
+#pragma parameter PIXELGRID_Y_SPARK              "           . Sparkling look punch"	0.0 0.0 8.0 0.1
 
 #pragma parameter LABEL0018 " " 0.0 0.0 0.0 1.0
 
@@ -559,7 +566,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter DO_CURVATURE	     "★ Curvature/Corners/Edges enable? (cu) ==>"			0.0   0.0 1.0 1.0
 #pragma parameter GEOM_WARP_X        "        Warp X"				0.28   0.0 6.0 0.01
 #pragma parameter GEOM_WARP_Y        "        Warp Y"				0.32   0.0 6.0 0.01
-#pragma parameter GEOM_CORNER_SIZE   "        Corners radius"			0.005  0.002 0.1 0.001
+#pragma parameter GEOM_CORNER_SIZE   "        Corners radius"			0.008 0.002 0.1 0.001
 #pragma parameter GEOM_CORNER_SMOOTH "        Edges sharpness"			200.0 50.0 1000.0 10.0
 #pragma parameter LABEL0023 " " 0.0 0.0 0.0 1.0
 
@@ -590,6 +597,15 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter GLOBAL_ZOOM	 "        Zoom"					1.2   0.0  3.0    0.0005
 #pragma parameter LABEL0029 " " 0.0 0.0 0.0 1.0
 
+
+//Backdrop image
+#pragma parameter DO_BACKDROP		 "★ Mid Overlay image (backdrop, scratches) enable? ==>"	0.0  0.0  1.0   0.05
+#pragma parameter BACKDROP_JUST_TUBE "        Display only on content"						0.0  0.0  1.0     1.0
+#pragma parameter BACKDROP_OFFX		 "        Shift Overlay image over X axis"				0.0  -1.0  1.0    0.0005
+#pragma parameter BACKDROP_OFFY 	 "        Shift Overlay image over Y axis"				0.0  -1.0  1.0    0.0005
+#pragma parameter BACKDROP_ZOOM 	 "        Zoom Overlay image"					 		1.0  -1.0  3.0    0.0005
+#pragma parameter LABEL0026 " " 0.0 0.0 0.0 1.0
+
 //Background Image
 #pragma parameter DO_BG_IMAGE	     "★ Back/Foreground image enable? (ba) ==>"				 0.0  0.0  1.0     1.0
 #pragma parameter LABEL0039     "   !! RetroArch aspect needs to be set to Full"	 0.0 0.0 0.0 1.0
@@ -601,13 +617,6 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter BG_IMAGE_NIGHTIFY  "      Nightify image"                                 0.0   0.0  1.0    0.1
 #pragma parameter BG_IMAGE_WRAP_MODE "      Wrap mode: default, clamp to border, edge, repeat" 0.0  0.0    3.0    1.0
 #pragma parameter LABEL0025 " " 0.0 0.0 0.0 1.0
-
-//Backdrop image
-#pragma parameter DO_BACKDROP		"★ Backdrop mirrored image enable? ==>"		 0.0  0.0  1.0     1.0
-#pragma parameter BACKDROP_OFFX		"        Shift backdrop over X axis"				 0.0  -1.0  1.0    0.0005
-#pragma parameter BACKDROP_OFFY 	"        Shift backdrop over Y axis"				 0.0  -1.0  1.0    0.0005
-#pragma parameter BACKDROP_ZOOM 	"        Zoom backdrop"					 1.0  -1.0  3.0    0.0005
-#pragma parameter LABEL0026 " " 0.0 0.0 0.0 1.0
 
 
 //Back leds

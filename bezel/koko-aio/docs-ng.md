@@ -259,6 +259,10 @@ However nice effects may be obtained (eg: with vector games). <br>
         A value of 1.0 means that it will always consider game hi-res.
         With values > 1.0, it will consider a frame as Hi-resolution if the lines number is above the configured value.
 
+    Real interlacing:
+        This convert progressive input to interlaced one.
+        And will display previous odd/even lines alternating on even/odd frames.
+    
     Hi-Res scanlines type
        -1: Use a number of scanlines that perfectly fits the screen, a good glitches/moire free tradeoff.
        -2: As above, but tighter (~1.5x), another good glitches/moire free tradeoff.
@@ -292,7 +296,7 @@ However nice effects may be obtained (eg: with vector games). <br>
     
     Overmask (1.0 = neutral):
         Values > 1.0 give a gritty/gariny look to the whole mask.
-          It may cause moiree if combined with curvature, dedot, or sparkling look punch.
+          It may cause moire if combined with curvature, dedot, or sparkling look punch.
         Values < 1.0 tend to nullify the whole mask effect.
         
         
@@ -329,20 +333,22 @@ However nice effects may be obtained (eg: with vector games). <br>
             I observed that a value of 0.17 does a good job for low-res games rendered at 1080p height.
             Any value > 0.0 disables the, following functions: Slotmask(fake) and Deconvergence Y
         Slotmask(fake) offset(*):
-            This will cause every cell to be vertically shifted by the configured amount to
-            emulate a slotmask phosphors layout.
+            This will cause every triad to be vertically shifted by the configured amount to
+            fake a slotmask phosphors layout.
             It is true that for accurate reproduction of them, slotmasks are commonly emulated
-            at screen size, but this causes, on low resolution displays, weird artifacts,
-            primarily when using curvature and when you try to draw scanlines -and- slotmasks.
+            at screen size, but on low resolution displays this may cause weird artifacts.
             Here there is an added value given by the fact that the shift itself
-            can be relative to not only to the screen pixel height, but to game pixel height. (**)
+            can be made relative to game pixel height. (**)
             By selecting Y resolution=0 (so core coordinates**) and enabling this slotmask offset,
             you will have a staggered scanline.
             This allows you to not drawing a scanline -and- a slotmask, but to draw a "slotmasked"
             scanline.
-            While this does not exist at all in crt technology, it greatly mitigates the artifacts
-            just explained while producing a fairly convincing effect, very similar to a screen
-            with visible scanlines and visible slotmask.
+            While this does not exist at all in crt technology, it greatly mitigates the afromentioned
+            artifacts, and produces a fairly convincing scanlined+slotmasked effect.
+        Slotmask(fake) width override (0=no override)
+            The previous effect staggers scanlines at "triad width interval", but here you can alter
+            that interval.
+            Setting an interval of 1.0 can be used to hide moire patterns.
         Deconvergence Y: R,G,B phosphor" 
             This emulates Y deconvergence on phosphor level rather than on image level as seen in
             the previous deconvergence section.
@@ -360,13 +366,24 @@ However nice effects may be obtained (eg: with vector games). <br>
             0: Phosphors width will be relative to the pixel width of the core (game).
             1: Phosphors width will be relative to the pixel width of the screen.
         Cell size multiplier x (neg=divider):
-            Multiply (or divide if the parameter is < 0) the mask (cell) size by a factor.
-            As stated(**), the size may be relative to screen or core, this allow you to
-            "zoom" the cell horizontally and can be useful if you have an HiDPI screen.
-            For example, you may choose to use screen sized masks and zoom them by a factor
-            of 2 or 3 to make room for phosphors and see them visually grow in width.
-            Likewise, you can use core/game(**) sized masks and divide them by a factor
-            if they appear too big.
+            Multiplies (or divide if the parameter is < 0) the phosphors width by a factor.
+            As stated(**), the width may be relative to screen or core.
+            For example, you may choose to use screen relative width and enlarge phosphors
+            by 2 or 3 to allow them to visually grow in width as signel gets stronger/brighter.
+            Likewise, you can use core/game(**) sized masks to emulate LCD screens as seen in
+            handhelds consoles.
+        TVL: core resolution only. >0 overrrides previous
+            If you use core resolution and this parameter is not 0.0,
+            the phosphor width will be computed so that the screen will
+            contain the specified rgb triads amount.
+            Using core resolution means that the triads will follow the
+            screen curvature, hence possibly exposing moire artifacts at higher TVLs.
+            To mitigate that, it is advised to set a proper
+            "Phosphor width min" value.
+            Tests shows that on a 1080p screen you can easilly target a typical of mid-range consumer TVs
+            with a TVL of 410, provided that you set minimum phosphor width of at least 30
+            and a phosphor width min->max less than 5.0.
+
         Mask type preset:
             You can have the shader generate a preconfigured mask for you:
             1:gm 2:gmx 3:rgb 4:rgbx 5:rbg 6:rbgx 7:wx 8:rgxb 9:wwx
@@ -423,6 +440,9 @@ However nice effects may be obtained (eg: with vector games). <br>
             You can draw slotmasks at screen coordinates to emulate real crts or choose to paint
             them at core coordinates to have a more defined slotmask
             ...if you like slotmasks so much :-)
+        Clears "hives" patterns (slotmask)
+            When using steep/high visible slotmasks alongside visible scanlines, there could be
+            weird hive-like patterns on screen. Use this function to hide them.
         Vertical shift (neg = auto):
             This parameter allows you to move the whole vertical mask along the Y axis.
             * When used with core resolution(*1) and integer divider/multiplier(*2), it is useful to mitigate
@@ -605,13 +625,33 @@ However nice effects may be obtained (eg: with vector games). <br>
     
 **Global shift/zoom:**<br>
     Zoom and shift everything on screen, but background pictures.<br>
+
     
+**Mid Overlay image (backdrop, scratches):**<br>
+    Display an image over the content.<br>
+    The image used by default, picked from the "textures" shader subdirectory,<br>
+    is named: backdrop.jpg<br>
+    Of course you can use other path/names, but then you have to edit the preset <br>
+    by modifying the "backdrop =" line.<br>
+    <br>
+    You can choose to emulate a "backdrop", as seen in some old arcades which 
+    used a mirror trick to overlay the game over an high definition printed image.<br>
+    Or you can use some image representing tube glass reflections, scratches and so on.
+    
+        Shift(Zoom) Backdrop over X(Y) axis:
+            move or zoom the whole background image.
+        Display only on content (no shift/zoom)
+            Choose to display the image just over the content
+            ...that way it will be tied to the content geometry 
+            and no zoom/shift will be allowed
+    
+        
 **Backgound image:**<br>
     Draws an image on screen picked from the "textures" shader subdirectory,<br>
     named by default background_over.png and background_under.png<br>
     <br>
     Of course you can use other path/names, but then you have to edit the preset by modifying<br>
-    bg_over and/or bg_under.
+    "bg_over=" and/or "bg_under=" lines.
     <br>
     **-> It is needed that you set retroarch aspect to "Full" <-**<br>
     ( Settings, Video, Scaling, Aspect Ratio = Full )<br>
@@ -640,16 +680,6 @@ However nice effects may be obtained (eg: with vector games). <br>
         2  Clamp to edge and means that it repeats the edge color.
         3  Plain repeat without mirroring.
 
-        
-**Backdrop support:**<br>
-    Some old arcades used a mirror trick to overlay the<br>
-    game over an high definition printed image.<br>
-    The image used by default, picked from the "textures" shader subdirectory,<br>
-    is named: boothill.jpg<br>
-    
-        Shift(Zoom) Backdrop over X(Y) axis:
-            move or zoom the whole background image.
-    
         
 **Ambient light leds:**<br>
     Emulates the presence of led strips behind the monitor that lights the<br>
@@ -709,7 +739,17 @@ However nice effects may be obtained (eg: with vector games). <br>
     
 **Spot:**<br>
     Simulates external light reflected by the monitor glass.<br>
-            
+      
+**Tilt:**<br>
+    Put the bezel and the game into perspective.<br>
+    
+    Tilt along X axis:
+        Rotate the image in space
+    Fov: Modulates the field of view
+    Bezel multiplier:
+        Can be used to adjust the bezel rotation
+        in relation to the game tilt amount
+      
 **Aspect (applies to virtual screen and bezel):**<br>
     Manually forces an aspect for the virtual output screen.
     
@@ -801,19 +841,6 @@ However nice effects may be obtained (eg: with vector games). <br>
         Change the size
     
 
-**Tilt:**<br>
-    Put the bezel and the game into perspective.<br>
-    The implementation is basic, you can expect correct<br>
-    results when tilting alongside a single axis or when<br>
-    using both, but with small values.<br>
-    
-    Tilt along X axis:
-        Rotate the image in space
-    Fov: Modulates the field of view
-    Bezel multiplier:
-        Can be used to adjust the bezel rotation
-        in relation to the game tilt amount
-
 ---------------------------
         
         
@@ -821,7 +848,8 @@ However nice effects may be obtained (eg: with vector games). <br>
 ---------------------------
 
 *The following shader functionalities are disabled by default and cannot be enabled by using runtime shader parameters.<br>
-To enable them, you have to edit the shader itself, save it, and reload.*
+To enable them, you have to edit the file config-user-optional.txt (use config-user-optional-template).txt as a guide.<br>
+Changes are applied after a shader reload.*<br>
 
 ---------------------------
      
@@ -830,9 +858,7 @@ To enable them, you have to edit the shader itself, save it, and reload.*
     leading to a measurable power consumption reduction and mitigate throttling
     on mobile devices and laptops.<br>
     This feature can, however, produce artifacts in some cases.<br><br>
-    To use it, in file config-user-optional.txt, turn the line: <br>
-    ```// #define DELTA_RENDER```
-    <br>into: <br>
+    To use it, in file config-user-optional.txt, write:<br>
     ```#define DELTA_RENDER```
     
 **Delta Render configuration:**<br>
@@ -849,35 +875,33 @@ To enable them, you have to edit the shader itself, save it, and reload.*
         into account.
         Power comsumption benefits will be lower.
         
-        
 **Higher quality defocus:**<br>
     Use higher quality deconvergence by flattering rgb scanlines when <br>
     deconvergence is high and by syncing them to the deconvergence settings.<br>
     This has a measurable performance impact on lower spec GPUs.<br><br>
-    To use it, in file config-user-optional.txt, turn the line: <br>
-    ```// #define HQ_DECON```
-    <br>into: <br>
+    To use it, in file config-user-optional.txt, write:
     ```#define HQ_DECON```<br>
-
     
 **FXAA tuning:**<br>
-    To change fxaa behaviour, in file config-user-optional.txt, turn the line: <br>
-    ```// #define FXAA_PRESET 2```
-    <br>into: <br>
+    To change fxaa behaviour, in file config-user-optional.txt, write: <br>
     ```#define FXAA_PRESET 2```<br>
     You can use values from 1 to 5, where:<br>
     1 is the fastest one, limited effect.<br>
     2 is the default one, still fast, good for low resolution content.<br>
     3 to 5 smooth the image more and are good for high resolution games.<br>
-    
+
+**Halve border update:**<br>
+    You can halve the frequency at which the shader updates everything around the<br>
+    content area (eg: ambient lights, reflections) to gain some fps.<br>
+    To activate that ffeature, in config-user-optional.txt, write:<br>
+    ```#define HALVE_BORDER_UPDATE```<br>
+  
 **LCD antighosting:** (not compatible with delta render)<br>
     LCD displays often suffer from high pixel refresh times <br>
     which produces ghosting when game changes on screen.<br>
     By inducing larger color transitions, it prompts the LCD cells <br>
     to adjust their states more rapidly, thereby reducing ghosting.<br><br>
-    To use it, in file config-user-optional.txt, turn the line: <br>
-    ```// #define LCD_ANTIGHOSTING 0.5```
-    <br>into: <br>
+    To use it, in file config-user-optional.txt, write:<br>
     ```#define LCD_ANTIGHOSTING 0.5```<br><br>
     
 **Conditional FPS Halver**<br>
@@ -890,9 +914,6 @@ To enable them, you have to edit the shader itself, save it, and reload.*
     that may struggle to render shader at full speed. <br>
     Furthermore, the shader frame rate will remain capped at 30 (/25) FPS <br>
     if the core frame rate alternates between 60 (/50) and 30 (/25) FPS.<br><br>
-    To use it, in file config-user-optional.txt, turn the line: <br>
-    ```// #define FPS_HALVER```
-    <br>into: <br>
+    To use it, in file config-user-optional.txt, write:<br>
     ```#define FPS_HALVER```<br><br>
-    
     

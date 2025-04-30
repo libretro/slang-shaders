@@ -138,6 +138,11 @@
 // and avoid performance hits.
 // #define RENDER_BOGUS_FRAMES
 
+// Cores may or not update OriginalFps uniform. So you may trust it or not.
+// In case you don't, it is derived by averaging frametimes.
+// The latter is less reliable depending on the video driver behaviour, and slower.
+// #define ORIGINAL_FPS_TRUSTED
+
 ////////////////////////////////////////////////////////////////////////////
 //
 // RUNTIME PARAMETERS OVERRIDES:
@@ -247,32 +252,34 @@
 
 
 // #define MIN_LINES_INTERLACED  380.0     //     . Consider Hi-Resolution above # lines (0=never):
+// #define PIXELGRID_INTR_PAST_FIELD  0.0   //    . Real interlace (display previous field)"    0.0 0.0 1.0 0.1
 // #define PIXELGRID_INTR_DISABLE_Y  -1.0  //     . Hi-Res scanlines type (read docs):
-// #define PIXELGRID_INTR_GAMMA_ADJ 0.9    //     . Interlaced brighness push (less is more, not for OLEDs)
+// #define PIXELGRID_INTR_GAMMA_ADJ  0.9    //    . Interlaced brighness push (less is more, not for OLEDs)
 // #define PIXELGRID_INTR_FLICK_MODE  2.0  //     . Scanlines flicker (0=off,1=on,2=if Hi-Res)
-// #define PIXELGRID_INTR_FLICK_POWR  0.25 //         . Flicker power
+// #define PIXELGRID_INTR_FLICK_POWR  0.20 //        . Flicker power
 
 
 // #define DO_PIXELGRID  1.0           // ★  Low level Phosphor grid enable?
 // #define PIXELGRID_OVERMASK  1.0     //       Overmask (1.0 = neutral)
 
-// #define DO_PIXELGRID_H  1.0             //       ★ Scanlines (0 to disable)
-// #define PIXELGRID_DOUBLESCAN 0.0        //          . Double-scan low input resolutions 
-// #define PIXELGRID_COREY_FAKE_SCAN  0.0  // 
-// #define PIXELGRID_MIN_H  0.3            //          . Fake integer scanlines (-1=auto)
-// #define PIXELGRID_MAX_H  0.7            //          . Phosphors height Max
-// #define PIXELGRID_GAMMA_H  5.2          //          . Phosphors height min->max gamma:
-// #define PIXELGRID_NO_INTERBLEED_H  1.0  //          . Inter line extra steepness (1.0 to disable)
-// #define PIXELGRID_H_ANTIMOIRE  0.0      //          . Anti-moire sweet spot (disables Y deconvergence)
-// #define PIXELGRID_OFFSET_CORE  0.0      //          . Slotmask(fake) offset (not with anti-moire) 
-// #define PIXELGRID_DECON_R_H  0.0        //          . Deconvergence Y: R phosphor
-// #define PIXELGRID_DECON_G_H  0.0        //          . Deconvergence Y: G phosphor
-// #define PIXELGRID_DECON_B_H  0.0        //          . Deconvergence Y: B phosphor
-// #define PIXELGRID_H_DEDOT  0.0          //          . Dedot mask between scanlines (use only if needed!)
+// #define DO_PIXELGRID_H  1.0               //       ★ Scanlines (0 to disable)
+// #define PIXELGRID_DOUBLESCAN 0.0          //          . Double-scan low input resolutions 
+// #define PIXELGRID_COREY_FAKE_SCAN  0.0    //          . Fake integer scanlines (-1=auto)
+// #define PIXELGRID_MIN_H  0.3              //          . Phosphors height min 
+// #define PIXELGRID_MAX_H  0.7              //          . Phosphors height Max
+// #define PIXELGRID_GAMMA_H  5.2            //          . Phosphors height min->max gamma:
+// #define PIXELGRID_NO_INTERBLEED_H  1.0    //          . Inter line extra steepness (1.0 to disable)
+// #define PIXELGRID_OFFSET_CORE   0.0       //          . Slotmask(fake) offset
+// #define PIXELGRID_OFFSET_CORE_W 0.0       //            . Slotmask(fake) width override (0=no override)
+// #define PIXELGRID_DECON_R_H  0.0          //          . Deconvergence Y: R phosphor
+// #define PIXELGRID_DECON_G_H  0.0          //          . Deconvergence Y: G phosphor
+// #define PIXELGRID_DECON_B_H  0.0          //          . Deconvergence Y: B phosphor
+// #define PIXELGRID_H_DEDOT  0.0            //          . Dedot mask between scanlines (use only if needed!)
 
 // #define DO_PIXELGRID_W  1.0         //       ★ Horizontal mask (0 to disable)
 // #define PIXELGRID_SIZE_W  1.0       //            . Resolution: (core or screen)
 // #define PIXELGRID_MUL_X  1.0        //            . Cell size multiplier x (neg=divider):
+// #define PIXELGRID_TVL_X  0.0        //            . TVL: core resolution only  >0=overrrides previous
 // #define PIXELGRID_H_PRST  3.0       //            . Mask type preset (0: for manual)
 // #define PIXELGRID_H_COUNT  3.0      //                 . 0: Phosphors+gap count (mask size) 
 // #define PIXELGRID_R_SHIFT  0.0      //                 . 0: R phospor position
@@ -287,6 +294,7 @@
 // #define PIXELGRID_Y_MASK_COORDS  0.0    //            . Resolution: (core or screen)
 // #define PIXELGRID_Y_MASK_HEIGHT  1.0    //            . Height divider (neg = multiplier):
 // #define PIXELGRID_Y_MASK_OFFSET  1.0    //            . Even/odd Y offset (slotmask)
+// #define PIXELGRID_Y_MASK_OFFSET_DEHIVE  //            . Clears "hives" patterns (slotmask)
 // #define PIXELGRID_Y_MASK_SHIFT  0.15    //            . Vertical shift (neg = auto)
 // #define PIXELGRID_Y_MASK_STEEP  1.0     //            . Steepness
 // #define PIXELGRID_Y_MASK_ON_WHITE  0.0  //            . Fadeout under light
@@ -372,6 +380,7 @@
 
 
 // #define DO_BACKDROP  0.0           // ★ Backdrop mirrored image enable?
+// #define BACKDROP_JUST_TUBE 1.0     //         Display only on content
 // #define BACKDROP_OFFX  0.0         //         Shift backdrop over X axis
 // #define BACKDROP_OFFY  0.0         //         Shift backdrop over Y axis
 // #define BACKDROP_ZOOM  1.0         //         Zoom backdrop

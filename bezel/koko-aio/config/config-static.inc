@@ -148,6 +148,12 @@
 	//Temporal noise strength applied on green channel when green is dark over ambient lights (multiplied by NOISEPOWER)
 #define NOISEPOWER_AMBI (NOISEPOWER * 3.0)
 
+
+// This is used as a mean value when reported frametimes are outside an acceptable range.
+// It can also be queried to estimate if actual fps are in interval [25..30] or [50..60]
+	#define FPS_MEAN ((60+30+50+25)/4.0)
+
+
 // This is an attempt to improve preceived motion clarity by flickering the moving part of the game
 // uncomment/remove leading // to enable
 // #define FLICKER_IN_MOTION

@@ -257,12 +257,18 @@ vec3 ambi_step_rgb(vec3 s,vec3 d, vec3 mystep){
 
 vec4 pixel_ambilight(vec2 local_pre_pass_coords) {
 
-    vec4 past_pixel_vec4 = texture(PastSampler, vTexCoord);
     vec3 present_pixel =  ambi_pre_pass(local_pre_pass_coords).rgb;
-    vec3 past_pixel =     past_pixel_vec4.rgb;
 
-    float scene_change_remaining = past_pixel_vec4.a;
+    if ( dot(global.colortools_and_ntsc_passSize.xy, vec2(1.0)) != dot(global.colortools_and_ntsc_passFeedbackSize.xy, vec2(1.0) ) ) {
+        // Under vulkan, when the framebuffer chain is reconfigured (due to the source resolution changed?)
+        // Feeedback status is unrlieble, so to avoid glitches, return current color.
+        return vec4(present_pixel, 0.0);
+    }
     
+    vec4 past_pixel = texture(PastSampler, vTexCoord);    
+    float scene_change_remaining = past_pixel.a;
+
+
     #ifndef D3D_WORKAROUND
         float past_avg_lum    = texture(avglum_passFeedback,vec2(0.25,0.25)).a;
         float present_avg_lum = texture(avglum_pass        ,vec2(0.25,0.25)).a;
@@ -279,10 +285,10 @@ vec4 pixel_ambilight(vec2 local_pre_pass_coords) {
         mystep = vec3(max(1.0/MAX_STEPS, AMBI_FAST_STEP)); // <- Never slow down fades due to fast step when changing scene
         scene_change_remaining -=  AMBI_FAST_STEP;
     } else {
-        mystep = abs((past_pixel - present_pixel) / MAX_STEPS); //OK
+        mystep = abs((past_pixel.rgb - present_pixel) / MAX_STEPS); //OK
     }
-    
-    return vec4(ambi_step_rgb(past_pixel, present_pixel, mystep), scene_change_remaining);
+        
+    return vec4(ambi_step_rgb(past_pixel.rgb, present_pixel, mystep), scene_change_remaining);
 }
 
 
@@ -303,6 +309,12 @@ void main() {
         return;
     }
 
+    /*vec2 dx = dFdx(pre_pass_coords);
+    vec2 dy = dFdy(pre_pass_coords);
+    float mylod = 0.5 * log2(max(dot(dx, dx), dot(dy, dy)));
 
+    FragColor.rgb = textureLod(colortools_and_ntsc_pass, pre_pass_coords, mylod).rgb;
+    return;*/
+    
     FragColor = pixel_ambilight(pre_pass_coords);
 }

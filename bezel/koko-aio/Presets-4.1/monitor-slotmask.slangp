@@ -1,3 +1,4 @@
 #reference "monitor-BASE.slangp"
 
 PIXELGRID_OFFSET_CORE = "0.210000"
+PIXELGRID_COREY_FAKE_SCAN = "0.0"

@@ -1,6 +1,6 @@
 #reference "../koko-aio-ng.slangp"
 
-bg_under = "../textures/overlays/psp-e1000.jpg"
+bg_under = "../../textures/overlays/psp-e1000.jpg"
 
 DO_CCORRECTION = "1.000000"
 	IN_GLOW_POWER = "1.300001"

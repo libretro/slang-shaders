@@ -48,7 +48,7 @@
        bg_over_wrap_mode = "mirrored_repeat"
           bg_over_mipmap = "false"
 
-                backdrop = "../textures/boothill.jpg"
+                backdrop = "../textures/backdrop.jpg"
          backdrop_linear = "true"
       backdrop_wrap_mode = "mirrored_repeat"
          backdrop_mipmap = "false"

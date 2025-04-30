@@ -29,6 +29,33 @@ float _pack_21(vec2 in_float){
 	return in_float.x*pack_floats_precision + in_float.y;
 }
 
+float get_lod(vec2 smp_size, vec2 out_size) {
+	vec2 ratio = out_size/smp_size;
+    float maxRatio = max(ratio.x, ratio.y);
+    return log2(maxRatio);
+}
+
+bool low_fps(sampler2D estimatesampler) {
+	/* returns if core fps is inside [25..30] interval */
+
+	//Can't do anything without frametime uniforms.
+	#ifndef _HAS_FRAMETIME_UNIFORMS
+		return false;
+	#endif
+		
+	 //No need to estimate if we trust frametime uniforms.
+	#ifdef ORIGINAL_FPS_TRUSTED
+		return (global.OriginalFPS < 40);
+	#endif
+			
+	#ifndef D3D_WORKAROUND
+		//To estimate we need to poll an alpha from a future
+		//pass feedback, so no D3D support.
+		return texture(estimatesampler, vec2(0.5)).a < FPS_MEAN;
+	#else
+		return false;
+	#endif
+}
 
 vec2 _unpack_21(float f){
 	float fr = fract(f);
@@ -72,6 +99,10 @@ float mask_enhance_float(float mask, vec3 ref, float factor) {
  return mix( factor * (mask - 0.5) + 0.5, mask, abs(fref - 0.5*2) );
 }
 
+bool line_is_even(float co_y, float size_y) {
+	float line = floor(co_y*size_y);
+	return (int(line) & 1) == 0;
+}
 
 bool frame_is_even() {
 	return ((int(params.FrameCount) & 1) == 0);
