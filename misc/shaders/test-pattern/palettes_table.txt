@@ -1,0 +1,324 @@
+Nestopia UE palettes
+=========
+
+  0 - CXA2025AS (US)
+  1 - CXA2025AS (JP)
+  2 - Royaltea
+  3 - Consumer
+  4 - Canonical
+  5 - Alternative
+  6 - RGB
+  7 - PAL
+  8 - Composite Direct FBX
+  9 - PVM-style D93 FBX
+ 10 - NTSC hardware FBX
+ 11 - NES Classic FBx (fixed)
+ 12 - Restored Wii VC
+ 13 - Wii Virtual Console
+
+Mesen palettes
+=========
+
+ 14 - Default
+ 15 - Unsaturated v6 (by FirebrandX)
+ 16 - YUV v3 (by FirebrandX)
+ 17 - Nestopia (RGB)
+ 18 - Composite Direct (by FirebrandX)
+ 19 - Nes Classic
+ 20 - Original Hardware (by FirebrandX)
+ 21 - PVM Style (by FirebrandX)
+ 22 - Sony CXA2025AS
+ 23 - Wavebeam (by nakedarthur)
+
+FCEUmm palettes
+=========
+
+ 24 - AspiringSquire's Real palette
+ 25 - Restored Wii VC palette
+ 26 - Wii Virtual Console palette
+ 27 - Nintendo RGB PPU palette
+ 28 - FBX's YUV-V3 palette
+ 29 - FBX's Unsaturated-Final palette
+ 30 - Sony CXA2025AS US palette
+ 31 - PAL palette
+ 32 - BMF's Final 2 palette
+ 33 - BMF's Final 3 palette
+ 34 - FBX's Smooth palette
+ 35 - FBX's Composite Direct palette
+ 36 - FBX's PVM Style D93 palette
+ 37 - FBX's NTSC Hardware palette
+ 38 - FBX's NES-Classic FS palette
+ 39 - RGBSource's NESCAP palette
+ 40 - nakedarthur's Wavebeam palette
+ 41 - FBX's Digital Prime palette
+ 42 - FBX's Magnum palette
+ 43 - FBX's Smooth V2 palette
+ 44 - FBX's NES Classic palette
+ 45 - Royaltea palette (PVM-2530)
+ 46 - Mugicha palette
+
+MiSTer palettes
+=========
+
+ 47 - ./mister_palettes/YUV.pal
+ 48 - ./mister_palettes/PC-10.pal
+ 49 - ./mister_palettes/Kitrinx34 High Saturation.pal
+ 50 - ./mister_palettes/Unsaturated/Unsaturated-V4.pal
+ 51 - ./mister_palettes/Unsaturated/Unsaturated-Final.pal
+ 52 - ./mister_palettes/Unsaturated/Unsaturated-V5.pal
+ 53 - ./mister_palettes/Unsaturated/Unsaturated-V6.pal
+ 54 - ./mister_palettes/Unsaturated/Unsaturated-V7.pal
+ 55 - ./mister_palettes/Nintendo/Switch NSO 1.pal
+ 56 - ./mister_palettes/Nintendo/NES Classic Edition (Black & White).pal
+ 57 - ./mister_palettes/Nintendo/NES VS Arcade Palettes/vs_002 - 2C04-0002.pal
+ 58 - ./mister_palettes/Nintendo/NES VS Arcade Palettes/vs_003emph.pal
+ 59 - ./mister_palettes/Nintendo/NES VS Arcade Palettes/vs_004emph.pal
+ 60 - ./mister_palettes/Nintendo/NES VS Arcade Palettes/vs_003 - 2C04-0003.pal
+ 61 - ./mister_palettes/Nintendo/NES VS Arcade Palettes/vs_001emph.pal
+ 62 - ./mister_palettes/Nintendo/NES VS Arcade Palettes/Palettes 2C03-2C04/2C03.pal
+ 63 - ./mister_palettes/Nintendo/NES VS Arcade Palettes/vs_004 - 2C04-0004.pal
+ 64 - ./mister_palettes/Nintendo/NES VS Arcade Palettes/vs_002emph.pal
+ 65 - ./mister_palettes/Nintendo/NES VS Arcade Palettes/vs_001 - 2C04-0001.pal
+ 66 - ./mister_palettes/Nintendo/NES VS Arcade Palettes/pc10.pal
+ 67 - ./mister_palettes/Nintendo/NES VS Arcade Palettes/pc10emph.pal
+ 68 - ./mister_palettes/Nintendo/Switch NSO 6.pal
+ 69 - ./mister_palettes/Nintendo/Switch NSO 4.pal
+ 70 - ./mister_palettes/Nintendo/NES Classic Edition_2.pal
+ 71 - ./mister_palettes/Nintendo/Switch NSO 3.pal
+ 72 - ./mister_palettes/Nintendo/SMB Game & Watch.pal
+ 73 - ./mister_palettes/Nintendo/Switch NSO 2.pal
+ 74 - ./mister_palettes/Nintendo/Animal Crossing.pal
+ 75 - ./mister_palettes/Nintendo/Switch NSO 8.pal
+ 76 - ./mister_palettes/Nintendo/Switch NSO 5.pal
+ 77 - ./mister_palettes/Nintendo/Virtual Console/NES Remix - Wii U.pal
+ 78 - ./mister_palettes/Nintendo/Virtual Console/xvzgjw - Wii VC.pal
+ 79 - ./mister_palettes/Nintendo/Virtual Console/Wii_VC (Normalized).pal
+ 80 - ./mister_palettes/Nintendo/Virtual Console/3DS VC.pal
+ 81 - ./mister_palettes/Nintendo/Virtual Console/Wii_VC.pal
+ 82 - ./mister_palettes/Nintendo/Switch NSO 7.pal
+ 83 - ./mister_palettes/Nintendo/NES Classic Edition.pal
+ 84 - ./mister_palettes/Unsaturated.pal
+ 85 - ./mister_palettes/Emulator/VirtualNES.pal
+ 86 - ./mister_palettes/Emulator/NES-Classic.pal
+ 87 - ./mister_palettes/Emulator/FCEU-15-nitsuja_new.pal
+ 88 - ./mister_palettes/Emulator/MegaMan/RockMan Complete Works.pal
+ 89 - ./mister_palettes/Emulator/MegaMan/MegaMan Maker.pal
+ 90 - ./mister_palettes/Emulator/MegaMan/MegaMan Modern.pal
+ 91 - ./mister_palettes/Emulator/MegaMan/MegaMan.pal
+ 92 - ./mister_palettes/Emulator/MegaMan/RockMan Complete Works Modern.pal
+ 93 - ./mister_palettes/Emulator/MegaMan/MegaMan Legacy Collection.pal
+ 94 - ./mister_palettes/Emulator/MegaMan/Rockman 9 - 21 to 2C.pal
+ 95 - ./mister_palettes/Emulator/MegaMan/Rockman 9.pal
+ 96 - ./mister_palettes/Emulator/MegaMan/MegaMan Legacy Collection Modern.pal
+ 97 - ./mister_palettes/Emulator/FCEU (Old).pal
+ 98 - ./mister_palettes/Emulator/FCEU-13-default_nitsuja.pal
+ 99 - ./mister_palettes/Emulator/Raw - NES RGB PPU - libretro.pal
+100 - ./mister_palettes/Emulator/KHorton.pal
+101 - ./mister_palettes/Emulator/Nintendulator NTSC.pal
+102 - ./mister_palettes/Emulator/FCEUX.pal
+103 - ./mister_palettes/NES Classic.pal
+104 - ./mister_palettes/Console & PC/Game Boy (Alt C).pal
+105 - ./mister_palettes/Console & PC/Game Boy.pal
+106 - ./mister_palettes/Console & PC/Master System.pal
+107 - ./mister_palettes/Console & PC/MSX.pal
+108 - ./mister_palettes/Console & PC/Super Gameboy/2-D.pal
+109 - ./mister_palettes/Console & PC/Super Gameboy/1-F.pal
+110 - ./mister_palettes/Console & PC/Super Gameboy/2-E.pal
+111 - ./mister_palettes/Console & PC/Super Gameboy/1-D.pal
+112 - ./mister_palettes/Console & PC/Super Gameboy/4-C.pal
+113 - ./mister_palettes/Console & PC/Super Gameboy/3-D.pal
+114 - ./mister_palettes/Console & PC/Super Gameboy/4-A.pal
+115 - ./mister_palettes/Console & PC/Super Gameboy/3-B.pal
+116 - ./mister_palettes/Console & PC/Super Gameboy/1-C.pal
+117 - ./mister_palettes/Console & PC/Super Gameboy/3-F.pal
+118 - ./mister_palettes/Console & PC/Super Gameboy/4-G.pal
+119 - ./mister_palettes/Console & PC/Super Gameboy/3-E.pal
+120 - ./mister_palettes/Console & PC/Super Gameboy/2-H.pal
+121 - ./mister_palettes/Console & PC/Super Gameboy/3-A.pal
+122 - ./mister_palettes/Console & PC/Super Gameboy/4-D.pal
+123 - ./mister_palettes/Console & PC/Super Gameboy/1-B.pal
+124 - ./mister_palettes/Console & PC/Super Gameboy/1-G.pal
+125 - ./mister_palettes/Console & PC/Super Gameboy/2-F.pal
+126 - ./mister_palettes/Console & PC/Super Gameboy/1-H.pal
+127 - ./mister_palettes/Console & PC/Super Gameboy/2-C.pal
+128 - ./mister_palettes/Console & PC/Super Gameboy/Custom.pal
+129 - ./mister_palettes/Console & PC/Super Gameboy/2-G.pal
+130 - ./mister_palettes/Console & PC/Super Gameboy/2-B.pal
+131 - ./mister_palettes/Console & PC/Super Gameboy/1-A.pal
+132 - ./mister_palettes/Console & PC/Super Gameboy/4-B.pal
+133 - ./mister_palettes/Console & PC/Super Gameboy/4-F.pal
+134 - ./mister_palettes/Console & PC/Super Gameboy/3-H.pal
+135 - ./mister_palettes/Console & PC/Super Gameboy/2-A.pal
+136 - ./mister_palettes/Console & PC/Super Gameboy/Alternate/Super Gameboy (1-G) (Alt).pal
+137 - ./mister_palettes/Console & PC/Super Gameboy/Alternate/Super Gameboy (1-A) (Alt).pal
+138 - ./mister_palettes/Console & PC/Super Gameboy/Alternate/Super Gameboy (1-A) (Alt2).pal
+139 - ./mister_palettes/Console & PC/Super Gameboy/Alternate/Custom 1 (Alt2).pal
+140 - ./mister_palettes/Console & PC/Super Gameboy/Alternate/Custom 1 (Alt).pal
+141 - ./mister_palettes/Console & PC/Super Gameboy/Alternate/Super Gameboy (4-G) (Alt3).pal
+142 - ./mister_palettes/Console & PC/Super Gameboy/Alternate/Super Gameboy (1-B) (Alt).pal
+143 - ./mister_palettes/Console & PC/Super Gameboy/Alternate/Custom 1 (Alt3).pal
+144 - ./mister_palettes/Console & PC/Super Gameboy/Alternate/Super Gameboy (1-B) (Alt2).pal
+145 - ./mister_palettes/Console & PC/Super Gameboy/Alternate/Super Gameboy (1-G) (Alt3).pal
+146 - ./mister_palettes/Console & PC/Super Gameboy/Alternate/Super Gameboy (1-A) (Alt3).pal
+147 - ./mister_palettes/Console & PC/Super Gameboy/Alternate/Super Gameboy (1-B) (Alt3).pal
+148 - ./mister_palettes/Console & PC/Super Gameboy/Alternate/Super Gameboy (4-G) (Alt2).pal
+149 - ./mister_palettes/Console & PC/Super Gameboy/Alternate/Super Gameboy (1-G) (Alt2).pal
+150 - ./mister_palettes/Console & PC/Super Gameboy/4-E.pal
+151 - ./mister_palettes/Console & PC/Super Gameboy/3-G.pal
+152 - ./mister_palettes/Console & PC/Super Gameboy/4-H.pal
+153 - ./mister_palettes/Console & PC/Super Gameboy/3-C.pal
+154 - ./mister_palettes/Console & PC/Super Gameboy/1-E.pal
+155 - ./mister_palettes/Console & PC/Game Boy (Alt B).pal
+156 - ./mister_palettes/Console & PC/EGA-Color Ramps.pal
+157 - ./mister_palettes/Console & PC/CGA.pal
+158 - ./mister_palettes/Console & PC/Commodore 64.pal
+159 - ./mister_palettes/Console & PC/Game Boy (Alt A).pal
+160 - ./mister_palettes/PC10 Better.pal
+161 - ./mister_palettes/Kitrinx34.pal
+162 - ./mister_palettes/Composite.pal
+163 - ./mister_palettes/Rockman 9.pal
+164 - ./mister_palettes/Miscellaneous/Kizul/Kizul's Definitive NTSC NES Master Palette (canonical off-blacks).pal
+165 - ./mister_palettes/Miscellaneous/Kizul/Kizul's Definitive NTSC NES Master Palette - for Bee 52 and The Immortal.pal
+166 - ./mister_palettes/Miscellaneous/Kizul/Kizul's Definitive NTSC NES Master Palette - for The Immortal (with Color Emphasis disabled).pal
+167 - ./mister_palettes/Miscellaneous/Kizul/Dougeff (Modified Kizul)/NTSC-DF2.pal
+168 - ./mister_palettes/Miscellaneous/Kizul/Kizul's Definitive NTSC NES Master Palette (pure blacks).pal
+169 - ./mister_palettes/Miscellaneous/Kizul/Old/Kizul's Definitive NES Palette - for The Immortal with Color Emphasis disabled.pal
+170 - ./mister_palettes/Miscellaneous/Kizul/Old/Kizul's Definitive NES Palette.pal
+171 - ./mister_palettes/Miscellaneous/Kizul/Old/Kizul's Definitive NES Palette - for Bee 52.pal
+172 - ./mister_palettes/Miscellaneous/Kizul/Old/Kizul's_90-percent-accurate_NES_palette.pal
+173 - ./mister_palettes/Miscellaneous/AspiringSquire/ASQ Reality C.pal
+174 - ./mister_palettes/Miscellaneous/AspiringSquire/ASQ Reality A.pal
+175 - ./mister_palettes/Miscellaneous/AspiringSquire/ASQ Reality B.pal
+176 - ./mister_palettes/Miscellaneous/ezjghq.pal
+177 - ./mister_palettes/Miscellaneous/mattc.pal
+178 - ./mister_palettes/Miscellaneous/Matrix21f (EU).pal
+179 - ./mister_palettes/Miscellaneous/koitsu (k0rn).pal
+180 - ./mister_palettes/Miscellaneous/PixelTao/Pixeltao CRT (2021).pal
+181 - ./mister_palettes/Miscellaneous/PixelTao/PixeltaoV2 (2016).pal
+182 - ./mister_palettes/Miscellaneous/PixelTao/PixeltaoV1 (2016).pal
+183 - ./mister_palettes/Miscellaneous/Retron HD.pal
+184 - ./mister_palettes/Miscellaneous/Nostalgia.pal
+185 - ./mister_palettes/Miscellaneous/fx3nespal.pal
+186 - ./mister_palettes/Miscellaneous/Terratec/Terratec Cinergy Hybrid T USB XS (PAL Full).pal
+187 - ./mister_palettes/Miscellaneous/Terratec/Terratec Cinergy Hybrid T USB XS (PAL).pal
+188 - ./mister_palettes/Miscellaneous/Terratec/Terratec Cinergy Hybrid T USB XS (NTSC Full).pal
+189 - ./mister_palettes/Miscellaneous/Terratec/Terratec Cinergy Hybrid T USB XS (NTSC).pal
+190 - ./mister_palettes/Miscellaneous/Custom/TheWolfBunny64/NES Gold.pal
+191 - ./mister_palettes/Miscellaneous/Custom/TheWolfBunny64/Famicom Gold (NES Classic Edition).pal
+192 - ./mister_palettes/Miscellaneous/Custom/Tangy.pal
+193 - ./mister_palettes/Miscellaneous/Custom/Negative.pal
+194 - ./mister_palettes/Miscellaneous/Custom/Michael Bay/Michael Bay D.pal
+195 - ./mister_palettes/Miscellaneous/Custom/Michael Bay/Michael Bay A.pal
+196 - ./mister_palettes/Miscellaneous/Custom/Michael Bay/M.Bay Grey A.pal
+197 - ./mister_palettes/Miscellaneous/Custom/Michael Bay/M.Bay Grey B.pal
+198 - ./mister_palettes/Miscellaneous/Custom/Michael Bay/M.Bay Grey C.pal
+199 - ./mister_palettes/Miscellaneous/Custom/Michael Bay/Michael Bay C.pal
+200 - ./mister_palettes/Miscellaneous/Custom/Michael Bay/M.Bay Grey D.pal
+201 - ./mister_palettes/Miscellaneous/Custom/Michael Bay/Michael Bay B.pal
+202 - ./mister_palettes/Miscellaneous/Custom/Mono.pal
+203 - ./mister_palettes/Miscellaneous/Custom/Gray (XYZ).pal
+204 - ./mister_palettes/Miscellaneous/Custom/Sepia.pal
+205 - ./mister_palettes/Miscellaneous/Custom/Black (WARNING! WILL TURN ALL COLORS BLACK!!).pal
+206 - ./mister_palettes/Miscellaneous/Custom/Virtual Red/Virtual Red B.pal
+207 - ./mister_palettes/Miscellaneous/Custom/Virtual Red/Virtual Red C.pal
+208 - ./mister_palettes/Miscellaneous/Custom/Virtual Red/Virtual Red A.pal
+209 - ./mister_palettes/Miscellaneous/Custom/Purple Shift.pal
+210 - ./mister_palettes/Miscellaneous/Custom/Gray.pal
+211 - ./mister_palettes/Miscellaneous/Custom/Grayscale.pal
+212 - ./mister_palettes/Miscellaneous/BisqwitSony.pal
+213 - ./mister_palettes/Miscellaneous/StickFreaks/AVFamicom_adjusted_v3.pal
+214 - ./mister_palettes/Miscellaneous/StickFreaks/AVFamicom_saturated.pal
+215 - ./mister_palettes/Miscellaneous/StickFreaks/Deprecated/AVFamicom_adjusted_v2.pal
+216 - ./mister_palettes/Miscellaneous/StickFreaks/Deprecated/PAL_adjusted_v2.pal
+217 - ./mister_palettes/Miscellaneous/StickFreaks/Deprecated/PAL.pal
+218 - ./mister_palettes/Miscellaneous/StickFreaks/Deprecated/AVFamicom.pal
+219 - ./mister_palettes/Miscellaneous/StickFreaks/PAL.pal
+220 - ./mister_palettes/Miscellaneous/StickFreaks/AVFamicom.pal
+221 - ./mister_palettes/Miscellaneous/StickFreaks/PAL_saturated.pal
+222 - ./mister_palettes/Miscellaneous/StickFreaks/PAL_adjusted_v3.pal
+223 - ./mister_palettes/Miscellaneous/Donkey_Kong.pal
+224 - ./mister_palettes/Miscellaneous/Color Math/Kitrinx (Japanese).pal
+225 - ./mister_palettes/Miscellaneous/Color Math/Kitrinx (USA).pal
+226 - ./mister_palettes/Miscellaneous/Color Math/Average_Joe.pal
+227 - ./mister_palettes/Miscellaneous/Color Math/Test Palettes/Math (Japanese).pal
+228 - ./mister_palettes/Miscellaneous/Color Math/Test Palettes/Math (Normalized).pal
+229 - ./mister_palettes/Miscellaneous/Color Math/Test Palettes/Math USA (NTSC Decoder).pal
+230 - ./mister_palettes/Miscellaneous/Color Math/Test Palettes/Math (Fixed E-F Color Bug).pal
+231 - ./mister_palettes/Miscellaneous/Color Math/Test Palettes/Math (Proper).pal
+232 - ./mister_palettes/Miscellaneous/Color Math/Soltan/nes_clamp.pal
+233 - ./mister_palettes/Miscellaneous/Color Math/Soltan/nes_desaturate.pal
+234 - ./mister_palettes/Miscellaneous/FirebrandX/Smooth V2 (FBX).pal
+235 - ./mister_palettes/Miscellaneous/FirebrandX/Magnum (FBX).pal
+236 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/PVM to Digital - Beta 03 (FBX).pal
+237 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/NTSChi - Real Black (FBX).pal
+238 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/YUV - Corrected (FBX).pal
+239 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/NTSC Hardware - Beta 1 (FBX).pal
+240 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/NTSC Hardware (FBX).pal
+241 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/NTSChi (FBX).pal
+242 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/Sony - WIP (FBX).pal
+243 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/PVM Style - D93 (FBX).pal
+244 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/Composite Direct - Sony Style (FBX).pal
+245 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/NES Classic - Beta (FBX).pal
+246 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/NES Classic (FBX).pal
+247 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/Composite Direct (FBX).pal
+248 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/Composite Direct - Final Saturated (FBX).pal
+249 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/Nostalgia - Final (FBX).pal
+250 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/PVM to Digital - Beta 01 (FBX).pal
+251 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/PVM Style - D65 (FBX).pal
+252 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/YUV - Customized (FBX).pal
+253 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/NES Classic - Beta 2 (FBX).pal
+254 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/PVM to Digital - Beta 04 (FBX).pal
+255 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/Original Hardware (FBX).pal
+256 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/Composite Direct - Final (FBX).pal
+257 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/NTSC - RT2X Pro (FBX).pal
+258 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/Smooth - Balanced Greys (FBX).pal
+259 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/CRT Nostalgia - Beta (FBX).pal
+260 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/Unsaturated (FBX).pal
+261 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/Smooth (FBX).pal
+262 - ./mister_palettes/Miscellaneous/FirebrandX/Deprecated/PVM to Digital - Beta 02 (FBX).pal
+263 - ./mister_palettes/Miscellaneous/FirebrandX/Digital Prime (FBX).pal
+264 - ./mister_palettes/Miscellaneous/Nintaco/Rinao.pal
+265 - ./mister_palettes/Miscellaneous/Nintaco/Trebor.pal
+266 - ./mister_palettes/Miscellaneous/RGBSource/NTSC.pal
+267 - ./mister_palettes/Miscellaneous/RGBSource/NESCAP.pal
+268 - ./mister_palettes/Miscellaneous/RGBSource/YUV-V3.pal
+269 - ./mister_palettes/Miscellaneous/RGBSource/AVS & Hi-Def NES/HDN_FCEUXs.pal
+270 - ./mister_palettes/Miscellaneous/RGBSource/AVS & Hi-Def NES/HDN_PC10.pal
+271 - ./mister_palettes/Miscellaneous/RGBSource/NES.pal
+272 - ./mister_palettes/Miscellaneous/RGBSource/HYBRID.pal
+273 - ./mister_palettes/Miscellaneous/RGBSource/NTSCU.pal
+274 - ./mister_palettes/Miscellaneous/kasion.pal
+275 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Wavebeam (ALT).pal
+276 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Composite Direct (Sony Style - No Rounding).pal
+277 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Wavebeam.pal
+278 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam2-20170503-Beta.pal
+279 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam2-20170507-Beta.pal
+280 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam-20170713.pal
+281 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam2-20170427-Beta.pal
+282 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam-20170709.pal
+283 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam2-20170430-Beta-2.pal
+284 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam2-20170505-Beta.pal
+285 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam2-20170430-Beta-1.pal
+286 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam-20170514.pal
+287 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam2-20170509-Beta.pal
+288 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam-20170810.pal
+289 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam-20170417.pal
+290 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam-20170621.pal
+291 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam-20170701.pal
+292 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam-20170711.pal
+293 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam-20170629.pal
+294 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam-20170809.pal
+295 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam2-20170428-Beta.pal
+296 - ./mister_palettes/Miscellaneous/NakedArthur (Wavebeam)/Old/Wavebeam-20170322-Beta.pal
+297 - ./mister_palettes/Miscellaneous/noisak.pal
+298 - ./mister_palettes/Miscellaneous/Enlightened.pal
+299 - ./mister_palettes/Miscellaneous/HDN_BEWAREs.pal
+300 - ./mister_palettes/Miscellaneous/BMF/BMF PAL30.pal
+301 - ./mister_palettes/Miscellaneous/BMF/BMF Final 3 (Mod).pal
+302 - ./mister_palettes/Miscellaneous/BMF/BMF Final 2.pal
+303 - ./mister_palettes/Miscellaneous/BMF/BMF Final 3.pal
+304 - ./mister_palettes/PVM.pal
+305 - ./mister_palettes/Nintendulator.pal
+306 - ./mister_palettes/Grayscale.pal
+307 - ./mister_palettes/Real.pal
+308 - ./mister_palettes/FCEUX.pal

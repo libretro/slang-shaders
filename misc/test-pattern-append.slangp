@@ -1,0 +1,11 @@
+shaders = 1
+
+shader0 = shaders/test-pattern/test-pattern-append.slang
+filter_linear0 = false
+
+textures = "tpAllPalettes"
+
+tpAllPalettes = "shaders/test-pattern/all_palettes.png"
+tpAllPalettes_wrap_mode = "clamp_to_border"
+tpAllPalettes_mipmap = "false"
+tpAllPalettes_linear = "false"
