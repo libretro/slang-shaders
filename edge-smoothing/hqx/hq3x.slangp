@@ -13,14 +13,21 @@ filter_linear2 = false
 scale_type2 = source
 scale2 = 3.0
 
-shader3 = ../../interpolation/shaders/b-spline-x.slang
+shader3 = ../../interpolation/shaders/bicubic/b-spline-y.slang
 filter_linear3 = false
-scale_type_x3 = viewport
-scale_type_y3 = source
+scale_type_y3 = viewport
+scale_type_x3 = source
 scale3 = 1.0
 
-shader4 = ../../interpolation/shaders/b-spline-y.slang
+shader4 = ../../interpolation/shaders/bicubic/b-spline-x.slang
 filter_linear4 = false
+scale_type4 = viewport
+
+wrap_mode2 = "clamp_to_edge"
+wrap_mode3 = "clamp_to_edge"
+wrap_mode4 = "clamp_to_edge"
+srgb_framebuffer2 = "true"
+srgb_framebuffer3 = "true"
 
 
 textures = LUT

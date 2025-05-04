@@ -44,7 +44,7 @@ wrap_mode6 = "clamp_to_border"
 scale_type6 = source
 scale6 = 1.0
 
-shader7 = "../../../interpolation/shaders/lanczos3-x.slang"
+shader7 = "../../../interpolation/shaders/lanczos/lanczos3-x.slang"
 wrap_mode7 = "clamp_to_edge"
 srgb_framebuffer7 = "true"
 scale_type_x7 = "viewport"
@@ -52,7 +52,7 @@ scale_x7 = "1.000000"
 scale_type_y7 = "source"
 scale_y7 = "1.000000"
 
-shader8 = "../../../interpolation/shaders/lanczos3-y.slang"
+shader8 = "../../../interpolation/shaders/lanczos/lanczos3-y.slang"
 filter_linear8 = false
 wrap_mode8 = "clamp_to_edge"
 srgb_framebuffer8 = "true"

@@ -3,14 +3,20 @@ shaders = 3
 shader0 = shaders/2xbrz.slang
 filter_linear0 = false
 scale_type0 = source
+wrap_mode0 = "clamp_to_edge"
+srgb_framebuffer0 = "true"
 scale0 = 2.0
 
-shader1 = ../../interpolation/shaders/bicubic-x.slang
+shader1 = ../../interpolation/shaders/bicubic/bicubic-y.slang
 filter_linear1 = false
-scale_type_x1 = viewport
-scale_type_y1 = source
+scale_type_x1 = source
+scale_type_y1 = viewport
 scale1 = 1.0
+wrap_mode1 = "clamp_to_edge"
+srgb_framebuffer1 = "true"
 
-shader2 = ../../interpolation/shaders/bicubic-y.slang
+shader2 = ../../interpolation/shaders/bicubic/bicubic-x.slang
 filter_linear2 = false
+wrap_mode2 = "clamp_to_edge"
 scale_type2 = viewport
+

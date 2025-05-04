@@ -1,9 +1,9 @@
 #version 450
 
 /*
-   b-spline-x Shader
+   catmull-rom-x Shader
 
-   Copyright (C) 2011-2022 Hyllian - sergiogdb@gmail.com
+   Copyright (C) 2011-2025 Hyllian - sergiogdb@gmail.com
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -27,20 +27,34 @@
 
 layout(push_constant) uniform Push
 {
-	vec4 SourceSize;
-	vec4 OriginalSize;
-	vec4 OutputSize;
-	uint FrameCount;
+    vec4 SourceSize;
+    vec4 OriginalSize;
+    vec4 OutputSize;
+    uint FrameCount;
+    float Catmull_OutputGamma;
+    float C_ANTI_RINGING;
+    float C_LINEAR_GAMMA;
 } params;
+
+
+#pragma parameter C_LINEAR_GAMMA      "    Use Linear Gamma [ YES | NO ]"         0.0 0.0 1.0 1.0
+#pragma parameter Catmull_OutputGamma "    Output Gamma"                          2.2 1.0 3.0 0.05
+#pragma parameter C_ANTI_RINGING      "    Catmull-Rom Anti-Ringing [ OFF | ON ]" 1.0 0.0 1.0 1.0
+
+#define OutputGamma   params.Catmull_OutputGamma
+#define ANTI_RINGING  params.C_ANTI_RINGING
+#define LINEAR_GAMMA  params.C_LINEAR_GAMMA
+
+#define GAMMA_OUT(color)    pow(color, vec3(1.0 / OutputGamma, 1.0 / OutputGamma, 1.0 / OutputGamma))
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
-	mat4 MVP;
+    mat4 MVP;
 } global;
 
-// B-Spline bicubic parameters
-const float  B =  1.0; 
-const float  C =  0.0;
+// Catmull-Rom parameters
+const float  B =  0.0; 
+const float  C =  0.5;
 
 const mat4 INV  = mat4(            (-B - 6.0*C)/6.0,         (3.0*B + 12.0*C)/6.0,     (-3.0*B - 6.0*C)/6.0,             B/6.0,
                                         (12.0 - 9.0*B - 6.0*C)/6.0, (-18.0 + 12.0*B + 6.0*C)/6.0,                      0.0, (6.0 - 2.0*B)/6.0,
@@ -56,17 +70,16 @@ layout(location = 2) out vec4 t2;
 
 void main()
 {
-   gl_Position = global.MVP * Position;
+    gl_Position = global.MVP * Position;
    
-   vec2 ps = vec2(params.SourceSize.z, params.SourceSize.w);
-	float dx = ps.x;
-	float dy = ps.y;
+    vec2 ps = vec2(params.SourceSize.z, params.SourceSize.w);
+    float dx = ps.x;
+    float dy = ps.y;
 
-        vTexCoord = TexCoord * 1.0001 - vec2(0.5, 0.0)*ps;
+    vTexCoord = (TexCoord - vec2(0.5, 0.0)*ps) * 1.0001;
 
-	t1 = vTexCoord.xyxy + vec4( -dx, 0.0,    0.0, 0.0); 
-	t2 = vTexCoord.xyxy + vec4(  dx, 0.0, 2.0*dx, 0.0);
-
+    t1 = vTexCoord.xyxy + vec4( -dx, 0.0,    0.0, 0.0); 
+    t2 = vTexCoord.xyxy + vec4(  dx, 0.0, 2.0*dx, 0.0);
 }
 
 #pragma stage fragment
@@ -78,15 +91,27 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
-  vec2 fp = fract(vTexCoord*params.SourceSize.xy);
+    vec2 fp = fract(vTexCoord*params.SourceSize.xy);
 
-  vec3 C0 = texture(Source, t1.xy).xyz;
-  vec3 C1 = texture(Source, t1.zw).xyz;
-  vec3 C2 = texture(Source, t2.xy).xyz;
-  vec3 C3 = texture(Source, t2.zw).xyz;
+    vec3 C0 = texture(Source, t1.xy).xyz;
+    vec3 C1 = texture(Source, t1.zw).xyz;
+    vec3 C2 = texture(Source, t2.xy).xyz;
+    vec3 C3 = texture(Source, t2.zw).xyz;
 
-  vec4 Px    = vec4(fp.x*fp.x*fp.x, fp.x*fp.x, fp.x, 1.0) * INV;
-  vec3 color = mat4x3(C0, C1, C2, C3) * Px;
+    vec4 Px    = vec4(fp.x*fp.x*fp.x, fp.x*fp.x, fp.x, 1.0) * INV;
+    vec3 color = mat4x3(C0, C1, C2, C3) * Px;
 
-   FragColor = vec4(color, 1.0);
+    // Anti-ringing
+    if (ANTI_RINGING == 1.0)
+    {
+        vec3 aux = color;
+        vec3 min_sample = min(min(C0, C1), min(C2, C3));
+        vec3 max_sample = max(max(C0, C1), max(C2, C3));
+        color = clamp(color, min_sample, max_sample);
+        color = mix(aux, color, step(0.0, (C0-C1)*(C2-C3)));
+    }
+
+    color = mix(color, GAMMA_OUT(color), LINEAR_GAMMA);
+
+    FragColor = vec4(color, 1.0);
 }

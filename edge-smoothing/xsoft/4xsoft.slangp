@@ -12,12 +12,18 @@ scale_type1 = source
 scale_x1 = 2.0
 scale_y1 = 2.0
 
-shader2 = ../../interpolation/shaders/b-spline-x.slang
+shader2 = ../../interpolation/shaders/bicubic/b-spline-y.slang
 filter_linear2 = false
-scale_type_x2 = viewport
-scale_type_y2 = source
+scale_type_y2 = viewport
+scale_type_x2 = source
 scale2 = 1.0
 
-shader3 = ../../interpolation/shaders/b-spline-y.slang
+shader3 = ../../interpolation/shaders/bicubic/b-spline-x.slang
 filter_linear3 = false
 scale_type3 = viewport
+
+wrap_mode1 = "clamp_to_edge"
+wrap_mode2 = "clamp_to_edge"
+wrap_mode3 = "clamp_to_edge"
+srgb_framebuffer1 = "true"
+srgb_framebuffer2 = "true"

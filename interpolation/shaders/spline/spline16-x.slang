@@ -1,11 +1,11 @@
 #version 450
 
 /*
-	Spline16 - PassX - by Hyllian 2022
+    Spline16 - PassX - by Hyllian 2025
 
-	Adapted from bicubic source shaders below.
+    Adapted from bicubic source shaders below.
 
-	Spline36 math sources: https://www.panotools.org/dersch/interpolator/interpolator.html
+    Spline16 math sources: https://www.panotools.org/dersch/interpolator/interpolator.html
 */
 
 
@@ -35,20 +35,29 @@ http://www.gnu.org/copyleft/gpl.html
 
 layout(push_constant) uniform Push
 {
-	vec4 SourceSize;
-	vec4 OriginalSize;
-	vec4 OutputSize;
-	uint FrameCount;
-	float S16_ANTI_RINGING;
+    vec4 SourceSize;
+    vec4 OriginalSize;
+    vec4 OutputSize;
+    uint FrameCount;
+    float Spline16_OutputGamma;
+    float S16_ANTI_RINGING;
+    float S16_LINEAR_GAMMA;
 } params;
 
-#pragma parameter S16_ANTI_RINGING "Spline16 Anti-Ringing [ OFF | ON ]" 1.0 0.0 1.0 1.0
 
-#define S16_ANTI_RINGING params.S16_ANTI_RINGING
+#pragma parameter S16_LINEAR_GAMMA      "    Use Linear Gamma [ YES | NO ]"         0.0 0.0 1.0 1.0
+#pragma parameter Spline16_OutputGamma  "    Output Gamma"                          2.2 1.0 3.0 0.05
+#pragma parameter S16_ANTI_RINGING      "    Spline16 Anti-Ringing [ OFF | ON ]"    1.0 0.0 1.0 1.0
+
+#define OutputGamma   params.Spline16_OutputGamma
+#define ANTI_RINGING  params.S16_ANTI_RINGING
+#define LINEAR_GAMMA  params.S16_LINEAR_GAMMA
+
+#define GAMMA_OUT(color)    pow(color, vec3(1.0 / OutputGamma, 1.0 / OutputGamma, 1.0 / OutputGamma))
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
-	mat4 MVP;
+    mat4 MVP;
 } global;
 
 #pragma stage vertex
@@ -70,39 +79,39 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 float weight(float x)
 {
-	x = abs(x);
+    x = abs(x);
 
-	if (x < 1.0)
-	{
-		return
-			(
-			 ((x - 9.0 / 5.0) * x - 1.0 / 5.0 ) * x + 1.0
-			);
-	}
-	else if ((x >= 1.0) && (x < 2.0))
-	{
-		return
-			(
-			 (( -1.0 / 3.0 * x + 9.0 / 5.0 ) * x - 46.0 / 15.0 ) * x + 8.0/5.0
-			);
-	}
-	else
-	{
-		return 0.0;
-	}
+    if (x < 1.0)
+    {
+        return
+            (
+             ((x - 9.0 / 5.0) * x - 1.0 / 5.0 ) * x + 1.0
+            );
+    }
+    else if ((x >= 1.0) && (x < 2.0))
+    {
+        return
+            (
+             (( -1.0 / 3.0 * x + 9.0 / 5.0 ) * x - 46.0 / 15.0 ) * x + 8.0/5.0
+            );
+    }
+    else
+    {
+        return 0.0;
+    }
 }
 
 vec4 weight4(float x)
 {
-	return vec4(
-			weight(x - 2.0),
-			weight(x - 1.0),
-			weight(x),
-			weight(x + 1.0)
-		   );
+    return vec4(
+            weight(x - 2.0),
+            weight(x - 1.0),
+            weight(x),
+            weight(x + 1.0)
+           );
 }
 
-	
+    
 
 void main()
 {
@@ -127,7 +136,7 @@ void main()
     vec3 color = mat4x3( C0, C1, C2, C3 ) * w;
 
     // Anti-ringing
-    if (S16_ANTI_RINGING == 1.0)
+    if (ANTI_RINGING == 1.0)
     {
         vec3 aux = color;
         vec3 min_sample = min(min(C0, C1), min(C2, C3));
@@ -135,6 +144,8 @@ void main()
         color = clamp(color, min_sample, max_sample);
         color = mix(aux, color, step(0.0, (C0-C1)*(C2-C3)));
     }
+
+    color = mix(color, GAMMA_OUT(color), LINEAR_GAMMA);
 
     FragColor = vec4(color, 1.0);
 }

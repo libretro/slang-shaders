@@ -3,7 +3,7 @@
 /*
    Lanczos4 - passY 
 
-   Multipass code by Hyllian 2022.
+   Multipass code by Hyllian 2025.
 
 */
 
@@ -33,18 +33,26 @@ http://www.gnu.org/copyleft/gpl.html
 
 layout(push_constant) uniform Push
 {
-	vec4 SourceSize;
-	vec4 OriginalSize;
-	vec4 OutputSize;
-	uint FrameCount;
-	float LANCZOS4_ANTI_RINGING;
+    vec4 SourceSize;
+    vec4 OriginalSize;
+    vec4 OutputSize;
+    uint FrameCount;
+    float Lanczos4_InputGamma;
+    float L4_ANTI_RINGING;
+    float L4_LINEAR_GAMMA;
 } params;
 
-#pragma parameter LANCZOS4_ANTI_RINGING "Lanczos4 Anti-Ringing [ OFF | ON ]" 1.0 0.0 1.0 1.0
+#pragma parameter CR_NONONO           "LANCZOS4:"                                  0.0  0.0   1.0 1.0
+#pragma parameter L4_LINEAR_GAMMA      "    Use Linear Gamma [ YES | NO ]"         0.0 0.0 1.0 1.0
+#pragma parameter Lanczos4_InputGamma  "    Input Gamma"                           2.4 1.0 3.0 0.05
+#pragma parameter Lanczos4_OutputGamma "    Output Gamma"                          2.2 1.0 3.0 0.05
+#pragma parameter L4_ANTI_RINGING      "    Lanczos4 Anti-Ringing [ OFF | ON ]"    1.0 0.0 1.0 1.0
 
-#define LANCZOS4_ANTI_RINGING params.LANCZOS4_ANTI_RINGING
+#define InputGamma    params.Lanczos4_InputGamma
+#define ANTI_RINGING  params.L4_ANTI_RINGING
+#define LINEAR_GAMMA  params.L4_LINEAR_GAMMA
 
-#define AR_STRENGTH 1.0
+#define GAMMA_IN(color)     pow(color, vec3(InputGamma, InputGamma, InputGamma))
 
 #define FIX(c) (max(abs(c), 1e-5))
 
@@ -53,7 +61,7 @@ const float radius = 4.0;
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
-	mat4 MVP;
+    mat4 MVP;
 } global;
 
 #pragma stage vertex
@@ -63,8 +71,8 @@ layout(location = 0) out vec2 vTexCoord;
 
 void main()
 {
-   gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord;
+    gl_Position = global.MVP * Position;
+    vTexCoord = TexCoord;
 }
 
 #pragma stage fragment
@@ -110,14 +118,16 @@ void main()
     color /= dot(w1 + w2, vec4(1));
 
     // Anti-ringing
-    if (LANCZOS4_ANTI_RINGING == 1.0)
+    if (ANTI_RINGING == 1.0)
     {
         vec3 aux = color;
         vec3 min_sample = min(min(C2, C3), min(C4, C5));
         vec3 max_sample = max(max(C2, C3), max(C4, C5));
         color = clamp(color, min_sample, max_sample);
-        color = mix(aux, color, AR_STRENGTH*step(0.0, (C2-C3)*(C4-C5)));
+        color = mix(aux, color, step(0.0, (C2-C3)*(C4-C5)));
     }
+
+    color = mix(color, GAMMA_IN(color), LINEAR_GAMMA);
 
     FragColor = vec4(color, 1.0);
 }

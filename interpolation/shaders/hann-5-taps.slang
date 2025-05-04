@@ -1,11 +1,12 @@
 #version 450
 
 /*
-	Bicubic Catmull-Rom 5-taps (Fast) - ported by Hyllian - 2024
+	Hann in 5-taps (Fast) - adapted by Hyllian - 2024
 
-	Samples a texture with B-Spline filtering, using only 4 texture fetches instead of 16.
+	Adapted from these bicubic sources:
+
 	See http://vec3.ca/bicubic-filtering-in-fewer-taps/ for more details
-	Source: https://www.shadertoy.com/view/styXDh
+	Bicubic Sources: https://www.shadertoy.com/view/styXDh
 	http://www.profhua.com/Sub/Article/BicubicFiltering/BicubicFiltering.html
 
 	ATENTION: This code only work using LINEAR filter sampling set on Retroarch!
@@ -18,12 +19,25 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
+	float AR_STRENGTH;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
 	mat4 MVP;
 } global;
+
+#pragma parameter AR_STRENGTH "Anti-Ringing Strength" 1.0 0.0 1.0 0.05
+#define AR_STRENGTH params.AR_STRENGTH
+
+#define pi    3.1415926535897932384626433832795
+#define FIX(c) (max(abs(c), 1e-5))
+
+vec2 sinc(vec2 x)         { return sin(pi*x)/(pi*x); }
+vec2 hann_window(vec2 x)  { return 0.5 * ( 1.0 - cos( 0.5 * pi * ( x + 2.0 ) ) ); }
+
+vec2 hann(vec2 x)     { x=FIX(x); return sinc(x) * hann_window(x); }
+
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -33,13 +47,16 @@ layout(location = 0) out vec2 vTexCoord;
 void main()
 {
    gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord;
+   vTexCoord = TexCoord * 1.0001;
 }
+
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
+
+
 
 void main()
 {
@@ -53,19 +70,13 @@ void main()
     vec2 tc = floor(iTc - vec2(0.5)) + vec2(0.5);
 
     // Compute the fractional offset from our starting texel to our original sample location, which we'll
-    // feed into the B-Spline function to get our filter weights.
+    // feed into the function to get our filter weights.
     vec2 f  = iTc - tc;
-    vec2 f2 = f * f;
-    vec2 f3 = f2 * f;
 
-    vec2 of = vec2(1.)-f;
-    vec2 of2 = of*of;
-    vec2 of3 = of2*of;
-    
-    vec2 w0 = f2 - 0.5 * (f3 + f);
-    vec2 w1 = 1.5 * f3 - 2.5 * f2 + vec2(1.);
-    vec2 w3 = 0.5 * (f3 - f2);
-    vec2 w2 = vec2(1.) - w0 - w1 - w3;
+    vec2 w0 = hann(f+vec2(1.));
+    vec2 w1 = hann(         f);
+    vec2 w2 = hann(vec2(1.)-f);
+    vec2 w3 = vec2(1.) - w0 - w1 - w2;
 
     vec2 Weight[3];
     vec2 Sample[3];
@@ -74,13 +85,9 @@ void main()
     Weight[1] = w1 + w2;
     Weight[2] = w3;
 
-    Sample[0] = tc - vec2(1.);
-    Sample[1] = tc + w2 / Weight[1];
-    Sample[2] = tc + vec2(2.);
-
-    Sample[0] *= invTexSize;
-    Sample[1] *= invTexSize;
-    Sample[2] *= invTexSize;
+    Sample[0] = (tc       - vec2(1.)) * invTexSize;
+    Sample[1] = (tc + w2 / Weight[1]) * invTexSize;
+    Sample[2] = (tc       + vec2(2.)) * invTexSize;
 
     float sampleWeight[5];
     sampleWeight[0] = Weight[1].x * Weight[0].y;
@@ -110,7 +117,7 @@ void main()
     vec3 min_sample = min(min(min(CC,CT), CL), min(CR, CB));
     vec3 max_sample = max(max(max(CC,CT), CL), max(CR, CB));
     color = clamp(color, min_sample, max_sample);
-    color = mix(aux, color, step(0.0, (CL-CC)*(CC-CR)+(CB-CC)*(CC-CT)));
+    color = mix(aux, color, AR_STRENGTH*step(0.0, (CL-CC)*(CC-CR)+(CB-CC)*(CC-CT)));
 
     FragColor = vec4(color, 1.0);
 }

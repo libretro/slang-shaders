@@ -1,14 +1,15 @@
 shaders = 2
 
-shader0 = shaders/catmull-rom-x.slang
+shader0 = shaders/bicubic/catmull-rom-y.slang
 filter_linear0 = false
-scale_type_x0 = viewport
-scale_type_y0 = source
+scale_type_x0 = source
+scale_type_y0 = viewport
 scale0 = 1.0
 wrap_mode0 = "clamp_to_edge"
-float_framebuffer0 = "true"
+srgb_framebuffer0 = "true"
 
-shader1 = shaders/catmull-rom-y.slang
+shader1 = shaders/bicubic/catmull-rom-x.slang
 filter_linear1 = false
 wrap_mode1 = "clamp_to_edge"
 scale_type1 = viewport
+

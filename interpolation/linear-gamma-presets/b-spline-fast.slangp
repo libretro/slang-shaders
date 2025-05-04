@@ -1,6 +1,6 @@
 shaders = 2
 
-shader0 = shaders/lanczos/lanczos4-y.slang
+shader0 = "../shaders/bicubic/b-spline-y.slang"
 filter_linear0 = false
 scale_type_x0 = source
 scale_type_y0 = viewport
@@ -8,7 +8,9 @@ scale0 = 1.0
 wrap_mode0 = "clamp_to_edge"
 srgb_framebuffer0 = "true"
 
-shader1 = shaders/lanczos/lanczos4-x.slang
+shader1 = "../shaders/bicubic/b-spline-x.slang"
 filter_linear1 = false
 wrap_mode1 = "clamp_to_edge"
 scale_type1 = viewport
+
+BS_LINEAR_GAMMA = "1.0"

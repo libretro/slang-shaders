@@ -33,18 +33,25 @@ http://www.gnu.org/copyleft/gpl.html
 
 layout(push_constant) uniform Push
 {
-	vec4 SourceSize;
-	vec4 OriginalSize;
-	vec4 OutputSize;
-	uint FrameCount;
-	float LANCZOS2_ANTI_RINGING;
+    vec4 SourceSize;
+    vec4 OriginalSize;
+    vec4 OutputSize;
+    uint FrameCount;
+    float Lanczos2_OutputGamma;
+    float L2_ANTI_RINGING;
+    float L2_LINEAR_GAMMA;
 } params;
 
-#pragma parameter LANCZOS2_ANTI_RINGING "Lanczos2 Anti-Ringing [ OFF | ON ]" 1.0 0.0 1.0 1.0
 
-#define LANCZOS2_ANTI_RINGING params.LANCZOS2_ANTI_RINGING
+#pragma parameter L2_LINEAR_GAMMA       "    Use Linear Gamma [ YES | NO ]"         0.0 0.0 1.0 1.0
+#pragma parameter Lanczos2_OutputGamma  "    Output Gamma"                          2.2 1.0 3.0 0.05
+#pragma parameter L2_ANTI_RINGING       "    Lanczos2 Anti-Ringing [ OFF | ON ]"    1.0 0.0 1.0 1.0
 
-#define AR_STRENGTH 1.0
+#define OutputGamma   params.Lanczos2_OutputGamma
+#define ANTI_RINGING  params.L2_ANTI_RINGING
+#define LINEAR_GAMMA  params.L2_LINEAR_GAMMA
+
+#define GAMMA_OUT(color)    pow(color, vec3(1.0 / OutputGamma, 1.0 / OutputGamma, 1.0 / OutputGamma))
 
 #define FIX(c) (max(abs(c), 1e-5))
 
@@ -53,7 +60,7 @@ const float radius = 2.0;
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
-	mat4 MVP;
+    mat4 MVP;
 } global;
 
 #pragma stage vertex
@@ -64,7 +71,7 @@ layout(location = 0) out vec2 vTexCoord;
 void main()
 {
    gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord;
+   vTexCoord = TexCoord + vec2(0.0001, 0.0);
 }
 
 #pragma stage fragment
@@ -105,14 +112,16 @@ void main()
     color /= dot(  w, vec4(1));
 
     // Anti-ringing
-    if (LANCZOS2_ANTI_RINGING == 1.0)
+    if (ANTI_RINGING == 1.0)
     {
         vec3 aux = color;
         vec3 min_sample = min(min(C0, C1), min(C2, C3));
         vec3 max_sample = max(max(C0, C1), max(C2, C3));
         color = clamp(color, min_sample, max_sample);
-        color = mix(aux, color, AR_STRENGTH*step(0.0, (C0-C1)*(C2-C3)));
+        color = mix(aux, color, step(0.0, (C0-C1)*(C2-C3)));
     }
+
+    color = mix(color, GAMMA_OUT(color), LINEAR_GAMMA);
 
     FragColor = vec4(color, 1.0);
 }

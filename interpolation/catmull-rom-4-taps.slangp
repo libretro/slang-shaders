@@ -1,0 +1,14 @@
+shaders = 2
+
+shader0 = shaders/support/checkerboard-inverted.slang
+filter_linear0 = false
+wrap_mode0 = "clamp_to_border"
+scale_type0 = source
+scale0 = "1.0"
+float_framebuffer0 = true
+
+shader1 = shaders/catmull-rom-4-taps.slang
+filter_linear1 = true
+wrap_mode1 = "clamp_to_border"
+scale_type1 = viewport
+

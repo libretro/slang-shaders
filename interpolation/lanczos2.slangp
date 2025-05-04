@@ -5,7 +5,7 @@ filter_linear0 = false
 wrap_mode0 = "clamp_to_edge"
 scale_type0 = viewport
 
-shader1 = shaders/shift-half-pixel.slang
+shader1 = shaders/support/shift-half-pixel.slang
 wrap_mode1 = "clamp_to_edge"
 filter_linear1 = false
 
