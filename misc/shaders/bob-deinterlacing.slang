@@ -54,8 +54,8 @@ layout(set = 0, binding = 3) uniform sampler2D OriginalHistory1;
 void main()
 {
    // snap to the center of the underlying texel
-   vec2 uv = vTexCoord * params.SourceSize.xy - 0.5;
-   uv = (floor(uv) + 0.5001) * params.SourceSize.zw;
+   vec2 uv = vTexCoord * params.SourceSize.xy - 0.5001;
+   uv = (floor(uv) + 0.5) * params.SourceSize.zw;
    
    // go ahead and sample the texture and early return if not interlaced
 	vec4 current = texture(Source, uv);
