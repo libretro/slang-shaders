@@ -1,6 +1,6 @@
 #version 450
 
-// NTSC-Adaptive
+// NTSC-Adaptive Pass2
 // based on Themaister's NTSC shader
 
 
@@ -16,6 +16,8 @@ layout(push_constant) uniform Push
    float ntsc_cscale1;   
    float ntsc_taps;
    float auto_res;
+   float ntsc_charp;
+   float ntsc_charp3;   
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -29,6 +31,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter ntsc_taps    "NTSC # of Taps (Filter Width)" 32.0 6.0 32.0 1.0
 #pragma parameter ntsc_cscale  "NTSC Chroma Scaling / Bleeding (2-phase)" 1.0 0.50 4.00 0.05
 #pragma parameter ntsc_cscale1 "NTSC Chroma Scaling / Bleeding (3-phase)" 1.0 0.20 2.25 0.05
+#pragma parameter ntsc_charp   "NTSC Preserve 'Edge' Colors 2-phase" 0.0 0.0 10.0 0.50
+#pragma parameter ntsc_charp3  "NTSC Preserve 'Edge' Colors 3-phase" 0.0 0.0 10.0 0.50
 #pragma parameter ntsc-row4 "------------------------------------------------" 0.0 0.0 0.0 1.0
 #pragma parameter ntsc_ring    "NTSC Anti-Ringing" 0.5 0.0 1.0 0.10
 
@@ -84,6 +88,15 @@ vec3 rgb2yiq(vec3 col)
    return col * yiq_mat;
 }
 
+float get_luma(vec3 c)
+{
+	return dot(c, vec3(0.2989, 0.5870, 0.1140));
+}
+
+float smothstep (float e0, float e1, float x)
+{
+   return clamp((x - e0) / (e1 - e0), 0.0, 1.0);
+}
 
 const int TAPS_2_phase = 32;
 const float luma_filter_2_phase[33] = float[33](
@@ -222,13 +235,15 @@ float luma_filter_3_phase[25] = float[25](
 
    if(phase < 2.5)
    {
-	  vec2 dx = vec2(one_x.x, 0.0); vec2 dx1 = dx;
-	  float iloop = max(params.ntsc_taps, 8.0);
-	  int loopstart = int(TAPS_2_phase - iloop);
+      float iloop = max(params.ntsc_taps, 8.0);
+      if (params.ntsc_charp > 0.25) iloop = min(iloop, 14.0);
+      int loopstart = int(TAPS_2_phase - iloop);
 	  
-	  float ltap = params.ntsc_taps + 1.0;
-	  float cs_sub = iloop - iloop / params.ntsc_cscale;
-	  float ctap = 0.0;
+      float ltap = iloop + 1.0;
+      float cs_sub = iloop - iloop / params.ntsc_cscale;
+      float ctap = 0.0;
+      float mit = 1.0 + 0.0375*pow(smothstep(16.0, 8.0, iloop), 0.5);
+      vec2 dx = vec2(one_x.x*mit, 0.0); vec2 dx1 = dx;
 	  
       for (i = loopstart; i < 32; i++)
       {
@@ -239,7 +254,7 @@ float luma_filter_3_phase[25] = float[25](
          signal += sums * tmp;
       }
       ctap = ltap - cs_sub;
-	  tmp = vec3(luma_filter_2_phase[TAPS_2_phase], ctap.xx);
+      tmp = vec3(luma_filter_2_phase[TAPS_2_phase], ctap.xx);
       wsum = wsum + wsum + tmp;
       signal += texture(Source, vTexCoord).xyz * tmp;
       signal = signal / wsum;
@@ -247,9 +262,11 @@ float luma_filter_3_phase[25] = float[25](
    else
    {
       one_x.y = one_x.y/params.ntsc_cscale1;
-	  vec3 dx = vec3(one_x.x, one_x.y, 0.0); vec3 dx1 = dx;
-	  
-	  float iloop = min(params.ntsc_taps, TAPS_3_phase);
+      vec3 dx = vec3(one_x.x, one_x.y, 0.0);
+      float mit = 1.0;
+      float iloop = min(params.ntsc_taps, TAPS_3_phase);
+      if (params.ntsc_phase == 4.0) { iloop = max(params.ntsc_taps, 8.0); mit = 1.0 + 0.0375*pow(smothstep(16.0, 8.0, iloop), 0.5); }
+      vec3 dx1 = dx; dx.x*=mit;
       int loopstart = int(24.0 - iloop);
 	  
       for (i = loopstart; i < 24; i++)
@@ -266,21 +283,20 @@ float luma_filter_3_phase[25] = float[25](
       signal = signal / wsum;
    }
 
+   signal.x = clamp(signal.x, 0.0, 1.0);
+
    if (params.ntsc_ring > 0.05)
    {
       vec2 dx = vec2(params.OriginalSize.z / min(res, 1.0), 0.0);
-      float a = texture(Source, vTexCoord - 1.5*dx).a;
-      float b = texture(Source, vTexCoord - 0.5*dx).a;
-      float c = texture(Source, vTexCoord + 1.5*dx).a;
-      float d = texture(Source, vTexCoord + 0.5*dx).a;
+      float a = texture(Source, vTexCoord - 2.0*dx).a;
+      float b = texture(Source, vTexCoord -     dx).a;
+      float c = texture(Source, vTexCoord + 2.0*dx).a;
+      float d = texture(Source, vTexCoord +     dx).a;
       float e = texture(Source, vTexCoord         ).a;	  
       signal.x = mix(signal.x, clamp(signal.x, min(min(min(a,b),min(c,d)),e), max(max(max(a,b),max(c,d)),e)), params.ntsc_ring);
    }
    
-   vec3 orig = rgb2yiq(texture(PrePass0, vTexCoord).rgb);
+   float orig = get_luma(texture(PrePass0, vTexCoord).rgb);
    
-   signal.x = clamp(signal.x, -1.0, 1.0);
-   vec3 rgb = signal;
-   
-   FragColor = vec4(rgb, orig.x);
+   FragColor = vec4(signal, orig);
 }  

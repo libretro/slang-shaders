@@ -3,10 +3,10 @@
 /*
    CRT - Guest - Advanced - Fast - Pass1
    
-   Copyright (C) 2018-2022 guest(r) - guest.r@gmail.com
+   Copyright (C) 2018-2025 guest(r)
 
    Incorporates many good ideas and suggestions from Dr. Venom.
-   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and caring about the shader.
+   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and using the shader.
    
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License

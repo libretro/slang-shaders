@@ -3,7 +3,7 @@
 /*
    Gaussian blur - vertical pass, dynamic range, resizable
    
-   Copyright (C) 2020 guest(r) - guest.r@gmail.com
+   Copyright (C) 2020 - 2025 guest(r)
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -32,15 +32,14 @@ layout(push_constant) uniform Push
 	float FINE_GLOW;
 } params;
 
-
 #pragma parameter SIZEV "          Vertical Glow Radius" 6.0 1.0 50.0 1.0 
 #define SIZEV params.SIZEV
 
 #pragma parameter SIGMA_V "          Vertical Glow Sigma" 1.20 0.20 15.0 0.05
 #define SIGMA_V params.SIGMA_V
 
-#pragma parameter FINE_GLOW "          Fine Glow/M.Glow Sampling" 1.0 1.0 5.0 1.0 
-#define FINE_GLOW params.FINE_GLOW
+#pragma parameter FINE_GLOW "          Fine Glow/M.Glow Sampling" 1.0 -1.0 5.0 1.0 
+float FINE_GLOW = (params.FINE_GLOW > 0.5) ? params.FINE_GLOW : mix(0.75, 0.5, -params.FINE_GLOW);
 
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -73,9 +72,15 @@ float gaussian(float x)
 	return exp(-x*x*invsqrsigma);
 }
 
+vec3 plant (vec3 tar, float r)
+{
+	float t = max(max(tar.r,tar.g),tar.b) + 0.00001;
+	return tar * r / t;
+}
+
 void main()
 {
-	vec4 SourceSize1 = vec4(params.SourceSize.x, params.OriginalSize.y, params.SourceSize.z, params.OriginalSize.w)*mix(1.0.xxxx, vec4(FINE_GLOW, FINE_GLOW, 1.0/FINE_GLOW, 1.0/FINE_GLOW), min(FINE_GLOW-1.0,1.0));
+	vec4 SourceSize1 = vec4(params.SourceSize.x, params.OriginalSize.y, params.SourceSize.z, params.OriginalSize.w)*vec4(FINE_GLOW, FINE_GLOW, 1.0/FINE_GLOW, 1.0/FINE_GLOW);
 	float f = fract(SourceSize1.y * vTexCoord.y);
 	f = 0.5 - f;
 	vec2 tex = floor(SourceSize1.xy * vTexCoord)*SourceSize1.zw + 0.5*SourceSize1.zw;

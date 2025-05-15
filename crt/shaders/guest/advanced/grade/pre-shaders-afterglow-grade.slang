@@ -170,7 +170,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter g_satr         "Hue vs Sat Red"             0.0 -1.0 1.0 0.01
 #pragma parameter g_satg         "Hue vs Sat Green"           0.0 -1.0 1.0 0.01
 #pragma parameter g_satb         "Hue vs Sat Blue"            0.0 -1.0 1.0 0.01
-#pragma parameter g_lift         "Black Level"                0.0 -15.0 15.0 1.0
+#pragma parameter g_lift         "Black Level"                0.0 -60.0 20.0 1.0
 #pragma parameter blr            "Black-Red Tint"             0.0  0.0 1.0 0.01
 #pragma parameter blg            "Black-Green Tint"           0.0  0.0 1.0 0.01
 #pragma parameter blb            "Black-Blue Tint"            0.0  0.0 1.0 0.01
@@ -949,7 +949,7 @@ void main()
 
 // Lift + Gain -PP Digital Controls- (Could do in Yxy but performance reasons)
     src_h = clamp(rolled_gain_v3(contrast, clamp(lum, -0.49, 0.99)), 0.0, 1.0);
-    src_h += lift * (1.0 - contrast);
+    src_h = max(src_h + lift * (1.0 - contrast), 0.0);
 
 
 // Vignetting (in linear space, so after EOTF^-1 it's power shaped; 0.5 thres converts to ~0.75)

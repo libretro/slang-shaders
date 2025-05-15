@@ -3,7 +3,7 @@
 /*
    Fast Sharpen Shader (Custom)
    
-   Copyright (C) 2005 - 2023 guest(r) - guest.r@gmail.com
+   Copyright (C) 2005 - 2025 guest(r)
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License

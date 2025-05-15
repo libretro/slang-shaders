@@ -3,10 +3,10 @@
 /*
    CRT - Guest - Advanced - HD - Pass1
    
-   Copyright (C) 2018-2023 guest(r) - guest.r@gmail.com
+   Copyright (C) 2018-2025 guest(r)
 
    Incorporates many good ideas and suggestions from Dr. Venom.
-   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and caring about the shader.
+   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and using the shader.
    
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -53,7 +53,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter auto_res "          SNES/Amiga Hi-Res Auto Mode" 0.0 0.0 1.0 1.0
 #define auto_res params.auto_res
 
-#pragma parameter internal_res "          Internal Resolution" 1.0 1.0 8.0 0.10
+#pragma parameter internal_res "          Internal Resolution" 1.0 0.5 8.0 0.10
 float internal_res = mix(params.internal_res, 1.75*params.internal_res, clamp(auto_res * round(params.OriginalSize.x/300.0)-1.0, 0.0, 1.0));
 
 #pragma parameter HSHARPNESS "          Horizontal Filter Range" 1.0 1.0 8.0 0.05

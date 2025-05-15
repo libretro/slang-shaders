@@ -3,10 +3,10 @@
 /*
    CRT - Guest - Advanced - Fast - Pass2
    
-   Copyright (C) 2018-2022 guest(r) - guest.r@gmail.com
+   Copyright (C) 2018-2025 guest(r)
 
    Incorporates many good ideas and suggestions from Dr. Venom.
-   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and caring about the shader.
+   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and using the shader.
    
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -27,7 +27,7 @@
 layout(push_constant) uniform Push
 {
 	float brightboost, brightboost1, gsl, scanline1, scanline2, beam_min, beam_max, beam_size,
-    glow, maskstr, inters, bloom, halation, scans, gamma_c, gamma_out, IOS, no_scanlines, tds, clips, ssharp, hiscan;
+    glow, maskstr, inters, bloom, halation, scans, gamma_c, gamma_c2, gamma_out, IOS, no_scanlines, tds, clips, hiscan;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -62,7 +62,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter bogus_screen "[ SCREEN OPTIONS ]: " 0.0 0.0 1.0 1.0
 
-#pragma parameter intres "          Internal Resolution Y: 0.5...y-dowsample divider" 0.0 0.0 6.0 0.5 // Joint parameter with main pass, values must match
+#pragma parameter intres "          Internal Resolution Y: 0.5...y-dowsample divider" 0.0 0.0 10.0 0.5 // Joint parameter with main pass, values must match
 
 #pragma parameter IOS "          Integer Scaling: Odd:Y, Even:'X'+Y" 0.0 0.0 4.0 1.0
 #define IOS          params.IOS     // Smart Integer Scaling
@@ -123,6 +123,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter gamma_c "          Gamma correct" 1.0 0.50 2.0 0.025
 #define gamma_c   params.gamma_c     // adjust brightness
 
+#pragma parameter gamma_c2 "          Complementary Gamma correct" 1.0 1.0 2.0 0.025
+#define gamma_c2   params.gamma_c2     // adjust brightness
+
 #pragma parameter brightboost "          Bright Boost Dark Pixels" 1.40 0.25 10.0 0.05
 #define brightboost  params.brightboost     // adjust brightness
 
@@ -160,9 +163,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter scan_falloff "          Scanline Falloff" 1.0 0.10 2.0 0.05
 #define scan_falloff        global.scan_falloff     // scanline falloff
-
-#pragma parameter ssharp "          Smart Sharpen Scanlines" 0.0 0.0 0.30 0.01
-#define ssharp params.ssharp
 
 #pragma parameter no_scanlines "          No-scanline mode" 0.0 0.0 1.5 0.05
 #define no_scanlines params.no_scanlines
@@ -336,11 +336,8 @@ void main()
 
 if (!interb)
 {	
-	vec3 luma = vec3(0.2126, 0.7152, 0.0722);	
-	float ssub = ssharp*max(abs(scolor1.x-scolor2.x), abs(dot(color1,luma)-dot(color2,luma)));
-
-	float shape1 = mix(scanline1, scanline2 + ssub * scolor1.x * 35.0, f);
-	float shape2 = mix(scanline1, scanline2 + ssub * scolor2.x * 35.0, 1.0-f);
+	float shape1 = mix(scanline1, scanline2, f);
+	float shape2 = mix(scanline1, scanline2, 1.0-f);
 	
 	float wt1 = st(f);
 	float wt2 = st(1.0-f);

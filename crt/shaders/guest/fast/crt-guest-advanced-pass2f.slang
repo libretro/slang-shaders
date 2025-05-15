@@ -3,10 +3,10 @@
 /*
    CRT - Guest - Advanced - Fastest - Pass2
    
-   Copyright (C) 2018-2023 guest(r) - guest.r@gmail.com
+   Copyright (C) 2018-2025 guest(r)
 
    Incorporates many good ideas and suggestions from Dr. Venom.
-   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and caring about the shader.
+   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and using the shader.
    
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -161,7 +161,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter masksize "          CRT Mask Size" 1.0 1.0 4.0 1.0
 #define masksize     params.masksize     // Mask Size
 
-#pragma parameter mask_zoom "          CRT Mask Zoom (+ mask width)" 0.0 -5.0 5.0 1.0
+#pragma parameter mask_zoom "          CRT Mask Zoom (+ mask width)" 0.0 -10.0 6.0 1.0
 #define mask_zoom     global.mask_zoom     // Mask Size
 
 #pragma parameter mzoom_sh "          CRT Mask Zoom Sharpen (needs Mask Zoom)" 0.0 0.0 1.0 0.05
@@ -756,7 +756,7 @@ else{
 	
 	smask = SlotMask(scoord + vec2(sm_offset,0.0), mx, swidth);
 
-	smask = clamp(smask + mix(smask_mit, 0.0, min(w3, pow(w3*max(max(orig1.r,orig1.g),orig1.b), 0.33333))), 0.0, 1.0);
+	smask = clamp(smask + mix(smask_mit, 0.0, w3*pow(colmx, 0.3)), 0.0, 1.0);
 	
 	cmask*=smask;
 

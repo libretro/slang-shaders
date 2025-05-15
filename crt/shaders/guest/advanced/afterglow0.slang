@@ -3,7 +3,7 @@
 /*
    Phosphor Afterglow Shader pass 0
    
-   Copyright (C) 2020 - 2022 guest(r) - guest.r@gmail.com
+   Copyright (C) 2020 - 2025 guest(r)
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License

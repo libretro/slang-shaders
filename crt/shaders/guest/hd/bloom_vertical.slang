@@ -3,7 +3,7 @@
 /*
    Gaussian blur - vertical pass, dynamic range, resizable
    
-   Copyright (C) 2020 - 2023 guest(r) - guest.r@gmail.com
+   Copyright (C) 2020 - 2025 guest(r)
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -32,8 +32,8 @@ layout(push_constant) uniform Push
 	float FINE_BLOOM;
 } params;
 
-#pragma parameter FINE_BLOOM "          Fine Bloom/Halation Sampling" 1.0 1.0 5.0 1.0 
-#define FINE_BLOOM params.FINE_BLOOM
+#pragma parameter FINE_BLOOM "          Fine Bloom/Halation Sampling" 1.0 -1.0 5.0 1.0 
+float FINE_BLOOM = (params.FINE_BLOOM > 0.5) ? params.FINE_BLOOM : mix(0.75, 0.5, -params.FINE_BLOOM);
 
 #pragma parameter SIZEVB "          Vertical Bloom/Halation Radius" 3.0 1.0 50.0 1.0 
 #define SIZEVB params.SIZEVB
@@ -76,7 +76,7 @@ void main()
 {
 	vec4 SourceSize1 = params.SourceSize;
 	SourceSize1.yw = params.OriginalSize.yw;
-	SourceSize1 = SourceSize1 * mix(1.0.xxxx, vec4(FINE_BLOOM, FINE_BLOOM, 1.0/FINE_BLOOM, 1.0/FINE_BLOOM), min(FINE_BLOOM-1.0,1.0));
+	SourceSize1 = SourceSize1 * vec4(FINE_BLOOM, FINE_BLOOM, 1.0/FINE_BLOOM, 1.0/FINE_BLOOM);
 	
 	float f = fract(SourceSize1.y * vTexCoord.y);
 	f = 0.5 - f;

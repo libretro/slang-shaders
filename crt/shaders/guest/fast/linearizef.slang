@@ -3,7 +3,7 @@
 /*
    Interlacing
    
-   Copyright (C) 2020 - 2023 guest(r) - guest.r@gmail.com
+   Copyright (C) 2020 - 2025 guest(r)
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -103,7 +103,7 @@ void main()
 	vec3  c  = c1;
 
 	float intera = 1.0;
-	float gamma_in = clamp(GAMMA_INPUT, 1.0, 5.0);
+	float gamma_in = GAMMA_INPUT;
 
 	float m1 = max(max(c1.r,c1.g),c1.b);
 	float m2 = max(max(c2.r,c2.g),c2.b);
@@ -119,13 +119,13 @@ void main()
 	if (inter <= params.OriginalSize.y/yres_div && interm > 0.5 && intres != 0.5) 
 	{
 		intera = 0.25;
-		float line_no  = clamp(floor(mod(params.OriginalSize.y*vTexCoord.y, 2.0)), 0.0, 1.0);
-		float frame_no = clamp(floor(mod(float(params.FrameCount),2.0)), 0.0, 1.0);
+		float line_no  = floor(mod(params.OriginalSize.y*vTexCoord.y, 2.0));
+		float frame_no = floor(mod(float(params.FrameCount),2.0));
 		float ii = abs(line_no-frame_no);
 		
 		if (interm < 3.5)
 		{
-			r = clamp(max(m1*ii, (1.0-iscan)*min(m1,m2)), 0.0, 1.0);
+			r = max(m1*ii, (1.0-iscan)*min(m1,m2));
 			c = plant( mix(mix(c1,c2, min(mix(m1, 1.0-m2, min(m1,1.0-m1))/(d+0.00001),1.0)), c1, ii), r);
 			if (interm == 3.0) c = (1.0-0.5*iscan)*mix(c2, c1, ii);
 		}

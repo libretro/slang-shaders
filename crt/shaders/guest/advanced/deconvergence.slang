@@ -3,10 +3,10 @@
 /*
    CRT - Guest - Advanced
    
-   Copyright (C) 2018-2023 guest(r) - guest.r@gmail.com
+   Copyright (C) 2018-2025 guest(r)
 
    Incorporates many good ideas and suggestions from Dr. Venom.
-   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and caring about the shader.
+   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and using the shader.
    
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -27,7 +27,7 @@
 layout(push_constant) uniform Push
 {
 	float TATE, IOS, OS, BLOOM, brightboost, brightboost1, csize, bsize1, warpX, warpY, glow, shadowMask, masksize,
-	slotmask, slotmask1, slotwidth, double_slot, mcut, maskDark, maskLight, maskstr, mshift, mask_layout, mask_bloom, hiscan;
+	slotmask, slotmask1, slotwidth, double_slot, mcut, maskDark, maskLight, maskstr, mshift, mask_layout, mask_bloom, hiscan, pr_scan;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -66,8 +66,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	float dctypey;
 	float post_br;
 	float maskboost;
-	float smoothmask;
+	float smoothmask;	
 	float gamma_c;
+	float gamma_c2;
 	float m_glow;
 	float m_glow_low;
 	float m_glow_high;
@@ -81,6 +82,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	float hmask1;
 	float mzoom_sh;
 	float mclip;
+	float maskmid;
+	float edgemask;
 } global;
 
 #pragma parameter hiscan "          High Resolution Scanlines (prepend a scaler...)" 0.0 0.0 1.0 1.0
@@ -129,6 +132,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter gamma_c "          Gamma correct" 1.0 0.50 2.0 0.025
 #define gamma_c   global.gamma_c     // adjust brightness
+
+#pragma parameter gamma_c2 "          Complementary Gamma correct" 1.0 1.0 2.0 0.025
+#define gamma_c2   global.gamma_c2     // adjust brightness
 
 #pragma parameter bogus_screen "[ SCREEN OPTIONS ]: " 0.0 0.0 1.0 1.0
 
@@ -191,7 +197,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter masksize "          CRT Mask Size" 1.0 1.0 4.0 1.0
 #define masksize     params.masksize     // Mask Size
 
-#pragma parameter mask_zoom "          CRT Mask Zoom (+ mask width)" 0.0 -5.0 5.0 1.0
+#pragma parameter mask_zoom "          CRT Mask Zoom (+ mask width)" 0.0 -10.0 6.0 1.0
 #define mask_zoom     global.mask_zoom     // Mask Size
 
 #pragma parameter mzoom_sh "          CRT Mask Zoom Sharpen (needs Mask Zoom)" 0.0 0.0 1.0 0.05
@@ -227,7 +233,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter slotms "          Slot Mask Thickness" 1.0 1.0 4.0 1.0
 #define slotms  global.slotms     // Slot Mask Thickness
 
-#pragma parameter smoothmask "          Smooth Masks in bright scanlines" 0.0 0.0 1.0 1.0
+#pragma parameter smoothmask "          Smooth Masks in bright scanlines" 0.0 0.0 2.0 0.25
 #define smoothmask  global.smoothmask
 
 #pragma parameter smask_mit "          Mitigate Slotmask Interaction" 0.0 0.0 1.0 0.05
@@ -238,6 +244,15 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter mclip "          Preserve Mask Strength" 0.0 0.0 1.0 0.025
 #define mclip  global.mclip
+
+#pragma parameter pr_scan "          Preserve Scanline Strength" 0.10 0.0 1.0 0.025
+#define pr_scan  params.pr_scan
+
+#pragma parameter maskmid "          Mitigate Mask on Mid-Colors" 0.0 0.0 1.0 0.05
+#define maskmid  global.maskmid
+
+#pragma parameter edgemask "          Mitigate Mask on Edges" 0.0 0.0 1.0 0.10
+#define edgemask  global.edgemask
 
 #pragma parameter gamma_out "          Gamma out" 2.4 1.0 5.0 0.05
 #define gamma_out    global.gamma_out     // output gamma
@@ -556,6 +571,14 @@ float igc(float mc)
 	return pow(mc, gamma_c);
 }
 
+vec3 gc2(vec3 c, float w3)
+{
+	float mc = max(max(c.r,c.g),c.b);
+	float gp = 1.0/(1.0 + (gamma_c2 - 1.0)*mix(0.375, 1.0, w3));
+	float mg = pow(mc, gp);
+	return c * mg/(mc + eps);  
+}
+
 // noise function:
 // Dedicated to the public domain.
 // If you want a real license, you may consider this MIT/BSD/CC0/WTFPL-licensed (take your pick).
@@ -671,13 +694,14 @@ if ((abs(global.deconrr) + abs(global.deconrry) + abs(global.deconrg) + abs(glob
 	float cm = igc(max(max(color.r,color.g),color.b));
 	float mx1 = COMPAT_TEXTURE(Source, pos1     ).a;
 	float colmx = max(mx1, cm);
-	float w3 = min((cm + 0.0001) / (colmx + 0.0005), 1.0); if(interb) w3 = 1.0;
+	float w3 = min((max((cm - 0.0005)*1.0005 ,0.0) + 0.0001) / (colmx + 0.0005), 1.0); if(interb) w3 = 1.0;
 	
 	vec2 dx = mix(vec2(0.001, 0.0), vec2(0.0, 0.001), TATE);
 	float mx0 = COMPAT_TEXTURE(Source, pos1 - dx).a;
 	float mx2 = COMPAT_TEXTURE(Source, pos1 + dx).a;
 	float mxg = max(max(mx0,mx1),max(mx2,cm));
 	float mx = pow(mxg, 1.40/gamma_in);
+	float cx = pow(colmx, 1.4/gamma_in);
 
 	// mask boost tweak
 	
@@ -703,7 +727,7 @@ if ((abs(global.deconrr) + abs(global.deconrry) + abs(global.deconrg) + abs(glob
 
 if (shadowMask > -0.5)
 {	
-	vec2 maskcoord = gl_FragCoord.yx * 1.00001;
+	vec2 maskcoord = gl_FragCoord.yx;
 	if (notate) maskcoord = maskcoord.yx;
 	vec2 scoord = maskcoord;
 	
@@ -740,8 +764,8 @@ else{
 	swidth = round(swidth*mscale);
 	smask = SlotMask(scoord + vec2(sm_offset,0.0), mx, swidth);
 
-	smask = clamp(smask + mix(smask_mit, 0.0, min(w3, pow(w3*max(max(orig1.r,orig1.g),orig1.b), 0.33333))), 0.0, 1.0);
-	
+	smask = clamp(smask + mix(smask_mit, 0.0, w3*pow(colmx, 0.3)), 0.0, 1.0);
+
 	cmask2 = cmask;
 	cmask*=smask;
 	cmask1 = cmask;
@@ -760,6 +784,8 @@ else{
 
 	cmask  = min(cmask, 1.0);
 	cmask1 = min(cmask1, 1.0);
+	
+	float mm = max(-2.75*cx*(cx-1.0)-mix(0.075, 0.165, cx), 0.0); color = max(color, orig1*maskmid*mm);
 }
 
 	float dark_compensate  = mix(max( clamp( mix (mcut, maskstr, mx),0.0, 1.0) - 1.0 + mask_compensate, 0.0) + 1.0, 1.0, mx); if(shadowMask < -0.5) dark_compensate = 1.0;
@@ -771,8 +797,8 @@ else{
 	float vig  = COMPAT_TEXTURE(PrePass, clamp(pos, 0.0+0.5*global.OriginalSize.zw, 1.0-0.5*global.OriginalSize.zw)).a;
 
 	vec3 Bloom1 = Bloom;
-	vec3 bcmask = mix(one, cmask, bmask1);
-	vec3 hcmask = mix(one, cmask, hmask1);
+	vec3 bcmask = mix(one, cmask1, bmask1);
+	vec3 hcmask = mix(one, cmask1, hmask1);
 
 	if (abs(bloom) > 0.025)
 	{
@@ -782,8 +808,6 @@ else{
 		Bloom1 = bcmask*Bloom1 * max(mix(1.0, 2.0-colmx, bloom_dist), 0.0);
 		color = pow(pow(color, vec3(mask_gamma/gamma_in)) + abs(bloom) * pow(Bloom1, vec3(mask_gamma/gamma_in)), vec3(gamma_in/mask_gamma));
 	}
-
-	if (!interb) color = declip(min(color,1.0), mix(1.0, w3, 0.6));
 
 	if (halation > 0.01) {
 		Bloom = 0.5*(Bloom + Bloom*Bloom);
@@ -799,8 +823,10 @@ else{
 		Bloom = plant(Bloom + Ref + orig1 + Bloom*Bloom*Bloom, min(mbl*mbl,0.75));
 		color = color + 2.0*mix(1.0,w3,0.5*colmx)*hcmask*Bloom*(-halation); }
 
-	float w = 0.25 + 0.60*mix(w3, 1.0, sqrt(colmx));
-	if (smoothmask > 0.5) { color = min(color,1.0); color = max(min(color/w3, 1.0)*w3, min(orig1*bb,color*(1.0-w3))); }
+	color = min(color,1.0);
+	color = gc2(color,w3);
+	
+	if (smoothmask > 0.125) { float w4 = pow(w3, 0.425 + 0.3*smoothmask); w4 = max(w4 - 0.175*colmx*smoothmask, 0.2); color = mix(min(color/w4, plant(orig1,1.0 + 0.175*colmx*smoothmask))*w4, color, w4); }
 	
 	if (global.m_glow < 0.5) Glow = mix(Glow, 0.25*color, colmx);
 	else
@@ -811,7 +837,7 @@ else{
 		Ref = abs(orig2-Bloom);
 		mx0 = max(max(orig2.r,orig2.g),orig2.b)-min(min(orig2.r,orig2.g),orig2.b);
 		mx2 = max(max(Bloom.r,Bloom.g),Bloom.b)-min(min(Bloom.r,Bloom.g),Bloom.b);		
-		Bloom = mix(maxb*min(Bloom,orig2), w*mix(mix(Glow, max(max(Ref.r,Ref.g),Ref.b)*Glow, max(mx,mx0)), mix(color, Glow, mx2), max(mx0,mx2)*Ref), min(sqrt((1.10-mx0)*(0.10+mx2)),1.0));
+		Bloom = mix(maxb*min(Bloom,orig2), mix(mix(Glow, max(max(Ref.r,Ref.g),Ref.b)*Glow, max(mx,mx0)), mix(color, Glow, mx2), max(mx0,mx2)*Ref), min(sqrt((1.10-mx0)*(0.10+mx2)),1.0));
 		if (global.m_glow > 1.5) Glow = mix(0.5*Glow*Glow,Bloom,Bloom);
 		Glow = mix(global.m_glow_low*Glow, global.m_glow_high*Bloom, pow(colmx, global.m_glow_dist/gamma_in));
 	}
@@ -821,8 +847,21 @@ else{
 	else { vec3 cmaskg = clamp(mix(one, cmask1, global.m_glow_mask),0.0, 1.0); color = color + abs(glow)*cmaskg*Glow; }
 
 	color = min(color, 1.0);
+
+	if (edgemask > 0.05) {
+		mx0 = COMPAT_TEXTURE(Source, pos1 - dx).a; mx0 = COMPAT_TEXTURE(Source, pos1 - dx*(1.0-0.75*sqrt(mx0))).a; 
+		mx2 = COMPAT_TEXTURE(Source, pos1 + dx).a; mx2 = COMPAT_TEXTURE(Source, pos1 + dx*(1.0-0.75*sqrt(mx2))).a; 
+		float mx3 = COMPAT_TEXTURE(Source, pos1 - 4.0*dx).a;
+		float mx4 = COMPAT_TEXTURE(Source, pos1 + 4.0*dx).a;
+		mx4 = max(pow(abs(mx3-mx4),0.55-0.40*cx),min(max(mx3,mx4)/min(0.1+cx,1.0),1.0));
+		mb = (1.0 - abs(pow(mx0,1.0-0.65*mx2)-pow(mx2,1.0-0.65*mx0)));
+		mb = mx4*edgemask*(1.0001-mb*mb);
+		vec3 temp = mix(color, orig1, mb);
+		color = max(temp + mix(3.5*mb*mix(1.625*temp,temp,cx), 0.0.xxx, pow(color, 0.75.xxx-0.5*colmx)),color); }
 	
-	color = min(color, max(orig1,color)*mix(one, cmask1, mclip));
+	color = color * mix(1.0, mix(0.5*(1.0+w3), w3, mx), pr_scan);  // preserve scanlines
+	
+	color = min(color, max(orig1,color)*mix(one, cmask1, mclip));  // preserve mask
 	
 	color = pow(color, vec3(1.0/gamma_out));
 

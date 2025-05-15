@@ -34,8 +34,8 @@ layout(push_constant) uniform Push
 
 #pragma parameter bogus_bloom "[ BLOOM/HALATION/(GLOW) PASS SETTINGS ]:" 0.0 0.0 1.0 1.0
 
-#pragma parameter FINE_BLOOM "          Fine Bloom/Halation Sampling" 1.0 1.0 5.0 1.0 
-#define FINE_BLOOM params.FINE_BLOOM
+#pragma parameter FINE_BLOOM "          Fine Bloom/Halation Sampling" 1.0 -1.0 5.0 1.0 
+float FINE_BLOOM = (params.FINE_BLOOM > 0.5) ? params.FINE_BLOOM : mix(0.75, 0.5, -params.FINE_BLOOM);
 
 #pragma parameter SIZEHB "          Horizontal Bloom/Halation Radius" 3.0 1.0 50.0 1.0 
 #define SIZEHB params.SIZEHB
@@ -75,7 +75,7 @@ float gaussian(float x)
 
 void main()
 {
-	vec4 SourceSize1 = params.OriginalSize * mix(1.0.xxxx, vec4(FINE_BLOOM, FINE_BLOOM, 1.0/FINE_BLOOM, 1.0/FINE_BLOOM), min(FINE_BLOOM-1.0,1.0));
+	vec4 SourceSize1 = params.OriginalSize * vec4(FINE_BLOOM, FINE_BLOOM, 1.0/FINE_BLOOM, 1.0/FINE_BLOOM);
 	float f = fract(SourceSize1.x * vTexCoord.x);
 	f = 0.5 - f;
 	vec2 tex = floor(SourceSize1.xy * vTexCoord)*SourceSize1.zw + 0.5*SourceSize1.zw;

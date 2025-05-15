@@ -3,10 +3,10 @@
 /*
    CRT - Guest - Advanced - HD - Pass2
    
-   Copyright (C) 2018-2023 guest(r) - guest.r@gmail.com
+   Copyright (C) 2018-2025 guest(r)
 
    Incorporates many good ideas and suggestions from Dr. Venom.
-   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and caring about the shader.
+   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and using the shader.
    
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -27,7 +27,7 @@
 layout(push_constant) uniform Push
 {
 	float IOS, brightboost, brightboost1, gsl, scanline1, scanline2, beam_min, beam_max, beam_size,
-    glow, inters, bloom, halation, scans, gamma_c, no_scanlines, MAXS, tds, clips, ssharp, hiscan, SIGMA_VER, VSHARPNESS, HARNG, HSHARP, S_SHARP;
+    glow, inters, bloom, halation, scans, gamma_c, gamma_c2, no_scanlines, MAXS, tds, clips, hiscan, SIGMA_VER, VSHARPNESS, HARNG, HSHARP, S_SHARP, rolling_scan;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -82,7 +82,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter bogus_screen "[ SCREEN OPTIONS ]: " 0.0 0.0 1.0 1.0
 
-#pragma parameter intres "          Internal Resolution Y: 0.5...y-dowsample divider" 0.0 0.0 6.0 0.5 // Joint parameter with main pass, values must match
+#pragma parameter intres "          Internal Resolution Y: 0.5...y-dowsample divider" 0.0 0.0 10.0 0.5 // Joint parameter with main pass, values must match
 
 #pragma parameter IOS "          Integer Scaling: Odd:Y, Even:'X'+Y" 0.0 0.0 4.0 1.0
 #define IOS          params.IOS     // Smart Integer Scaling
@@ -143,6 +143,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter gamma_c "          Gamma correct" 1.0 0.50 2.0 0.025
 #define gamma_c   params.gamma_c     // adjust brightness
 
+#pragma parameter gamma_c2 "          Complementary Gamma correct" 1.0 1.0 2.0 0.025
+#define gamma_c2   params.gamma_c2     // adjust brightness
+
 #pragma parameter brightboost "          Bright Boost Dark Pixels" 1.40 0.25 10.0 0.05
 #define brightboost  params.brightboost     // adjust brightness
 
@@ -184,13 +187,13 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter scangamma "          Scanline Gamma" 2.40 0.5 5.0 0.05
 #define scangamma global.scangamma
 
-#pragma parameter ssharp "          Smart Sharpen Scanlines" 0.0 0.0 0.30 0.01
-#define ssharp params.ssharp
+#pragma parameter rolling_scan "          Rolling Scanlines" 0.0 -1.0 1.0 0.01
+#define rolling_scan        params.rolling_scan     // rolling scanlines
 
 #pragma parameter no_scanlines "          No-scanline mode" 0.0 0.0 1.5 0.05
 #define no_scanlines params.no_scanlines
 
-#pragma parameter internal_res "          Internal Resolution" 1.0 1.0 8.0 0.10
+#pragma parameter internal_res "          Internal Resolution" 1.0 0.5 8.0 0.10
 #define internal_res global.internal_res * (1.0 / (1.0 + hiscan))
 
 #define COMPAT_TEXTURE(c,d) texture(c,d)
@@ -422,11 +425,8 @@ void main()
 
 if (!interb || hscan)
 {	
-	vec3 luma = vec3(0.2126, 0.7152, 0.0722);	
-	float ssub = ssharp*max(abs(scolor1.x-scolor2.x), abs(dot(color1,luma)-dot(color2,luma)));
-
-	float shape1 = mix(scanline1, scanline2 + ssub * scolor1.x * 35.0, f);
-	float shape2 = mix(scanline1, scanline2 + ssub * scolor2.x * 35.0, 1.0-f);
+	float shape1 = mix(scanline1, scanline2, f);
+	float shape2 = mix(scanline1, scanline2, 1.0-f);
 	
 	float wt1 = st(f);
 	float wt2 = st(1.0-f);
@@ -438,14 +438,21 @@ if (!interb || hscan)
 	vec3 sctmp = max(scolor0/(wt1+wt2), ctmp);
 	
 	vec3 w1, w2;
+
+	if (abs(rolling_scan) > 0.005) 
+	{ 
+		color1 = ctmp; color2 = ctmp;
+		scolor1 = sctmp; scolor2 = sctmp;
+	}
 	
 	vec3 cref1 = mix(sctmp, scolor1, beam_size); float creff1 = pow(max(max(cref1.r,cref1.g),cref1.b), scan_falloff);
 	vec3 cref2 = mix(sctmp, scolor2, beam_size); float creff2 = pow(max(max(cref2.r,cref2.g),cref2.b), scan_falloff);
 
 	if (tds > 0.5) { shape1 = mix(scanline2, shape1, creff1); shape2 = mix(scanline2, shape2, creff2); }
 
-	float f1 = f; 
-	float f2 = 1.0-f;
+	float scanpix = global.OriginalSize.y/OutputSize.y;
+	float f1 = fract(f - rolling_scan*float(global.FrameCount)*scanpix);
+	float f2 = 1.0 - f1;
 
 	float mc1 = max(max(color1.r,color1.g),color1.b) + eps;
 	float mc2 = max(max(color2.r,color2.g),color2.b) + eps;
@@ -469,9 +476,10 @@ if (!interb || hscan)
 		sy = mc2; one = (clips > 0.0) ? w2 : 1.0.xxx;
 		sat =       1.0001-min(min(cref2.r,cref2.g),cref2.b);
 		color2 = mix(color2, plant(pow(color2, 0.70.xxx-0.325*sat),sy), pow(sat,0.3333)*one*abs(clips));
-	}
+	}	
 	
 	color = (gc(color1)*w1 + gc(color2)*w2);
+
 	color = min(color, 1.0);
 }
 	

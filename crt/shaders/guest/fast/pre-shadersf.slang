@@ -3,7 +3,7 @@
 /*
    CRT Advanced color altering
    
-   Copyright (C) 2019-2023 guest(r) and Dr. Venom
+   Copyright (C) 2019-2025 guest(r) and Dr. Venom
    
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License

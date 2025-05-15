@@ -3,7 +3,7 @@
 /*
    Gaussian blur - horizontal pass, dynamic range, resizable
    
-   Copyright (C) 2020 - 2023 guest(r) - guest.r@gmail.com
+   Copyright (C) 2020 - 2025 guest(r)
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -31,6 +31,7 @@ layout(push_constant) uniform Push
 	float SIGMA_HB;
 	float FINE_BLOOM;
 	float auto_res;
+	float GLOW_MAX;
 } params;
 
 #pragma parameter bogus_bloom "[ BLOOM/HALATION/(GLOW) PASS SETTINGS ]:" 0.0 0.0 1.0 1.0
@@ -38,8 +39,8 @@ layout(push_constant) uniform Push
 #pragma parameter auto_res "          SNES/Amiga Hi-Res Auto Mode" 0.0 0.0 1.0 1.0
 float auto_rez = mix(1.0, 2.0, clamp(params.auto_res * round(params.OriginalSize.x/300.0)-1.0, 0.0,1.0));
 
-#pragma parameter FINE_BLOOM "          Fine Bloom/Halation Sampling" 1.0 1.0 5.0 1.0 
-#define FINE_BLOOM params.FINE_BLOOM
+#pragma parameter FINE_BLOOM "          Fine Bloom/Halation Sampling" 1.0 -1.0 5.0 1.0 
+float FINE_BLOOM = (params.FINE_BLOOM > 0.5) ? params.FINE_BLOOM : mix(0.75, 0.5, -params.FINE_BLOOM);
 
 #pragma parameter SIZEHB "          Horizontal Bloom/Halation Radius" 3.0 1.0 50.0 1.0 
 #define SIZEHB params.SIZEHB
@@ -79,7 +80,7 @@ float gaussian(float x)
 
 void main()
 {
-	vec4 SourceSize1 = params.OriginalSize * mix(1.0.xxxx, vec4(FINE_BLOOM, FINE_BLOOM, 1.0/FINE_BLOOM, 1.0/FINE_BLOOM), min(FINE_BLOOM-1.0,1.0));
+	vec4 SourceSize1 = params.OriginalSize * vec4(FINE_BLOOM, FINE_BLOOM, 1.0/FINE_BLOOM, 1.0/FINE_BLOOM);
 	float f = fract(SourceSize1.x * vTexCoord.x);
 	f = 0.5 - f;
 	vec2 tex = floor(SourceSize1.xy * vTexCoord)*SourceSize1.zw + 0.5*SourceSize1.zw;

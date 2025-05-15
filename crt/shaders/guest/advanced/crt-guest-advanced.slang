@@ -3,10 +3,10 @@
 /*
    CRT - Guest - Advanced
    
-   Copyright (C) 2018-2023 guest(r) - guest.r@gmail.com
+   Copyright (C) 2018-2025 guest(r)
 
    Incorporates many good ideas and suggestions from Dr. Venom.
-   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and caring about the shader.
+   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and using the shader.
    
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -27,7 +27,7 @@
 layout(push_constant) uniform Push
 {
 	float TATE, IOS, OS, BLOOM, brightboost, brightboost1, gsl, scanline1, scanline2, beam_min, beam_max, beam_size,
-	h_sharp, s_sharp, csize, bsize1, warpX, warpY, glow, spike, ring, no_scanlines, tds, clips, ssharp, hiscan;
+	h_sharp, s_sharp, csize, bsize1, warpX, warpY, glow, spike, ring, no_scanlines, tds, clips, hiscan, rolling_scan;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -41,6 +41,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	float halation;
 	float scans;
 	float gamma_c;
+	float gamma_c2;
 	float smart_ei;
 	float ei_limit;
 	float sth;
@@ -86,6 +87,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter gamma_c "          Gamma correct" 1.0 0.50 2.0 0.025
 #define gamma_c   global.gamma_c     // adjust brightness
 
+#pragma parameter gamma_c2 "          Complementary Gamma correct" 1.0 1.0 2.0 0.025
+#define gamma_c2   global.gamma_c2     // adjust brightness
+
 #pragma parameter brightboost "          Bright Boost Dark Pixels" 1.40 0.25 10.0 0.05
 #define brightboost  params.brightboost     // adjust brightness
 
@@ -127,11 +131,11 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter spike "          Scanline Spike Removal" 1.0 0.0 2.0 0.10
 #define spike params.spike
 
-#pragma parameter ssharp "          Smart Sharpen Scanlines" 0.0 0.0 0.30 0.01
-#define ssharp params.ssharp
-
 #pragma parameter scangamma "          Scanline Gamma" 2.40 0.5 5.0 0.05
 #define scangamma global.scangamma
+
+#pragma parameter rolling_scan "          Rolling Scanlines" 0.0 -1.0 1.0 0.01
+#define rolling_scan        params.rolling_scan     // rolling scanlines
 
 #pragma parameter no_scanlines "          No-scanline mode" 0.0 0.0 1.5 0.05
 #define no_scanlines params.no_scanlines
@@ -158,7 +162,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter bogus_screen "[ SCREEN OPTIONS ]: " 0.0 0.0 1.0 1.0
 
-#pragma parameter intres "          Internal Resolution Y: 0.5...y-dowsample divider" 0.0 0.0 6.0 0.5 // Joint parameter with main pass, values must match
+#pragma parameter intres "          Internal Resolution Y: 0.5...y-dowsample divider" 0.0 0.0 10.0 0.5 // Joint parameter with main pass, values must match
 
 #pragma parameter TATE "          TATE Mode" 0.0 0.0 1.0 1.0
 #define TATE         params.TATE     // Screen orientation
@@ -490,7 +494,7 @@ void main()
 	
 }
 
-	vec3 ctmp = color1; float w3 = 1.0; vec3 color = color1;
+	vec3 ctmp = color1; vec3 sctmp = color1; float w3 = 1.0; vec3 color = color1;
 	vec3 one = vec3(1.0);
 
 	if (hscan) { color2 = color1; scolor2 = scolor1; }
@@ -499,10 +503,8 @@ if (!interb)
 {	
 	// calculating scanlines
 
-	float ssub = ssharp*max(abs(scolor1.x-scolor2.x), abs(dot(color1,luma)-dot(color2,luma)));
-
-	float shape1 = mix(scanline1, scanline2 + ssub * scolor1.x * 35.0, f);
-	float shape2 = mix(scanline1, scanline2 + ssub * scolor2.x * 35.0, 1.0-f);
+	float shape1 = mix(scanline1, scanline2, f);
+	float shape2 = mix(scanline1, scanline2, 1.0-f);
 	
 	float wt1 = st(f);
 	float wt2 = st(1.0-f);
@@ -511,7 +513,13 @@ if (!interb)
 	vec3 scolor0 = scolor1*wt1 + scolor2*wt2;
 	
 	ctmp = color00/(wt1+wt2);
-	vec3 sctmp = scolor0/(wt1+wt2);
+	sctmp = scolor0/(wt1+wt2);
+
+	if (abs(rolling_scan) > 0.005) 
+	{ 
+		color1 = ctmp; color2 = ctmp;
+		scolor1 = sctmp; scolor2 = sctmp;
+	}
 	
 	vec3 w1, w2;
 	
@@ -520,8 +528,9 @@ if (!interb)
 
 	if (tds > 0.5) { shape1 = mix(scanline2, shape1, creff1); shape2 = mix(scanline2, shape2, creff2); }
 
-	float f1 = f; 
-	float f2 = 1.0-f;
+	float scanpix = mix(global.OriginalSize.x/OutputSize.x, global.OriginalSize.y/OutputSize.y, float(notate));
+	float f1 = fract(f - rolling_scan*float(global.FrameCount)*scanpix);
+	float f2 = 1.0 - f1;
 
 	float mc1 = max(max(color1.r,color1.g),color1.b) + eps;
 	float mc2 = max(max(color2.r,color2.g),color2.b) + eps;
@@ -548,7 +557,7 @@ if (!interb)
 	}	
 	
 	color = (gc(color1)*w1 + gc(color2)*w2);
-	
+
 	color = min(color, 1.0);
 }
 	

@@ -3,10 +3,10 @@
 /*
    CRT - Guest - NTSC - Pass1
    
-   Copyright (C) 2018-2023 guest(r) - guest.r@gmail.com
+   Copyright (C) 2018-2025 guest(r)
 
    Incorporates many good ideas and suggestions from Dr. Venom.
-   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and caring about the shader.
+   I would also like give thanks to many Libretro forums members for continuous feedback, suggestions and using the shader.
    
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -46,6 +46,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	mat4 MVP;
 } global;
 
+#pragma parameter internal_res "          Internal Resolution" 1.0 0.5 8.0 0.10
+#define internal_res params.internal_res
 
 #pragma parameter bogus_filtering "[ FILTERING OPTIONS ]: " 0.0 0.0 1.0 1.0
 
@@ -58,7 +60,7 @@ float auto_rez = mix(1.0, 1.75, clamp(params.auto_res * round(params.OriginalSiz
 #pragma parameter SIGMA_HOR "          Horizontal Blur Sigma" 0.80 0.1 7.0 0.025
 #define SIGMA_HOR params.SIGMA_HOR
 
-#pragma parameter S_SHARP "          Substractive Sharpness" 1.20 0.0 3.0 0.05
+#pragma parameter S_SHARP "          Substractive Sharpness" 1.10 0.0 3.0 0.05
 #define S_SHARP params.S_SHARP
 
 #pragma parameter HSHARP "          Sharpness Definition" 1.20 0.0 2.0 0.10
@@ -97,7 +99,7 @@ layout(set = 0, binding = 2) uniform sampler2D LinearizePass;
 
 float gaussian(float x, float xscale)
 {
-	float invsqrsigma = 1.0/(2.0*SIGMA_HOR*SIGMA_HOR*xscale*xscale);
+	float invsqrsigma = 1.0/(2.0*SIGMA_HOR*SIGMA_HOR*xscale*xscale*internal_res*internal_res);
 	return exp(-x*x*invsqrsigma);
 }
 
@@ -121,7 +123,7 @@ void main()
 
 	float xscale = prescalex.x * 0.5 * auto_rez;
 	
-	float hsharpness = HSHARPNESS * xscale;
+	float hsharpness = HSHARPNESS * xscale * internal_res;
 	vec3 cmax = 0.0.xxx;
 	vec3 cmin = 1.0.xxx;
 	float sharp = gaussian(hsharpness, xscale) * S_SHARP;
