@@ -1,4 +1,4 @@
-shaders = "6"
+shaders = "7"
 
 shader0 = ../../stock.slang
 filter_linear0 = "false"
@@ -38,9 +38,16 @@ filter_linear5 = true
 wrap_mode5 = "clamp_to_edge"
 scale_type5 = viewport
 
+shader6 = shaders/support/deblur-fast.slang
+filter_linear6 = false
+
+
 parameters = "SMALL_DETAILS;WP4;KA"
 
 SMALL_DETAILS = "1.0"
 WP4 = "0.8"
 KA = "0.35"
 
+OFFSET_F = "0.500000"
+DEBLUR_F = "5.000000"
+SMART_F = "0.500000"

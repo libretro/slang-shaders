@@ -34,16 +34,16 @@ layout(push_constant) uniform Push
     vec4 OriginalSize;
     vec4 OutputSize;
     uint FrameCount;
-    float DEBLUR_F, SMART_F;
+    float OFFSET_F, DEBLUR_F, SMART_F;
 } params;
 
+#pragma parameter OFFSET_F "Deblur Offset    " 0.5 0.0  1.0 0.05 
 #pragma parameter DEBLUR_F "Deblur Strength  " 7.0 1.0 10.0 0.5 
-#pragma parameter SMART_F  "Smart Deblur     " 0.6 0.0  1.0 0.1 
+#pragma parameter SMART_F  "Smart Deblur     " 1.0 0.0  1.0 0.1 
 
+#define OFFSET params.OFFSET_F
 #define DEBLUR params.DEBLUR_F
 #define SMART  params.SMART_F
-
-#define OFFSET 0.5
 
 
 const vec3 Y   = vec3(0.2627, 0.6780, 0.0593);
@@ -61,6 +61,7 @@ layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec4 t1;
 layout(location = 2) out vec4 t2;
+layout(location = 3) out vec4 t3;
 
 void main()
 {
@@ -69,38 +70,46 @@ void main()
 
     vec2 d = OFFSET * params.OutputSize.xy * params.OriginalSize.zw * params.SourceSize.zw;
 
-/*          B     
-          D E F   
-            H     
-*/
-
-    t1 = vTexCoord.xyyy + vec4(  0.0, -d.y, 0.0, d.y ); //  B  E  H
-    t2 = vTexCoord.xxxy + vec4( -d.x,  0.0, d.x, 0.0 ); //  D  E  F
+    t1 = vTexCoord.xxxy + vec4( -d.x, 0.0, d.x, -d.y ); //  A  B  C
+    t2 = vTexCoord.xxxy + vec4( -d.x, 0.0, d.x,  0.0 ); //  D  E  F
+    t3 = vTexCoord.xxxy + vec4( -d.x, 0.0, d.x,  d.y ); //  G  H  I
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec4 t1;
 layout(location = 2) in vec4 t2;
+layout(location = 3) in vec4 t3;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 
-vec3 weight(vec3 A, vec3 B)
+vec3 weight(vec3 c1, vec3 c2)
 {
-    return vec3(clamp(DEBLUR*max(dot(A, Y), dot(B, Y)), 2.0-SMART, 10.0));
+    return vec3(clamp(DEBLUR*max(dot(c1, Y), dot(c2, Y)), 2.0-SMART, 10.0));
 } 
 
 void main()
 {
-    vec3 B = texture(Source, t1.xy).xyz;  
-    vec3 E = texture(Source, t1.xz).xyz;
-    vec3 H = texture(Source, t1.xw).xyz;
-    vec3 D = texture(Source, t2.xw).xyz;
-    vec3 F = texture(Source, t2.zw).xyz;
+    vec3 A = texture(Source, t1.xw).xyz;  
+    vec3 B = texture(Source, t1.yw).xyz;  
+    vec3 C = texture(Source, t1.zw).xyz;  
+    vec3 D = texture(Source, t2.xw).xyz;  
+    vec3 E = texture(Source, t2.yw).xyz;  
+    vec3 F = texture(Source, t2.zw).xyz;  
+    vec3 G = texture(Source, t3.xw).xyz;  
+    vec3 H = texture(Source, t3.yw).xyz;  
+    vec3 I = texture(Source, t3.zw).xyz;  
 
-    vec3 Cmin = min(E, min(min(B, D), min(F, H)));
-    vec3 Cmax = max(E, max(max(B, D), max(F, H)));
+    vec3 mn1 = min(A, min(B, C));
+    vec3 mn2 = min(D, min(E, F));
+    vec3 mn3 = min(G, min(H, I));
+    vec3 mx1 = max(A, max(B, C));
+    vec3 mx2 = max(D, max(E, F));
+    vec3 mx3 = max(G, max(H, I));
+
+    vec3 Cmin = min(mn1, min(mn2, mn3));
+    vec3 Cmax = max(mx1, max(mx2, mx3));
 
     vec3 Dmin = abs(E - Cmin) + dtt;
     vec3 Dmax = abs(E - Cmax) + dtt;
@@ -111,6 +120,6 @@ void main()
     Dmax = pow(Dmax, vexp);
 
     vec3 color = ( Dmin*Cmax + Dmax*Cmin )/( Dmin + Dmax );
- 
+
     FragColor = vec4(color, 1.0);
 }
