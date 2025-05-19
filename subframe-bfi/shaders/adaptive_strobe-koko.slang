@@ -19,7 +19,7 @@ layout(push_constant) uniform Push {
 #pragma parameter _ADPT_STROBE_GAIN_ADJ          "   .   Gain adjustment"    0.9   0.0  1.0  0.05
 #pragma parameter _ADPT_STROBE_GAIN_ADJ_NODARK       "          Less gain on dark colors"    1.0   0.0  1.0  0.05
 #pragma parameter _ADPT_STROBE_GAMMA_ADJ         "   .   Post Gamma adjustment"   0.9   0.5  4.0  0.05
-#pragma parameter _ADPT_LCD_RETENTION_FIX        "   .   LCD Retention workaround cadence (frames)"    3600  0.0  300000.0  25.0
+#pragma parameter _ADPT_LCD_RETENTION_FIX        "   .   LCD Retention workaround cadence (frames)"    3600  0.0  300000.0  50.0
 #pragma parameter _ADPT_DEBUG_ONOFF              "   .   Debug: Flip effect ON/OFF every (frames)"     0.0   0.0  100000.0  10.0
 
 
