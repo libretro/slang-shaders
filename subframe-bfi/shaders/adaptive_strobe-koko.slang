@@ -15,7 +15,7 @@ layout(push_constant) uniform Push {
 } params;
 
 
-#pragma parameter _ADPT_STROBE_STR               "[ Adaptive Strobe (≈BFI) Strength: ]"   1.0   0.0  1.0  0.05
+#pragma parameter _ADPT_STROBE_STR               "[ Adaptive Strobe (≈BFI) Strength: ]"   0.8   0.0  1.0  0.05
 #pragma parameter _ADPT_STROBE_GAIN_ADJ          "   .   Gain adjustment"    0.9   0.0  1.0  0.05
 #pragma parameter _ADPT_STROBE_GAIN_ADJ_NODARK       "          Less gain on dark colors"    1.0   0.0  1.0  0.05
 #pragma parameter _ADPT_STROBE_GAMMA_ADJ         "   .   Post Gamma adjustment"   0.9   0.5  4.0  0.05
