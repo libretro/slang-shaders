@@ -1,0 +1,5 @@
+shaders = 1
+
+shader0 = shaders/adaptive_strobe-koko.slang
+
+wrap_mode0 = "repeat"
