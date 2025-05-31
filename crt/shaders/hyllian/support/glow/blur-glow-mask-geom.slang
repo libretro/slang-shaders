@@ -13,6 +13,7 @@ layout(push_constant) uniform Push
     float MONITOR_SUBPIXELS;
     float VSCANLINES;
     float H_OUTPUT_GAMMA;
+    float H_MaskGamma;
     float geom_d;
     float geom_R;
     float geom_cornersize;
@@ -37,15 +38,16 @@ layout(std140, set = 0, binding = 0) uniform UBO
     uint FrameCount;
 } global;
 
+#pragma parameter H_MaskGamma "MASK GAMMA" 2.4 1.0 3.0 0.05
 #pragma parameter H_OUTPUT_GAMMA "OUTPUT GAMMA" 2.2 1.0 3.0 0.05
 #pragma parameter GLOW_RADIUS "Glow Radius" 4.0 2.0 4.0 0.1
-#pragma parameter GLOW_STRENGTH "Glow Strength" 0.15 0.0 1.0 0.01
-#pragma parameter GLOW_ENABLE "Enable Glow" 1.0 0.0 1.0 1.0
+#pragma parameter GLOW_STRENGTH "Glow Strength" 0.05 0.0 1.0 0.01
+#pragma parameter GLOW_ENABLE "Enable Glow" 0.0 0.0 1.0 1.0
 
 #pragma parameter DISPLAY_RES "(IF PRESET > 0) TARGET RESOLUTION [ 1080p | 4k ]" 0.0 0.0 1.0 1.0
 #pragma parameter PRESET_OPTION "PRESET [0=Custom, Aperture1, Aperture2, Slot1, Slot2, Shadow]" 0.0 0.0 5.0 1.0
 #pragma parameter PHOSPHOR_LAYOUT "      MASK [1..6 Aperture, 7..10 Shadow, 11..14 Slot]" 1.0 0.0 15.0 1.0
-#pragma parameter MASK_STRENGTH "      MASK STRENGTH" 0.0 0.0 1.0 0.02
+#pragma parameter MASK_STRENGTH "      MASK STRENGTH" 1.0 0.0 1.0 0.02
 #pragma parameter BRIGHTBOOST "BRIGHTBOOST" 1.0 0.5 2.0 0.01
 #pragma parameter MONITOR_SUBPIXELS "MONITOR SUBPIXELS LAYOUT [ RGB | BGR ]" 0.0 0.0 1.0 1.0
 #pragma parameter VSCANLINES "VERTICAL SCANLINES [ Off | On ]" 0.0 0.0 1.0 1.0
@@ -72,6 +74,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define VSCANLINES params.VSCANLINES
 #define GLOW_STRENGTH params.GLOW_STRENGTH
 
+#define H_MaskGamma params.H_MaskGamma
 #define INV_OUTPUT_GAMMA (1.0 / params.H_OUTPUT_GAMMA)
 #define saturate(c) clamp(c, 0.0, 1.0)
 
@@ -103,17 +106,17 @@ vec2 get_beam_profile()
 
     if (DISPLAY_RES < 0.5)
     {
-	if (params.PRESET_OPTION == 1.0)  bp = vec2( 1.0, 0.00);
-	if (params.PRESET_OPTION == 2.0)  bp = vec2( 2.0, 0.00);
-	if (params.PRESET_OPTION == 3.0)  bp = vec2(11.0, 0.00);
-	if (params.PRESET_OPTION == 4.0)  bp = vec2(11.0, 0.20);
-	if (params.PRESET_OPTION == 5.0)  bp = vec2( 7.0, 0.00);
+	if (params.PRESET_OPTION == 1.0)  bp = vec2( 1.0, 1.00);
+	if (params.PRESET_OPTION == 2.0)  bp = vec2( 2.0, 1.00);
+	if (params.PRESET_OPTION == 3.0)  bp = vec2(11.0, 1.00);
+	if (params.PRESET_OPTION == 4.0)  bp = vec2(11.0, 1.00);
+	if (params.PRESET_OPTION == 5.0)  bp = vec2( 7.0, 1.00);
     } else {
-	if (params.PRESET_OPTION == 1.0)  bp = vec2( 2.0, 0.00);
-	if (params.PRESET_OPTION == 2.0)  bp = vec2( 4.0, 0.00);
-	if (params.PRESET_OPTION == 3.0)  bp = vec2(14.0, 0.00);
-	if (params.PRESET_OPTION == 4.0)  bp = vec2(14.0, 0.20);
-	if (params.PRESET_OPTION == 5.0)  bp = vec2( 9.0, 0.00);
+	if (params.PRESET_OPTION == 1.0)  bp = vec2( 2.0, 1.00);
+	if (params.PRESET_OPTION == 2.0)  bp = vec2( 4.0, 1.00);
+	if (params.PRESET_OPTION == 3.0)  bp = vec2(14.0, 1.00);
+	if (params.PRESET_OPTION == 4.0)  bp = vec2(14.0, 1.00);
+	if (params.PRESET_OPTION == 5.0)  bp = vec2( 9.0, 1.00);
      }
 
 	return bp;
@@ -547,18 +550,22 @@ void main()
 
     mask_coords = mix(mask_coords.xy, mask_coords.yx, VSCANLINES);
 
-    vec3 mask_wgts = mask_weights(mask_coords, mask_profile.x);
+    vec3 mask = mask_weights(mask_coords, mask_profile.x);
 
-    mask_wgts = mask_wgts + vec3(1.0-mask_profile.y);
-
-    mask_wgts = (MONITOR_SUBPIXELS > 0.5) ? mask_wgts.bgr : mask_wgts;
+    mask = (MONITOR_SUBPIXELS > 0.5) ? mask.bgr : mask;
 
     // CRT + Bloom + Mask + Curvature
     vec3 crt = BRIGHTBOOST * texture(CRTPass, uv).rgb;
 
     crt += GLOW_STRENGTH * bloom;
 
-    crt = GAMMA_OUT(crt) * GAMMA_OUT(mask_wgts) * vec3(cval);
+    crt = clamp(crt, 0.0, 1.0);
+
+    crt = GAMMA_OUT(crt);
+
+    crt = mask + (1.0 - 2.0*mask)*pow(abs(mask - crt), mask*MASK_STRENGTH*(H_MaskGamma - 1.0) + 1.0); 
+
+    crt *= cval;
 
     crt *= step(0.0, fract(uv.y)); // Discard off limit pixels
 
