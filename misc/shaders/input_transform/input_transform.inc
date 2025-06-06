@@ -1,6 +1,6 @@
 /*
-    Input transformation library v1.3 by fishku
-    Copyright (C) 2023-2024
+    Input transformation library v1.4 by fishku
+    Copyright (C) 2023-2025
     Public domain license (CC0)
 
     Apply cropping, scaling, and transformation operations to input viewport and
@@ -25,6 +25,7 @@
     Refactored from the version that used to be in the blur_fill shader.
 
     Changelog:
+    v1.4: Allow wider range of overscale parameter values.
     v1.3: Bug fixes and cleanup.
     v1.2: Rename to "input transform". Add translation option.
     v1.1: Add overscaling option. Unify parameters.
