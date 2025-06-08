@@ -50,25 +50,30 @@ layout(std140, set = 0, binding = 0) uniform UBO
 } global;
 
 
-#pragma parameter H_OUTPUT_GAMMA "OUTPUT GAMMA" 2.2 1.0 3.0 0.05
-#pragma parameter DISPLAY_RES "(IF PRESET > 0) TARGET RESOLUTION [ 1080p | 4k ]" 0.0 0.0 1.0 1.0
-#pragma parameter PRESET_OPTION "PRESET [0=Custom, Aperture1, Aperture2, Slot1, Slot2, Shadow]" 0.0 0.0 5.0 1.0
-#pragma parameter CUSTOM_OPTIONS "[Custom Settings]" 0.0 0.0 1.0 1.0
-#pragma parameter BEAM_MIN_WIDTH "      MIN BEAM WIDTH" 0.72 0.0 1.0 0.01
-#pragma parameter BEAM_MAX_WIDTH "      MAX BEAM WIDTH" 1.0 0.0 1.0 0.01
-#pragma parameter SCANLINES_STRENGTH "      SCANLINES STRENGTH" 0.86 0.0 1.0 0.01
-#pragma parameter SCANLINES_SHAPE "      SCANLINES SHAPE [ Sharp | Soft ]" 1.0 0.0 1.0 1.0
-#pragma parameter PHOSPHOR_LAYOUT "      MASK [1..6 Aperture, 7..10 Shadow, 11..14 Slot]" 1.0 0.0 15.0 1.0
-#pragma parameter MASK_STRENGTH "      MASK STRENGTH" 1.0 0.0 1.0 0.02
-#pragma parameter H_MaskGamma "MASK GAMMA" 2.4 1.0 3.0 0.05
-#pragma parameter BRIGHTBOOST "BRIGHTBOOST" 1.0 0.5 2.0 0.01
-#pragma parameter MONITOR_SUBPIXELS "MONITOR SUBPIXELS LAYOUT [ RGB | BGR ]" 0.0 0.0 1.0 1.0
-#pragma parameter SCANLINES_CUTOFF "SCANLINES CUTOFF" 400.0 0.0 1000.0 2.0
-#pragma parameter SCANLINES_HIRES "HIGH RESOLUTION SCANLINES" 0.0 0.0 1.0 1.0
-#pragma parameter IR_SCALE "INTERNAL RESOLUTION SCALE (Downsampling)" 1.0 1.0 10.0 1.0
-#pragma parameter VSCANLINES "VERTICAL SCANLINES [ Off | On ]" 0.0 0.0 1.0 1.0
-#pragma parameter SHARPNESS_HACK "SHARPNESS HACK" 1.0 1.0 4.0 1.0
-#pragma parameter CRT_ANTI_RINGING "ANTI RINGING" 1.0 0.0 1.0 1.0
+#pragma parameter H_OUTPUT_GAMMA "Output Gamma" 2.2 1.0 3.0 0.05
+
+#pragma parameter shadowMask        "Lottes Mask (turn off other masks)"      0.0 0.0 4.0 1.0
+
+#pragma parameter DISPLAY_RES       "Target Resolution (only if mask preset > 0) [ 1080P | 4K ]"   0.0 0.0 1.0 1.0
+#pragma parameter PRESET_OPTION     "Mask Preset [0=CUSTOM, APERT1, APERT2, SLOT1, SLOT2, SHADOW]" 0.0 0.0 5.0 1.0
+
+#pragma parameter CUSTOM_OPTIONS     "[SETTINGS FOR 'Mask Preset'=CUSTOM:]"   0.0 0.0 1.0 1.0
+#pragma parameter BEAM_MIN_WIDTH     "      Min Beam Width"                   0.72 0.0 1.0 0.01
+#pragma parameter BEAM_MAX_WIDTH     "      Max Beam Width"                   1.0 0.0 1.0 0.01
+#pragma parameter SCANLINES_STRENGTH "      Scanlines Strength"               0.72 0.0 1.0 0.01
+#pragma parameter SCANLINES_SHAPE    "      Scanlines Shape [ SHARP | SOFT ]" 1.0 0.0 1.0 1.0
+
+#pragma parameter PHOSPHOR_LAYOUT   "      Mask [1..6 APERTURE, 7..10 SHADOW, 11..14 SLOT]" 1.0 0.0 15.0 1.0
+#pragma parameter MASK_STRENGTH     "Mask Strength"                            1.0 0.0 1.0 0.02
+#pragma parameter H_MaskGamma       "Mask Gamma"                               2.4 1.0 3.0 0.05
+#pragma parameter MONITOR_SUBPIXELS "Monitor Subpixels Layout [ RGB | BGR ]"   0.0 0.0 1.0 1.0
+#pragma parameter BRIGHTBOOST       "Brightboost"                              1.0 0.5 2.0 0.01
+#pragma parameter SCANLINES_CUTOFF  "Scanlines Cutoff"                       400.0 0.0 1000.0 2.0
+#pragma parameter SCANLINES_HIRES   "High Resolution Scanlines"                0.0 0.0 1.0 1.0
+#pragma parameter IR_SCALE          "Internal Resolution Scale (downsampling)" 1.0 1.0 10.0 1.0
+#pragma parameter VSCANLINES        "Vertical Scanlines Toggle"                0.0 0.0 1.0 1.0
+#pragma parameter SHARPNESS_HACK    "Sharpness Hack"                           1.0 1.0 4.0 1.0
+#pragma parameter CRT_ANTI_RINGING  "Anti Ringing"                             1.0 0.0 1.0 1.0
 
 #define BRIGHTBOOST params.BRIGHTBOOST
 #define CRT_ANTI_RINGING params.CRT_ANTI_RINGING
@@ -98,7 +103,7 @@ vec4 get_beam_profile()
 {
 	vec4 bp = vec4(SCANLINES_STRENGTH, BEAM_MIN_WIDTH, BEAM_MAX_WIDTH, SCANLINES_SHAPE);
 
-	if (params.PRESET_OPTION == 1.0)  bp = vec4(0.58, 0.72, 1.00, 1.0);
+	if (params.PRESET_OPTION == 1.0)  bp = vec4(0.72, 0.72, 1.00, 1.0);
 	if (params.PRESET_OPTION == 2.0)  bp = vec4(0.58, 0.72, 1.00, 1.0);
 	if (params.PRESET_OPTION == 3.0)  bp = vec4(0.58, 0.86, 1.00, 0.0);
 	if (params.PRESET_OPTION == 4.0)  bp = vec4(0.58, 0.86, 1.00, 1.0);

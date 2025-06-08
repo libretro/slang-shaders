@@ -13,7 +13,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     vec4 SourceSize;
 } global;
 
-#pragma parameter GLOW_RADIUS "Glow Radius" 4.0 2.0 4.0 0.1
+#pragma parameter GLOW_RADIUS "    Glow Radius" 4.0 2.0 4.0 0.1
 
 #define GLOW_RADIUS params.GLOW_RADIUS
 

@@ -14,18 +14,12 @@ layout(push_constant) uniform Push
     float VSCANLINES;
     float H_OUTPUT_GAMMA;
     float H_MaskGamma;
-    float geom_d;
-    float geom_R;
-    float geom_cornersize;
-    float geom_cornersmooth;
-    float geom_x_tilt;
-    float geom_y_tilt;
-    float geom_overscan_x;
-    float geom_overscan_y;
-    float geom_center_x;
-    float geom_center_y;
-    float geom_curvature;
-    float geom_invert_aspect;
+    float h_curvature;
+    float h_shape;
+    float h_radius;
+    float h_cornersize;
+    float h_cornersmooth;
+    float shadowMask;
 } params;
 
 
@@ -38,32 +32,30 @@ layout(std140, set = 0, binding = 0) uniform UBO
     uint FrameCount;
 } global;
 
-#pragma parameter H_MaskGamma "MASK GAMMA" 2.4 1.0 3.0 0.05
-#pragma parameter H_OUTPUT_GAMMA "OUTPUT GAMMA" 2.2 1.0 3.0 0.05
-#pragma parameter GLOW_RADIUS "Glow Radius" 4.0 2.0 4.0 0.1
-#pragma parameter GLOW_STRENGTH "Glow Strength" 0.05 0.0 1.0 0.01
-#pragma parameter GLOW_ENABLE "Enable Glow" 0.0 0.0 1.0 1.0
+#pragma parameter H_MaskGamma       "Mask Gamma" 2.4 1.0 3.0 0.05
+#pragma parameter H_OUTPUT_GAMMA "Output Gamma"  2.2 1.0 3.0 0.05
 
-#pragma parameter DISPLAY_RES "(IF PRESET > 0) TARGET RESOLUTION [ 1080p | 4k ]" 0.0 0.0 1.0 1.0
-#pragma parameter PRESET_OPTION "PRESET [0=Custom, Aperture1, Aperture2, Slot1, Slot2, Shadow]" 0.0 0.0 5.0 1.0
-#pragma parameter PHOSPHOR_LAYOUT "      MASK [1..6 Aperture, 7..10 Shadow, 11..14 Slot]" 1.0 0.0 15.0 1.0
-#pragma parameter MASK_STRENGTH "      MASK STRENGTH" 1.0 0.0 1.0 0.02
-#pragma parameter BRIGHTBOOST "BRIGHTBOOST" 1.0 0.5 2.0 0.01
-#pragma parameter MONITOR_SUBPIXELS "MONITOR SUBPIXELS LAYOUT [ RGB | BGR ]" 0.0 0.0 1.0 1.0
-#pragma parameter VSCANLINES "VERTICAL SCANLINES [ Off | On ]" 0.0 0.0 1.0 1.0
+#pragma parameter GLOW_ENABLE    "    Enable Glow"   0.0 0.0 1.0 1.0
+#pragma parameter GLOW_RADIUS    "    Glow Radius"   4.0 2.0 4.0 0.1
+#pragma parameter GLOW_STRENGTH  "    Glow Strength" 0.05 0.0 1.0 0.01
 
-#pragma parameter geom_curvature "Geom Curvature Toggle" 0.0 0.0 1.0 1.0
-#pragma parameter geom_R "Geom Curvature Radius" 2.0 0.3 10.0 0.1
-#pragma parameter geom_d "Geom Distance" 1.5 0.1 3.0 0.1
-#pragma parameter geom_invert_aspect "Geom Curvature Aspect Inversion" 0.0 0.0 1.0 1.0
-#pragma parameter geom_cornersize "Geom Corner Size" 0.006 0.001 1.0 0.005
-#pragma parameter geom_cornersmooth "Geom Corner Smoothness" 400.0 80.0 2000.0 100.0
-#pragma parameter geom_x_tilt "Geom Horizontal Tilt" 0.0 -0.5 0.5 0.01
-#pragma parameter geom_y_tilt "Geom Vertical Tilt" 0.0 -0.5 0.5 0.01
-#pragma parameter geom_center_x "Geom Center X" 0.0 -1.0 1.0 0.001
-#pragma parameter geom_center_y "Geom Center Y" 0.0 -1.0 1.0 0.001
-#pragma parameter geom_overscan_x "Geom Horiz. Overscan %" 100.0 -125.0 125.0 0.5
-#pragma parameter geom_overscan_y "Geom Vert. Overscan %" 100.0 -125.0 125.0 0.5
+
+#pragma parameter shadowMask        "Lottes Mask (turn off other masks)"      0.0 0.0 4.0 1.0
+#pragma parameter DISPLAY_RES       "Target Resolution (only if mask preset > 0) [ 1080P | 4K ]"   0.0 0.0 1.0 1.0
+#pragma parameter PRESET_OPTION     "Mask Preset [0=CUSTOM, APERT1, APERT2, SLOT1, SLOT2, SHADOW]" 0.0 0.0 5.0 1.0
+#pragma parameter PHOSPHOR_LAYOUT   "      Mask [1..6 APERTURE, 7..10 SHADOW, 11..14 SLOT]"        1.0 0.0 15.0 1.0
+#pragma parameter MASK_STRENGTH     "Mask Strength"                            1.0 0.0 1.0 0.02
+#pragma parameter MONITOR_SUBPIXELS "Monitor Subpixels Layout [ RGB | BGR ]"   0.0 0.0 1.0 1.0
+#pragma parameter BRIGHTBOOST       "Brightboost"                              1.0 0.5 2.0 0.01
+#pragma parameter VSCANLINES        "Vertical Scanlines Toggle"                0.0 0.0 1.0 1.0
+
+#pragma parameter h_nonono        "CURVATURE SETTINGS:"              0.0 0.0 1.0 1.0
+#pragma parameter h_curvature     "    Curvature Toggle"             0.0 0.0 1.0 1.0
+#pragma parameter h_shape         "    Shape [ SPHERE | CYLINDER ]"  0.0  0.0 1.0 1.0
+#pragma parameter h_radius        "    Curvature Radius"             5.0 1.5 10.0 0.1
+#pragma parameter h_cornersize    "    Corner Size"                  0.04 0.01 1.0 0.01
+#pragma parameter h_cornersmooth  "    Corner Smoothness"            0.5 0.1 1.0 0.1
+
 
 #define BRIGHTBOOST params.BRIGHTBOOST
 #define DISPLAY_RES params.DISPLAY_RES
@@ -84,21 +76,21 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define FIX(c) max(abs(c), 1e-5);
 #define PI 3.141592653589
 
+float r2           = params.h_radius * params.h_radius;
+vec2  max_size     = vec2(sqrt( (r2 - 2.0) / (r2 - 1.0) ), 1.0);
+vec2  aspect       = vec2(1.0, global.OutputSize.y/global.OutputSize.x);
+float cornersize   = params.h_cornersize * min(aspect.x, aspect.y);
+float cornersmooth = params.h_cornersmooth/100.0;
 
 // aspect ratio
-vec2 aspect     = vec2(params.geom_invert_aspect > 0.5 ? (0.75, 1.0) : (1.0, 0.75));
+//vec2 aspect     = vec2(params.geom_invert_aspect > 0.5 ? (0.75, 1.0) : (1.0, 0.75));
 vec2 overscan   = vec2(1.01, 1.01);
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out vec2 sinangle;
-layout(location = 2) out vec2 cosangle;
-layout(location = 3) out vec3 stretch;
-layout(location = 4) out float R_d_cx_cy;
-layout(location = 5) out float d2;
-layout(location = 6) out vec2 mask_profile;
+layout(location = 1) out vec2 mask_profile;
 
 vec2 get_beam_profile()
 {
@@ -123,165 +115,89 @@ vec2 get_beam_profile()
 }
 
 
-/*
-    Geom code - a modified Geom code without CRT features made to provide
-    curvature/warping/oversampling features.
-
-    Adapted by Hyllian (2024).
-*/
-
-/*
-    Copyright (C) 2010-2012 cgwg, Themaister and DOLLS
-
-    This program is free software; you can redistribute it and/or modify it
-    under the terms of the GNU General Public License as published by the Free
-    Software Foundation; either version 2 of the License, or (at your option)
-    any later version.
-
-    (cgwg gave their consent to have the original version of this shader
-    distributed under the GPL in this message:
-
-    http://board.byuu.org/viewtopic.php?p=26075#p26075
-
-    "Feel free to distribute my shaders under the GPL. After all, the
-    barrel distortion code was taken from the Curvature shader, which is
-    under the GPL."
-    )
-    This shader variant is pre-configured with screen curvature
-*/
-
-
-float intersect(vec2 xy)
-{
-    float A = dot(xy,xy) + params.geom_d*params.geom_d;
-    float B = 2.0*(params.geom_R*(dot(xy,sinangle)-params.geom_d*cosangle.x*cosangle.y)-params.geom_d*params.geom_d);
-    float C = params.geom_d*params.geom_d + 2.0*params.geom_R*params.geom_d*cosangle.x*cosangle.y;
-    
-    return (-B-sqrt(B*B-4.0*A*C))/(2.0*A);
-}
-
-vec2 bkwtrans(vec2 xy)
-{
-    float c     = intersect(xy);
-    vec2 point  = (vec2(c, c)*xy - vec2(-params.geom_R, -params.geom_R)*sinangle) / vec2(params.geom_R, params.geom_R);
-    vec2 poc    = point/cosangle;
-    
-    vec2 tang   = sinangle/cosangle;
-    float A     = dot(tang, tang) + 1.0;
-    float B     = -2.0*dot(poc, tang);
-    float C     = dot(poc, poc) - 1.0;
-    
-    float a     = (-B + sqrt(B*B - 4.0*A*C))/(2.0*A);
-    vec2 uv     = (point - a*sinangle)/cosangle;
-    float r     = FIX(params.geom_R*acos(a));
-    
-    return uv*r/sin(r/params.geom_R);
-}
-
-vec2 fwtrans(vec2 uv)
-{
-    float r = FIX(sqrt(dot(uv,uv)));
-    uv *= sin(r/params.geom_R)/r;
-    float x = 1.0-cos(r/params.geom_R);
-    float D = params.geom_d/params.geom_R + x*cosangle.x*cosangle.y+dot(uv,sinangle);
-    
-    return params.geom_d*(uv*cosangle-x*sinangle)/D;
-}
-
-vec3 maxscale()
-{
-    vec2 c  = bkwtrans(-params.geom_R * sinangle / (1.0 + params.geom_R/params.geom_d*cosangle.x*cosangle.y));
-    vec2 a  = vec2(0.5,0.5)*aspect;
-    
-    vec2 lo = vec2(fwtrans(vec2(-a.x,  c.y)).x,
-                   fwtrans(vec2( c.x, -a.y)).y)/aspect;
-
-    vec2 hi = vec2(fwtrans(vec2(+a.x,  c.y)).x,
-                   fwtrans(vec2( c.x, +a.y)).y)/aspect;
-    
-    return vec3((hi+lo)*aspect*0.5,max(hi.x-lo.x,hi.y-lo.y));
-}
-
 void main()
 {
     gl_Position = global.MVP * Position;
 
-    vTexCoord = TexCoord * vec2(1.0001) - vec2(params.geom_center_x, params.geom_center_y);
-
-    // Precalculate a bunch of useful values we'll need in the fragment
-    // shader.
-    sinangle    = sin(vec2(params.geom_x_tilt, params.geom_y_tilt));
-    cosangle    = cos(vec2(params.geom_x_tilt, params.geom_y_tilt));
-    stretch     = maxscale();
-
-    d2        = params.geom_d * params.geom_d;
-    R_d_cx_cy = params.geom_R * params.geom_d * cosangle.x * cosangle.y;
+    vTexCoord = TexCoord * vec2(1.0001);
 
     mask_profile = get_beam_profile();
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in vec2 sinangle;
-layout(location = 2) in vec2 cosangle;
-layout(location = 3) in vec3 stretch;
-layout(location = 4) in float R_d_cx_cy;
-layout(location = 5) in float d2;
-layout(location = 6) in vec2 mask_profile;
+layout(location = 1) in vec2 mask_profile;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D CRTPass;
 
-float intersect(vec2 xy, float d2, float R_d_cx_cy)
+// Shadow mask.
+vec3 Mask(vec2 pos)
 {
-    float A = dot(xy,xy) + d2;
-    float B = 2.0 * ( params.geom_R * dot(xy, sinangle) - R_d_cx_cy - d2);
-    float C = d2 + 2.0 * R_d_cx_cy;
-    
-    return (-B-sqrt(B*B-4.0*A*C))/(2.0*A);
-}
+    const float maskDark  = 0.0;
+    const float maskLight = 1.0;
 
-vec2 bkwtrans(vec2 xy, float d2, float R_d_cx_cy)
-{
-    float c     = intersect(xy, d2, R_d_cx_cy);
-    vec2 point  = (vec2(c, c)*xy - vec2(-params.geom_R, -params.geom_R)*sinangle) / vec2(params.geom_R, params.geom_R);
-    vec2 poc    = point/cosangle;
-    
-    vec2 tang   = sinangle/cosangle;
-    float A     = dot(tang, tang) + 1.0;
-    float B     = -2.0*dot(poc, tang);
-    float C     = dot(poc, poc) - 1.0;
-    
-    float a     = (-B + sqrt(B*B - 4.0*A*C))/(2.0*A);
-    vec2 uv     = (point - a*sinangle)/cosangle;
-    float r     = FIX(params.geom_R*acos(a));
-    
-    return uv*r/sin(r/params.geom_R);
-}
+    vec3 mask = vec3(maskDark, maskDark, maskDark);
+  
+    // Very compressed TV style shadow mask.
+    if (params.shadowMask == 1.0) 
+    {
+        float line = maskLight;
+        float odd = 0.0;
+        
+        if (fract(pos.x*0.166666666) < 0.5) odd = 1.0;
+        if (fract((pos.y + odd) * 0.5) < 0.5) line = maskDark;  
+        
+        pos.x = fract(pos.x*0.333333333);
 
-vec2 transform(vec2 coord, float d2, float R_d_cx_cy)
-{
-    coord = (coord - vec2(0.5, 0.5))*aspect*stretch.z + stretch.xy;
-    
-    return (bkwtrans(coord, d2, R_d_cx_cy) /
-        vec2(params.geom_overscan_x / 100.0, params.geom_overscan_y / 100.0)/aspect + vec2(0.5, 0.5));
-}
+        if      (pos.x < 0.333) mask.r = maskLight;
+        else if (pos.x < 0.666) mask.g = maskLight;
+        else                    mask.b = maskLight;
+        mask*=line;  
+    } 
 
-float corner(vec2 coord)
-{
-    coord = (coord - vec2(0.5)) * vec2(params.geom_overscan_x / 100.0, params.geom_overscan_y / 100.0) + vec2(0.5, 0.5);
-    coord = min(coord, vec2(1.0) - coord) * aspect;
-    vec2 cdist = vec2(params.geom_cornersize);
-    coord = (cdist - min(coord, cdist));
-    float dist = sqrt(dot(coord, coord));
-    
-      return clamp((cdist.x - dist)*params.geom_cornersmooth, 0.0, 1.0);
-}
+    // Aperture-grille.
+    else if (params.shadowMask == 2.0) 
+    {
+        pos.x = fract(pos.x*0.333333333);
 
+        if      (pos.x < 0.333) mask.r = maskLight;
+        else if (pos.x < 0.666) mask.g = maskLight;
+        else                    mask.b = maskLight;
+    } 
+
+    // Stretched VGA style shadow mask (same as prior shaders).
+    else if (params.shadowMask == 3.0) 
+    {
+        pos.x += pos.y*3.0;
+        pos.x  = fract(pos.x*0.166666666);
+
+        if      (pos.x < 0.333) mask.r = maskLight;
+        else if (pos.x < 0.666) mask.g = maskLight;
+        else                    mask.b = maskLight;
+    }
+
+    // VGA style shadow mask.
+    else if (params.shadowMask == 4.0) 
+    {
+        pos.xy  = floor(pos.xy*vec2(1.0, 0.5));
+        pos.x  += pos.y*3.0;
+        pos.x   = fract(pos.x*0.166666666);
+
+        if      (pos.x < 0.333) mask.r = maskLight;
+        else if (pos.x < 0.666) mask.g = maskLight;
+        else                    mask.b = maskLight;
+    }
+
+    return mask;
+}
 
 
 /* Mask code pasted from subpixel_masks.h. Masks 3 and 4 added. */
-vec3 mask_weights(vec2 coord, float phosphor_layout){
+vec3 mask_weights(vec2 coord, float phosphor_layout, float lottes_mask){
+   
+   if (lottes_mask > 0.5) return Mask(coord);
+
    vec3 weights = vec3(1.,1.,1.);
 
    const float on  = 1.;
@@ -528,17 +444,35 @@ vec3 get_bloom(sampler2D src, vec2 tex, vec2 dxy) {
     return bloom;
 }
 
+
+float h_corner(vec2 uv)
+{
+    vec2  d          = abs((2.0*uv - 1.0) * aspect) - (aspect - cornersize.xx);
+    float borderline = length(max(d, 0.0.xx)) + min(max(d.x, d.y), 0.0) - cornersize;
+
+    return smoothstep(cornersmooth, -cornersmooth, borderline);
+}
+
+
+vec2 h_warp(vec2 uv)
+{
+    uv = 2.0*uv - 1.0;
+
+    vec2 cylinder = sqrt( (r2 - uv.x*uv.x) / (r2 - 2.0*uv.x*uv.x) )*max_size;
+    vec2 sphere   = sqrt( (r2 - 1.0      ) / (r2 - dot(uv, uv))   ).xx;
+
+    uv *= mix(sphere, cylinder, params.h_shape);
+
+    return uv*0.5 + 0.5;
+}
+
+
+
+
 void main()
 {
-    // Texture coordinates of the texel containing the active pixel.
-    vec2  uv   = vTexCoord;
-    float cval = 1.0;
-
-    if (params.geom_curvature > 0.5)
-    {
-        uv   = transform(vTexCoord, d2, R_d_cx_cy);
-        cval = corner(uv);
-    }
+    vec2    uv = params.h_curvature > 0.5 ? h_warp(vTexCoord) : vTexCoord;   
+    float cval = params.h_curvature > 0.5 ? h_corner(uv)      : 1.0;
 
     // Bloom: Vertical blur
     vec2 dy    = vec2(0.0, GLOW_RADIUS*global.SourceSize.w);
@@ -550,7 +484,7 @@ void main()
 
     mask_coords = mix(mask_coords.xy, mask_coords.yx, VSCANLINES);
 
-    vec3 mask = mask_weights(mask_coords, mask_profile.x);
+    vec3 mask = mask_weights(mask_coords, mask_profile.x, params.shadowMask);
 
     mask = (MONITOR_SUBPIXELS > 0.5) ? mask.bgr : mask;
 
@@ -564,10 +498,8 @@ void main()
     crt = GAMMA_OUT(crt);
 
     crt = mask + (1.0 - 2.0*mask)*pow(abs(mask - crt), mask*MASK_STRENGTH*(H_MaskGamma - 1.0) + 1.0); 
-
+//    crt *= mask;
     crt *= cval;
-
-    crt *= step(0.0, fract(uv.y)); // Discard off limit pixels
 
     FragColor = vec4(crt, 1.0);
 }
