@@ -29,37 +29,42 @@ layout(push_constant) uniform Push
     float HFILTER_PROFILE;
     float SHARPNESS_HACK;
     float CRT_ANTI_RINGING;
-    float CRT_InputGamma;
     float CURVATURE;
     float WARP_X;
     float WARP_Y;
 } params;
 
-#pragma parameter CRT_HYLLIAN "[CRT-HYLLIAN PARAMS]" 0.0 0.0 0.0 0.0
-#pragma parameter HFILTER_PROFILE "  HORIZONTAL FILTER PROFILE [ SHARP1 | SHARP2 ]" 1.0 0.0 1.0 1.0
-#pragma parameter CRT_ANTI_RINGING "  ANTI RINGING" 1.0 0.0 1.0 1.0
-#pragma parameter SHARPNESS_HACK "  SHARPNESS_HACK" 1.0 1.0 4.0 1.0
-#pragma parameter CRT_InputGamma "  INPUT GAMMA" 2.4 1.0 5.0 0.1
-#pragma parameter CRT_OutputGamma "OUTPUT GAMMA" 2.2 1.0 5.0 0.05
-#pragma parameter PHOSPHOR_LAYOUT "PHOSPHOR LAYOUT [1-6 Aperture, 7-10 Shadow, 11-14 Slot]" 1.0 0.0 15.0 1.0
-#pragma parameter MASK_INTENSITY "MASK INTENSITY" 0.65 0.0 1.0 0.01
-#pragma parameter MONITOR_SUBPIXELS "MONITOR SUBPIXELS LAYOUT [0=RGB, 1=BGR]" 0.0 0.0 1.0 1.0
-#pragma parameter BRIGHTBOOST "BRIGHTNESS BOOST" 1.40 1.0 3.0 0.05
-#pragma parameter BEAM_MIN_WIDTH "MIN BEAM WIDTH" 0.86 0.0 1.0 0.02
-#pragma parameter BEAM_MAX_WIDTH "MAX BEAM WIDTH" 1.0 0.0 1.0 0.02
-#pragma parameter SCANLINES_STRENGTH "SCANLINES STRENGTH" 0.72 0.0 1.0 0.01
-#pragma parameter SCANLINES_SHAPE "SCANLINES SHAPE (SINC | GAUSSIAN)" 0.0 0.0 1.0 1.0
-#pragma parameter POST_BRIGHTNESS "POST-BRIGHTNESS" 1.00 1.0 3.0 0.05
-#pragma parameter CURVATURE "ENABLE CURVATURE" 0.0 0.0 1.0 1.0
-#pragma parameter WARP_X "  CURVATURE-X" 0.015 0.0 0.125 0.005
-#pragma parameter WARP_Y "  CURVATURE-Y" 0.015 0.0 0.125 0.005
-#pragma parameter CORNER_SIZE "  CORNER SIZE" 0.02 0.001 1.0 0.005
-#pragma parameter CORNER_SMOOTHNESS "  CORNER SMOOTHNESS" 1.10 1.0 2.2 0.02
+#pragma parameter H_OUTPUT_GAMMA    "    Output Gamma"    2.2 1.0 3.0 0.05
+#pragma parameter BRIGHTBOOST       "    Brightboost"     1.0 0.5 2.0 0.01
+
+#pragma parameter scan_nonono        "SCANLINES SETTINGS:"                         0.0  0.0 0.0 1.0
+#pragma parameter BEAM_MIN_WIDTH     "    Min Beam Width"                        0.72 0.0 1.0 0.01
+#pragma parameter BEAM_MAX_WIDTH     "    Max Beam Width"                        1.0  0.0 1.0 0.01
+#pragma parameter SCANLINES_STRENGTH "    Scanlines Strength"                    0.72 0.0 1.0 0.01
+#pragma parameter SCANLINES_SHAPE    "    Scanlines Shape [ SHARP, SOFT ]"       1.0  0.0 1.0 1.0
+
+#pragma parameter msk_nonono        "MASK SETTINGS:"                                             0.0 0.0  0.0 1.0
+#pragma parameter PHOSPHOR_LAYOUT   "    Mask [1-6 APERT, 7-10 DOT, 11-14 SLOT, 15-17 LOTTES]" 1.0 0.0 17.0 1.0
+#pragma parameter MASK_STRENGTH     "    Mask Strength"                                          1.0 0.0  1.0 0.02
+#pragma parameter H_MaskGamma       "    Mask Gamma"                                             2.4 1.0  3.0 0.05
+#pragma parameter MONITOR_SUBPIXELS "    Monitor Subpixels Layout [ RGB, BGR ]"                  0.0 0.0  1.0 1.0
+
+#pragma parameter fil_nonono        "FILTERING SETTINGS:"                            0.0 0.0 0.0 1.0
+#pragma parameter HFILTER_PROFILE   "    Horizontal Filter Profile [ Sharp1 | Sharp2 ]"  1.0 0.0 1.0 1.0
+#pragma parameter SHARPNESS_HACK    "    Sharpness Hack"                             1.0 1.0 4.0 1.0
+#pragma parameter CRT_ANTI_RINGING  "    Anti Ringing"                               1.0 0.0 1.0 1.0
+
+#pragma parameter h_nonono        "CURVATURE SETTINGS:"                 0.0  0.0  0.0 1.0
+#pragma parameter CURVATURE         "    Curvature Toggle" 0.0 0.0 1.0 1.0
+#pragma parameter WARP_X            "        Curvature-X" 0.015 0.0 0.125 0.005
+#pragma parameter WARP_Y            "        Curvature-Y" 0.015 0.0 0.125 0.005
+#pragma parameter CORNER_SIZE       "        Corner Size" 0.02 0.001 1.0 0.005
+#pragma parameter CORNER_SMOOTHNESS "        Corner Smoothness" 1.10 1.0 2.2 0.02
+
 
 #define HFILTER_PROFILE params.HFILTER_PROFILE
 #define CRT_ANTI_RINGING params.CRT_ANTI_RINGING
 #define SHARPNESS_HACK params.SHARPNESS_HACK
-#define CRT_InputGamma params.CRT_InputGamma
 #define CURVATURE params.CURVATURE
 #define WARP_X params.WARP_X
 #define WARP_Y params.WARP_Y
@@ -72,8 +77,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
    vec4 SourceSize;
 } global;
 
-
-#define GAMMA_IN(color)    pow(color, vec3(CRT_InputGamma, CRT_InputGamma, CRT_InputGamma))
 
 /* Curvature code. Credits to torridgristle! */
 vec2 CRT_Distortion = vec2(WARP_X, 0.0) * 15.;
@@ -135,6 +138,7 @@ void main()
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
+layout(location = 1) in vec2 FragCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -154,26 +158,27 @@ void main()
 
     vec2 fp = fract(pix_coord);
 
-    vec3 c10 = GAMMA_IN(texture(Source, tc     - dx).xyz);
-    vec3 c11 = GAMMA_IN(texture(Source, tc         ).xyz);
-    vec3 c12 = GAMMA_IN(texture(Source, tc     + dx).xyz);
-    vec3 c13 = GAMMA_IN(texture(Source, tc + 2.0*dx).xyz);
+    vec3 c10 = texture(Source, tc     - dx).xyz;
+    vec3 c11 = texture(Source, tc         ).xyz;
+    vec3 c12 = texture(Source, tc     + dx).xyz;
+    vec3 c13 = texture(Source, tc + 2.0*dx).xyz;
 
     mat4x3 color_matrix = mat4x3(c10, c11, c12, c13);
 
     mat4 invX    = get_hfilter_profile();
     vec4 lobes   = vec4(fp.x*fp.x*fp.x, fp.x*fp.x, fp.x, 1.0);
     vec4 invX_Px = lobes * invX;
-    vec3 color   = color_matrix * invX_Px;
+    vec3 color   = clamp(color_matrix * invX_Px, 0.0, 1.0);
 
     // Anti-ringing
-    //  Get min/max samples
-    vec3 min_sample = min(c11,c12);
-    vec3 max_sample = max(c11,c12);
-
-    vec3 aux = color;
-    color = clamp(color, min_sample, max_sample);
-    color = mix(aux, color, CRT_ANTI_RINGING);
+    if (CRT_ANTI_RINGING > 0.5)
+    {
+        vec3 aux = color;
+        vec3 min_sample = min(min(c10, c11), min(c12, c13));
+        vec3 max_sample = max(max(c10, c11), max(c12, c13));
+        color = clamp(color, min_sample, max_sample);
+        color = mix(aux, color, step(0.0, (c10-c11)*(c12-c13)));
+    }
 
     FragColor = vec4(color, 1.0);
 }

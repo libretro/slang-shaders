@@ -30,9 +30,9 @@ layout(push_constant) uniform Push
     vec4 OriginalSize;
     vec4 OutputSize;
     uint FrameCount;
-    float CRT_OutputGamma;
+    float H_OUTPUT_GAMMA;
     float PHOSPHOR_LAYOUT;
-    float MASK_INTENSITY;
+    float MASK_STRENGTH;
     float MONITOR_SUBPIXELS;
     float BRIGHTBOOST;
     float SCANLINES_SHAPE;
@@ -45,32 +45,43 @@ layout(push_constant) uniform Push
     float WARP_Y;
     float CORNER_SIZE;
     float CORNER_SMOOTHNESS;
+    float H_MaskGamma;
 } params;
 
-#pragma parameter CRT_OutputGamma "OUTPUT GAMMA" 2.2 1.0 5.0 0.05
-#pragma parameter PHOSPHOR_LAYOUT "PHOSPHOR LAYOUT [1-6 Aperture, 7-10 Shadow, 11-14 Slot]" 1.0 0.0 15.0 1.0
-#pragma parameter MASK_INTENSITY "MASK INTENSITY" 0.65 0.0 1.0 0.01
-#pragma parameter MONITOR_SUBPIXELS "MONITOR SUBPIXELS LAYOUT [0=RGB, 1=BGR]" 0.0 0.0 1.0 1.0
-#pragma parameter BRIGHTBOOST "BRIGHTNESS BOOST" 1.40 1.0 3.0 0.05
-#pragma parameter BEAM_MIN_WIDTH "MIN BEAM WIDTH" 0.86 0.0 1.0 0.02
-#pragma parameter BEAM_MAX_WIDTH "MAX BEAM WIDTH" 1.0 0.0 1.0 0.02
-#pragma parameter SCANLINES_STRENGTH "SCANLINES STRENGTH" 0.72 0.0 1.0 0.01
-#pragma parameter SCANLINES_SHAPE "SCANLINES SHAPE (SINC | GAUSSIAN)" 0.0 0.0 1.0 1.0
-#pragma parameter POST_BRIGHTNESS "POST-BRIGHTNESS" 1.00 1.0 3.0 0.05
-#pragma parameter CURVATURE "ENABLE CURVATURE" 0.0 0.0 1.0 1.0
-#pragma parameter WARP_X "  CURVATURE-X" 0.015 0.0 0.125 0.005
-#pragma parameter WARP_Y "  CURVATURE-Y" 0.015 0.0 0.125 0.005
-#pragma parameter CORNER_SIZE "  CORNER SIZE" 0.02 0.001 1.0 0.005
-#pragma parameter CORNER_SMOOTHNESS "  CORNER SMOOTHNESS" 1.10 1.0 2.2 0.02
+#pragma parameter H_OUTPUT_GAMMA    "    Output Gamma"    2.2 1.0 3.0 0.05
+#pragma parameter BRIGHTBOOST       "    Brightboost"     1.0 0.5 2.0 0.01
+
+#pragma parameter scan_nonono        "SCANLINES SETTINGS:"                         0.0  0.0 0.0 1.0
+#pragma parameter BEAM_MIN_WIDTH     "    Min Beam Width"                        0.72 0.0 1.0 0.01
+#pragma parameter BEAM_MAX_WIDTH     "    Max Beam Width"                        1.0  0.0 1.0 0.01
+#pragma parameter SCANLINES_STRENGTH "    Scanlines Strength"                    0.72 0.0 1.0 0.01
+#pragma parameter SCANLINES_SHAPE    "    Scanlines Shape [ SHARP, SOFT ]"       1.0  0.0 1.0 1.0
+
+#pragma parameter msk_nonono        "MASK SETTINGS:"                                             0.0 0.0  0.0 1.0
+#pragma parameter PHOSPHOR_LAYOUT   "    Mask [1-6 APERT, 7-10 DOT, 11-14 SLOT, 15-17 LOTTES]" 1.0 0.0 17.0 1.0
+#pragma parameter MASK_STRENGTH     "    Mask Strength"                                          1.0 0.0  1.0 0.02
+#pragma parameter H_MaskGamma       "    Mask Gamma"                                             2.4 1.0  3.0 0.05
+#pragma parameter MONITOR_SUBPIXELS "    Monitor Subpixels Layout [ RGB, BGR ]"                  0.0 0.0  1.0 1.0
+
+#pragma parameter fil_nonono        "FILTERING SETTINGS:"                            0.0 0.0 0.0 1.0
+#pragma parameter SHARPNESS_HACK    "    Sharpness Hack"                             1.0 1.0 4.0 1.0
+#pragma parameter CRT_ANTI_RINGING  "    Anti Ringing"                               1.0 0.0 1.0 1.0
+
+#pragma parameter h_nonono        "CURVATURE SETTINGS:"                 0.0  0.0  0.0 1.0
+#pragma parameter CURVATURE         "    Curvature Toggle" 0.0 0.0 1.0 1.0
+#pragma parameter WARP_X            "        Curvature-X" 0.015 0.0 0.125 0.005
+#pragma parameter WARP_Y            "        Curvature-Y" 0.015 0.0 0.125 0.005
+#pragma parameter CORNER_SIZE       "        Corner Size" 0.02 0.001 1.0 0.005
+#pragma parameter CORNER_SMOOTHNESS "        Corner Smoothness" 1.10 1.0 2.2 0.02
 
 
-#define CRT_OutputGamma params.CRT_OutputGamma
-#define BRIGHTBOOST (params.BRIGHTBOOST+1.1)
+
+#define CRT_OutputGamma params.H_OUTPUT_GAMMA
+#define BRIGHTBOOST params.BRIGHTBOOST
 #define SCANLINES_SHAPE params.SCANLINES_SHAPE
 #define SCANLINES_STRENGTH (-0.16*SCANLINES_SHAPE+params.SCANLINES_STRENGTH)
 #define BEAM_MIN_WIDTH params.BEAM_MIN_WIDTH
 #define BEAM_MAX_WIDTH params.BEAM_MAX_WIDTH
-#define POST_BRIGHTNESS params.POST_BRIGHTNESS
 #define CURVATURE params.CURVATURE
 #define WARP_X params.WARP_X
 #define WARP_Y params.WARP_Y
@@ -98,6 +109,7 @@ void main()
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
+layout(location = 1) in vec2 FragCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -136,97 +148,169 @@ vec2 Warp(vec2 texCoord)
    return cCoords;
 }
 
+// Shadow mask.
+vec3 Mask(vec2 pos, float shadowMask)
+{
+    const float maskDark  = 0.0;
+    const float maskLight = 1.0;
+
+    vec3 mask = vec3(maskDark, maskDark, maskDark);
+  
+    // Very compressed TV style shadow mask.
+    if (shadowMask == 15.0) 
+    {
+        float line = maskLight;
+        float odd = 0.0;
+        
+        if (fract(pos.x*0.166666666) < 0.5) odd = 1.0;
+        if (fract((pos.y + odd) * 0.5) < 0.5) line = maskDark;  
+        
+        pos.x = fract(pos.x*0.333333333);
+
+        if      (pos.x < 0.333) mask.b = maskLight;
+        else if (pos.x < 0.666) mask.g = maskLight;
+        else                    mask.r = maskLight;
+        mask*=line;  
+    } 
+
+    // Aperture-grille. This mask is the same as mask 2.
+/*    else if (shadowMask == 16.0) 
+    {
+        pos.x = fract(pos.x*0.333333333);
+
+        if      (pos.x < 0.333) mask.b = maskLight;
+        else if (pos.x < 0.666) mask.g = maskLight;
+        else                    mask.r = maskLight;
+    } 
+*/
+    // Stretched VGA style shadow mask (same as prior shaders).
+    else if (shadowMask == 16.0) 
+    {
+        pos.x += pos.y*3.0;
+        pos.x  = fract(pos.x*0.166666666);
+
+        if      (pos.x < 0.333) mask.b = maskLight;
+        else if (pos.x < 0.666) mask.g = maskLight;
+        else                    mask.r = maskLight;
+    }
+
+    // VGA style shadow mask.
+    else if (shadowMask == 17.0) 
+    {
+        pos.xy  = floor(pos.xy*vec2(1.0, 0.5));
+        pos.x  += pos.y*3.0;
+        pos.x   = fract(pos.x*0.166666666);
+
+        if      (pos.x < 0.333) mask.b = maskLight;
+        else if (pos.x < 0.666) mask.g = maskLight;
+        else                    mask.r = maskLight;
+    }
+
+    return mask;
+}
+
+
 /* Mask code pasted from subpixel_masks.h. Masks 3 and 4 added. */
-vec3 mask_weights(vec2 coord, float mask_intensity, int phosphor_layout, float monitor_subpixels){
+vec3 mask_weights(vec2 coord, float phosphor_layout){
+   
+//   if (lottes_mask > 0.5) return Mask(coord);
+
+   if (phosphor_layout > 14.0) return Mask(coord, phosphor_layout);
+
    vec3 weights = vec3(1.,1.,1.);
-   float on = 1.;
-   float off = 1.-mask_intensity;
-   vec3 red     = monitor_subpixels==1.0 ? vec3(on,  off, off) : vec3(off, off, on );
-   vec3 green   = vec3(off, on,  off);
-   vec3 blue    = monitor_subpixels==1.0 ? vec3(off, off, on ) : vec3(on,  off, off);
-   vec3 magenta = vec3(on,  off, on );
-   vec3 yellow  = monitor_subpixels==1.0 ? vec3(on,  on,  off) : vec3(off, on,  on );
-   vec3 cyan    = monitor_subpixels==1.0 ? vec3(off, on,  on ) : vec3(on,  on,  off);
-   vec3 black   = vec3(off, off, off);
-   vec3 white   = vec3(on,  on,  on );
+
+   const float on  = 1.;
+   const float off = 0.;
+
+   const vec3 red     = vec3(off, off, on );
+   const vec3 green   = vec3(off, on,  off);
+   const vec3 blue    = vec3(on,  off, off);
+   const vec3 magenta = vec3(on,  off, on );
+   const vec3 yellow  = vec3(off, on,  on );
+   const vec3 cyan    = vec3(on,  on,  off);
+   const vec3 black   = vec3(off, off, off);
+   const vec3 white   = vec3(on,  on,  on );
+
    int w, z = 0;
    
    // This pattern is used by a few layouts, so we'll define it here
-   vec3 aperture_weights = mix(magenta, green, floor(mod(coord.x, 2.0)));
+   vec3 aperture_classic = mix(magenta, green, floor(mod(coord.x, 2.0)));
    
-   if(phosphor_layout == 0) return weights;
+   if(phosphor_layout == 0.) return weights;
 
-   else if(phosphor_layout == 1){
+   else if(phosphor_layout == 1.){
       // classic aperture for RGB panels; good for 1080p, too small for 4K+
       // aka aperture_1_2_bgr
-      weights  = aperture_weights;
+      weights  = aperture_classic;
       return weights;
    }
 
-   else if(phosphor_layout == 2){
+   else if(phosphor_layout == 2.){
       // Classic RGB layout; good for 1080p and lower
-      vec3 bw3[3] = vec3[](red, green, blue);
+      const vec3 aperture1[3] = vec3[](red, green, blue);
 //      vec3 bw3[3] = vec3[](black, yellow, blue);
       
       z = int(floor(mod(coord.x, 3.0)));
       
-      weights = bw3[z];
+      weights = aperture1[z];
       return weights;
    }
 
-   else if(phosphor_layout == 3){
+   else if(phosphor_layout == 3.){
       // black and white aperture; good for weird subpixel layouts and low brightness; good for 1080p and lower
-      vec3 bw3[3] = vec3[](black, white, black);
+      const vec3 aperture2[3] = vec3[](black, white, black);
       
       z = int(floor(mod(coord.x, 3.0)));
       
-      weights = bw3[z];
+      weights = aperture2[z];
       return weights;
    }
 
-   else if(phosphor_layout == 4){
+   else if(phosphor_layout == 4.){
       // reduced TVL aperture for RGB panels. Good for 4k.
       // aperture_2_4_rgb
       
-      vec3 big_ap_rgb[4] = vec3[](red, yellow, cyan, blue);
+      const vec3 aperture3[4] = vec3[](red, yellow, cyan, blue);
       
       w = int(floor(mod(coord.x, 4.0)));
       
-      weights = big_ap_rgb[w];
+      weights = aperture3[w];
       return weights;
    }
    
-   else if(phosphor_layout == 5){
+
+   else if(phosphor_layout == 5.){
       // black and white aperture; good for weird subpixel layouts and low brightness; good for 4k 
-      vec3 bw4[4] = vec3[](black, black, white, white);
+      const vec3 aperture4[4] = vec3[](black, black, white, white);
       
       z = int(floor(mod(coord.x, 4.0)));
       
-      weights = bw4[z];
+      weights = aperture4[z];
       return weights;
    }
 
-   else if(phosphor_layout == 6){
+
+   else if(phosphor_layout == 6.){
       // aperture_1_4_rgb; good for simulating lower 
-      vec3 ap4[4] = vec3[](red, green, blue, black);
+      const vec3 aperture5[4] = vec3[](red, green, blue, black);
       
       z = int(floor(mod(coord.x, 4.0)));
       
-      weights = ap4[z];
+      weights = aperture5[z];
       return weights;
    }
 
-   else if(phosphor_layout == 7){
+   else if(phosphor_layout == 7.){
       // 2x2 shadow mask for RGB panels; good for 1080p, too small for 4K+
       // aka delta_1_2x1_bgr
       vec3 inverse_aperture = mix(green, magenta, floor(mod(coord.x, 2.0)));
-      weights               = mix(aperture_weights, inverse_aperture, floor(mod(coord.y, 2.0)));
+      weights               = mix(aperture_classic, inverse_aperture, floor(mod(coord.y, 2.0)));
       return weights;
    }
 
-   else if(phosphor_layout == 8){
+   else if(phosphor_layout == 8.){
       // delta_2_4x1_rgb
-      vec3 delta[2][4] = {
+      const vec3 delta1[2][4] = {
          {red, yellow, cyan, blue},
          {cyan, blue, red, yellow}
       };
@@ -234,13 +318,13 @@ vec3 mask_weights(vec2 coord, float mask_intensity, int phosphor_layout, float m
       w = int(floor(mod(coord.y, 2.0)));
       z = int(floor(mod(coord.x, 4.0)));
       
-      weights = delta[w][z];
+      weights = delta1[w][z];
       return weights;
    }
 
-   else if(phosphor_layout == 9){
+   else if(phosphor_layout == 9.){
       // delta_1_4x1_rgb; dunno why this is called 4x1 when it's obviously 4x2 /shrug
-      vec3 delta1[2][4] = {
+      const vec3 delta1[2][4] = {
          {red,  green, blue, black},
          {blue, black, red,  green}
       };
@@ -252,9 +336,9 @@ vec3 mask_weights(vec2 coord, float mask_intensity, int phosphor_layout, float m
       return weights;
    }
    
-   else if(phosphor_layout == 10){
+   else if(phosphor_layout == 10.){
       // delta_2_4x2_rgb
-      vec3 delta[4][4] = {
+      const vec3 delta[4][4] = {
          {red,  yellow, cyan, blue},
          {red,  yellow, cyan, blue},
          {cyan, blue,   red,  yellow},
@@ -268,9 +352,9 @@ vec3 mask_weights(vec2 coord, float mask_intensity, int phosphor_layout, float m
       return weights;
    }
 
-   else if(phosphor_layout == 11){
+   else if(phosphor_layout == 11.){
       // slot mask for RGB panels; looks okay at 1080p, looks better at 4K
-      vec3 slotmask[4][6] = {
+      const vec3 slotmask[4][6] = {
          {red, green, blue,    red, green, blue,},
          {red, green, blue,  black, black, black},
          {red, green, blue,    red, green, blue,},
@@ -285,9 +369,9 @@ vec3 mask_weights(vec2 coord, float mask_intensity, int phosphor_layout, float m
       return weights;
    }
 
-   else if(phosphor_layout == 12){
+   else if(phosphor_layout == 12.){
       // slot mask for RGB panels; looks okay at 1080p, looks better at 4K
-      vec3 slotmask[4][6] = {
+      const vec3 slotmask[4][6] = {
          {black,  white, black,   black,  white, black,},
          {black,  white, black,  black, black, black},
          {black,  white, black,  black,  white, black,},
@@ -302,9 +386,9 @@ vec3 mask_weights(vec2 coord, float mask_intensity, int phosphor_layout, float m
       return weights;
    }
 
-   else if(phosphor_layout == 13){
+   else if(phosphor_layout == 13.){
       // based on MajorPainInTheCactus' HDR slot mask
-      vec3 slot[4][8] = {
+      const vec3 slot[4][8] = {
          {red,   green, blue,  black, red,   green, blue,  black},
          {red,   green, blue,  black, black, black, black, black},
          {red,   green, blue,  black, red,   green, blue,  black},
@@ -318,9 +402,9 @@ vec3 mask_weights(vec2 coord, float mask_intensity, int phosphor_layout, float m
       return weights;
    }
 
-   else if(phosphor_layout == 14){
+   else if(phosphor_layout == 14.){
       // same as above but for RGB panels
-      vec3 slot2[4][10] = {
+      const vec3 slot2[4][10] = {
          {red,   yellow, green, blue,  blue,  red,   yellow, green, blue,  blue },
          {black, green,  green, blue,  blue,  red,   red,    black, black, black},
          {red,   yellow, green, blue,  blue,  red,   yellow, green, blue,  blue },
@@ -333,26 +417,6 @@ vec3 mask_weights(vec2 coord, float mask_intensity, int phosphor_layout, float m
       weights = slot2[w][z];
       return weights;
    }
-   
-   else if(phosphor_layout == 15){
-      // slot_3_7x6_rgb
-      vec3 slot[6][14] = {
-         {red,   red,   yellow, green, cyan,  blue,  blue,  red,   red,   yellow, green,  cyan,  blue,  blue},
-         {red,   red,   yellow, green, cyan,  blue,  blue,  red,   red,   yellow, green,  cyan,  blue,  blue},
-         {red,   red,   yellow, green, cyan,  blue,  blue,  black, black, black,  black,  black, black, black},
-         {red,   red,   yellow, green, cyan,  blue,  blue,  red,   red,   yellow, green,  cyan,  blue,  blue},
-         {red,   red,   yellow, green, cyan,  blue,  blue,  red,   red,   yellow, green,  cyan,  blue,  blue},
-         {black, black, black,  black, black, black, black, black, red,   red,    yellow, green, cyan,  blue}
-      };
-      
-      w = int(floor(mod(coord.y, 6.0)));
-      z = int(floor(mod(coord.x, 14.0)));
-      
-      weights = slot[w][z];
-      return weights;
-   }
-
-
    
    else return weights;
 }
@@ -417,18 +481,24 @@ void main()
     vec3 lum0 = mix(vec3(BEAM_MIN_WIDTH), vec3(BEAM_MAX_WIDTH), color0);
     vec3 lum1 = mix(vec3(BEAM_MIN_WIDTH), vec3(BEAM_MAX_WIDTH), color1);
 
-    vec3 d0 = SCANLINES_STRENGTH*pos0/(lum0*lum0+0.0000001);
-    vec3 d1 = SCANLINES_STRENGTH*pos1/(lum1*lum1+0.0000001);
+    vec3 d0 = SCANLINES_STRENGTH*pos0/(lum0*lum0+0.00001);
+    vec3 d1 = SCANLINES_STRENGTH*pos1/(lum1*lum1+0.00001);
 
     color  = BRIGHTBOOST*get_scanlines(d0, d1, color0, color1);
 
+    color  = clamp(color, 0.0, 1.0);
     color  = GAMMA_OUT(color);
 
     vec2 mask_coords =vTexCoord.xy * params.OutputSize.xy;
 
-    color.rgb*=GAMMA_OUT(mask_weights(mask_coords, params.MASK_INTENSITY, int(params.PHOSPHOR_LAYOUT), params.MONITOR_SUBPIXELS));
+    vec3 mask = mask_weights(mask_coords, params.PHOSPHOR_LAYOUT);
 
-    FragColor = vec4(POST_BRIGHTNESS*color, 1.0);
+    mask = (params.MONITOR_SUBPIXELS > 0.5) ? mask.bgr : mask;
+
+    color = mask + (1.0 - 2.0*mask)*pow(abs(mask - color), mask*params.MASK_STRENGTH*(params.H_MaskGamma.xxx - 1.0) + 1.0); 
+
+    FragColor = vec4(color, 1.0);
 
     FragColor *= (CURVATURE > 0.5) ? corner(WarpedTexCoord) : 1.0;
 }
+

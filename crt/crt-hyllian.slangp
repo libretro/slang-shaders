@@ -1,6 +1,6 @@
 shaders = "5"
 
-shader0 = "shaders/hyllian/support/multiLUT-linear.slang"
+shader0 = "shaders/hyllian/support/multiLUT-linear-fast.slang"
 filter_linear0 = "false"
 scale_type0 = "source"
 scale0 = "1.000000"
@@ -35,7 +35,7 @@ scale_type4 = viewport
 wrap_mode4 = "clamp_to_border"
 
 textures = "SamplerLUT1;SamplerLUT2"
-SamplerLUT1 = "shaders/hyllian/support/LUT/TrinitronP22_D75.png"
+SamplerLUT1 = "shaders/hyllian/support/LUT/Sony_Wega_29FA310_no_gamma-v2.png"
 SamplerLUT1_linear = true
 SamplerLUT2 = "shaders/hyllian/support/LUT/Sony_Wega_29FA310_no_gamma.png"
 SamplerLUT2_linear = true

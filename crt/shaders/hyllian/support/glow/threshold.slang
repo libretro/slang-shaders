@@ -6,10 +6,10 @@ layout(push_constant) uniform Push
     float GLOW_ROLLOFF;
 } params;
 
-#pragma parameter glow_nonono        "GLOW SETTINGS:"             1.0  0.0 1.0 1.0
-#pragma parameter GLOW_ENABLE    "    Enable Glow" 0.0 0.0 1.0 1.0
-#pragma parameter GLOW_WHITEPOINT "    Glow Whitepoint" 0.9 0.5 1.1 0.02
-#pragma parameter GLOW_ROLLOFF "    Glow Rolloff" 2.0 1.2 6.0 0.1
+#pragma parameter glow_nonono        "GLOW SETTINGS:"      0.0 0.0 0.0 1.0
+#pragma parameter GLOW_ENABLE        "    Enable Glow"     0.0 0.0 1.0 1.0
+#pragma parameter GLOW_WHITEPOINT    "    Glow Whitepoint" 0.9 0.5 1.1 0.02
+#pragma parameter GLOW_ROLLOFF       "    Glow Rolloff"    2.0 1.2 6.0 0.1
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {

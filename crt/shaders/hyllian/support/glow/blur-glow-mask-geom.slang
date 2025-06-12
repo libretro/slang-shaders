@@ -19,7 +19,6 @@ layout(push_constant) uniform Push
     float h_radius;
     float h_cornersize;
     float h_cornersmooth;
-    float shadowMask;
 } params;
 
 
@@ -32,26 +31,26 @@ layout(std140, set = 0, binding = 0) uniform UBO
     uint FrameCount;
 } global;
 
-#pragma parameter H_MaskGamma       "Mask Gamma" 2.4 1.0 3.0 0.05
-#pragma parameter H_OUTPUT_GAMMA "Output Gamma"  2.2 1.0 3.0 0.05
+#pragma parameter H_OUTPUT_GAMMA    "    Output Gamma"    2.2 1.0 3.0 0.05
+#pragma parameter BRIGHTBOOST       "    Brightboost"  1.0 0.5 2.0 0.01
+
 
 #pragma parameter GLOW_ENABLE    "    Enable Glow"   0.0 0.0 1.0 1.0
 #pragma parameter GLOW_RADIUS    "    Glow Radius"   4.0 2.0 4.0 0.1
 #pragma parameter GLOW_STRENGTH  "    Glow Strength" 0.05 0.0 1.0 0.01
 
+#pragma parameter VSCANLINES         "    Orientation [ HORIZONTAL, VERTICAL]"    0.0 0.0 1.0 1.0
 
-#pragma parameter shadowMask        "Lottes Mask (turn off other masks)"      0.0 0.0 4.0 1.0
-#pragma parameter DISPLAY_RES       "Target Resolution (only if mask preset > 0) [ 1080P | 4K ]"   0.0 0.0 1.0 1.0
-#pragma parameter PRESET_OPTION     "Mask Preset [0=CUSTOM, APERT1, APERT2, SLOT1, SLOT2, SHADOW]" 0.0 0.0 5.0 1.0
-#pragma parameter PHOSPHOR_LAYOUT   "      Mask [1..6 APERTURE, 7..10 SHADOW, 11..14 SLOT]"        1.0 0.0 15.0 1.0
-#pragma parameter MASK_STRENGTH     "Mask Strength"                            1.0 0.0 1.0 0.02
-#pragma parameter MONITOR_SUBPIXELS "Monitor Subpixels Layout [ RGB | BGR ]"   0.0 0.0 1.0 1.0
-#pragma parameter BRIGHTBOOST       "Brightboost"                              1.0 0.5 2.0 0.01
-#pragma parameter VSCANLINES        "Vertical Scanlines Toggle"                0.0 0.0 1.0 1.0
+#pragma parameter DISPLAY_RES       "    Target Resolution [ 1080P, 4K ]"                            0.0 0.0 1.0 1.0
+#pragma parameter PRESET_OPTION     "    Mask Preset [CUSTOM, APERT1, APERT2, SLOT1, SLOT2, SHADOW]" 0.0 0.0 5.0 1.0
+#pragma parameter PHOSPHOR_LAYOUT   "*  Mask [OFF, 1-6 APERT, 7-10 SHAD, 11-14 SLOT, 15-17 LOTTES]" 1.0 0.0 17.0 1.0
+#pragma parameter MASK_STRENGTH     "    Mask Strength"                                     1.0 0.0 1.0 0.02
+#pragma parameter H_MaskGamma       "    Mask Gamma"                                        2.4 1.0 3.0 0.05
+#pragma parameter MONITOR_SUBPIXELS "    Monitor Subpixels Layout [ RGB, BGR ]"            0.0 0.0 1.0 1.0
 
-#pragma parameter h_nonono        "CURVATURE SETTINGS:"              0.0 0.0 1.0 1.0
+#pragma parameter h_nonono        "CURVATURE SETTINGS:"              0.0 0.0 0.0 1.0
 #pragma parameter h_curvature     "    Curvature Toggle"             0.0 0.0 1.0 1.0
-#pragma parameter h_shape         "    Shape [ SPHERE | CYLINDER ]"  0.0  0.0 1.0 1.0
+#pragma parameter h_shape         "    Shape [ SPHERE, CYLINDER ]"  0.0  0.0 1.0 1.0
 #pragma parameter h_radius        "    Curvature Radius"             5.0 1.5 10.0 0.1
 #pragma parameter h_cornersize    "    Corner Size"                  0.04 0.01 1.0 0.01
 #pragma parameter h_cornersmooth  "    Corner Smoothness"            0.5 0.1 1.0 0.1
@@ -132,7 +131,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D CRTPass;
 
 // Shadow mask.
-vec3 Mask(vec2 pos)
+vec3 Mask(vec2 pos, float shadowMask)
 {
     const float maskDark  = 0.0;
     const float maskLight = 1.0;
@@ -140,7 +139,7 @@ vec3 Mask(vec2 pos)
     vec3 mask = vec3(maskDark, maskDark, maskDark);
   
     // Very compressed TV style shadow mask.
-    if (params.shadowMask == 1.0) 
+    if (shadowMask == 15.0) 
     {
         float line = maskLight;
         float odd = 0.0;
@@ -150,43 +149,43 @@ vec3 Mask(vec2 pos)
         
         pos.x = fract(pos.x*0.333333333);
 
-        if      (pos.x < 0.333) mask.r = maskLight;
+        if      (pos.x < 0.333) mask.b = maskLight;
         else if (pos.x < 0.666) mask.g = maskLight;
-        else                    mask.b = maskLight;
+        else                    mask.r = maskLight;
         mask*=line;  
     } 
 
-    // Aperture-grille.
-    else if (params.shadowMask == 2.0) 
+    // Aperture-grille. This mask is the same as mask 2.
+/*    else if (shadowMask == 16.0) 
     {
         pos.x = fract(pos.x*0.333333333);
 
-        if      (pos.x < 0.333) mask.r = maskLight;
+        if      (pos.x < 0.333) mask.b = maskLight;
         else if (pos.x < 0.666) mask.g = maskLight;
-        else                    mask.b = maskLight;
+        else                    mask.r = maskLight;
     } 
-
+*/
     // Stretched VGA style shadow mask (same as prior shaders).
-    else if (params.shadowMask == 3.0) 
+    else if (shadowMask == 16.0) 
     {
         pos.x += pos.y*3.0;
         pos.x  = fract(pos.x*0.166666666);
 
-        if      (pos.x < 0.333) mask.r = maskLight;
+        if      (pos.x < 0.333) mask.b = maskLight;
         else if (pos.x < 0.666) mask.g = maskLight;
-        else                    mask.b = maskLight;
+        else                    mask.r = maskLight;
     }
 
     // VGA style shadow mask.
-    else if (params.shadowMask == 4.0) 
+    else if (shadowMask == 17.0) 
     {
         pos.xy  = floor(pos.xy*vec2(1.0, 0.5));
         pos.x  += pos.y*3.0;
         pos.x   = fract(pos.x*0.166666666);
 
-        if      (pos.x < 0.333) mask.r = maskLight;
+        if      (pos.x < 0.333) mask.b = maskLight;
         else if (pos.x < 0.666) mask.g = maskLight;
-        else                    mask.b = maskLight;
+        else                    mask.r = maskLight;
     }
 
     return mask;
@@ -194,9 +193,11 @@ vec3 Mask(vec2 pos)
 
 
 /* Mask code pasted from subpixel_masks.h. Masks 3 and 4 added. */
-vec3 mask_weights(vec2 coord, float phosphor_layout, float lottes_mask){
+vec3 mask_weights(vec2 coord, float phosphor_layout){
    
-   if (lottes_mask > 0.5) return Mask(coord);
+//   if (lottes_mask > 0.5) return Mask(coord);
+
+   if (phosphor_layout > 14) return Mask(coord, phosphor_layout);
 
    vec3 weights = vec3(1.,1.,1.);
 
@@ -399,25 +400,6 @@ vec3 mask_weights(vec2 coord, float phosphor_layout, float lottes_mask){
       return weights;
    }
    
-   else if(phosphor_layout == 15.){
-      // slot_3_7x6_rgb
-      const vec3 slot[6][14] = {
-         {red,   red,   yellow, green, cyan,  blue,  blue,  red,   red,   yellow, green,  cyan,  blue,  blue},
-         {red,   red,   yellow, green, cyan,  blue,  blue,  red,   red,   yellow, green,  cyan,  blue,  blue},
-         {red,   red,   yellow, green, cyan,  blue,  blue,  black, black, black,  black,  black, black, black},
-         {red,   red,   yellow, green, cyan,  blue,  blue,  red,   red,   yellow, green,  cyan,  blue,  blue},
-         {red,   red,   yellow, green, cyan,  blue,  blue,  red,   red,   yellow, green,  cyan,  blue,  blue},
-         {black, black, black,  black, black, black, black, black, red,   red,    yellow, green, cyan,  blue}
-      };
-      
-      w = int(floor(mod(coord.y, 6.0)));
-      z = int(floor(mod(coord.x, 14.0)));
-      
-      weights = slot[w][z];
-      return weights;
-   }
-
-
    else return weights;
 }
 
@@ -484,7 +466,7 @@ void main()
 
     mask_coords = mix(mask_coords.xy, mask_coords.yx, VSCANLINES);
 
-    vec3 mask = mask_weights(mask_coords, mask_profile.x, params.shadowMask);
+    vec3 mask = mask_weights(mask_coords, mask_profile.x);
 
     mask = (MONITOR_SUBPIXELS > 0.5) ? mask.bgr : mask;
 

@@ -13,15 +13,16 @@ layout(std140, set = 0, binding = 0) uniform UBO
    float quality, ntsc_sat, cust_fringing, cust_artifacting, ntsc_bright, ntsc_scale, ntsc_fields, ntsc_phase, ntsc_artifacting_rainbow;
 } global;
 
-#pragma parameter quality "NTSC Preset (Svideo=0 Composite=1 RF=2 Custom=-1)" 1.0 -1.0 2.0 1.0
-#pragma parameter ntsc_fields "NTSC Merge Fields" 0.0 0.0 1.0 1.0
-#pragma parameter ntsc_phase "NTSC Phase: Auto | 2 phase | 3 phase" 1.0 1.0 3.0 1.0
-#pragma parameter ntsc_scale "NTSC Resolution Scaling" 1.0 0.20 3.0 0.05
-#pragma parameter ntsc_sat "NTSC Color Saturation" 1.0 0.0 2.0 0.01
-#pragma parameter ntsc_bright "NTSC Brightness" 1.0 0.0 1.5 0.01
-#pragma parameter cust_fringing "NTSC Custom Fringing Value" 0.0 0.0 5.0 0.1
-#pragma parameter cust_artifacting "NTSC Custom Artifacting Value" 0.0 0.0 5.0 0.1
-#pragma parameter ntsc_artifacting_rainbow "NTSC Artifacting Rainbow Effect" 0.0 -1.0 1.0 0.1
+#pragma parameter ntsc_nonono              "NTSC-ADAPTIVE-LITE:"                  0.0 0.0 0.0 1.0
+#pragma parameter quality                  "    Preset (Svideo=0 Composite=1 RF=2 Custom=-1)" 1.0 -1.0 2.0 1.0
+#pragma parameter ntsc_fields              "    Merge Fields"                                  0.0 0.0 1.0 1.0
+#pragma parameter ntsc_phase               "    Phase: Auto | 2 phase | 3 phase"               1.0 1.0 3.0 1.0
+#pragma parameter ntsc_scale               "    Resolution Scaling"                            1.0 0.20 3.0 0.05
+#pragma parameter ntsc_sat                 "    Color Saturation"                              1.0 0.0 2.0 0.01
+#pragma parameter ntsc_bright              "    Brightness"                                    1.0 0.0 1.5 0.01
+#pragma parameter cust_fringing            "    Custom Fringing Value"                         0.0 0.0 5.0 0.1
+#pragma parameter cust_artifacting         "    Custom Artifacting Value"                      0.0 0.0 5.0 0.1
+#pragma parameter ntsc_artifacting_rainbow "    Artifacting Rainbow Effect"                    0.0 -1.0 1.0 0.1
 
 #define PI 3.14159265
 

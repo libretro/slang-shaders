@@ -50,30 +50,37 @@ layout(std140, set = 0, binding = 0) uniform UBO
 } global;
 
 
-#pragma parameter H_OUTPUT_GAMMA "Output Gamma" 2.2 1.0 3.0 0.05
+#pragma parameter H_OUTPUT_GAMMA    "    Output Gamma"    2.2 1.0 3.0 0.05
+#pragma parameter BRIGHTBOOST       "    Brightboost"  1.0 0.5 2.0 0.01
 
-#pragma parameter shadowMask        "Lottes Mask (turn off other masks)"      0.0 0.0 4.0 1.0
+#pragma parameter pre_nonono        "PRESET OPTIONS:"                                                0.0 0.0 0.0 1.0
+#pragma parameter pre_comment1      "// if set, these presets disable all '*' params below."          0.0 0.0 0.0 1.0
+#pragma parameter PRESET_OPTION     "    Mask Preset [CUSTOM, APERT1, APERT2, SLOT1, SLOT2, SHADOW]" 0.0 0.0 5.0 1.0
+#pragma parameter pre_comment2      "// this set only work if mask preset > 0."                        0.0 0.0 0.0 1.0
+#pragma parameter DISPLAY_RES       "    Target Resolution [ 1080P, 4K ]"                            0.0 0.0 1.0 1.0
 
-#pragma parameter DISPLAY_RES       "Target Resolution (only if mask preset > 0) [ 1080P | 4K ]"   0.0 0.0 1.0 1.0
-#pragma parameter PRESET_OPTION     "Mask Preset [0=CUSTOM, APERT1, APERT2, SLOT1, SLOT2, SHADOW]" 0.0 0.0 5.0 1.0
+//#pragma parameter CUSTOM_OPTIONS     "[SETTINGS FOR 'Mask Preset'=CUSTOM:]"   0.0 0.0 0.0 1.0
+#pragma parameter scan_nonono        "SCANLINES SETTINGS:"                      0.0 0.0 0.0 1.0
+#pragma parameter BEAM_MIN_WIDTH     "*  Min Beam Width"                        0.72 0.0 1.0 0.01
+#pragma parameter BEAM_MAX_WIDTH     "*  Max Beam Width"                        1.0 0.0 1.0 0.01
+#pragma parameter SCANLINES_STRENGTH "*  Scanlines Strength"                    0.72 0.0 1.0 0.01
+#pragma parameter SCANLINES_SHAPE    "*  Scanlines Shape [ SHARP, SOFT ]"      1.0 0.0 1.0 1.0
+#pragma parameter VSCANLINES         "    Orientation [ HORIZONTAL, VERTICAL]"    0.0 0.0 1.0 1.0
 
-#pragma parameter CUSTOM_OPTIONS     "[SETTINGS FOR 'Mask Preset'=CUSTOM:]"   0.0 0.0 1.0 1.0
-#pragma parameter BEAM_MIN_WIDTH     "      Min Beam Width"                   0.72 0.0 1.0 0.01
-#pragma parameter BEAM_MAX_WIDTH     "      Max Beam Width"                   1.0 0.0 1.0 0.01
-#pragma parameter SCANLINES_STRENGTH "      Scanlines Strength"               0.72 0.0 1.0 0.01
-#pragma parameter SCANLINES_SHAPE    "      Scanlines Shape [ SHARP | SOFT ]" 1.0 0.0 1.0 1.0
+#pragma parameter msk_nonono        "MASK SETTINGS:"                                           0.0 0.0 0.0 1.0
+#pragma parameter PHOSPHOR_LAYOUT   "*  Mask [OFF, 1-6 APERT, 7-10 SHAD, 11-14 SLOT, 15-17 LOTTES]" 1.0 0.0 17.0 1.0
+#pragma parameter MASK_STRENGTH     "    Mask Strength"                                        1.0 0.0 1.0 0.02
+#pragma parameter H_MaskGamma       "    Mask Gamma"                                           2.4 1.0 3.0 0.05
+#pragma parameter MONITOR_SUBPIXELS "    Monitor Subpixels Layout [ RGB, BGR ]"                0.0 0.0 1.0 1.0
 
-#pragma parameter PHOSPHOR_LAYOUT   "      Mask [1..6 APERTURE, 7..10 SHADOW, 11..14 SLOT]" 1.0 0.0 15.0 1.0
-#pragma parameter MASK_STRENGTH     "Mask Strength"                            1.0 0.0 1.0 0.02
-#pragma parameter H_MaskGamma       "Mask Gamma"                               2.4 1.0 3.0 0.05
-#pragma parameter MONITOR_SUBPIXELS "Monitor Subpixels Layout [ RGB | BGR ]"   0.0 0.0 1.0 1.0
-#pragma parameter BRIGHTBOOST       "Brightboost"                              1.0 0.5 2.0 0.01
-#pragma parameter SCANLINES_CUTOFF  "Scanlines Cutoff"                       400.0 0.0 1000.0 2.0
-#pragma parameter SCANLINES_HIRES   "High Resolution Scanlines"                0.0 0.0 1.0 1.0
-#pragma parameter IR_SCALE          "Internal Resolution Scale (downsampling)" 1.0 1.0 10.0 1.0
-#pragma parameter VSCANLINES        "Vertical Scanlines Toggle"                0.0 0.0 1.0 1.0
-#pragma parameter SHARPNESS_HACK    "Sharpness Hack"                           1.0 1.0 4.0 1.0
-#pragma parameter CRT_ANTI_RINGING  "Anti Ringing"                             1.0 0.0 1.0 1.0
+#pragma parameter scl_nonono        "SCALING SETTINGS:"                          0.0 0.0 0.0 1.0
+#pragma parameter SCANLINES_CUTOFF  "    Scanlines Cutoff"                         400.0 0.0 1000.0 2.0
+#pragma parameter SCANLINES_HIRES   "    High Resolution Scanlines"                  0.0 0.0 1.0 1.0
+#pragma parameter IR_SCALE          "    Internal Resolution Scale (downsampling)"   1.0 1.0 10.0 1.0
+
+#pragma parameter fil_nonono        "FILTERING SETTINGS:"                        0.0 0.0 0.0 1.0
+#pragma parameter SHARPNESS_HACK    "    Sharpness Hack"                             1.0 1.0 4.0 1.0
+#pragma parameter CRT_ANTI_RINGING  "    Anti Ringing"                               1.0 0.0 1.0 1.0
 
 #define BRIGHTBOOST params.BRIGHTBOOST
 #define CRT_ANTI_RINGING params.CRT_ANTI_RINGING
