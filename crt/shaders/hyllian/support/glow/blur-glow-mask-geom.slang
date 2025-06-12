@@ -32,28 +32,29 @@ layout(std140, set = 0, binding = 0) uniform UBO
 } global;
 
 #pragma parameter H_OUTPUT_GAMMA    "    Output Gamma"    2.2 1.0 3.0 0.05
-#pragma parameter BRIGHTBOOST       "    Brightboost"  1.0 0.5 2.0 0.01
+#pragma parameter BRIGHTBOOST       "    Brightboost"     1.0 0.5 2.0 0.01
 
 
-#pragma parameter GLOW_ENABLE    "    Enable Glow"   0.0 0.0 1.0 1.0
-#pragma parameter GLOW_RADIUS    "    Glow Radius"   4.0 2.0 4.0 0.1
-#pragma parameter GLOW_STRENGTH  "    Glow Strength" 0.05 0.0 1.0 0.01
+#pragma parameter GLOW_ENABLE    "    Enable Glow"   0.0  0.0 1.0 1.0
+#pragma parameter GLOW_RADIUS    "        Radius"    4.0  2.0 4.0 0.1
+#pragma parameter GLOW_STRENGTH  "        Strength"  0.05 0.0 1.0 0.01
 
-#pragma parameter VSCANLINES         "    Orientation [ HORIZONTAL, VERTICAL]"    0.0 0.0 1.0 1.0
+#pragma parameter VSCANLINES         "    Orientation [ HORIZONTAL, VERTICAL ]"    0.0 0.0 1.0 1.0
 
-#pragma parameter DISPLAY_RES       "    Target Resolution [ 1080P, 4K ]"                            0.0 0.0 1.0 1.0
-#pragma parameter PRESET_OPTION     "    Mask Preset [CUSTOM, APERT1, APERT2, SLOT1, SLOT2, SHADOW]" 0.0 0.0 5.0 1.0
-#pragma parameter PHOSPHOR_LAYOUT   "*  Mask [OFF, 1-6 APERT, 7-10 SHAD, 11-14 SLOT, 15-17 LOTTES]" 1.0 0.0 17.0 1.0
-#pragma parameter MASK_STRENGTH     "    Mask Strength"                                     1.0 0.0 1.0 0.02
-#pragma parameter H_MaskGamma       "    Mask Gamma"                                        2.4 1.0 3.0 0.05
-#pragma parameter MONITOR_SUBPIXELS "    Monitor Subpixels Layout [ RGB, BGR ]"            0.0 0.0 1.0 1.0
+#pragma parameter DISPLAY_RES       "    Target Resolution [ 1080P, 4K ]"                         0.0 0.0  1.0 1.0
+#pragma parameter PRESET_OPTION     "    Mask Preset [CUSTOM, APERT1, APERT2, SLOT1, SLOT2, DOT]" 0.0 0.0  5.0 1.0
+#pragma parameter PHOSPHOR_LAYOUT   "    * Mask [1-6 APERT, 7-10 DOT, 11-14 SLOT, 15-17 LOTTES]"  1.0 0.0 17.0 1.0
+#pragma parameter MASK_STRENGTH     "    Mask Strength"                                           1.0 0.0  1.0 0.02
+#pragma parameter H_MaskGamma       "    Mask Gamma"                                              2.4 1.0  3.0 0.05
+#pragma parameter MONITOR_SUBPIXELS "    Monitor Subpixels Layout [ RGB, BGR ]"                   0.0 0.0  1.0 1.0
 
-#pragma parameter h_nonono        "CURVATURE SETTINGS:"              0.0 0.0 0.0 1.0
-#pragma parameter h_curvature     "    Curvature Toggle"             0.0 0.0 1.0 1.0
-#pragma parameter h_shape         "    Shape [ SPHERE, CYLINDER ]"  0.0  0.0 1.0 1.0
-#pragma parameter h_radius        "    Curvature Radius"             5.0 1.5 10.0 0.1
-#pragma parameter h_cornersize    "    Corner Size"                  0.04 0.01 1.0 0.01
-#pragma parameter h_cornersmooth  "    Corner Smoothness"            0.5 0.1 1.0 0.1
+#pragma parameter h_nonono        "CURVATURE SETTINGS:"                 0.0  0.0  0.0 1.0
+#pragma parameter h_curvature     "    Curvature Toggle"                0.0  0.0  1.0 1.0
+#pragma parameter h_shape         "        Shape [ SPHERE, CYLINDER ]"  0.0  0.0  1.0 1.0
+#pragma parameter h_radius        "        Radius"                      5.0  1.5 10.0 0.1
+#pragma parameter h_cornersize    "        Corner Size"                 0.04 0.01 1.0 0.01
+#pragma parameter h_cornersmooth  "        Corner Smoothness"           0.5  0.1  1.0 0.1
+
 
 
 #define BRIGHTBOOST params.BRIGHTBOOST
@@ -480,7 +481,7 @@ void main()
     crt = GAMMA_OUT(crt);
 
     crt = mask + (1.0 - 2.0*mask)*pow(abs(mask - crt), mask*MASK_STRENGTH*(H_MaskGamma - 1.0) + 1.0); 
-//    crt *= mask;
+
     crt *= cval;
 
     FragColor = vec4(crt, 1.0);

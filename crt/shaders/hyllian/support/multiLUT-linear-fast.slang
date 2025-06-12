@@ -16,7 +16,7 @@ layout(push_constant) uniform Push
 #pragma parameter crt_nonono        "** CRT-HYLLIAN **"             0.0 0.0 0.0 1.0
 #pragma parameter non_nonono        " "                             0.0 0.0 0.0 1.0
 #pragma parameter col_nonono        "COLOR SETTINGS:"               0.0 0.0 0.0 1.0
-#pragma parameter LUT_selector_param "    LUT [ OFF, DARK BLUE, DARK BLUE - COOL ]" 1.0 0.0 2.0 1.0
+#pragma parameter LUT_selector_param "    LUT [ OFF, DARK BLUE, DARK BLUE (cool) ]" 1.0 0.0 2.0 1.0
 #pragma parameter H_InputGamma       "    Input Gamma"     2.4 1.0 3.0 0.05
 #pragma parameter H_OUTPUT_GAMMA     "    Output Gamma"    2.2 1.0 3.0 0.05
 #pragma parameter BRIGHTBOOST        "    Brightboost"     1.0 0.5 2.0 0.01
