@@ -16,3 +16,5 @@
 
 BORDER = "textures/borders/default.jpg"
 
+
+h_radius = "6.000000"

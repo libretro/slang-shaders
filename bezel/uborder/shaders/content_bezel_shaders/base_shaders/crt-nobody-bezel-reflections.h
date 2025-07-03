@@ -46,6 +46,7 @@ layout(push_constant) uniform Push
     float CN_MONITOR_SUBPIXELS;
     float CN_InputGamma;
     float CN_OutputGamma;
+    float CN_MaskGamma;
 } params;
 
 #define USE_GLOBAL_UNIFORMS
@@ -75,21 +76,27 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #include "../include/uborder_bezel_reflections_common.inc"
 
 
-#pragma parameter CN_NONONO            "CRT-NOBODY:"                     0.0  0.0   1.0 1.0
-#pragma parameter CN_BEAM_MIN_WIDTH    "    Min Beam Width"              0.80 0.0   1.0 0.01
-#pragma parameter CN_BEAM_MAX_WIDTH    "    Max Beam Width"              1.0  0.0   1.0 0.01
-#pragma parameter CN_SCAN_SIZE         "    Scanlines Thickness"         0.86 0.0   1.0 0.01
-#pragma parameter CN_BRIGHTBOOST       "    Brightness Boost"            1.2  0.5   1.5 0.01
-#pragma parameter CN_PHOSPHOR_LAYOUT   "    Mask [1..6 Aperture, 7..10 Shadow, 11..14 Slot]" 1.0 0.0 15.0 1.0
-#pragma parameter CN_MASK_STRENGTH     "    Mask Strength"               0.64 0.0   1.0 0.02
-#pragma parameter CN_MONITOR_SUBPIXELS "    Monitor Subpixels Layout [ RGB | BGR ]" 0.0 0.0 1.0 1.0
-#pragma parameter CN_VSCANLINES        "    Vertical Scanlines"          0.0  0.0   1.0 1.0
-#pragma parameter CN_VIG_TOGGLE        "    Vignette Toggle"             0.0  0.0   1.0 1.0
-#pragma parameter CN_VIG_BASE          "    Vignette Range"             16.0  2.0 100.0 2.0
-#pragma parameter CN_VIG_EXP           "    Vignette Strength"           0.16 0.0   2.0 0.02
-#pragma parameter CN_InputGamma        "    Input Gamma"                 2.4  0.0   4.0 0.1
-#pragma parameter CN_OutputGamma       "    Output Gamma"                2.2  0.0   3.0 0.1
+#pragma parameter NO_NONONO          " "                              0.0  0.0 0.0 1.0
+#pragma parameter CN_NONONO          "** CRT-NOBODY **"               0.0  0.0 0.0 1.0
+#pragma parameter col_nonono         "COLOR SETTINGS:"                0.0  0.0 0.0 1.0
+#pragma parameter CN_InputGamma      "    Input Gamma"                2.4  0.0 4.0 0.1
+#pragma parameter CN_OutputGamma     "    Output Gamma"               2.2  0.0 3.0 0.1
+#pragma parameter CN_BRIGHTBOOST     "    Brightness Boost"           1.0  0.5 1.5 0.01
+#pragma parameter CN_VIG_TOGGLE      "    Vignette Toggle"            0.0  0.0 1.0 1.0
+#pragma parameter CN_VIG_BASE        "        Vignette Range"        32.0  2.0 100.0 2.0
+#pragma parameter CN_VIG_EXP         "        Vignette Strength"      0.32  0.0 2.0 0.02
 
+#pragma parameter scan_nonono        "SCANLINES SETTINGS:"           0.0  0.0 0.0 1.0
+#pragma parameter CN_BEAM_MIN_WIDTH  "    Min Beam Width"           0.80 0.0 1.0 0.01
+#pragma parameter CN_BEAM_MAX_WIDTH  "    Max Beam Width"           1.0  0.0 1.0 0.01
+#pragma parameter CN_SCAN_SIZE       "    Scanlines Thickness"      0.86 0.0 1.0 0.01
+#pragma parameter CN_VSCANLINES      "    Orientation [ HORIZONTAL, VERTICAL ]"    0.0 0.0 1.0 1.0
+
+#pragma parameter msk_nonono           "MASK SETTINGS:"               0.0 0.0  0.0 1.0
+#pragma parameter CN_PHOSPHOR_LAYOUT   "    Mask [1-6 APERT, 7-10 DOT, 11-14 SLOT, 15-17 LOTTES]" 1.0 0.0 17.0 1.0
+#pragma parameter CN_MASK_STRENGTH     "    Mask Strength"            1.0 0.0 1.0 0.02
+#pragma parameter CN_MaskGamma         "    Mask Gamma"               2.4 1.0 5.0 0.1
+#pragma parameter CN_MONITOR_SUBPIXELS "    Monitor Subpixels Layout [ RGB, BGR ]" 0.0 0.0 1.0 1.0
 
 #define CN_VSCANLINES        params.CN_VSCANLINES
 #define CN_BEAM_MIN_WIDTH    params.CN_BEAM_MIN_WIDTH
@@ -98,8 +105,10 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define CN_BRIGHTBOOST       params.CN_BRIGHTBOOST
 #define CN_InputGamma        params.CN_InputGamma
 #define CN_OutputGamma       params.CN_OutputGamma
+#define CN_MaskGamma         params.CN_MaskGamma
 #define CN_MASK_STRENGTH     params.CN_MASK_STRENGTH
 #define CN_MONITOR_SUBPIXELS params.CN_MONITOR_SUBPIXELS
+
 
 #define GAMMA_IN(color)     CN_BRIGHTBOOST*pow(color, vec3(CN_InputGamma))
 #define GAMMA_OUT(color)    pow(color, vec3(1.0 / CN_OutputGamma))
@@ -177,13 +186,79 @@ layout(set = 0, binding = 4) uniform sampler2D LAYER2;
 layout(set = 0, binding = 5) uniform sampler2D ambi_temporal_pass;
 #endif
 
+// Shadow mask.
+vec3 Mask(vec2 pos, float shadowMask)
+{
+    const float maskDark  = 0.0;
+    const float maskLight = 1.0;
+
+    vec3 mask = vec3(maskDark, maskDark, maskDark);
+  
+    // Very compressed TV style shadow mask.
+    if (shadowMask == 15.0) 
+    {
+        float line = maskLight;
+        float odd = 0.0;
+        
+        if (fract(pos.x*0.166666666) < 0.5) odd = 1.0;
+        if (fract((pos.y + odd) * 0.5) < 0.5) line = maskDark;  
+        
+        pos.x = fract(pos.x*0.333333333);
+
+        if      (pos.x < 0.333) mask.b = maskLight;
+        else if (pos.x < 0.666) mask.g = maskLight;
+        else                    mask.r = maskLight;
+        mask*=line;  
+    } 
+
+    // Aperture-grille. This mask is the same as mask 2.
+/*    else if (shadowMask == 16.0) 
+    {
+        pos.x = fract(pos.x*0.333333333);
+
+        if      (pos.x < 0.333) mask.b = maskLight;
+        else if (pos.x < 0.666) mask.g = maskLight;
+        else                    mask.r = maskLight;
+    } 
+*/
+    // Stretched VGA style shadow mask (same as prior shaders).
+    else if (shadowMask == 16.0) 
+    {
+        pos.x += pos.y*3.0;
+        pos.x  = fract(pos.x*0.166666666);
+
+        if      (pos.x < 0.333) mask.b = maskLight;
+        else if (pos.x < 0.666) mask.g = maskLight;
+        else                    mask.r = maskLight;
+    }
+
+    // VGA style shadow mask.
+    else if (shadowMask == 17.0) 
+    {
+        pos.xy  = floor(pos.xy*vec2(1.0, 0.5));
+        pos.x  += pos.y*3.0;
+        pos.x   = fract(pos.x*0.166666666);
+
+        if      (pos.x < 0.333) mask.b = maskLight;
+        else if (pos.x < 0.666) mask.g = maskLight;
+        else                    mask.r = maskLight;
+    }
+
+    return mask;
+}
+
+
 /* Mask code pasted from subpixel_masks.h. Masks 3 and 4 added. */
 vec3 mask_weights(vec2 coord, float phosphor_layout){
+   
+//   if (lottes_mask > 0.5) return Mask(coord);
+
+   if (phosphor_layout > 14) return Mask(coord, phosphor_layout);
+
    vec3 weights = vec3(1.,1.,1.);
 
    const float on  = 1.;
    const float off = 0.;
-
 
    const vec3 red     = vec3(off, off, on );
    const vec3 green   = vec3(off, on,  off);
@@ -221,7 +296,7 @@ vec3 mask_weights(vec2 coord, float phosphor_layout){
 
    else if(phosphor_layout == 3.){
       // black and white aperture; good for weird subpixel layouts and low brightness; good for 1080p and lower
-      const vec3 aperture2[3] = vec3[](black, white, white);
+      const vec3 aperture2[3] = vec3[](black, white, black);
       
       z = int(floor(mod(coord.x, 3.0)));
       
@@ -381,24 +456,6 @@ vec3 mask_weights(vec2 coord, float phosphor_layout){
       return weights;
    }
    
-   else if(phosphor_layout == 15.){
-      // slot_3_7x6_rgb
-      const vec3 slot[6][14] = {
-         {red,   red,   yellow, green, cyan,  blue,  blue,  red,   red,   yellow, green,  cyan,  blue,  blue},
-         {red,   red,   yellow, green, cyan,  blue,  blue,  red,   red,   yellow, green,  cyan,  blue,  blue},
-         {red,   red,   yellow, green, cyan,  blue,  blue,  black, black, black,  black,  black, black, black},
-         {red,   red,   yellow, green, cyan,  blue,  blue,  red,   red,   yellow, green,  cyan,  blue,  blue},
-         {red,   red,   yellow, green, cyan,  blue,  blue,  red,   red,   yellow, green,  cyan,  blue,  blue},
-         {black, black, black,  black, black, black, black, black, red,   red,    yellow, green, cyan,  blue}
-      };
-      
-      w = int(floor(mod(coord.y, 6.0)));
-      z = int(floor(mod(coord.x, 14.0)));
-      
-      weights = slot[w][z];
-      return weights;
-   }
-
    else return weights;
 }
 
@@ -424,45 +481,56 @@ vec3 get_content(vec2 vTex, vec2 uv)
 
     vec2 pix_coord = vTex * TextureSize.xy - scan_off;
     vec2 tc        = (floor(pix_coord)   + cn_offset) * TextureSize.zw; // tc  = texel coord
-    vec2 pos       =  fract(pix_coord)   - cn_offset; // pos = pixel position
-    vec2 dir       =  sign(pos); // dir = pixel direction
-    pos            =   abs(pos);
+    vec2 pos       = fract(pix_coord)   - cn_offset; // pos = pixel position
+    vec2 dir       = sign(pos); // dir = pixel direction
+    pos            = abs(pos);
+    vec4 ps        = vec4(pos, 1.0.xx - pos);
 
     vec2 g1 = dir * vec2(TextureSize.z,  0);
     vec2 g2 = dir * vec2( 0, TextureSize.w);
 
-    mat2x3 AB = mat2x3(clamp(GAMMA_IN(texture(Source, tc    ).xyz), 0.0, 1.0), clamp(GAMMA_IN(texture(Source, tc +g1   ).xyz), 0.0, 1.0));
-    mat2x3 CD = mat2x3(clamp(GAMMA_IN(texture(Source, tc +g2).xyz), 0.0, 1.0), clamp(GAMMA_IN(texture(Source, tc +g1+g2).xyz), 0.0, 1.0));
+    vec3 A = GAMMA_IN(texture(Source, tc       ).xyz);
+    vec3 B = GAMMA_IN(texture(Source, tc +g1   ).xyz);
+    vec3 C = GAMMA_IN(texture(Source, tc +g2   ).xyz);
+    vec3 D = GAMMA_IN(texture(Source, tc +g1+g2).xyz);
 
-    vec2 wx = wgt(vec2(pos.x, 1.0-pos.x) / pix_sizex);
+    vec2 wx = wgt(ps.xz / pix_sizex);
 
-    mat2x3 cc = mat2x3(AB * wx, CD * wx);
+    vec3 cc0 = (A*wx.x + B*wx.y);
+    vec3 cc1 = (C*wx.x + D*wx.y);
 
-    float c0max = max(cc[0].r, max(cc[0].g, cc[0].b));
-    float c1max = max(cc[1].r, max(cc[1].g, cc[1].b));
+    float c0max = max(cc0.r, max(cc0.g, cc0.b));
+    float c1max = max(cc1.r, max(cc1.g, cc1.b));
 
     float lum0  = mix(CN_BEAM_MIN_WIDTH, CN_BEAM_MAX_WIDTH, c0max);
     float lum1  = mix(CN_BEAM_MIN_WIDTH, CN_BEAM_MAX_WIDTH, c1max);
 
     vec2  ssy = scan_sizey.xx;
-     ssy.x *= (CN_VSCANLINES > 0.5 ? 1.0 : lum0);
-     ssy.y *= (CN_VSCANLINES > 0.5 ? 1.0 : lum1);
+    ssy.x *= (CN_VSCANLINES > 0.5 ? 1.0 : lum0);
+    ssy.y *= (CN_VSCANLINES > 0.5 ? 1.0 : lum1);
+
+    vec2 wy = wgt(ps.yw / ssy);
 
     float vig = (params.CN_VIG_TOGGLE > 0.5) ? vignette(vTex) : 1.0;
 
-    vec3  content = vig * (cc * wgt(vec2(pos.y, 1.0-pos.y) / ssy));
+    vec3  content = vig * (cc0 * wy.x + cc1 * wy.y);
+
+    content  = GAMMA_OUT(content);
 
 // Mask
 
-//    vec2 mask_coords = mix(vTexCoord, uv, global.h_curvature) * mask_size;
-    vec2 mask_coords = mix(vTex, uv, global.h_curvature) * mask_size;
+    if (params.CN_PHOSPHOR_LAYOUT > 0.5)
+    {
+        //vec2 mask_coords = mix(vTex, uv, global.h_curvature) * mask_size;
+	vec2 mask_coords = uv * ub_OutputSize.xy* fr_scale * 0.5;
+        mask_coords = mix(mask_coords.xy, mask_coords.yx, CN_VSCANLINES);
+        vec3 mask = mask_weights(mask_coords, params.CN_PHOSPHOR_LAYOUT);
+        mask = (CN_MONITOR_SUBPIXELS > 0.5) ? mask.bgr : mask;
+        content = mask + (1.0 - 2.0*mask)*pow(abs(mask - content), mask*CN_MASK_STRENGTH*(CN_MaskGamma-1.0)+1.0.xxx);    }
 
-    mask_coords = mix(mask_coords.xy, mask_coords.yx, CN_VSCANLINES);
-    vec3 mask_wgts = mask_weights(mask_coords, params.CN_PHOSPHOR_LAYOUT);
-    mask_wgts = clamp(mask_wgts + vec3(1.0-CN_MASK_STRENGTH), 0.0, 1.0);
-    mask_wgts = (CN_MONITOR_SUBPIXELS > 0.5) ? mask_wgts.bgr : mask_wgts;
+    content  = clamp(content, 0.0, 1.0);
 
-    return GAMMA_OUT(content) * GAMMA_OUT(mask_wgts);
+    return content;    
 }
 
 #define ReflexSrc Source

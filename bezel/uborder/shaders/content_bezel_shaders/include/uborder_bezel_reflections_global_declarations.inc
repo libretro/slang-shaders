@@ -33,6 +33,7 @@
     float bz_blur_iter;
     float bz_ref_str;
     float bz_lights;
+    float bz_outer_transparent;
     float bz_transparent;
     float bz_inner_bezel_x;
     float bz_inner_bezel_y;
@@ -41,6 +42,9 @@
     float bz_outer_bezel_x;
     float bz_outer_bezel_y;
     float bz_outer_curve;
+    float bz_curve_radius;
+    float bz_inner_curve;
+    float bz_in_curve_radius;
     float bz_ref_dist;
     float bz_radius;
     float bz_center_x;

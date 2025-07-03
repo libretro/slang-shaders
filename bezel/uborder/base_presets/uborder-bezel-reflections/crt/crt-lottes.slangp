@@ -2,7 +2,7 @@
 
 shaders = "1"
 
-shader0 = "shaders/uborder-bezel-reflections.slang"
+shader0 = "../../../shaders/content_bezel_shaders/crt/crt-lottes-bezel-reflections.slang"
 filter_linear0 = "true"
 wrap_mode0 = "clamp_to_border"
 mipmap_input0 = "false"
@@ -15,12 +15,12 @@ scale_type_y0 = "viewport"
 scale_y0 = "1.000000"
 
 textures = "BORDER;LAYER2"
-BORDER = "textures/borders/default.jpg"
+BORDER = "../../../textures/borders/default.jpg"
 BORDER_linear = "true"
 BORDER_wrap_mode = "clamp_to_border"
 BORDER_mipmap = "false"
 
-LAYER2 = "textures/borders/default_layer2.png"
+LAYER2 = "../../../textures/borders/default_layer2.png"
 LAYER2_linear = "true"
 LAYER2_wrap_mode = "clamp_to_border"
 LAYER2_mipmap = "false"
@@ -41,3 +41,9 @@ bz_blue = "50.000000"
 bz_shine = "0.150000"
 bz_shine_size = "0.850000"
 h_cornersize = "0.020000"
+
+bz_shine_enable = "0.000000"
+bz_ambient_enable = "0.000000"
+
+warpX = "0.000000"
+warpY = "0.000000"

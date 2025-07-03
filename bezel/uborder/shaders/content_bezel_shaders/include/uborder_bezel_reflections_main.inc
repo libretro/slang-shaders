@@ -2,16 +2,14 @@ void main()
 {
 // Bezels and border begins...
 
-    vec2 uvFC = mix(uv, h_warp(uv), global.h_curvature); // Frame content area
-    vec2 uvIB = uvFC;                                    // Inner bezel area
-    vec2 uvMB = mix(bezel_uv, h_warp(bezel_uv), global.bz_outer_curve);    // In Between bezel area
-    vec2 uvOB = bezel_uv;                                    // Outer bezel area
+    vec2 uvFC = mix(uv, h_warp(uv, r2, tilt), global.h_curvature);                  // Frame content area
+    vec2 uvIB = mix(uv, h_warp(uv, rz_in, 0.0.xx), global.bz_inner_curve);           // Inner bezel area
+    vec2 uvMB = mix(bezel_uv, h_warp(bezel_uv, rz, 0.0.xx), global.bz_outer_curve); // In Between bezel area
+    vec2 uvOB = bezel_uv;                                                           // Outer bezel area
 
     uvFC = uvFC*overscan - content_position;
 
     vec2 area_out = RoundedRectVec(vec4(uvMB, uvOB), vec4(MID_BZ, OUT_BZ), bz_r.xx, vec2(SMTH, -SMTH));
-
-//    vec4 border = texture(BORDER, border_uv);
 
 #ifdef KEEP_BORDER_ASPECT_RATIO
     RECALC_BORDER_ASPECT_RATIO
@@ -54,7 +52,7 @@ void main()
     content = mix(content, mix(content.rgb, border.rgb, border.a), global.ub_border_top);
 
     const float ambient     = bz_ambient;
-    const float ambient_out = 1.4*bz_ambient;
+    float ambient_out = 1.0*bz_ambient + 0.5*global.bz_ambient_size;
     vec3 shine_content      = 0.0.xxx;
     vec3 ambient_content    = 0.0.xxx;
 
@@ -70,18 +68,10 @@ void main()
 	ambient_content += max(0.0, ambient - amb_size*length(uvIB)) * RoundedRect(uvIB, INN_BZ, bz_r, -SMTH.xx);
     }
 
-    vec3  frame_content = content + (global.bz_ambient_enable*ambient_content + global.bz_shine_enable*shine_content);
-
-    if (area_inn.x < 0.5)
-    {
-        vec3 content_emphasis = clamp(border.rgb*border.a * global.border_alpha + frame_content, 0.0, 1.0);
-
-        vec3 baoc = mix(frame_content, border.rgb, global.border_alpha);
-
-        FragColor = vec4(mix(baoc, content_emphasis, global.black_baoc), 1.0);
-
-        return;
-    }
+    vec3 frame_content    = content + (global.bz_ambient_enable*ambient_content + global.bz_shine_enable*shine_content);
+    vec3 content_emphasis = clamp(border.rgb*border.a * global.border_alpha + frame_content, 0.0, 1.0);
+    vec3 baoc             = mix(frame_content, border.rgb, global.border_alpha);
+         frame_content    = mix(baoc, content_emphasis, global.black_baoc);
 
     float bezel_inner_area = area_inn.x * area_inn.y;
     float bezel_outer_area = area_out.x * area_out.y;
@@ -89,7 +79,7 @@ void main()
     vec3 bezels = 0.0.xxx;
 
     // Inner Bezel Reflection Coords
-    vec2 uvR = ReflectionCoords(uvFC, bz_ref_dist);
+    vec2 uvR = ReflectionCoords(uvIB, bz_ref_dist);
 
     vec3 Blur = 0.0.xxx;
 
@@ -109,6 +99,12 @@ void main()
     IB = vec2(IB.x*mb_aspect, IB.y - MID_BZ.y + mb_aspect*MID_BZ.x);
     float corner = fsmoothstep(-bz_r, bz_r, IB.y - mix(IB.x, bz_ang*IB.x + bz_pos, cyl_shape));
 
+#ifdef USE_AMBIENT_LIGHT
+    BZ_COLOR.rgb = BZ_COLOR.rgb*(ambi + (global.border_weight).xxx);
+    ambient_out *= (1.0 + 0.05*dot(ambi, 1.0.xxx));
+#endif
+
+
     if (global.bz_transparent > 0.5) BZ_COLOR = border.rgb;
 
     if (bz_lights == 1.0)
@@ -120,8 +116,9 @@ void main()
         bezels += (bz_color + Blur) * bezel_inner_area * (0.25*(1.0 + corner));
 
     	// Outer Bezel
-   	bezels +=  mix(bz_color, BZ_COLOR, global.bz_transparent) * bezel_outer_area;
-
+//   	bezels +=  mix(bz_color, BZ_COLOR, global.bz_transparent) * bezel_outer_area;
+   	bezels +=  mix(BZ_COLOR, border.rgb, global.bz_outer_transparent) * bezel_outer_area;
+//   	bezels +=  BZ_COLOR * bezel_outer_area;
     }
     else
     {
@@ -130,14 +127,22 @@ void main()
                                 RoundedRect(uvOB, MID_BZ, bz_r, vec2(SMTH*2.0, -SMTH* 2.0));
 
         // Inner Bezel and Reflections
-        bezels += (BZ_COLOR + Blur) * bezel_inner_area * (ambient_out * (0.7 + 0.35*(1.0 - corner)) + Blur);
+//        bezels += (BZ_COLOR + Blur) * bezel_inner_area * (ambient_out * (0.7 + 0.35*(1.0 - corner)) + Blur);
+        bezels += (BZ_COLOR + Blur) * bezel_inner_area * (ambient_out * (0.5 + 0.25*(1.0 - corner)));
 
         // Outer Bezel
-        bezels += BZ_COLOR * bezel_outer_area * mix(ambient_out, 1.0, global.bz_transparent);
+//        bezels += BZ_COLOR * bezel_outer_area * mix(ambient_out, 1.0, global.bz_transparent);
+   	bezels +=  mix(BZ_COLOR  * mix(ambient_out, 1.0, global.bz_transparent), border.rgb, global.bz_outer_transparent) * bezel_outer_area;
+//   	bezels +=  BZ_COLOR  * mix(ambient_out, 1.0, global.bz_transparent) * bezel_outer_area;
 
     }
 
-    bezels = mix(bezels+border.rgb*bezel_inner_area*global.bz_transparent, mix(bezels, border.rgb, border.a), global.ub_border_top);
+    // Final soft transition between frame_content and bezels.
+    bezels = mix(frame_content, bezels, area_inn.x);
+
+    bezels = mix(bezels + border.rgb*bezel_inner_area*global.bz_transparent, mix(bezels, border.rgb, border.a), global.ub_border_top);
+//    vec3 res  = mix(mix(frame_content, bezels, area_inn.x) + border.rgb * (1.0-area_out.y), mix(bezels, border.rgb, border.a), global.ub_border_top);
 
     FragColor = vec4(bezels, 1.0);
+//    FragColor = vec4(res, 1.0);
 }
