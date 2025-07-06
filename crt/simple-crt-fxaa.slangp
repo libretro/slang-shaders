@@ -1,0 +1,26 @@
+shaders        = 3
+
+
+shader0        = shaders/simple-crt/simple-fxaa.slang
+filter_linear0 = true
+scale_type0    = source
+
+
+shader1        = shaders/simple-crt/simple-color-correction.slang
+filter_linear1 = true
+scale_type1    = viewport
+
+
+shader2        = shaders/simple-crt/simple-crt.slang
+filter_linear2 = true
+scale_type2    = viewport
+
+
+textures           = "noiseMap"
+noiseMap           = shaders/simple-crt/noise-1024px.png
+noiseMap_wrap_mode = repeat
+
+
+parameters = "SHARPNESS"
+SHARPNESS  = -0.50
+
