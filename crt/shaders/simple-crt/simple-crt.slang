@@ -83,29 +83,25 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 const float PIE                = 3.1415926535897932384626433832795;
 const float TWO_PIE            = PIE * 2.0;
-const int   NOISE_TEXTURE_SIZE = 1024;
-const int   NOISE_TEXTURE_MOD  = NOISE_TEXTURE_SIZE - 1; // this looks better
+const int   NOISE_TEXTURE_SIZE = 1021; // do not use power of two
 
 
-uvec4 simple_hash4(const uint x) {
-	uvec4 c = (uvec4(0x2f15, 0x5935, 0x755b,  0x1dcf) * x);
-	c += ( c << 10u );
-	c ^= ( c >>  6u );
-	c += ( c <<  3u );
-	c ^= ( c >> 11u );
-	c += ( c << 15u );
-	return c;
+uvec4 pcg_hash4(const uint x) {
+	const uvec4 c     = (uvec4(0x2f15, 0x5935, 0x755b, 0x1dcf) * x);
+	const uvec4 state = c * 747796405u + 2891336453u;
+	const uvec4 word  = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+	return (word >> 22u) ^ word;
 }
 
 
 // pseudo-random value in half-open range [0:1].
 vec4 simple_noise4(const float f) {
-	return uintBitsToFloat((simple_hash4(floatBitsToUint(f)) & 0x007fffffu) | 0x3f800000u) - 1.0;
+	return uintBitsToFloat((pcg_hash4(floatBitsToUint(f)) & 0x007fffffu) | 0x3f800000u) - 1.0;
 }
 
 
 vec4 simple_noise4(const uint u) {
-	return uintBitsToFloat((simple_hash4(u) & 0x007fffffu) | 0x3f800000u) - 1.0;
+	return uintBitsToFloat((pcg_hash4(u) & 0x007fffffu) | 0x3f800000u) - 1.0;
 }
 
 
@@ -142,7 +138,7 @@ void main() {
 	
 	// noise
 	noise_div     = 1.0 / (params.OutputSize.xy * vec2(NOISE_SIZE));
-	noise_offset  = int(mod(simple_hash4(params.FrameCount).r, NOISE_TEXTURE_MOD));
+	noise_offset  = int(mod(pcg_hash4(params.FrameCount).r, NOISE_TEXTURE_SIZE));
 	
 	
 	// flicker
@@ -170,7 +166,6 @@ layout(location = 5) in  flat float crt_add;
 layout(location = 6) in  flat float crt_mul;
 layout(location = 0) out      vec4  FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D noiseMap;
 
 
 void main() {
@@ -183,8 +178,8 @@ void main() {
 	
 	
 	// simulate noise by adding random variation to each color channel
-	const vec2 no    = mod(ivec2(round(fract(gl_FragCoord.xy * noise_div) * NOISE_TEXTURE_MOD)) + noise_offset, NOISE_TEXTURE_MOD);
-	const vec3 noise = texelFetch(noiseMap, ivec2(no), 0).rgb;
+	const vec2 no    = mod(vec2(round(fract(gl_FragCoord.xy * noise_div) * NOISE_TEXTURE_SIZE)) + noise_offset, NOISE_TEXTURE_SIZE) + 1.0; // +1 needed to avoid black stripes
+	const vec3 noise = simple_noise4((5000.0 + no.x) * no.y).rgb;
 	color.rgb        = mix(color.rgb, noise * clamp(color.rgb, NOISE_MIN, NOISE_MAX), NOISE_STRENGTH);
 	
 	
@@ -216,6 +211,7 @@ void main() {
 	// done
 	FragColor.rgb = color.rgb;
 }
+
 
 
 

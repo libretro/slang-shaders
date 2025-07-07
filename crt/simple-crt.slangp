@@ -11,11 +11,6 @@ filter_linear1 = true
 scale_type1    = viewport
 
 
-textures           = "noiseMap"
-noiseMap           = shaders/simple-crt/noise-1024px.png
-noiseMap_wrap_mode = repeat
-
-
 parameters = "SHARPNESS"
 SHARPNESS  = -0.25
 
