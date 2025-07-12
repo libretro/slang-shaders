@@ -29,27 +29,27 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float SIZEH;
-	float SIGMA_H;
-	float HSHARP0;
-	float HAR;
-	float SHAR;
+	float gbf_SIZEH;
+	float gbf_SIGMA_H;
+	float gbf_HSHARP0;
+	float gbf_HAR;
+	float gbf_SHAR;
 } params;
 
-#pragma parameter SIZEH "Gaussian Blur Radius" 6.0 0.0 25.0 1.0 
-#define SIZEH params.SIZEH
+#pragma parameter gbf_SIZEH "Gaussian Blur Radius" 6.0 0.0 25.0 1.0 
+#define gbf_SIZEH params.gbf_SIZEH
 
-#pragma parameter SIGMA_H "Gaussian Blur Sigma" 1.50 0.1 12.0 0.05
-#define SIGMA_H params.SIGMA_H
+#pragma parameter gbf_SIGMA_H "Gaussian Blur Sigma" 1.50 0.1 12.0 0.05
+#define gbf_SIGMA_H params.gbf_SIGMA_H
 
-#pragma parameter HSHARP0 "Sharpness Filter 'Range'" 0.8 0.8 20.0 0.2
-#define HSHARP0 params.HSHARP0
+#pragma parameter gbf_HSHARP0 "Sharpness Filter 'Range'" 0.8 0.8 20.0 0.2
+#define gbf_HSHARP0 params.gbf_HSHARP0
 
-#pragma parameter SHAR "Sharpness Definition" 0.5 0.0 2.0 0.05
-#define SHAR params.SHAR
+#pragma parameter gbf_SHAR "Sharpness Definition" 0.5 0.0 2.0 0.05
+#define gbf_SHAR params.gbf_SHAR
 
-#pragma parameter HAR "Anti-Ringing" 0.5 0.0 1.0 0.10
-#define HAR params.HAR
+#pragma parameter gbf_HAR "Anti-Ringing" 0.5 0.0 1.0 0.10
+#define gbf_HAR params.gbf_HAR
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -75,7 +75,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 #define COMPAT_TEXTURE(c,d) texture(c,d)
 #define SourceSize params.SourceSize
 
-float invsqrsigma_h = 1.0/(2.0*SIGMA_H*SIGMA_H);
+float invsqrsigma_h = 1.0/(2.0*gbf_SIGMA_H*gbf_SIGMA_H);
 
 float gaussian_h(float x)
 {
@@ -97,14 +97,14 @@ void main()
 	float wsumy = 0.0;
 	vec3 pixel;
 	float x;
-	float y = -SIZEH;
+	float y = -gbf_SIZEH;
 
 	vec3 xcmax = COMPAT_TEXTURE(Source, tex).rgb;
 	vec3 xcmin = xcmax;
 	vec3 ycmax = xcmax;
 	vec3 ycmin = xcmax;	
-	float sharp = (HSHARP0 > 0.85) ? gaussian_h(HSHARP0) : 0.0;
-	float FPR = HSHARP0;
+	float sharp = (gbf_HSHARP0 > 0.85) ? gaussian_h(gbf_HSHARP0) : 0.0;
+	float FPR = gbf_HSHARP0;
 	float wnorm = 1.0; // /(1.0-sharp);
 	float fpx = 0.0;
 
@@ -112,46 +112,46 @@ void main()
 	{
 		wsumx  = 0.0;
 		colorx = 0.0.xxx;
-		x = -SIZEH;
+		x = -gbf_SIZEH;
 		
 		do
 		{
 			pixel  = COMPAT_TEXTURE(Source, tex + x*dx + y*dy).rgb;
 			wx = (gaussian_h(x+f.x) - sharp)*wnorm; 
 			
-			if (HSHARP0 > 0.85)
+			if (gbf_HSHARP0 > 0.85)
 			{
 				if (abs(x+f.x) > FPR) { if (x < 0.0) fpx = -(x+f.x+FPR)/FPR; else fpx = (x+f.x-FPR)/FPR; fpx = min(fpx, 1.0); }
 				if (abs(x) <= 2.0*FPR) { xcmax = max(xcmax, pixel); xcmin = min(xcmin, pixel); }
-				if (wx < 0.0) wx = clamp(wx, mix(-0.18, 0.0, pow(fpx, SHAR)), 0.0);
+				if (wx < 0.0) wx = clamp(wx, mix(-0.18, 0.0, pow(fpx, gbf_SHAR)), 0.0);
 			} 			
 			
 			colorx = colorx + wx * pixel;
 			wsumx  = wsumx+ wx;
 			x = x + 1.0;
 			
-		} while (x <= SIZEH);
+		} while (x <= gbf_SIZEH);
 		
 		colorx  = colorx / wsumx;
-		if (HSHARP0 > 0.85) colorx = mix(clamp(colorx, 0.0, 1.0), clamp(colorx, xcmin, xcmax), HAR); 
+		if (gbf_HSHARP0 > 0.85) colorx = mix(clamp(colorx, 0.0, 1.0), clamp(colorx, xcmin, xcmax), gbf_HAR); 
 		
 		wy = (gaussian_h(y+f.y) - sharp)*wnorm; 
 		
-		if (HSHARP0 > 0.85)
+		if (gbf_HSHARP0 > 0.85)
 		{
 			if (abs(y+f.y) > FPR) { if (y < 0.0) fpx = -(y+f.y+FPR)/FPR; else fpx = (y+f.y-FPR)/FPR; fpx = min(fpx, 1.0); }
 			if (abs(y) <= 2.0*FPR) { ycmax = max(ycmax, colorx); ycmin = min(ycmin, colorx); }
-			if (wy < 0.0) wy = clamp(wy, mix(-0.18, 0.0, pow(fpx, SHAR)), 0.0);
+			if (wy < 0.0) wy = clamp(wy, mix(-0.18, 0.0, pow(fpx, gbf_SHAR)), 0.0);
 		} 					
 		
 		colory  = colory + wy * colorx;
 		wsumy   = wsumy + wy;
 		y = y + 1.0;
 		
-	} while (y <= SIZEH);
+	} while (y <= gbf_SIZEH);
 
 	colory= colory/wsumy;
-	if (HSHARP0 > 0.85) colory = mix(clamp(colory, 0.0, 1.0), clamp(colory, ycmin, ycmax), HAR);
+	if (gbf_HSHARP0 > 0.85) colory = mix(clamp(colory, 0.0, 1.0), clamp(colory, ycmin, ycmax), gbf_HAR);
 		
 	FragColor = vec4(colory, 1.0);
 }

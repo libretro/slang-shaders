@@ -28,15 +28,15 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float SIZEH;
-	float SIGMA_H;
+	float gbf_SIZEH;
+	float gbf_SIGMA_H;
 } params;
 
-#pragma parameter SIZEH "Horizontal Blur Radius" 5.0 0.0 40.0 1.0 
-#define SIZEH params.SIZEH
+#pragma parameter gbf_SIZEH "Horizontal Blur Radius" 5.0 0.0 40.0 1.0 
+#define gbf_SIZEH params.gbf_SIZEH
 
-#pragma parameter SIGMA_H "Horizontal Blur Sigma" 1.0 0.1 15.0 0.05
-#define SIGMA_H params.SIGMA_H
+#pragma parameter gbf_SIGMA_H "Horizontal Blur Sigma" 1.0 0.1 15.0 0.05
+#define gbf_SIGMA_H params.gbf_SIGMA_H
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -62,7 +62,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 #define COMPAT_TEXTURE(c,d) texture(c,d)
 #define SourceSize params.SourceSize
 
-float invsqrsigma = 1.0/(2.0*SIGMA_H*SIGMA_H);
+float invsqrsigma = 1.0/(2.0*gbf_SIGMA_H*gbf_SIGMA_H);
 
 float gaussian(float x)
 {
@@ -80,7 +80,7 @@ void main()
 	float w;
 	float wsum = 0.0;
 	vec3 pixel;
-	float n = -SIZEH;
+	float n = -gbf_SIZEH;
 
 	do
 	{
@@ -90,7 +90,7 @@ void main()
 		wsum   = wsum + w;
 		n = n + 1.0;
 		
-	} while (n <= SIZEH);
+	} while (n <= gbf_SIZEH);
 
 	color = color / wsum;
 	

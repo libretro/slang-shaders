@@ -27,23 +27,23 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float SIZEH;
-	float SIGMA_H;
-	float SIZEV;
-	float SIGMA_V;
+	float gbf_SIZEH;
+	float gbf_SIGMA_H;
+	float gbf_SIZEV;
+	float gbf_SIGMA_V;
 } params;
 
-#pragma parameter SIZEH "Horizontal Blur Radius" 6.0 0.0 25.0 1.0 
-#define SIZEH params.SIZEH
+#pragma parameter gbf_SIZEH "Horizontal Blur Radius" 6.0 0.0 25.0 1.0 
+#define gbf_SIZEH params.gbf_SIZEH
 
-#pragma parameter SIGMA_H "Horizontal Blur Sigma" 1.50 0.1 12.0 0.05
-#define SIGMA_H params.SIGMA_H
+#pragma parameter gbf_SIGMA_H "Horizontal Blur Sigma" 1.50 0.1 12.0 0.05
+#define gbf_SIGMA_H params.gbf_SIGMA_H
 
-#pragma parameter SIZEV "Vertical Blur Radius" 6.0 0.0 25.0 1.0 
-#define SIZEV params.SIZEV
+#pragma parameter gbf_SIZEV "Vertical Blur Radius" 6.0 0.0 25.0 1.0 
+#define gbf_SIZEV params.gbf_SIZEV
 
-#pragma parameter SIGMA_V "Vertical Blur Sigma" 1.50 0.1 12.0 0.05
-#define SIGMA_V params.SIGMA_V
+#pragma parameter gbf_SIGMA_V "Vertical Blur Sigma" 1.50 0.1 12.0 0.05
+#define gbf_SIGMA_V params.gbf_SIGMA_V
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -69,8 +69,8 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 #define COMPAT_TEXTURE(c,d) texture(c,d)
 #define SourceSize params.SourceSize
 
-float invsqrsigma_h = 1.0/(2.0*SIGMA_H*SIGMA_H);
-float invsqrsigma_v = 1.0/(2.0*SIGMA_V*SIGMA_V);
+float invsqrsigma_h = 1.0/(2.0*gbf_SIGMA_H*gbf_SIGMA_H);
+float invsqrsigma_v = 1.0/(2.0*gbf_SIGMA_V*gbf_SIGMA_V);
 
 float gaussian_h(float x)
 {
@@ -97,13 +97,13 @@ void main()
 	float wsumy = 0.0;
 	vec3 pixel;
 	float x;
-	float y = -SIZEV;
+	float y = -gbf_SIZEV;
 
 	do
 	{
 		wsumx  = 0.0;
 		colorx = 0.0.xxx;
-		x = -SIZEH;
+		x = -gbf_SIZEH;
 		
 		do
 		{
@@ -113,7 +113,7 @@ void main()
 			wsumx  = wsumx+ wx;
 			x = x + 1.0;
 			
-		} while (x <= SIZEH);
+		} while (x <= gbf_SIZEH);
 		
 		colorx  = colorx / wsumx;
 		wy      = gaussian_v(y+f.y);
@@ -121,7 +121,7 @@ void main()
 		wsumy   = wsumy + wy;
 		y = y + 1.0;
 		
-	} while (y <= SIZEV);
+	} while (y <= gbf_SIZEV);
 
 	colory= colory/wsumy;
 	

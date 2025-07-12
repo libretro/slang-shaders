@@ -27,16 +27,16 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float SIZEV;
-	float SIGMA_V;
+	float gbf_SIZEV;
+	float gbf_SIGMA_V;
 } params;
 
 
-#pragma parameter SIZEV "Vertical Blur Radius" 5.0 0.0 40.0 1.0 
-#define SIZEV params.SIZEV
+#pragma parameter gbf_SIZEV "Vertical Blur Radius" 5.0 0.0 40.0 1.0 
+#define gbf_SIZEV params.gbf_SIZEV
 
-#pragma parameter SIGMA_V "Vertical Blur Sigma" 1.0 0.1 15.0 0.05
-#define SIGMA_V params.SIGMA_V
+#pragma parameter gbf_SIGMA_V "Vertical Blur Sigma" 1.0 0.1 15.0 0.05
+#define gbf_SIGMA_V params.gbf_SIGMA_V
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -62,7 +62,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 #define COMPAT_TEXTURE(c,d) texture(c,d)
 #define SourceSize params.SourceSize
 
-float invsqrsigma = 1.0/(2.0*SIGMA_V*SIGMA_V);
+float invsqrsigma = 1.0/(2.0*gbf_SIGMA_V*gbf_SIGMA_V);
 
 float gaussian(float x)
 {
@@ -80,7 +80,7 @@ void main()
 	float w;
 	float wsum = 0.0;
 	vec3 pixel;
-	float n = -SIZEV;
+	float n = -gbf_SIZEV;
 
 	do
 	{
@@ -90,7 +90,7 @@ void main()
 		wsum   = wsum + w;
 		n = n + 1.0;
 		
-	} while (n <= SIZEV);
+	} while (n <= gbf_SIZEV);
 
 	color = color / wsum;
 	

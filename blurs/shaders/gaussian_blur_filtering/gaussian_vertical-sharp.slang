@@ -29,29 +29,29 @@ layout(push_constant) uniform Push
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float SIZEV;
-	float SIGMA_V;
-	float VSHARP0;
-	float VAR;
-	float VSHAR;	
+	float gbf_SIZEV;
+	float gbf_SIGMA_V;
+	float gbf_VSHARP0;
+	float gbf_VAR;
+	float gbf_VSHAR;	
 } params;
 
 #pragma parameter bogus-line "-------------------------------------------------" 0.0 0.0 0.0 0.0 
 
-#pragma parameter SIZEV "Vertical Blur Radius" 5.0 0.0 40.0 1.0 
-#define SIZEV params.SIZEV
+#pragma parameter gbf_SIZEV "Vertical Blur Radius" 5.0 0.0 40.0 1.0 
+#define gbf_SIZEV params.gbf_SIZEV
 
-#pragma parameter SIGMA_V "Vertical Blur Sigma" 0.70 0.1 15.0 0.05
-#define SIGMA_V params.SIGMA_V
+#pragma parameter gbf_SIGMA_V "Vertical Blur Sigma" 0.70 0.1 15.0 0.05
+#define gbf_SIGMA_V params.gbf_SIGMA_V
 
-#pragma parameter VSHARP0 "Vertical Sharpness Filter 'Range'" 0.8 0.8 20.0 0.2
-#define VSHARP0 params.VSHARP0
+#pragma parameter gbf_VSHARP0 "Vertical Sharpness Filter 'Range'" 0.8 0.8 20.0 0.2
+#define gbf_VSHARP0 params.gbf_VSHARP0
 
-#pragma parameter VSHAR "Sharpness Definition - Vertical" 0.5 0.0 2.0 0.05
-#define VSHAR params.VSHAR
+#pragma parameter gbf_VSHAR "Sharpness Definition - Vertical" 0.5 0.0 2.0 0.05
+#define gbf_VSHAR params.gbf_VSHAR
 
-#pragma parameter VAR "Vertical Anti-Ringing" 0.5 0.0 1.0 0.1
-#define VAR params.VAR
+#pragma parameter gbf_VAR "Vertical Anti-Ringing" 0.5 0.0 1.0 0.1
+#define gbf_VAR params.gbf_VAR
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -77,7 +77,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 #define COMPAT_TEXTURE(c,d) texture(c,d)
 #define SourceSize params.SourceSize
 
-float invsqrsigma = 1.0/(2.0*SIGMA_V*SIGMA_V);
+float invsqrsigma = 1.0/(2.0*gbf_SIGMA_V*gbf_SIGMA_V);
 
 float gaussian(float x)
 {
@@ -95,12 +95,12 @@ void main()
 	float w;
 	float wsum = 0.0;
 	vec3 pixel;
-	float n = -SIZEV;
+	float n = -gbf_SIZEV;
 
 	vec3 cmax = COMPAT_TEXTURE(Source, tex).rgb;
 	vec3 cmin = cmax;	
-	float sharp = (VSHARP0 > 0.85) ? gaussian(VSHARP0) : 0.0;
-	float FPR = VSHARP0;
+	float sharp = (gbf_VSHARP0 > 0.85) ? gaussian(gbf_VSHARP0) : 0.0;
+	float FPR = gbf_VSHARP0;
 	float wnorm = 1.0/(1.0-sharp);
 	float fpx = 0.0;
 
@@ -108,11 +108,11 @@ void main()
 	{	
 		w = (gaussian(n+f) - sharp)*wnorm;
 		
-		if (VSHARP0 > 0.85)
+		if (gbf_VSHARP0 > 0.85)
 		{
 			if (abs(n+f) > FPR) { if (n < 0.0) fpx = -(n+f+FPR)/FPR; else fpx = (n+f-FPR)/FPR; fpx = min(fpx, 1.0); }
 			if (abs(n) <= 2.0*FPR) { cmax = max(cmax, pixel); cmin = min(cmin, pixel); }
-			if (w < 0.0) w = clamp(w, mix(-0.18, 0.0, pow(fpx,VSHAR)), 0.0);
+			if (w < 0.0) w = clamp(w, mix(-0.18, 0.0, pow(fpx,gbf_VSHAR)), 0.0);
 		}
 		
 		pixel  = COMPAT_TEXTURE(Source, tex + n*dy).rgb;
@@ -120,10 +120,10 @@ void main()
 		wsum   = wsum + w;
 		n = n + 1.0;
 		
-	} while (n <= SIZEV);
+	} while (n <= gbf_SIZEV);
 
 	color = color / wsum;
-	if (VSHARP0 > 0.85) color = mix(clamp(color, 0.0, 1.0), clamp(color, cmin, cmax), VAR);
+	if (gbf_VSHARP0 > 0.85) color = mix(clamp(color, 0.0, 1.0), clamp(color, cmin, cmax), gbf_VAR);
 	
 	FragColor = vec4(color, 1.0);
 }
