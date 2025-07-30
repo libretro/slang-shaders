@@ -19,7 +19,7 @@
 
 #ifndef OFFSET_PRECISTION
     // The precistion of the multiple offset.
-    #define OFFSET_PRECISTION 0.25
+    #define OFFSET_PRECISTION 0.05
 #endif
 
 // Returns whether the x-axis is the largest dimension of the given size.

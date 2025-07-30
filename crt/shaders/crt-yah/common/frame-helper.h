@@ -45,12 +45,4 @@ uint GetUniformFrameCount(float frame_rate)
     return uint(round(GetUniformFrameFactor() * FRAME_COUNT * frame_rate_factor));
 }
 
-/// Returns the modulo of the uniform frame count based on the desired frame rate. 
-/// @frame_rate - The desired frame rate.
-/// @modulo - The modulo to apply.
-float GetUniformFrameModulo(float frame_rate, float modulo)
-{
-    return mod(GetUniformFrameCount(frame_rate), modulo);
-}
-
 #endif // FRAME_HELPER

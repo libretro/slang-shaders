@@ -201,33 +201,45 @@ vec3 get_raw_color(sampler2D source, vec2 tex_coord)
     return INPUT(texture(source, tex_coord).rgb);
 }
 
-vec3 get_scanlines_color(sampler2D source, vec2 tex_coord)
+vec2 get_scanlines_pixel_coordinate(vec2 tex_coord, vec2 tex_size)
 {
-    vec2 tex_size = global.OriginalSize.xy;
-
-    vec2 multiple = vec2o(1.0, INPUT_SCREEN_MULTIPLE);
-
-    // apply (fake) scale y-axis
-    tex_size /= multiple;
-
-    vec2 pc = tex_coord;
-
     // texture to pixel coordinates
-    pc *= tex_size;
+    vec2 pix_coord = tex_coord * tex_size;
 
     // apply half pixel offset (align to pixel corner)
-    pc += vec2(0.5, 0.5);
+    pix_coord += vec2(0.5, 0.5);
 
-    vec2 tc = floor(pc);
+    return pix_coord;
+}
 
-    // apply half texel offset
-    tc += vec2o(-0.5, 0.5) / multiple;
+vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple)
+{
+    vec2 tex_coord = floor(pix_coord);
 
-    // if automatic down-scaled
-    if (INPUT_SCREEN_MULTIPLE_AUTO > 1)
+    // when manual down-scaled
+    if (INPUT_SCREEN_MULTIPLE > 1.0)
     {
-        // apply half texel x-offset to sample between two sub-resolution pixel
-        tc += vec2o(-0.5, 0.0) / multiple;
+        // apply half texel offset scaled by absolut amount of multiple
+        tex_coord += vec2o(-0.5, 0.5) / multiple;
+    }
+    // when manual up-scaled
+    else
+    {
+        // apply half texel offset
+        tex_coord += vec2o(-0.5, 0.5);
+    }
+
+    // when automatic down-scaled
+    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
+    {
+        // apply half texel x-offset (to sample between two pixel anlong scanlines)
+        tex_coord += vec2o(-0.5, 0.0);
+    }
+    // when not automatic but manual down-scaled
+    else if (INPUT_SCREEN_MULTIPLE > 1.0)
+    {
+        // apply half texel y-offset scaled by relative amount of multiple (to sample between two pixel between scanlines)
+        tex_coord += vec2o(0.0, 0.5) / multiple * (INPUT_SCREEN_MULTIPLE - 1.0);
     }
 
     float scanlines_offset = PARAM_SCANLINES_OFFSET > 0.0
@@ -238,28 +250,45 @@ vec3 get_scanlines_color(sampler2D source, vec2 tex_coord)
             ? 0.0
             : abs(PARAM_SCANLINES_OFFSET);
 
-    // apply half texel y-offset to sample between scanlines
-    tc += vec2o(0.0, 0.5 * scanlines_offset);
+    // apply manual half texel y-offset
+    tex_coord += vec2o(0.0, 0.5) * scanlines_offset;
 
     // pixel to texture coordinates
-    tc /= tex_size;
+    tex_coord /= tex_size;
+
+    return tex_coord;
+}
+
+vec3 get_scanlines_color(sampler2D source, vec2 tex_coord)
+{
+    vec2 multiple = vec2o(1.0, INPUT_SCREEN_MULTIPLE);
+
+    // apply "fake" scale (only y-axis)
+    vec2 tex_size = global.OriginalSize.xy / multiple;
+
+    vec2 pix_coord = vec2(0.0);
+    pix_coord = get_scanlines_pixel_coordinate(tex_coord, tex_size);
+    tex_coord = get_scanlines_texel_coordinate(pix_coord, tex_size, multiple);
 
     vec2 tex_delta = vec2(1.0) / tex_size;
-    vec2 dx = vec2ox(tex_delta, 0.0);
-    vec2 dy = vec2oy(tex_delta, 0.0);
+    vec2 tex_delta_x = vec2ox(tex_delta, 0.0);
+    vec2 tex_delta_y = vec2oy(tex_delta, 0.0);
 
-    vec2 pcf = vec2o(fract(pc));
+    vec2 pix_fract = vec2o(fract(pix_coord));
 
     // apply filtering
-    vec4 beam_filter = vec4(pcf.x * pcf.x * pcf.x, pcf.x * pcf.x, pcf.x, 1.0)
-        * INPUT_BEAM_FILTER;
+    vec4 beam_filter = vec4(
+        pix_fract.x * pix_fract.x * pix_fract.x,
+        pix_fract.x * pix_fract.x,
+        pix_fract.x,
+        1.0) * INPUT_BEAM_FILTER;
 
-    vec3 color0 = get_half_beam_color(source, tc, dx, dy, beam_filter);
-    vec3 color1 = get_half_beam_color(source, tc, dx, vec2(0.0), beam_filter);
+    vec3 color0 = get_half_beam_color(source, tex_coord, tex_delta_x, tex_delta_y, beam_filter);
+    vec3 color1 = get_half_beam_color(source, tex_coord, tex_delta_x, vec2(0.0), beam_filter);
 
     // apply scanlines
-    vec3 factor0 = get_half_scanlines_factor(color0, pcf.y);
-    vec3 factor1 = get_half_scanlines_factor(color1, 1.0 - pcf.y);
+    vec3 factor0 = get_half_scanlines_factor(color0, pix_fract.y);
+    vec3 factor1 = get_half_scanlines_factor(color1, 1.0 - pix_fract.y);
 
     return color0 * factor0 + color1 * factor1;
 }
@@ -280,14 +309,9 @@ vec3 blend_colors(vec3 raw_color, vec3 scanlines_color)
         merge_limit);
 }
 
-vec3 apply_mask(vec3 color, float color_luma, vec2 tex_coord)
+vec3 get_mask(vec2 tex_coord)
 {
-    if (PARAM_MASK_TYPE == 0.0)
-    {
-        return color;
-    }
-
-    vec2 pix_coord = vec2o(tex_coord.xy * global.OutputSize.xy);
+    vec2 pix_coord = vec2o(tex_coord * global.OutputSize.xy);
 
     // change subpixel type 1 to 2 and swap subpixel colors from 2-MG to 1-BY
     int subpixel_type = PARAM_MASK_SUBPIXEL < 2.0
@@ -307,6 +331,18 @@ vec3 apply_mask(vec3 color, float color_luma, vec2 tex_coord)
         subpixel_color_swap,
         1.0,
         subpixel_smoothness);
+
+    return mask;
+}
+
+vec3 apply_mask(vec3 color, float color_luma, vec2 tex_coord)
+{
+    if (PARAM_MASK_TYPE == 0.0)
+    {
+        return color;
+    }
+
+    vec3 mask = get_mask(tex_coord);
     float mask_luma = get_luminance(mask);
 
     // apply color bleed to neighbor sub-pixel
@@ -371,7 +407,7 @@ vec3 apply_noise(vec3 color, float color_luma, vec2 tex_coord)
     pix_coord = floor(pix_coord / int(subpixel_size)) * int(subpixel_size);
 
     // repeat every 20 frames with 12fps
-    float frame = GetUniformFrameModulo(12, 20);
+    float frame = mod(GetUniformFrameCount(12), 20);
     float noise = random(pix_coord * (frame + 1.0));
 
     float mul_noise = noise * 2.0;
