@@ -250,8 +250,20 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple
             ? 0.0
             : abs(PARAM_SCANLINES_OFFSET);
 
-    // apply manual half texel y-offset
-    tex_coord += vec2o(0.0, 0.5) * scanlines_offset;
+    // when automatic down-scaled
+    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
+    {
+        float slope = 1.0 - 1.0 / INPUT_SCREEN_MULTIPLE;
+
+        // apply manual half texel y-offset by exponential amout of multiple
+        tex_coord += vec2o(0.0, 0.5) * normalized_sigmoid(scanlines_offset / 2.0, -slope) * 2.0;
+    }
+    // when not automatic down-scaled
+    else
+    {
+        // apply manual half texel y-offset
+        tex_coord += vec2o(0.0, 0.5) * scanlines_offset;
+    }
 
     // pixel to texture coordinates
     tex_coord /= tex_size;
