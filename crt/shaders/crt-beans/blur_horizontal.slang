@@ -14,7 +14,7 @@ layout(push_constant) uniform Push {
 // #pragma format R8G8B8A8_SRGB
 #pragma format R16G16B16A16_SFLOAT
 
-#include "parameters_common.inc.slang"
+#include "parameters_common.inc"
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;

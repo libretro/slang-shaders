@@ -23,10 +23,10 @@ layout(push_constant) uniform Push {
 
 #pragma format R16G16B16A16_SFLOAT
 
-#include "parameters_common.inc.slang"
-#include "parameters_analytical.inc.slang"
-#include "mask.inc.slang"
-#include "line_handling.inc.slang"
+#include "parameters_common.inc"
+#include "parameters_analytical.inc"
+#include "mask.inc"
+#include "line_handling.inc"
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
