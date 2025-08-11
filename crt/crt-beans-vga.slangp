@@ -1,0 +1,112 @@
+shaders = 11
+
+// VGA line handling (line doubling below 350 lines)
+OddFieldFirst = 3.0
+// Monitor-like spot size (less variation than TVs)
+MaxSpotSize = 0.95
+MinSpotSize = 0.7
+// No mask (fine dot masks are too difficult to simulate and generally
+// not visible)
+MaskType = 0.0
+
+textures = BlueNoiseTex
+
+// Blue noise texture from https://github.com/Calinou/free-blue-noise-textures
+// (Licensed CC0)
+// This is used for dithering.
+// It is expected (in composite_output.slang) that this texture is 64x64. Using
+// a different size will require changes to that file.
+BlueNoiseTex = shaders/crt-beans/blue_noise.png
+BlueNoiseTex_wrap_mode = repeat
+BlueNoiseTex_linear = true
+BlueNoiseTex_mipmap = false
+
+//======== Linearize gamma.
+shader0 = shaders/crt-beans/linearize.slang
+alias0 = Linearized
+mipmap_input0 = false
+scale_type0 = source
+scale0 = 1.0
+
+//======== Draw the scanlines, handling interlacing and overscan.
+// We do the expensive width calculations in a separate pass so that we don't
+// need to duplicate them for every fragment in the next pass.
+shader1 = shaders/crt-beans/calculate_widths.slang
+wrap_mode1 = clamp_to_border
+mipmap_input1 = false
+scale_type1 = source
+scale1 = 1.0
+
+shader2 = shaders/crt-beans/scanlines_analytical.slang
+alias2 = Scanlines
+filter_linear2 = false
+wrap_mode2 = clamp_to_edge
+mipmap_input2 = false
+scale_type2 = viewport
+scale2 = 1.0
+
+//======== Downscale 3 times (to ~1/8 size per dimension) for glow blurring.
+// Downscale and perform the blur on a smaller texture for performance.
+// Use a 4x4 cubic downscale to minimize aliasing and shimmering in the blur.
+shader3 = shaders/crt-beans/cubic_downsample.slang
+filter_linear3 = true
+wrap_mode3 = clamp_to_border
+mipmap_input3 = false
+scale_type3 = source
+scale3 = 0.5
+
+shader4 = shaders/crt-beans/cubic_downsample.slang
+filter_linear4 = true
+wrap_mode4 = clamp_to_border
+mipmap_input4 = false
+scale_type4 = source
+scale4 = 0.5
+
+shader5 = shaders/crt-beans/cubic_downsample.slang
+filter_linear5 = true
+wrap_mode5 = clamp_to_border
+mipmap_input5 = false
+scale_type5 = source
+scale5 = 0.5
+
+//======== Blur for the glow: first pass horizontal, second pass vertical.
+shader6 = shaders/crt-beans/blur_horizontal.slang
+filter_linear6 = true
+wrap_mode6 = clamp_to_border
+mipmap_input6 = false
+scale_type6 = source
+scale6 = 1.0
+
+shader7 = shaders/crt-beans/blur_vertical.slang
+filter_linear7 = true
+wrap_mode7 = clamp_to_border
+mipmap_input7 = false
+scale_type7 = source
+scale7 = 1.0
+
+//======== Upscale the blurred texture.
+// Repeated bilinear upscales blur the texture a bit more, which is noticeable
+// with small blur sigmas. However, here are no blocky artifacts like we would
+// get if we upscaled straight to the viewport size. The final upscale happens
+// in the composite pass.
+shader8 = shaders/crt-beans/bilinear_upsample.slang
+filter_linear8 = true
+wrap_mode8 = clamp_to_border
+mipmap_input8 = false
+scale_type8 = source
+scale8 = 2.0
+
+shader9 = shaders/crt-beans/bilinear_upsample.slang
+filter_linear9 = true
+wrap_mode9 = clamp_to_border
+mipmap_input9 = false
+scale_type9 = source
+scale9 = 2.0
+
+//======== Composite the blur on the image, then convert to sRGB.
+shader10 = shaders/crt-beans/composite_output.slang
+filter_linear10 = true
+wrap_mode10 = clamp_to_border
+mipmap_input10 = false
+scale_type10 = viewport
+scale10 = 1.0
