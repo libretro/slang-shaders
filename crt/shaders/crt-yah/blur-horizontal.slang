@@ -81,16 +81,22 @@ void main()
     float diffusion = Diffusion / (Multiple * Multiple);
 
     // scale tabs (can be quite in-performant for high resolutions)
-    int tabs = int(Tabs * Multiple);
-    for (int i = -tabs; i <= tabs; i++)
+    float tabs = Tabs * Multiple;
+    float n = -tabs;
+    int i = 0;
+    do
     {
         vec2 texCoord = TexCoord;
-        texCoord.x += i * global.SourceSize.z;
+        texCoord.x += n * global.SourceSize.z;
 
-        float k = exp(-diffusion * i * i);
+        float k = exp(-diffusion * n * n);
         color += k * INPUT(texture(Source, texCoord).rgb);
         sum += k;
+
+        n += 1.0;
+        i += 1;
     }
+    while (n <= tabs && i <= 64); // break after max. 64 iterations
 
     FragColor = vec4(OUTPUT(color / sum), 1.0);
 }
