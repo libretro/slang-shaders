@@ -35,7 +35,7 @@ scale_type4 = "viewport"
 scale4 = "1.000000"
 
 shader5 = "shaders/support/deblur-fast.slang"
-filter_linear5 = linear
+filter_linear5 = true
 wrap_mode5 = clamp_to_edge
 
 XBR_EDGE_STR_P0 = "0.400000"
