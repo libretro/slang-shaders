@@ -65,6 +65,14 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 #define INPUT(color) decode_gamma(color)
 #define OUTPUT(color) encode_gamma(color)
 
+float offset(float i)
+{
+    // return alternating offset
+    return mod(i, 2.0) > 0.0
+        ? ceil(i / 2.0)
+        : -ceil(i / 2.0);
+}
+
 void main()
 {
     if (PARAM_HALATION_INTENSITY == 0.0)
@@ -80,23 +88,27 @@ void main()
     // scale diffusion
     float diffusion = Diffusion / (Multiple * Multiple);
 
-    // scale tabs (can be quite in-performant for high resolutions)
-    float tabs = Tabs * Multiple;
-    float n = -tabs;
+    // scale tabs, but limit to 64
+    const float max_tabs = 64.0;
+    float tabs = Tabs * Multiple * 2.0;
+    float tab_size = tabs > max_tabs
+        ? tabs / max_tabs
+        : 1.0;
     int i = 0;
     do
     {
-        vec2 texCoord = TexCoord;
-        texCoord.x += n * global.SourceSize.z;
+        float o = offset(i) * tab_size;
 
-        float k = exp(-diffusion * n * n);
+        vec2 texCoord = TexCoord;
+        texCoord.x += o * global.SourceSize.z;
+
+        float k = exp(-diffusion * o * o);
         color += k * INPUT(texture(Source, texCoord).rgb);
         sum += k;
 
-        n += 1.0;
-        i += 1;
+        i++;
     }
-    while (n <= tabs && i <= 64); // break after max. 64 iterations
+    while (i <= tabs && i <= max_tabs); // break after limit
 
     FragColor = vec4(OUTPUT(color / sum), 1.0);
 }
