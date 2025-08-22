@@ -40,7 +40,7 @@ layout(location = 1) out float is_interlaced;
 void main()
 {
    gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord;
+   vTexCoord = TexCoord * 1.0001;
    is_interlaced = float(params.OriginalSize.y > 400.0 * params.scale);
 }
 
@@ -54,7 +54,7 @@ layout(set = 0, binding = 3) uniform sampler2D OriginalHistory1;
 void main()
 {
    // snap to the center of the underlying texel
-   vec2 uv = vTexCoord * params.SourceSize.xy - 0.5001;
+   vec2 uv = vTexCoord * params.SourceSize.xy - 0.5;
    uv = (floor(uv) + 0.5) * params.SourceSize.zw;
    
    // go ahead and sample the texture and early return if not interlaced
