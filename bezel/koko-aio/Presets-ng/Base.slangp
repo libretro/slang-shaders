@@ -91,6 +91,7 @@ DO_SPOT = "1.0"
 DO_VIGNETTE = "1.0"
 	V_SIZE = "1.08"
 	V_POWER = "1.00"
+	V_SHAPE = "0.8"
 	
 DO_AMBILIGHT = 1.0
 	AMBI_FALLOFF = "0.40"

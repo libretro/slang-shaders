@@ -8,10 +8,9 @@ layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec2 vHALO_SHARPNESS;
 layout(location = 2) out float vHALO_POWER;
-layout(location = 3) out float vDeltaRenderOk;
-layout(location = 4) out float vMask_helper_max_power;
-layout(location = 5) out float vMask_helper_gamma_compensation;
-layout(location = 6) out float vMask_helper_gain;
+layout(location = 3) out float vMask_helper_max_power;
+layout(location = 4) out float vMask_helper_gamma_compensation;
+layout(location = 5) out float vMask_helper_gain;
 
 void main() {
     gl_Position = global.MVP * Position;
@@ -36,7 +35,7 @@ void main() {
       vHALO_POWER = -HALO_POWER/10.0;
     
     bool bIs_Interlaced = is_interlaced();
-    vDeltaRenderOk = is_deltarender_allowed(bIs_Interlaced); 
+
     
    
     //Horizontal mask helper variables:
@@ -75,10 +74,9 @@ void main() {
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec2 vHALO_SHARPNESS;
 layout(location = 2) in float vHALO_POWER;
-layout(location = 3) in float vDeltaRenderOk;
-layout(location = 4) in float vMask_helper_max_power;
-layout(location = 5) in float vMask_helper_gamma_compensation;
-layout(location = 6) in float vMask_helper_gain;
+layout(location = 3) in float vMask_helper_max_power;
+layout(location = 4) in float vMask_helper_gamma_compensation;
+layout(location = 5) in float vMask_helper_gain;
 
 layout(location = 0) out vec4 FragColor;
 
@@ -101,7 +99,7 @@ vec3 get_mask_helper() {
 void main() {
     
    #ifndef D3D_WORKAROUND
-      if (fps_halver_is_skipped_frame())
+      if (is_skipped_frame())
          return;
    #endif
     

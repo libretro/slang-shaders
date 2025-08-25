@@ -108,6 +108,18 @@ bool frame_is_even() {
 	return ((int(params.FrameCount) & 1) == 0);
 }
 
+uint frame_subframe() {
+  return params.FrameCount * global.TotalSubFrames + global.CurrentSubFrame;
+}
+
+bool frame_subframe_is_even() {
+  return (frame_subframe() & 1) == 0;
+}
+
+bool is_subframe() {
+    return global.CurrentSubFrame > 1;
+}
+
 bool is_rotated_new(){
 	return (params.Rotation == 1.0 || params.Rotation == 3.0);
 }
@@ -125,6 +137,25 @@ bool fps_halver_is_skipped_frame()  {
 	#endif
     return false;
 }
+
+bool skip_subframe() {
+	#ifdef DO_ADPT_STROBE
+		return false;
+	#endif
+		
+	#ifdef SUBFRAMES_OPTIMIZATIONS
+		if (is_subframe()) return true;
+	#endif
+	
+	return false;
+}
+
+bool is_skipped_frame() {
+	if (skip_subframe()) return true;
+	if (fps_halver_is_skipped_frame()) return true;
+	return false;
+}
+
 
 bool is_rotated_old(){
 	//Keep this to retain some sort of compatibility with Retroarch pre 1.17
@@ -475,7 +506,7 @@ vec2 apply_fuzzy_main_pass_stage_1() {
 	}
 	
 	if (DO_VIGNETTE == 1.0)
-		color_out *= 0.8 * (V_POWER);
+		color_out *= 0.8;
 	
 	return vec2(color_out/color_in, gamma_out );
 }
@@ -520,7 +551,7 @@ vec2 apply_fuzzy_main_pass_stage_1_no_gamma_in() {
 	}
 	
 	if (DO_VIGNETTE == 1.0)
-		color_out *= 0.8 * (V_POWER);
+		color_out *= 0.8;
 	
 	return vec2(color_out/color_in, gamma_out );
 }
@@ -1234,6 +1265,14 @@ float delta_render_enabled(){
     #endif
 }
 
+bool bdelta_render_enabled(){
+    #ifdef DELTA_RENDER
+        return true;
+    #else
+        return false;
+    #endif
+}
+
 float delta_render_get_force_refresh() {
 	#ifdef DELTA_RENDER_FORCE_REFRESH
 		return DELTA_RENDER_FORCE_REFRESH;
@@ -1405,9 +1444,22 @@ vec3 kelvin2rgb(float k) {
 }
 
 vec3 adaptive_black(vec3 c_in, float lum_in, float range) {
+	//the less the brightness, the less the gamma.
+	
+	float contrast = mix(range*0.5, 0.0, pow(lum_in*8, 0.25));
+	contrast = clamp(contrast,0.0,1.0);
+	return apply_contrast_brightness(c_in, -contrast , +contrast);
+	
+	
+	
+	
+	
+	/*
 	float luminance_adapt = mix( 1-range, 1+range, lum_in);
 	return c_in * luminance_adapt - luminance_adapt + 1;
 	return fma(c_in, vec3(luminance_adapt), vec3(-luminance_adapt + 1)); //ASM_PROOF: SAME
+	*/
+	
 }
 
 vec3 color_tools(vec3 pixel_out, vec3 Temperature_rgb) {
@@ -1464,125 +1516,70 @@ vec3 color_tools(vec3 pixel_out, vec3 Temperature_rgb) {
 	return pixel_out;
 }
 
-vec4 PG_get_hmask_preset_floored_wrapped() {
-    if (PIXELGRID_H_PRST == 0.0) // manual mask and size
-        return vec4( PIXELGRID_R_SHIFT, PIXELGRID_G_SHIFT, PIXELGRID_B_SHIFT, PIXELGRID_H_COUNT);
-    
-    if (PIXELGRID_H_PRST == 1.0)
-        return vec4( vec3(0,
-						  1,
-						  0), 2); // gm, mask size 2
-
-    if (PIXELGRID_H_PRST == 2.0)
-        return vec4( vec3(2.5,
-						  1.5,
-						  2.5), 3); //gmx, mask size 3
-
-    if (PIXELGRID_H_PRST == 3.0)
-        return vec4( vec3(1.5,
-						  2.5,
-						  3.5), 3); //rgb, mask size 3
-
-    if (PIXELGRID_H_PRST == 4.0)
-        return vec4( vec3(2.0,
-						  3.0,
-						  4.0), 4); //rgbx, mask size 4
-
-    if (PIXELGRID_H_PRST == 5.0)
-        return vec4( vec3(1.5,
-						  3.5,
-						  2.5), 3); //rbg, mask size 3
-
-    if (PIXELGRID_H_PRST == 6.0)
-        return vec4( vec3(2.0,
-						  4.0,
-						  3.0), 4); //rbgx, mask size 4
-		
-    if (PIXELGRID_H_PRST == 7.0)
-        return vec4( vec3(0.0), 2); //WX, mask size 2
-
-    if (PIXELGRID_H_PRST == 8.0)
-		return vec4( vec3(1.0,
-					2.0,
-					4.0), 4); //rgxb, mask size 4
-		
-    //if (PIXELGRID_H_PRST == 9.0) // Implicit, because we need a default return value (DX/D3D)
-        return vec4( vec3(2.0,
-						  2.0,
-						  2.0), 3); //wwx, mask size 3
-}
-
-vec4 PG_get_hmask_preset_unfloored_wrapped() {
+vec4 PG_get_hmask_preset_wrapped() {
+	
+	vec3 gm, gmx, rgb, rgbx, rbg, rbgx, wx, rgxb, wwx;
+	
+	/* "snapped" masks acts like floored ones, they are fine centered so they looks
+	 * sharp at screen/pixel coordinates.
+	 * Contrary, not snapped/relaxed masks are centered in the RGB cell so that tey can
+	 * "bleed" better.
+	 * 
+	 * We use snapped positioning only when screen coords and multiplicator = 1.0 are both used-
+	 * is 1.0 (-1.0 is not) or either a TVL is requested.
+	*/
+	bool snap = PIXELGRID_SIZE_W == 1.0 && PIXELGRID_MUL_X == 1.0;
+	
+	 if (snap) {
+		gm   = vec3(0.5, -0.5, 0.5);
+		gmx  = vec3(0, 2, 0);
+		rgb  = vec3(2, 3, 1);
+		rgbx = vec3(2.5, 3.5, 0.5); 
+		rbg  = vec3(2, 1, 3);
+		rbgx = vec3(2.5, 0.5, 3.5); 
+		wx   = vec3(0.5, 0.5, 0.5);
+		rgxb = vec3(2.5, 3.5, 1.5);
+		wwx  = vec3(0.5, 0.5, 0.5); //not possible with snapping
+	 } else {
+		gm   = vec3(0.5, -0.5, 0.5);
+		gmx  = vec3(0.5, -0.5, 0.5);
+		rgb  = vec3(-1, 0, 1);
+		rgbx  = vec3(-1, 0, 1);
+		rbg  = vec3(-1, 1, 0);
+		rbgx  = vec3(-1, 1, 0);
+		wx   = vec3(0,  0, 0);
+		rgxb = vec3(0, 1, -1);
+		wwx  = vec3(0, 0, 0); 
+	 }
+	
     if (PIXELGRID_H_PRST == 0.0) // manual mask and size
         return vec4( PIXELGRID_R_SHIFT, PIXELGRID_G_SHIFT, PIXELGRID_B_SHIFT, PIXELGRID_H_COUNT);
 
-    if (PIXELGRID_H_PRST == 1.0)
-        return vec4( vec3(+0.25,
-						  -0.25,
-						  +0.25)*2, 2); // gm, mask size 2
-
-    if (PIXELGRID_H_PRST == 2.0)
-        return vec4( vec3(+1/6.0,
-						  -1/6.0,
-						  +1/6.0)*3, 3); //gmx, mask size 3
-
-    if (PIXELGRID_H_PRST == 3.0)
-        return vec4( vec3(-1/3.0,
-						  0.0,
-						  1/3.0)*3, 3); //rgb, mask size 3
-
-    if (PIXELGRID_H_PRST == 4.0)
-        return vec4( vec3(-1/4.0,
-						  0.0,
-						  +1/4.0)*4, 4); //rgbx, mask size 4
-
-    if (PIXELGRID_H_PRST == 5.0)
-        return vec4( vec3(-1/3.0,
-						  +1/3.0,
-						  0.0   )*3, 3); //rbg, mask size 3
-
-    if (PIXELGRID_H_PRST == 6.0)
-        return vec4( vec3(-1/4.0,
-						  +1/4.0,
-						  0.0   )*4, 4); //rbgx, mask size 4
-
-    if (PIXELGRID_H_PRST == 7.0) 
-        return vec4( vec3(0.0), 2); //WX, mask size 2
-		
-    if (PIXELGRID_H_PRST == 8.0) // Implicit, because we need a default return value (DX/D3D)
-        return vec4( vec3(-1/4.0,
-						  0.0,
-						  +2/4.0)*4, 4); //rgxb, mask size 4  cambialo
-    //if (PIXELGRID_H_PRST == 9.0) // Implicit, because we need a default return value (DX/D3D)
-		
-        return vec4( vec3(0.0), 2); // WWX, mask size 2 can't be obtained, so just return  WX
-		                            // and user set a wider phosphor width
-		
+    if (PIXELGRID_H_PRST == 1.0) return vec4( gm  , 2);
+    if (PIXELGRID_H_PRST == 2.0) return vec4( gmx , 3);
+    if (PIXELGRID_H_PRST == 3.0) return vec4( rgb , 3);
+    if (PIXELGRID_H_PRST == 4.0) return vec4( rgbx, 4);
+	if (PIXELGRID_H_PRST == 5.0) return vec4( rbg , 3);
+    if (PIXELGRID_H_PRST == 6.0) return vec4( rbgx, 4);
+    if (PIXELGRID_H_PRST == 7.0) return vec4( wx  , 2);
+    if (PIXELGRID_H_PRST == 8.0) return vec4( rgxb, 4);		
+	                             return vec4( wwx,  2);
 }
 
-vec4 PG_get_hmask_preset_floored() {
-	vec4 c = PG_get_hmask_preset_floored_wrapped();
+vec4 PG_get_hmask_preset() {
+	vec4 c = PG_get_hmask_preset_wrapped();
 	//alternate submask color positions to help sample-and-hold induced blurring
 	#ifndef D3D_WORKAROUND
-		#ifdef ANTIGHOSTING_FLIP_MASK
-			if (frame_is_even())
-			c.xyz = c.zxy;
+		#ifdef DO_LCD_ANTIGHOSTING
+			if (LCD_ANTIGHOSTING_FLIP_MASK == 1.0) {
+				if (frame_is_even())
+				c.xyz = c.zxy;
+			}
 		#endif
 	#endif
 	return c;
 }
 
-vec4 PG_get_hmask_preset_unfloored() {
-	vec4 c = PG_get_hmask_preset_unfloored_wrapped();
-	//alternate submask color positions to help sample-and-hold induced blurring
-	#ifndef D3D_WORKAROUND
-		#ifdef ANTIGHOSTING_FLIP_MASK
-			if (frame_is_even())
-			c.xyz = c.zxy;
-		#endif
-	#endif
-	return c;
-}
 
 vec3 strobe( vec3 c) {
     #define STRENGTH_1 0.075 //effect strength
@@ -1595,7 +1592,31 @@ vec3 strobe( vec3 c) {
 }
 
 
-vec3 adaptive_strobe( vec3 c) {
+vec3 adaptive_strobe(vec3 c, float osc) {
+
+	#ifndef DO_ADPT_STROBE
+		return c;
+	#endif
+
+	c = clamp(c, vec3(0.0), vec3(1.0));
+
+	float gain_adj =  mix(1.0, ADPT_STROBE_GAIN_ADJ,  ADPT_STROBE_STR);
+
+	vec3 osc3 = vec3(osc);
+	if (osc > 0.0) {		
+		osc3 = mix( osc3*gain_adj, osc3 * gain_adj * c, ADPT_STROBE_GAIN_ADJ_NODARK) ;
+	}
+
+	vec3 room = (0.5 - abs(0.5-c));
+	c += room * osc3 * ADPT_STROBE_STR ;
+
+	float gamma_adj = mix(1.0, ADPT_STROBE_GAMMA_ADJ, ADPT_STROBE_STR);
+	c = pow(c, vec3(gamma_adj));
+
+	return c;
+}
+
+vec3 adaptive_strobe_old( vec3 c) {
     #define STRENGTH 0.1375; //effect strength
     #define BRIGHT_BIAS 1.0 //brightness compensation
     #define CONTRAST_COMPENSATION 0.5 //maximum contrast compensation
@@ -1670,10 +1691,26 @@ float lodmax(vec2 texsize) {
 	//lod needed to average all texture points.
     return log2(max(texsize.x, texsize.y));
 }
+
+bool deltarender_frame_is_forced_refresh() {
+	 // - We are in a frame that is forced for full refresh
+	return params.FrameCount % int(delta_render_get_force_refresh()) == 0.0 ;
+}
+
+bool deltarender_frame_is_not_forced_refresh() {
+	 // - We are in a frame that is forced for full refresh
+	return params.FrameCount % int(delta_render_get_force_refresh()) != 0.0 ;
+}
+
+bool deltarender_preconditions_met(bool is_interlaced) {
+	return ( (! is_interlaced) || PIXELGRID_INTR_DISABLE_Y >= 1.0 || DO_PIXELGRID_H == 0.0);
+}
+
+
 float is_deltarender_allowed(bool is_interlaced) {
 	// Delta render, mandatory conditions:
-    return float( ( params.FrameCount % int(delta_render_get_force_refresh()) != 0.0 ) &&              // - We are in a frame that is not forced for full refresh
-    ( (! is_interlaced) || PIXELGRID_INTR_DISABLE_Y >= 1.0 || DO_PIXELGRID_H == 0.0)); // - screen is not interlaced or we disabled scanlines on interlaced content
+    return float(deltarender_frame_is_not_forced_refresh() &&   // - We are in a frame that is not forced for full refresh
+           deltarender_preconditions_met(is_interlaced)); // - screen is not interlaced or we disabled scanlines on interlaced content
 }
 
 float delta_render_changed(sampler2D smp_past, sampler2D smp_now, vec2 co, float lod) {

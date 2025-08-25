@@ -5,20 +5,21 @@
  * Does masks, spot, bezel, vignette, background image (anything else?)
  */
 
-                                //#define DEBUG_TEXTURE Original
-                                //#define DEBUG_TEXTURE colortools_and_ntsc_pass
-                                #define DEBUG_TEXTURE halo_pre_gamma_pass
-//#define DEBUG_PRINT_VALUE
-//#define PRINTED_VALUE texture(DEBUG_TEXTURE, vec2(0.5)).a
-//#define PRINTED_VALUE global.OriginalFPS
+// #define DEBUG_TEXTURE Original
+// #define DEBUG_TEXTURE colortools_and_ntsc_pass
+#define DEBUG_TEXTURE halo_pre_gamma_pass
+
+// #define DEBUG_PRINT_VALUE
+// #define PRINTED_VALUE texture(DEBUG_TEXTURE, vec2(0.5)).a
+// #define PRINTED_VALUE (1000.0/(global.FrameTimeDelta/1000.0)) 
     
-//#define DEBUG_QUAD_SPLIT
-//#define DEBUG_DUAL_SPLIT_X
-//#define DEBUG_DUAL_SPLIT_Y
-//#define DEBUG_DUAL_SPLIT_Y_GAMMA
-//#define DEBUG_DUAL_SPLIT_MIRROR_X
-//#define DEBUG_DUAL_SPLIT_MIRROR_X_GAMMA
-//#define DEBUG_SHOW_CLIP
+// #define DEBUG_QUAD_SPLIT
+// #define DEBUG_DUAL_SPLIT_X
+// #define DEBUG_DUAL_SPLIT_Y
+// #define DEBUG_DUAL_SPLIT_Y_GAMMA
+// #define DEBUG_DUAL_SPLIT_MIRROR_X
+// #define DEBUG_DUAL_SPLIT_MIRROR_X_GAMMA
+// #define DEBUG_SHOW_CLIP
 
 
 #include "config.inc"
@@ -37,7 +38,7 @@ layout(location = 7) out float vDo_Tate;
 layout(location = 8) out vec3 vDotMat_Grid_Color;
 layout(location = 9) out vec4 vPG_offsets_and_size;
 layout(location = 10) out float vInteger_fragment_x;
-layout(location = 11) out vec2 vPG_freq_base_screen_unfloored;
+layout(location = 11) out vec2 vPG_freq_base_screen;
 layout(location = 12) out vec2 vPG_OriginalSize_tated_mul_pi;
 layout(location = 13) out float vDotMat_Grid_Sharpness;
 layout(location = 14) out float vPG_mask_height;
@@ -46,7 +47,10 @@ layout(location = 16) out float vDo_pixelgrid_h;
 layout(location = 17) out float vFake_scanline_period;
 layout(location = 18) out float vPG_y_shift;
 layout(location = 19) out vec2 vUnrotated_Output_coords;
-
+#ifdef DO_ADPT_STROBE
+    layout(location = 20) out float vAdaptive_strobe_oscillator;
+#endif
+    
 #ifdef DEBUG_PRINT_VALUE
     layout(location = 31) out float vfprintvalue; 
 #endif
@@ -273,16 +277,9 @@ void main() {
                 vDotMat_Grid_Color *= DOT_M_G_BRT ;
         }
 
-
     //Pixelgrid: get mask type; .rgb contains layout, .a contains the size.
-    //we use 2 different layouts for floored and unfloored coords, because
-    //with unfloored coords we move the gap half beginning, half end,
-    //while with floored coords it must have its own integer spot.
-        if (PIXELGRID_SIZE_W == 0.0 || PIXELGRID_MUL_X != 1.0 || PIXELGRID_TVL_X !=0.0)
-            vPG_offsets_and_size = PG_get_hmask_preset_unfloored() ;
-                else
-            vPG_offsets_and_size = PG_get_hmask_preset_floored() ;
-    
+        vPG_offsets_and_size = PG_get_hmask_preset() ;
+
        //scale offsets to be used by sin:
         vPG_offsets_and_size.rgb *= (pi / vPG_offsets_and_size.a);
         
@@ -309,7 +306,7 @@ void main() {
             else
                 rgbw_size = 1/vPG_offsets_and_size.a;
     
-            vPG_freq_base_screen_unfloored = pi * vec2(rgbw_size, 0.5) * (PG_OutputCoord_tated * PG_OutputSize_tated);
+            vPG_freq_base_screen = pi * vec2(rgbw_size, 0.5) * (PG_OutputCoord_tated * PG_OutputSize_tated);
 
     //pixelgrid: doublescan?
                 if (need_doublescan() )
@@ -325,7 +322,7 @@ void main() {
             
         //apply it:
             vPG_OriginalSize_tated_mul_pi.x *=  PG_period_multiplier_x ; //for core coords
-            vPG_freq_base_screen_unfloored.x *= PG_period_multiplier_x ; //for screen coords
+            vPG_freq_base_screen.x *= PG_period_multiplier_x ; //for screen coords
 
     //Pixelgrid Y mask: adapt mask height
         vPG_mask_height = PIXELGRID_Y_MASK_HEIGHT;
@@ -444,6 +441,17 @@ void main() {
     //Fragment shader will use that just one time that way. => precalc.
     vPG_offsets_and_size.a = pi/vPG_offsets_and_size.a;
 
+    #ifdef DO_ADPT_STROBE
+        float iFrameMod = 0.0;
+        //+1 should take care of oscillator invertion to avoid voltage accumuation in IPS panels (?)
+        if (ADPT_LCD_RETENTION_FIX > 0.0)
+            iFrameMod = mod(frame_subframe(), global.TotalSubFrames * ADPT_LCD_RETENTION_FIX + 1) ;
+        else
+            iFrameMod = mod(frame_subframe(), global.TotalSubFrames * 300.0); //mod needed to avoid drifting sin precision errors
+        
+        vAdaptive_strobe_oscillator = cos(iFrameMod * pi);
+    #endif
+    
 }
 
 
@@ -460,7 +468,7 @@ layout(location = 7) in float vDo_Tate;
 layout(location = 8) in vec3 vDotMat_Grid_Color;
 layout(location = 9) in vec4 vPG_offsets_and_size;
 layout(location = 10) in float vInteger_fragment_x;
-layout(location = 11) in vec2 vPG_freq_base_screen_unfloored;
+layout(location = 11) in vec2 vPG_freq_base_screen;
 layout(location = 12) in vec2 vPG_OriginalSize_tated_mul_pi;
 layout(location = 13) in float vDotMat_Grid_Sharpness;
 layout(location = 14) in float vPG_mask_height;
@@ -469,6 +477,10 @@ layout(location = 16) in float vDo_pixelgrid_h;
 layout(location = 17) in float vFake_scanline_period;
 layout(location = 18) in float vPG_y_shift;
 layout(location = 19) in vec2 vUnrotated_Output_coords;
+#ifdef DO_ADPT_STROBE
+    layout(location = 20) in float vAdaptive_strobe_oscillator;
+#endif
+
 
 #ifdef DEBUG_PRINT_VALUE
     layout(location = 31) in float vfprintvalue;
@@ -629,6 +641,27 @@ vec3 downsample_x( sampler2D tex, vec2 uv, vec4 sourcesize, float sharpness_add 
 }
 
 
+float antiburn_flip_even(float toflip){
+    #ifdef ANTIBURN_Y
+        bool flip = sin(params.FrameCount*pi*ANTIBURN_Y/2000.0) >= 0.0;
+        if (flip) return 1-toflip;
+    #endif
+    return toflip;
+}
+
+vec2 antiburn(vec2 coords) {
+    #ifdef ANTIBURN_Y
+        coords.y += sin(params.FrameCount*pi*ANTIBURN_Y/1000.0)*params.OriginalSize.w*0.5;
+    #endif
+        
+    #ifdef ANTIBURN_X
+        coords.x += cos(params.FrameCount*pi*ANTIBURN_X/100.0)*global.FinalViewportSize.z*0.5;
+    #endif
+        
+    return coords;
+}
+
+
 vec4 fn_pixel_grid(vec2 in_coords, vec4 pixel_in, float min_inLum, float max_inLum) {
     //^ 15fps ^
 
@@ -647,11 +680,11 @@ vec4 fn_pixel_grid(vec2 in_coords, vec4 pixel_in, float min_inLum, float max_inL
     //y screen coords appear to work just fine even if we don't floor them,
         vec2 freq_base_screen;
         #define PG_freq_base_screen_x vPG_offsets_and_size.a
-        if (PIXELGRID_MUL_X == 1.0) {
-            freq_base_screen = vec2( (PG_freq_base_screen_x) * floor(vInteger_fragment_x), vPG_freq_base_screen_unfloored.y);
-        } else {
-            freq_base_screen = vPG_freq_base_screen_unfloored;
-        }
+        //if (PIXELGRID_MUL_X == 1.0) {
+        //    freq_base_screen = vec2( (PG_freq_base_screen_x) * floor(vInteger_fragment_x), vPG_freq_base_screen_unfloored.y);
+        //} else {
+            freq_base_screen = vPG_freq_base_screen;
+        //}
 
     //Switch frequency between core and screen and apply asked multipliers
         vec2 freq_base = freq_base_core;
@@ -659,7 +692,7 @@ vec4 fn_pixel_grid(vec2 in_coords, vec4 pixel_in, float min_inLum, float max_inL
         vec2 freq_base_unfloored = freq_base_core;
         if (PIXELGRID_SIZE_W == 1.0) {
             freq_base.x = freq_base_screen.x;
-            freq_base_unfloored.x = vPG_freq_base_screen_unfloored.x;
+            freq_base_unfloored.x = vPG_freq_base_screen.x;
         }
     
     // Shadowmask
@@ -790,7 +823,7 @@ vec4 fn_pixel_grid(vec2 in_coords, vec4 pixel_in, float min_inLum, float max_inL
                 
             //Use abs(cos) (later 1-abs(cos) to get horizontal gaps, use pow to make them steep.
             //Stagger them by PH_MASH_OFFSET on even triads
-                float mask_shape = abs(cos(  vPG_y_shift  + ph_mask_height  + (PH_MASH_OFFSET * is_even)) ) ;
+                float mask_shape = abs(cos(  vPG_y_shift  + ph_mask_height  + (PH_MASH_OFFSET * antiburn_flip_even(is_even))) ) ;
                 mask_shape = pow(mask_shape, PIXELGRID_Y_MASK_STEEP);
 
 
@@ -1056,26 +1089,6 @@ float create_ambi_colorize_shade(vec2 co) {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vec3 antighost(vec3 c) {
-    #ifndef D3D_WORKAROUND
-        #ifdef LCD_ANTIGHOSTING
-            #ifndef LCD_ANTIGHOSTING_CEIL
-                #define LCD_ANTIGHOSTING_CEIL 1.0
-            #endif
-            if (LCD_ANTIGHOSTING > 0.0) {
-                if (frame_is_even()) {
-                    vec3 feedback = texture(final_passFeedback, vOutputCoord).rgb;
-                    vec3 diff=(feedback - c)*LCD_ANTIGHOSTING;
-                    diff = sign(diff) * min( abs(diff), vec3(LCD_ANTIGHOSTING_CEIL));
-                    c = mix(c, c-diff, 0.5);
-                }
-            }
-        #endif
-    #endif
-    return c;
-}
-
-
 vec4 fn_pixel_fgbg_image(sampler2D smp) {
     vec2 tex_size = textureSize(smp, 0); // * BG_ZOOM;
     //if (BG_IMAGE_ROTATION > 0.0  || ( BG_IMAGE_ROTATION < 0.0 && bool(vIsRotated) )  ) tex_size.xy = tex_size.yx;
@@ -1144,8 +1157,10 @@ float gaussian_coefficient(float x, float sigma) {
 }
 
 
-
 vec3 fn_pixel_content(vec2 coords) { 
+    
+    coords = antiburn(coords);
+        
     vec2 warpedglow = vec2(0.0);
     
     #ifndef SKIP_WARPEDGLOW_Y
@@ -1325,20 +1340,37 @@ vec2 quasirandom(vec2 n) {
     //return abs(sin(n));
 }
 
+vec3 antighost(vec3 c) {
+	#ifndef D3D_WORKAROUND
+		if (!bdelta_render_enabled()) {
+				if (frame_is_even()) {
+					vec3 feedback = texture(final_passFeedback, vOutputCoord).rgb;
+					vec3 diff=(feedback - c)*LCD_ANTIGHOSTING;
+					diff = sign(diff) * min( abs(diff), vec3(LCD_ANTIGHOSTING_CEIL));
+					c = mix(c, c-diff, 0.5);
+				}
+		}
+	#endif
+	return c;
+}
+
 void main() {
 
-    // If fps halver is active, stop processing asap
+    // Early whole frameskipping
     #ifndef D3D_WORKAROUND
-        if (fps_halver_is_skipped_frame()) {
+        bool skipframe = false;
+        if (skip_subframe()) skipframe = true;
+        if (fps_halver_is_skipped_frame()) skipframe = true;
+            
+        if (skipframe) {
             FragColor.rgb = texture(final_passFeedback, vOutputCoord).rgb ;
             return;
         }
     #endif
-    
+  
     // Initial content coords
     vec2 co_content = vTexCoord;
 
-    
     // Tilt?
     if (DO_TILT == 1.0)
         co_content = tilt(co_content, vIsRotated, TILT_X);
@@ -1383,8 +1415,7 @@ void main() {
             }
         }
     #endif
-    
-    
+        
     // Dynamic lum dependant full screen zoom and autocrop
     #ifndef D3D_WORKAROUND
         if (DO_DYNZOOM > 0.0)
@@ -1403,29 +1434,52 @@ void main() {
     if (content_mask > 0.5) {
         
         pixel_out = fn_pixel_content(co_content);
-
+        
         if (DO_BACKDROP * BACKDROP_JUST_TUBE > 0.0) {
             vec3 backdrop = pixel_backdrop_image().rgb;
-            //pixel_out = mix(pixel_out, pixel_out + backdrop,  (1 - dot(pixel_out,vec3(1/3.0)), 0,1) * DO_BACKDROP   );
-            pixel_out = max(pixel_out, backdrop*DO_BACKDROP);
+
+            pixel_out.rgb += (DO_BACKDROP*backdrop) * (1-pixel_out.rgb);
+            //pixel_out = max(pixel_out, backdrop*DO_BACKDROP);
         }
 
+        if ( DO_SPOT + DO_VIGNETTE > 0.0 ) {
+            float perlin = (random_fast(vTexCoord)-0.5) * (1/255.0);
+            vec2 vignette_spot = texture(helper_pass, vTexCoord).zw;
+            pixel_out = pixel_out * vignette_spot.x;
+            pixel_out = mix(pixel_out+perlin, vec3(content_mask), vec3(vignette_spot.y) );
+        }
+        
+        #ifdef DO_ADPT_STROBE
+            pixel_out = adaptive_strobe(pixel_out, vAdaptive_strobe_oscillator);
+        #else
+            #ifdef DO_LCD_ANTIGHOSTING
+                pixel_out = antighost(pixel_out);
+            #endif
+        #endif
+        
 
     } else {
 
-        // Can we halve refresh rate in the outside border to spare some cycles?
-        float halve_border_update = 0.0;
+        // Can we halve border update to spare some cycles?
+        bool skip_border = false;
         #ifdef HALVE_BORDER_UPDATE
-            halve_border_update = 1.0;
+            // By using !frame_is_even() and not frame_is_even(), we solve the issue of inner frame jagged lines
+            // when using HALVE_BORDER_UPDATE + DELTA_RENDER
+            if (!frame_is_even()) skip_border = true;
         #endif
+        
+        // We can skip border update on subframes.
+        // The following may seem redundant because we skip whole subframes already
+        // But when we use strobing, we always reach this point/code.
+        bool skip_because_is_subframe = false;
+        #ifdef SUBFRAMES_OPTIMIZATIONS
+            if (is_subframe()) skip_border = true;
+        #endif
+            
         #ifndef D3D_WORKAROUND
-            if ( halve_border_update == 1.0 ) {
-                // By using !frame_is_even() and not frame_is_even(), we solve the issue of inner frame jagged lines
-                // when using HALVE_BORDER_UPDATE + DELTA_RENDER
-                if ( !frame_is_even() ) {
-                    FragColor.rgb = texture(final_passFeedback, vOutputCoord).rgb;
-                    return;
-                }
+            if ( skip_border ) {
+                FragColor.rgb = texture(final_passFeedback, vOutputCoord).rgb;
+                return;
             }
         #endif
 
@@ -1480,29 +1534,10 @@ void main() {
             // on the tube and we don't want to paint anything there, so use a dumb rect and add it to content_mask:
             float rect_bezel = float(is_first_inside_rect(co_bezel, vec4(BEZEL_FRAME_SURROUND_MARGIN, BEZEL_FRAME_SURROUND_MARGIN, 1.0 - BEZEL_FRAME_SURROUND_MARGIN, 1.0 - BEZEL_FRAME_SURROUND_MARGIN)));
             content_and_bezel_mask = max(pixel_bezel.a, rect_bezel);
-
-            // Intersect rect_bezel and bezel alpha to get the inner tube alpha
-            content_mask = (1 - pixel_bezel.a) * rect_bezel;
-            //content_mask = rect_bezel - rect_bezel* pixel_bezel.a; //ASM PROOF: SLOWER
-         
         }
-        //FragColor = vec4(content_mask); return; // <- uncomment to debug BEZEL_FRAME_SURROUND_MARGIN
+        //FragColor = vec4(content_and_bezel_mask); return; // <- uncomment to debug BEZEL_FRAME_SURROUND_MARGIN
     }
 
-
-    // Draw spot and vignette
-    if (content_mask > 0.5) {
-        if ( DO_SPOT + DO_VIGNETTE > 0.0 ) {
-            float perlin = (random_fast(vTexCoord)-0.5) * (1/255.0);
-            vec2 vignette_spot = texture(helper_pass, vTexCoord).zw;
-            pixel_out = pixel_out * vignette_spot.x;
-            pixel_out = mix(pixel_out+perlin, vec3(content_mask), vec3(vignette_spot.y) );
-        }
-        
-            pixel_out = antighost(pixel_out);
-    }
-    
-    
     // Background image have no need to paint if not in the outer border:
     if ( (DO_BG_IMAGE == 1.0 && BG_IMAGE_OVER == 0.0) && (content_and_bezel_mask < 1.0) ) {
         vec4 pixel_bg_image = fn_pixel_fgbg_image(bg_under);
@@ -1519,8 +1554,6 @@ void main() {
 
     // Blend content and border:
     pixel_out = mix (pixel_under_content, pixel_out, content_and_bezel_mask);
-
-
 
     //Foreground image
     if (DO_BG_IMAGE + BG_IMAGE_OVER == 2.0) {
@@ -1621,8 +1654,6 @@ void main() {
             if (clip  > 1.0)
                 pixel_out = 1-pixel_out;//;-clip;
         #endif
-
-
     
     FragColor.rgb = pixel_out;
 

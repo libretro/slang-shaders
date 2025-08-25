@@ -301,8 +301,9 @@ float_framebuffer6 = true
                shader14 = ../shaders-ng/ambi_temporal_pass.slang
                 alias14 = "ambi_temporal_pass"
         filter_linear14 = true
-           scale_type14 = viewport
-                scale14 = 0.05
+           scale_type14 = absolute
+              scale_x14 = 96
+              scale_y14 = 64
             wrap_mode14 = "clamp_to_border"
 // temporal mix needs higher precision:
     float_framebuffer14 = true

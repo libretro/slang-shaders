@@ -842,7 +842,7 @@ vec3 FxaaPixelShader(vec2 pos, sampler2D tex, vec4 sourcesize, vec4 outputsize) 
 void main() {
    
    #ifndef D3D_WORKAROUND
-      if (fps_halver_is_skipped_frame())
+      if (is_skipped_frame())
          return;
    #endif
    
@@ -907,21 +907,21 @@ void main() {
    #endif
 */
 
-      
-   if (vDo_flickering==1.0) 
-      pixel_out.rgb = pixel_flickering(pixel_out.rgb).rgb;
+   if ( !bdelta_render_enabled() ) {
+      if (vDo_flickering==1.0) 
+         pixel_out.rgb = pixel_flickering(pixel_out.rgb).rgb;
    
       
-   if (DO_RF_NOISE > 0.01 ) {
-      //Unfortunately we need to clamp to min 0.0 again after applying noise
-      //to avoid glitches on amd (and probably nvidia too).
-      //It should be possible to change the noise function to just emit positive
-      //numbers and pre-lowering the brightness of pixel_out in the very first pass tho.
+      if (DO_RF_NOISE > 0.01 ) {
+         //Unfortunately we need to clamp to min 0.0 again after applying noise
+         //to avoid glitches on amd (and probably nvidia too).
+         //It should be possible to change the noise function to just emit positive
+         //numbers and pre-lowering the brightness of pixel_out in the very first pass tho.
 
-         float rfnoise = get_rf_noise(vTexCoord * vDynamicSeed);
-         pixel_out.rgb += rfnoise;
-         pixel_out.rgb = max(pixel_out.rgb, vec3(0.0));
-         
+            float rfnoise = get_rf_noise(vTexCoord * vDynamicSeed);
+            pixel_out.rgb += rfnoise;
+            pixel_out.rgb = max(pixel_out.rgb, vec3(0.0));
+      }
    }
    
     //pixel_out.rgb = max(vec3(0.0), pixel_out.rgb); 

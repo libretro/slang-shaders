@@ -53,7 +53,8 @@ DO_BEZEL = "1.000000"
 DO_VIGNETTE = "1.000000"
 	V_SIZE = "1.08"
 	V_POWER = "1.00000"
-
+	V_SHAPE = "0.8"
+	
 DO_SPOT = "1.000000"
     S_POSITION_X = "-0.5"
     S_POSITION_Y = "0.5"
