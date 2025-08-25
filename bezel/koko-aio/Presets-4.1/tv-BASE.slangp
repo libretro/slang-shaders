@@ -79,10 +79,11 @@ DO_AMBILIGHT = 1.0
 	AMBI_STEPS = "60.0"
 	AMBI_OVER_BEZEL = "0.2"
 
-DO_VIGNETTE = "0.0"
+DO_VIGNETTE = "1.0"
 	V_SIZE = "1.08"
 	V_POWER = "1.00"
-
+	V_SHAPE = "0.8"
+	
 DO_SPOT = "0.0"
     S_POSITION_X = "-0.5"
     S_POSITION_Y = "0.5"

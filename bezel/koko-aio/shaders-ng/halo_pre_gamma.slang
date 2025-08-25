@@ -7,7 +7,6 @@ layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out float vHALO_UNGAIN_FACTOR;
-layout(location = 2) out float vDeltaRenderOk;
 
 void main() {
     gl_Position = global.MVP * Position;
@@ -21,14 +20,12 @@ void main() {
     vHALO_UNGAIN_FACTOR = get_halo_ungain_factor();
         
     bool bIs_Interlaced = is_interlaced();
-    vDeltaRenderOk = is_deltarender_allowed(bIs_Interlaced); 
     
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in float vHALO_UNGAIN_FACTOR;
-layout(location = 2) in float vDeltaRenderOk;
 
 layout(location = 0) out vec4 FragColor;
 
@@ -72,7 +69,7 @@ void main() {
 
 
     #ifndef D3D_WORKAROUND
-        if (fps_halver_is_skipped_frame())
+        if (is_skipped_frame())
             return;
     #endif
 

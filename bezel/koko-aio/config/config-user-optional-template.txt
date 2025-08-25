@@ -61,19 +61,32 @@
 // by removing the leading "//" from the following line:
 // #define D3D_WORKAROUND
 
-// Enable lcd antighosting by using values > 0.0 (try around 0.5)
+
+// Enable Antiburn protection (OLEDs)
+// It works by slowly shaking the content image in order to prevent image retention
+// The value defines the speed of the effect, leave it to 1.0 if unsure.
+// #define ANTIBURN_Y 1.0
+// #define ANTIBURN_X 1.0
+
+
+// Enable lcd antighosting.
 // It works by temporal sharpening pixels, and the  
-// effect is proportional to the color difference over time.
-// It is NOT compatible with DELTA_RENDER
-// #define LCD_ANTIGHOSTING 0.5
+// effect is proportional to the color difference over time on a full frame base.
+// It is DISABLED if DELTA_RENDER is enabled and not designed for subframes.
+// Enabling this will make related shader parameter actually work.
+// #define DO_LCD_ANTIGHOSTING
 
-// Defines  maximum to the temporal sharpening effect.
-// Valid range: 0..1
-// #define LCD_ANTIGHOSTING_CEIL 1.0
+// Enable Adaptive strobe (similar to black frame insertion)
+// This works by alternating the image brightness across frames and subframes.
+// Doing so, will reduce the motion induced blur and image clarity, hopefully
+// approaching CRT behaviour.
+// Enabling this will make related shader parameter actually work.
+// #define DO_ADPT_STROBE
 
-// If uncommented, flips mask subpixels over time, produces an intersting flicker
-// if combined with LCD_ANTIGHOSTING
-// #define ANTIGHOSTING_FLIP_MASK    
+// By enabling this options, shader will take steps to speed-up subframes processing.
+// It could  display the previous rendered frame if possible or just part of it.
+// Enable it only if using subframes, as it has a performance cost itself.
+// #define SUBFRAMES_OPTIMIZATIONS
 
 ////////////////////////////////////////////////////////////////////////////
 //
@@ -403,8 +416,9 @@
 
 
 // #define DO_VIGNETTE  1.0     // ★ Vignette enable?
+// #define V_SHAPE 1.00         //         Pillow/Tube
 // #define V_SIZE  1.08         //         Size
-// #define V_POWER  1.00        //         Power
+// #define UNIFORMITY 1.00      //         Screen brightness uniformity
 
 // #define DO_SPOT  1.0         // ★ Spot enable? 
 // #define S_POSITION_X  1.0    //         X Position
@@ -421,10 +435,10 @@
 // #define ASPECT_Y  3.0    //         Aspect Ratio Denominator
 
 
-// #define DO_DYNZOOM  0.015    // ★ Luminosity tied zoom (!!OBSTRUCTS integer scale!!)
+// #define DO_DYNZOOM  0.015    // * Breathing (Luma tied zoom, ignored if integer scaling)
 
 
-// #define AUTOCROP_MAX 0.0            //★ Autocrop: maximum amount (!!OBSTRUCTS integer scale!!) 
+// #define AUTOCROP_MAX 0.0            //★ Autocrop: maximum amount (ignored if integer scale!!) 
 // #define AUTOCROP_MIN 1.0            //        Number of mandatory lines to crop
 // #define AUTOCROP_SAMPLES 10         //        Samples per frame (faster response, higher gpu use)
 // #define AUTOCROP_SAMPLE_SIZE 2.0    //        Sample size (big speedup, less accurate)
@@ -443,6 +457,19 @@
 // #define GAME_GEOM_ZOOM  1.0     //         Zoom	
 // #define GAME_GEOM_OFF_FIX  0.0  //         Sharp hack through offset (0.0=disable)
 
+// LCD Antighosting 
+// #define LCD_ANTIGHOSTING            0.5 //    Strength
+// #define LCD_ANTIGHOSTING_CEIL       1.0 //    Ceil
+// #define LCD_ANTIGHOSTING_FLIP_MASK  0.0 //    Flip Mask
+
+// Adaptive Strobe
+// #define ADPT_STROBE_STR             0.25   // Strength
+// #define ADPT_STROBE_GAIN_ADJ        0.9    // Gain adjustment
+// #define ADPT_STROBE_GAIN_ADJ_NODARK 1.0    // Less gain on dark colors
+// #define ADPT_STROBE_GAMMA_ADJ       0.9    // Post Gamma adjustment
+// #define ADPT_LCD_RETENTION_FIX      3600.0 // LCD Retention workaround cadence (frames)
+
+// #define ADPT_STROBE_GAMMA_ADJ      0.9    // Gamma adjustment
 
 
 //DONT DELETE THIS LINE
