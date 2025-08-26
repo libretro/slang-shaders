@@ -102,7 +102,7 @@ void main()
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D PassOutput3;
+layout(set = 0, binding = 2) uniform sampler2D nnediPass3;
 
 void main()
 {
@@ -127,22 +127,22 @@ void main()
 	 
      // reading the texels
      
-      vec3 c00 = texture(PassOutput3, tc    -dx    -dy).xyz;
-      vec3 c10 = texture(PassOutput3, tc           -dy).xyz;
-      vec3 c20 = texture(PassOutput3, tc    +dx    -dy).xyz;
-      vec3 c30 = texture(PassOutput3, tc+2.0*dx    -dy).xyz;
-      vec3 c01 = texture(PassOutput3, tc    -dx       ).xyz;
-      vec3 c11 = texture(PassOutput3, tc              ).xyz;
-      vec3 c21 = texture(PassOutput3, tc    +dx       ).xyz;
-      vec3 c31 = texture(PassOutput3, tc+2.0*dx       ).xyz;
-      vec3 c02 = texture(PassOutput3, tc    -dx    +dy).xyz;
-      vec3 c12 = texture(PassOutput3, tc           +dy).xyz;
-      vec3 c22 = texture(PassOutput3, tc    +dx    +dy).xyz;
-      vec3 c32 = texture(PassOutput3, tc+2.0*dx    +dy).xyz;
-      vec3 c03 = texture(PassOutput3, tc    -dx+2.0*dy).xyz;
-      vec3 c13 = texture(PassOutput3, tc       +2.0*dy).xyz;
-      vec3 c23 = texture(PassOutput3, tc    +dx+2.0*dy).xyz;
-      vec3 c33 = texture(PassOutput3, tc+2.0*dx+2.0*dy).xyz;
+      vec3 c00 = texture(nnediPass3, tc    -dx    -dy).xyz;
+      vec3 c10 = texture(nnediPass3, tc           -dy).xyz;
+      vec3 c20 = texture(nnediPass3, tc    +dx    -dy).xyz;
+      vec3 c30 = texture(nnediPass3, tc+2.0*dx    -dy).xyz;
+      vec3 c01 = texture(nnediPass3, tc    -dx       ).xyz;
+      vec3 c11 = texture(nnediPass3, tc              ).xyz;
+      vec3 c21 = texture(nnediPass3, tc    +dx       ).xyz;
+      vec3 c31 = texture(nnediPass3, tc+2.0*dx       ).xyz;
+      vec3 c02 = texture(nnediPass3, tc    -dx    +dy).xyz;
+      vec3 c12 = texture(nnediPass3, tc           +dy).xyz;
+      vec3 c22 = texture(nnediPass3, tc    +dx    +dy).xyz;
+      vec3 c32 = texture(nnediPass3, tc+2.0*dx    +dy).xyz;
+      vec3 c03 = texture(nnediPass3, tc    -dx+2.0*dy).xyz;
+      vec3 c13 = texture(nnediPass3, tc       +2.0*dy).xyz;
+      vec3 c23 = texture(nnediPass3, tc    +dx+2.0*dy).xyz;
+      vec3 c33 = texture(nnediPass3, tc+2.0*dx+2.0*dy).xyz;
 
       //  Get min/max samples
       vec3 min_sample = min4(c11, c21, c12, c22);
