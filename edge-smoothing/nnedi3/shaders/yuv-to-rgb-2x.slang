@@ -44,11 +44,11 @@ void main (void) {
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D PassOutput3;
+layout(set = 0, binding = 3) uniform sampler2D nnediPass3;
 
 void main()
 {
-	vec4 inputY = texture(PassOutput3, vTexCoord.xy);
+	vec4 inputY = texture(nnediPass3, vTexCoord.xy);
 	vec4 inputUV = texture(Source, vTexCoord.xy);
 
 	vec4 yuva = vec4(inputY.x, (inputUV.y - 0.5), (inputUV.z - 0.5), 1.0);

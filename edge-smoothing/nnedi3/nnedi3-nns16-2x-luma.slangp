@@ -6,6 +6,7 @@ scale_type0 = source
 scale_x0 = 1.0
 scale_y0 = 1.0
 wrap_mode0 = "clamp_to_edge"
+alias0 = nnediPass0
 
 shader1 = shaders/nnedi3-nns16-win8x4-pass1-luma.slang
 filter_linear1 = false
@@ -20,6 +21,7 @@ scale_type2 = source
 scale_x2 = 2.0
 scale_y2 = 1.0
 wrap_mode2 = "clamp_to_edge"
+alias2 = nnediPass3
 
 shader3 = shaders/jinc2-cshift-luma.slang
 filter_linear3 = false
