@@ -1,5 +1,5 @@
-shaders = 1
-
-shader0 = shaders/fake-crt-geom-potato.slang
-filter_linear0 = true
-scale_type0 = viewport
+shaders = "2"
+feedback_pass = "0"
+shader0 = shaders/crt-consumer/linearize.slang
+shader1 = shaders/fake-crt-geom-potato.slang
+filter_linear1 = true
