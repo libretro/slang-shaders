@@ -28,7 +28,7 @@ scale_y2 = "1.000000"
 shader3 = "../../misc/shaders/image-adjustment.slang"
 float_framebuffer3 = "false"
 
-shader4 = "../../misc/shaders/interlacing.slang"
+shader4 = "../../deinterlacing/shaders/reinterlacing.slang"
 
 parameters = "TVOUT_RESOLUTION;TVOUT_COMPOSITE_CONNECTION;TVOUT_TV_COLOR_LEVELS;target_gamma;monitor_gamma;overscan_percent_x;overscan_percent_y;saturation;contrast;luminance;bright_boost;R;G;B;percent"
 TVOUT_RESOLUTION = "512.000000"

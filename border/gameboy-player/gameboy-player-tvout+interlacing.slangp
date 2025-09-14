@@ -2,7 +2,7 @@ shaders = 5
 shader0 = ../shaders/imgborder-gbp.slang
 shader1 = ../../crt/shaders/tvout-tweaks.slang
 shader2 = ../../misc/shaders/image-adjustment.slang
-shader3 = ../../misc/shaders/interlacing.slang
+shader3 = ../../deinterlacing/shaders/reinterlacing.slang
 shader4 = ../../auto-box/box-center.slang
 
 scale_type_x0 = absolute
