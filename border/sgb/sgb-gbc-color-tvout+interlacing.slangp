@@ -3,7 +3,7 @@ shader0 = ../../handheld/shaders/color/gbc-color.slang
 shader1 = ../shaders/imgborder-sgb.slang
 shader2 = ../../crt/shaders/tvout-tweaks.slang
 shader3 = ../../misc/shaders/image-adjustment.slang
-shader4 = ../../misc/shaders/interlacing.slang
+shader4 = ../../deinterlacing/shaders/reinterlacing.slang
 shader5 = ../../auto-box/box-center.slang
 
 filter_linear0 = false
