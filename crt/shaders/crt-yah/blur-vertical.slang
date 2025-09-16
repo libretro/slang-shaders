@@ -69,16 +69,12 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #include "common/colorspace-srgb.h"
 
+// required by blur.h
 #define INPUT(color) decode_gamma(color)
 #define OUTPUT(color) encode_gamma(color)
+#define OFFSET(tex_coord, offset) vec2(tex_coord.x, tex_coord.y + (offset * global.SourceSize.w))
 
-float offset(float i)
-{
-    // return alternating offset
-    return mod(i, 2.0) > 0.0
-        ? ceil(i / 2.0)
-        : -ceil(i / 2.0);
-}
+#include "blur.h"
 
 void main()
 {
@@ -89,33 +85,13 @@ void main()
         return;
     }
 
-    vec3 color = vec3(0.0);
-    float sum = 0.0;
-
     // scale diffusion
     float diffusion = Diffusion / (Multiple * Multiple);
 
-    // scale tabs, but limit to 64
-    const float max_tabs = 64.0;
+    // scale tabs
     float tabs = Tabs * Multiple * 2.0;
-    float tab_size = tabs > max_tabs
-        ? tabs / max_tabs
-        : 1.0;
-    int i = 0;
-    do
-    {
-        float o = offset(i) * tab_size;
+    
+    vec3 color = get_blur_color(Source, TexCoord, diffusion, tabs);
 
-        vec2 texCoord = TexCoord;
-        texCoord.y += o * global.SourceSize.w;
-
-        float k = exp(-diffusion * o * o);
-        color += k * INPUT(texture(Source, texCoord).rgb);
-        sum += k;
-
-        i++;
-    }
-    while (i <= tabs && i <= max_tabs); // break after limit
-
-    FragColor = vec4(OUTPUT(color / sum), 1.0);
+    FragColor = vec4(color, 1.0);
 }
