@@ -55,7 +55,7 @@ void main()
    if (registers.OriginalSize.y > 400.0)
    {y = registers.SourceSize.y * vTexCoord.y + (tick * registers.enable_480i) + registers.top_field_first;}
    else
-   {y = 2.000001 * registers.SourceSize.y * vTexCoord.y + registers.top_field_first;}
+   {y = 2.000001 * registers.SourceSize.y * vTexCoord.y;}
 
    if (mod(y, 1.99999) > 0.99999)
    {res = res;}
