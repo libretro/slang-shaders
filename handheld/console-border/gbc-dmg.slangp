@@ -32,16 +32,17 @@ filter_linear4 = false
 filter_linear5 = true
 
 textures = COLOR_PALETTE;BACKGROUND;BORDER
-COLOR_PALETTE = ../shaders/gameboy/resources/sample-palettes/dmg-palette-0.png
+COLOR_PALETTE = ../shaders/gameboy/resources/sample-palettes/gbp-palette.png
 COLOR_PALETTE_linear = false
-BACKGROUND = ../shaders/gameboy/resources/sample-bgs/dmg-bg.png
+BACKGROUND = ../shaders/gameboy/resources/sample-bgs/paper-bg.png
 BACKGROUND_linear = true
-BORDER = resources/dmg-border-square-4x.png
+BORDER = resources/color-border-square-4x.png
 BORDER_linear = true
 
-parameters = "video_scale;grey_balance;response_time;blending_mode;integer_mode"
+parameters = "video_scale;grey_balance;response_time;blending_mode;integer_mode;color_toggle"
 video_scale = "4.0"
 grey_balance = 3.0
 response_time = 0.444
 blending_mode = 0.0
 integer_mode = 2.0
+color_toggle = 1.0

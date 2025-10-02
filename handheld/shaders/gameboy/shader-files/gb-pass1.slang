@@ -1,36 +1,26 @@
 #version 450
 
-layout(push_constant) uniform Push
-{
-	vec4 OutputSize;
-	vec4 OriginalSize;
-	vec4 SourceSize;
-	float blending_mode;
-	float adjacent_texel_alpha_blending;
-} registers;
-
-layout(std140, set = 0, binding = 0) uniform UBO
-{
-    mat4 MVP;
-} global;
-
-////////////////////////////////////////////////////////////////////////////////
-// Config                                                                     //
-////////////////////////////////////////////////////////////////////////////////
-
-// 0 - only the space between dots is blending
-// 1 - all texels are blended
-/* TODO/FIXME - When set to zero, frame will be a solid green color */
-#pragma parameter blending_mode "Blending Mode" 0.0 0.0 1.0 1.0            
-
-// The amount of alpha swapped between neighboring texels
-#pragma parameter adjacent_texel_alpha_blending "Neighbor Blending" 0.1755 0.0 1.0 0.05
-
-///////////////////////////////////////////////////////////////////////////
-//                                                                       //
-// Gameboy Classic Shader v0.2.2                                         //
+  /////////////////////////////////////////////////////////////////////////
+//    _________    __  _________   ____  ______  __                      //
+//   / ____/   |  /  |/  / ____/  / __ )/ __ \ \/ /                      //
+//  / / __/ /| | / /|_/ / __/    / __  / / / /\  /                       //
+// / /_/ / ___ |/ /  / / /___   / /_/ / /_/ / / /                        //
+// \____/_/  |_/_/  /_/_____/  /_____/\____/ /_/                         //
+//  ==================== DOT MATRIX SHADER v1.0                          //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
+// Copyright (C) 2024-2025 Matt Akins                                    //
+//                                                                       //
+// 2/6/24 - Modified to support color output by mattakins                //
+// 9/30/25 - v1.0 by mattakins                                           //
+//   • Fullscreen mode scales dot matrix effect to any screen size       //
+//   • Swap between display modes (full / max integer / scale factor)    //
+//   • Built-in palette presets while maintaining image pallete support  //
+//   • Drop shadow ON / OFF toggle                                       //
+//   • Simple vs perceptual pixel brightness calculation modes           //
+//   • Performance optimizations (vertex pre-calc, early-exit)           //
+//   • Parameter reorganization for ease of use                          //
+//   • Fixed issue with artifacts sometimes appearing in border          //
 //                                                                       //
 // This program is free software: you can redistribute it and/or modify  //
 // it under the terms of the GNU General Public License as published by  //
@@ -45,11 +35,31 @@ layout(std140, set = 0, binding = 0) uniform UBO
 // You should have received a copy of the GNU General Public License     //
 // along with this program.  If not, see <http://www.gnu.org/licenses/>. //
 //                                                                       //
-///////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
-////////////////////////////////////////////////////////////////////////////////
-// Vertex shader                                                              //
-////////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////
+ // gb-pass1 - Alpha blending for adjacent pixels                       //
+/////////////////////////////////////////////////////////////////////////
+
+#include "gb-params.inc"
+
+layout(push_constant) uniform Push
+{
+	vec4 OutputSize;
+	vec4 OriginalSize;
+	vec4 SourceSize;
+	float blending_mode;
+	float adjacent_texel_alpha_blending;
+} registers;
+
+layout(std140, set = 0, binding = 0) uniform UBO
+{
+    mat4 MVP;
+} global;
+
+  /////////////////////////////////////////////////////////////////////////
+ // Vertex shader                                                       //
+/////////////////////////////////////////////////////////////////////////
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -77,9 +87,9 @@ void main()
     blur_coords_upper_bound = texel * (registers.OutputSize.xy - vec2(2.0));
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Fragment shader                                                            //
-////////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////
+ // Fragment shader                                                     //
+/////////////////////////////////////////////////////////////////////////
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
@@ -93,9 +103,9 @@ layout(location = 7) in vec2 blur_coords_upper_bound;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-////////////////////////////////////////////////////////////////////////////////
-// Fragment definitions                                                       //
-////////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////
+ // Fragment definitions                                                //
+/////////////////////////////////////////////////////////////////////////
 
 float blending_modifier(float color){
 	float blend_bool = (color == 0.0) ? 1 : 0;
