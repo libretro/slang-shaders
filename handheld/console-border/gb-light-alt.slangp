@@ -1,10 +1,10 @@
 shaders = 6
-shader0 = shader-files/gb-pass0.slang
+shader0 = ../shaders/gameboy/shader-files/gb-pass0.slang
 shader1 = ../shaders/gameboy/shader-files/gb-pass1.slang
 shader2 = ../shaders/gameboy/shader-files/gb-pass2.slang
 shader3 = ../shaders/gameboy/shader-files/gb-pass3.slang
 shader4 = ../shaders/gameboy/shader-files/gb-pass4.slang
-shader5 = shader-files/gb-pass-5.slang
+shader5 = ../shaders/gameboy/shader-files/gb-pass5.slang
 
 scale_type0 = viewport
 scale0 = 1
@@ -39,9 +39,10 @@ BACKGROUND_linear = true
 BORDER = resources/pocket-border-square-4x.png
 BORDER_linear = true
 
-parameters = "video_scale;screen_light;grey_balance;response_time;blending_mode"
+parameters = "video_scale;screen_light;grey_balance;response_time;blending_mode;integer_mode"
 video_scale = "4.0"
 screen_light = "1.4"
 grey_balance = 3.0
 response_time = 0.444
 blending_mode = 0.0
+integer_mode = 2.0

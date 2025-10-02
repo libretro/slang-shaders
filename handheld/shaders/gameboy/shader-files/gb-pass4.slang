@@ -1,5 +1,48 @@
 #version 450
 
+  /////////////////////////////////////////////////////////////////////////
+//    _________    __  _________   ____  ______  __                      //
+//   / ____/   |  /  |/  / ____/  / __ )/ __ \ \/ /                      //
+//  / / __/ /| | / /|_/ / __/    / __  / / / /\  /                       //
+// / /_/ / ___ |/ /  / / /___   / /_/ / /_/ / / /                        //
+// \____/_/  |_/_/  /_/_____/  /_____/\____/ /_/                         //
+//  ==================== DOT MATRIX SHADER v1.0                          //
+//                                                                       //
+// Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
+// Copyright (C) 2024-2025 Matt Akins                                    //
+//                                                                       //
+// 2/6/24 - Modified to support color output by mattakins                //
+// 9/30/25 - v1.0 by mattakins                                           //
+//   • Fullscreen mode scales dot matrix effect to any screen size       //
+//   • Swap between display modes (full / max integer / scale factor)    //
+//   • Built-in palette presets while maintaining image pallete support  //
+//   • Drop shadow ON / OFF toggle                                       //
+//   • Simple vs perceptual pixel brightness calculation modes           //
+//   • Performance optimizations (vertex pre-calc, early-exit)           //
+//   • Parameter reorganization for ease of use                          //
+//   • Fixed issue with artifacts sometimes appearing in border          //
+//                                                                       //
+// This program is free software: you can redistribute it and/or modify  //
+// it under the terms of the GNU General Public License as published by  //
+// the Free Software Foundation, either version 3 of the License, or     //
+// (at your option) any later version.                                   //
+//                                                                       //
+// This program is distributed in the hope that it will be useful,       //
+// but WITHOUT ANY WARRANTY; without even the implied warranty of        //
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         //
+// GNU General Public License for more details.                          //
+//                                                                       //
+// You should have received a copy of the GNU General Public License     //
+// along with this program.  If not, see <http://www.gnu.org/licenses/>. //
+//                                                                       //
+/////////////////////////////////////////////////////////////////////////
+
+  /////////////////////////////////////////////////////////////////////////
+ // gb-pass4 - Final compositing with background & shadows              //
+/////////////////////////////////////////////////////////////////////////
+
+#include "gb-params.inc"
+
 layout(push_constant) uniform Push
 {
 	vec4 OutputSize;
@@ -15,6 +58,8 @@ layout(push_constant) uniform Push
 	float shadow_offset_y;
 	float screen_offset_x;
 	float screen_offset_y;
+	float shadow_enable;
+	float palette;
 } registers;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -22,64 +67,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
     mat4 MVP;
 } global;
 
-////////////////////////////////////////////////////////////////////////////////
-// Config                                                                     //
-////////////////////////////////////////////////////////////////////////////////
-
-// Useful to fine-tune the colors.
-// Higher values make the "black" color closer to black - [0, 1] [DEFAULT: 0.95]
-#pragma parameter contrast "Contrast" 0.95 0.0 1.0 0.05
-
-// Controls the ambient light of the screen. 
-// Lower values darken the screen - [0, 2] [DEFAULT: 1.00]
-#pragma parameter screen_light "Ambient Screen Light" 1.0 0.0 2.0 0.05
-
-// Controls the opacity of the dot-matrix pixels. 
-// Lower values make pixels more transparent - [0, 1] [DEFAULT: 1.00]
-#pragma parameter pixel_opacity "Pixel Opacity" 1.0 0.01 1.0 0.01
-
-// Higher values suppress changes in background color directly beneath
-// the foreground to improve image clarity - [0, 1] [DEFAULT: 0.75]
-#pragma parameter bg_smoothing "Background Smooth" 0.75 0.0 1.0 0.05
-
-// How strongly shadows affect the background
-// Higher values darken the shadows - [0, 1] [DEFAULT: 0.55]
-#pragma parameter shadow_opacity "Shadow Opacity" 0.55 0.01 1.0 0.01
-
-// How far the shadow should be shifted to the
-// right in pixels - [-infinity, infinity] [DEFAULT: 1.0]
-#pragma parameter shadow_offset_x "Shadow Offset Horiz" 1.0 -5.0 5.0 0.5
-
-// How far the shadow should be shifted
-// down in pixels - [-infinity, infinity] [DEFAULT: 1.5]
-#pragma parameter shadow_offset_y "Shadow Offset Vert" 1.0 -5.0 5.0 0.5
-
-// Screen offset - [-infinity, infinity] [DEFAULT: 0]
-#pragma parameter screen_offset_x "Screen Offset Horiz" -1.0 -5.0 5.0 0.5
-
-// Screen offset - [-infinity, infinity] [DEFAULT: 0]
-#pragma parameter screen_offset_y "Screen Offset Vert" -1.0 -5.0 5.0 0.5    
-
-///////////////////////////////////////////////////////////////////////////
-//                                                                       //
-// Gameboy Classic Shader v0.2.2                                         //
-//                                                                       //
-// Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
-//                                                                       //
-// This program is free software: you can redistribute it and/or modify  //
-// it under the terms of the GNU General Public License as published by  //
-// the Free Software Foundation, either version 3 of the License, or     //
-// (at your option) any later version.                                   //
-//                                                                       //
-// This program is distributed in the hope that it will be useful,       //
-// but WITHOUT ANY WARRANTY; without even the implied warranty of        //
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         //
-// GNU General Public License for more details.                          //
-//                                                                       //
-// You should have received a copy of the GNU General Public License     //
-// along with this program.  If not, see <http://www.gnu.org/licenses/>. //
-//                                                                       //
-///////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////
+ // Vertex shader                                                       //
+/////////////////////////////////////////////////////////////////////////
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -95,9 +85,9 @@ void main()
     texel = registers.SourceSize.zw;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Fragment definitions                                                       //
-////////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////
+ // Fragment definitions                                                //
+/////////////////////////////////////////////////////////////////////////
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
@@ -108,34 +98,55 @@ layout(set = 0, binding = 2) uniform sampler2D PassOutput1;
 layout(set = 0, binding = 3) uniform sampler2D BACKGROUND;
 layout(set = 0, binding = 4) uniform sampler2D COLOR_PALETTE;
 
-#define bg_color texture(COLOR_PALETTE, vec2(0.25, 0.5)) 
+// Background palette color selection
+vec4 get_bg_color() {
+    if (registers.palette < 0.5) {
+        return texture(COLOR_PALETTE, vec2(0.25, 0.5)); // 0: Original texture
+    } else if (registers.palette < 1.5) {
+        return vec4(0.651, 0.675, 0.518, 1.0); // 1: #A6AC84
+    } else if (registers.palette < 2.5) {
+        return vec4(0.737, 0.737, 0.737, 1.0); // 2: #BCBCBC
+    } else if (registers.palette < 3.5) {
+        return vec4(1.0, 1.0, 1.0, 1.0); // 3: #FFFFFF
+    } else if (registers.palette < 4.5) {
+        return vec4(0.627, 0.667, 0.024, 1.0); // 4: #A0AA06
+    } else if (registers.palette < 5.5) {
+        return vec4(0.027, 0.729, 0.369, 1.0); // 5: #07BA5E
+    } else {
+        return vec4(0.027, 0.729, 0.608, 1.0); // 6: #07BA9B
+    }
+}
+
+#define bg_color get_bg_color() 
 
 // Sample the background color from the palette
-#define shadow_alpha (registers.contrast * registers.shadow_opacity)
+#define shadow_alpha (registers.contrast * registers.shadow_opacity * registers.shadow_enable)
 
 // Offset for the shadow
 #define shadow_offset vec2(registers.shadow_offset_x * texel.x, registers.shadow_offset_y * texel.y)    
 
 // Offset for the entire screen
-#define screen_offset vec2(registers.screen_offset_x * texel.x, registers.screen_offset_y * texel.y)   
+#define screen_offset vec2((registers.screen_offset_x - 1) * texel.x, (registers.screen_offset_y - 1) * texel.y)
 
-////////////////////////////////////////////////////////////////////////////////
-// Fragment shader                                                            //
-////////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////
+ // Fragment shader                                                     //
+/////////////////////////////////////////////////////////////////////////
 
 void main()
 {
     vec2 tex = floor(registers.PassOutputSize1.xy * vTexCoord);
     tex = (tex + 0.5) * registers.PassOutputSize1.zw;
-    
+
+    // Cache background color to avoid multiple function calls
+    vec4 bg_color_cached = get_bg_color();
+
     // Sample all the relevant textures
     vec4 foreground = texture(PassOutput1, tex - screen_offset);
     vec4 background = texture(BACKGROUND, vTexCoord);
     vec4 shadows    = texture(Source, vTexCoord - (shadow_offset + screen_offset));
-    vec4 background_color = bg_color;
 
     // Foreground and background are blended with the background color
-    foreground *= bg_color;
+    foreground *= bg_color_cached;
     
     float bg_test = 0.0;
     if ( foreground.a > 0.0 )
@@ -146,11 +157,11 @@ void main()
     // Allows for highlights,
     // background = bg_color when the background color is 0.5 gray
     background.rgb = clamp(
-        vec3( 
-            bg_color.r + mix(-1.0, 1.0, background.r), 
-            bg_color.g + mix(-1.0, 1.0, background.g), 
-            bg_color.b + mix(-1.0, 1.0, background.b)
-        ), 
+        vec3(
+            bg_color_cached.r + mix(-1.0, 1.0, background.r),
+            bg_color_cached.g + mix(-1.0, 1.0, background.g),
+            bg_color_cached.b + mix(-1.0, 1.0, background.b)
+        ),
         0.0, 1.0
     );
 
