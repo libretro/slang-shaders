@@ -1,0 +1,13 @@
+# CRT-CreativeForce-Arcade (2-pass): Lanczos16-AR -> CRT-CreativeForce-Arcade
+# Place this file in: shaders/crt/
+# Pass files must be in: shaders/crt/shaders/CreativeForce/
+
+shaders = 2
+
+shader0 = shaders/CreativeForce/lanczos16-AR.slang
+filter_linear0 = true
+scale_type0 = viewport
+
+shader1 = shaders/CreativeForce/crt-CreativeForce-Arcade.slang
+filter_linear1 = false
+scale_type1 = viewport
