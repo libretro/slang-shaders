@@ -1,10 +1,8 @@
-# CRT-CreativeForce-SharpSmooth (2-pass): Lanczos16-AR -> CRT-CreativeForce-SharpSmooth
-# Place this file in: shaders/crt/
-# Pass files must be in: shaders/crt/shaders/CreativeForce/
+# crt-CreativeForce-SharpSmooth.slangp
 
 shaders = 2
 
-shader0 = shaders/CreativeForce/lanczos16-AR.slang
+shader0 = ../interpolation/shaders/lanczos16-AR.slang
 filter_linear0 = true
 scale_type0 = viewport
 
