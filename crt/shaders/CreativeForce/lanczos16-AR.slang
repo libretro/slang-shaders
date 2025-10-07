@@ -22,6 +22,8 @@ This program is free software; you can redistribute it and/or
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
+   
+   Modified by djayjp aka CreativeForce
    Lanczos-4 (16-tap) with optional anti-ringing.
    FIX: Corrected half-texel alignment (centering on texel middle) to remove
    the ~1-pixel up/left shift some drivers/backends exhibited.
