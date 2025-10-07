@@ -1,0 +1,11 @@
+# crt-CreativeForce-Arcade.slangp
+
+shaders = 2
+
+shader0 = ../interpolation/shaders/lanczos16-AR.slang
+filter_linear0 = true
+scale_type0 = viewport
+
+shader1 = shaders/CreativeForce/crt-CreativeForce-Arcade.slang
+filter_linear1 = false
+scale_type1 = viewport
