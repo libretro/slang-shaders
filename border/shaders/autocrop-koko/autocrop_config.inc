@@ -28,7 +28,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 } global;
 
 
-#pragma parameter AUTOCROP_MAX	            "★ Autocrop: maximum amount"                                     25.0   0.0    0.5  0.01
+#pragma parameter AUTOCROP_MAX	            "★ Autocrop: maximum amount"                                      0.25  0.0    0.5  0.01
 #pragma parameter AUTOCROP_MIN	            "        Number of mandatory lines to crop"                       1.0   0.0   10.0  1.0
 #pragma parameter AUTOCROP_SAMPLES          "        Samples per frame (faster response, higher gpu use)"    20.0   0.0  300.0  1.0
 #pragma parameter AUTOCROP_SAMPLE_SIZE      "        Sample size (big speedup, less accurate)"                2.0   0.0    5.0  1.0  
