@@ -2,7 +2,7 @@
 
 // Display mode
 #pragma parameter integer_mode "== Display mode == (0=Full, 1=Pixel Perfect, 2=Scale factor)" 0.0 0.0 2.0 1.0
-#pragma parameter video_scale "     ↳ Integer scale factor" 5.0 1.0 15.0 1.0
+#pragma parameter video_scale "     ↳ Integer scale factor" 5.0 2.0 15.0 1.0
 
 // Color & Palette
 #pragma parameter color_toggle "== Color mode == (0=Grayscale, 1=Color)" 0.0 0.0 1.0 1.0
