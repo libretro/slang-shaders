@@ -60,6 +60,7 @@ layout(push_constant) uniform Push
 	float screen_offset_y;
 	float shadow_enable;
 	float palette;
+	float shadow_scale;
 } registers;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -76,11 +77,22 @@ layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec2 texel;
+layout(location = 2) out float resolution_scale;
+layout(location = 3) out float shadow_scale_factor;
 
 void main()
 {
     gl_Position = global.MVP * Position;
     vTexCoord = TexCoord * 1.0001;
+
+    // Calculate resolution scale for shadow compensation
+    // Reference resolution: 640×480 (shadow offsets tuned for this resolution)
+    float scale_x = registers.OutputSize.x / 640.0;
+    float scale_y = registers.OutputSize.y / 480.0;
+    resolution_scale = sqrt(scale_x * scale_y);
+
+    // Pre-calculate shadow scale factor based on toggle
+    shadow_scale_factor = (registers.shadow_scale > 0.5) ? resolution_scale : 1.0;
 
     texel = registers.SourceSize.zw;
 }
@@ -92,6 +104,8 @@ void main()
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec2 texel;
+layout(location = 2) in float resolution_scale;
+layout(location = 3) in float shadow_scale_factor;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 1) uniform sampler2D Source;
 layout(set = 0, binding = 2) uniform sampler2D PassOutput1;
@@ -122,8 +136,8 @@ vec4 get_bg_color() {
 // Sample the background color from the palette
 #define shadow_alpha (registers.contrast * registers.shadow_opacity * registers.shadow_enable)
 
-// Offset for the shadow
-#define shadow_offset vec2(registers.shadow_offset_x * texel.x, registers.shadow_offset_y * texel.y)    
+// Offset for the shadow (with resolution compensation if enabled)
+#define shadow_offset vec2(registers.shadow_offset_x * texel.x * shadow_scale_factor, registers.shadow_offset_y * texel.y * shadow_scale_factor)    
 
 // Offset for the entire screen
 #define screen_offset vec2((registers.screen_offset_x - 1) * texel.x, (registers.screen_offset_y - 1) * texel.y)

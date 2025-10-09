@@ -48,6 +48,95 @@
 
 #include "gb-params.inc"
 
+  /////////////////////////////////////////////////////////////////////////
+ // Shared functions for numerical grey balance compensation            //
+ // Uses 16-point coverage sampling with empirical base values          //
+/////////////////////////////////////////////////////////////////////////
+
+// 1D line segment intersection
+float intersect_line_segment(float pixel_start, float pixel_end,
+                             float dot_start, float dot_end) {
+    float overlap_start = max(pixel_start, dot_start);
+    float overlap_end = min(pixel_end, dot_end);
+    return max(overlap_end - overlap_start, 0.0);
+}
+
+// 2D rectangle intersection
+float intersect_rect_area(vec4 px_square, vec4 rect) {
+    const vec2 bl = max(px_square.xy, rect.xy);
+    const vec2 tr = min(px_square.zw, rect.zw);
+    const vec2 coverage = max(tr - bl, vec2(0.0));
+    return coverage.x * coverage.y;
+}
+
+// Calculate coverage for a single sample point in normalized coordinate space
+float calculate_coverage_at_point(vec2 tx_coord_f, float pixel_size,
+                                   float pixel_softness, float sharpening_amount,
+                                   float pixel_shape, float sharp_mode) {
+    // Normalized coordinate space where tx_to_px = 1.0
+    vec2 pixel_center = (tx_coord_f - 0.5);
+    vec4 pixel_rect = vec4(pixel_center - 0.5, pixel_center + 0.5);
+    vec2 dot_size_in_px = vec2(pixel_size);
+    vec4 dot_rect = vec4(-dot_size_in_px * 0.5, dot_size_in_px * 0.5);
+
+    // RECTANGULAR METHOD: 1D separable coverage
+    float x_coverage = intersect_line_segment(pixel_rect.x, pixel_rect.z,
+                                              dot_rect.x, dot_rect.z);
+    float y_coverage = intersect_line_segment(pixel_rect.y, pixel_rect.w,
+                                              dot_rect.y, dot_rect.w);
+    float rect_linear = x_coverage * y_coverage;
+
+    // Apply sharpening
+    float rect_sharpened;
+    if (sharp_mode < 0.5) {
+        // Power mode
+        float sharp_factor = 1.0 / max(pixel_softness, 0.001);
+        rect_sharpened = pow(x_coverage, sharp_factor) *
+                        pow(y_coverage, sharp_factor);
+    } else {
+        // Sigmoid mode
+        float sigmoid_strength = 10.0 / max(pixel_softness, 0.001);
+        float x_sharp = 1.0 / (1.0 + exp(-sigmoid_strength * (x_coverage - 0.5)));
+        float y_sharp = 1.0 / (1.0 + exp(-sigmoid_strength * (y_coverage - 0.5)));
+        rect_sharpened = x_sharp * y_sharp;
+    }
+    float rect_coverage = mix(rect_linear, rect_sharpened, sharpening_amount);
+
+    // CIRCULAR METHOD: 2D area coverage
+    float circ_linear = intersect_rect_area(pixel_rect, dot_rect);
+
+    // Apply sharpening
+    float circ_sharpened;
+    if (sharp_mode < 0.5) {
+        circ_sharpened = pow(circ_linear, 1.0 / max(pixel_softness, 0.001));
+    } else {
+        float sigmoid_strength = 10.0 / max(pixel_softness, 0.001);
+        circ_sharpened = 1.0 / (1.0 + exp(-sigmoid_strength * (circ_linear - 0.5)));
+    }
+    float circ_coverage = mix(circ_linear, circ_sharpened, sharpening_amount);
+
+    // Blend between circular and rectangular based on pixel_shape parameter
+    return mix(circ_coverage, rect_coverage, pixel_shape);
+}
+
+// Sample coverage across 4×4 grid and return average brightness
+float sample_average_coverage(float pixel_size, float pixel_softness,
+                               float sharpening_amount, float pixel_shape,
+                               float sharp_mode) {
+    float total = 0.0;
+    // Sample at 16 sub-pixel positions representing different pixel-to-dot alignments
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 4; x++) {
+            vec2 sample_pos = vec2(-0.375 + float(x) * 0.25,
+                                  -0.375 + float(y) * 0.25);
+            total += calculate_coverage_at_point(sample_pos, pixel_size,
+                                                pixel_softness, sharpening_amount,
+                                                pixel_shape, sharp_mode);
+        }
+    }
+    return total / 16.0;
+}
+
 layout(push_constant) uniform Push
 {
 	vec4 OutputSize;
@@ -56,8 +145,8 @@ layout(push_constant) uniform Push
 	vec4 OriginalHistorySize1;
 	float color_toggle;
 	float pixel_size;
-	float sigmoid_blend;
-	float pixel_aspect;
+	float pixel_softness;
+	float sharpening_amount;
 	float integer_mode;
 	float video_scale;
 	float baseline_alpha;
@@ -65,6 +154,7 @@ layout(push_constant) uniform Push
 	float response_time;
 	float brightness_mode;
 	float sharp_mode;
+	float pixel_shape;
 	float palette;
 } registers;
 
@@ -88,9 +178,10 @@ layout(location = 4) out vec2 tx_coord;
 layout(location = 5) out vec2 tx_to_px;
 layout(location = 6) out vec2 dot_size_in_px;
 layout(location = 7) out vec2 screen_bounds;
-// OPTIMIZATION: Pre-calculated values moved from fragment shader
+// OPTIMIZATION: Frame-constant values calculated once in vertex shader
 layout(location = 8) out float video_scale_factor;
 layout(location = 9) out vec2 scale_bounds;
+layout(location = 10) out float aa_compensation_factor;  // Grey balance compensation (numerical)
 
   /////////////////////////////////////////////////////////////////////////
  // Vertex definitions                                                  //
@@ -130,18 +221,43 @@ void main()
         vTexCoord = TexCoord;
         original_coord = TexCoord;
 
-        // Calculate authentic_gbc-style scaling parameters
+        // Calculate scaling parameters for geometric dot rendering
         tx_coord = TexCoord * registers.SourceSize.xy;
         tx_to_px = registers.OutputSize.xy / registers.SourceSize.xy;
 
-        // Game Boy dot size in output pixels with adjustable aspect ratio
-        float coverage = 0.8 + (registers.pixel_aspect * 0.15);
-        dot_size_in_px = tx_to_px * coverage;
+        // Game Boy dot size in output pixels
+        dot_size_in_px = tx_to_px * registers.pixel_size;
 
         // Set unused outputs for integer mode
         dot_size = vec2(0.0);
         one_texel = vec2(0.0);
         screen_bounds = vec2(1.0);
+    }
+
+    // Calculate grey balance compensation using numerical coverage sampling (only needed for fullscreen mode)
+    if (registers.integer_mode < 0.5) {
+        // Reference params match empirical tuning baseline: pixel_size=0.80,
+        // pixel_softness=0.80, pixel_shape=1.0, sharpening_amount=1.0
+        float ref_brightness = sample_average_coverage(0.80, 0.80, 1.0, 1.0,
+                                                       registers.sharp_mode);
+        float cur_brightness = sample_average_coverage(registers.pixel_size,
+                                                       registers.pixel_softness,
+                                                       registers.sharpening_amount,
+                                                       registers.pixel_shape,
+                                                       registers.sharp_mode);
+
+        // Base compensation values empirically tuned at reference params
+        float base_comp;
+        if (registers.sharp_mode < 0.5) {
+            // Power mode: circular and rectangular are mathematically identical
+            base_comp = 2.8;
+        } else {
+            // Sigmoid mode: circular (2.5) and rectangular (1.60) differ
+            base_comp = mix(2.5, 1.60, registers.pixel_shape);
+        }
+        aa_compensation_factor = base_comp * (ref_brightness / max(cur_brightness, 0.001));
+    } else {
+        aa_compensation_factor = 1.0;  // No compensation in integer mode
     }
 
 }
@@ -161,6 +277,7 @@ layout(location = 6) in vec2 dot_size_in_px;
 layout(location = 7) in vec2 screen_bounds;
 layout(location = 8) in float video_scale_factor;
 layout(location = 9) in vec2 scale_bounds;
+layout(location = 10) in float aa_compensation_factor;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D OriginalHistory1;
@@ -175,14 +292,6 @@ layout(set = 0, binding = 10) uniform sampler2D COLOR_PALETTE;
   /////////////////////////////////////////////////////////////////////////
  // Fragment definitions                                                //
 /////////////////////////////////////////////////////////////////////////
-
-// Geometric intersection function (from authentic_gbc)
-float intersect_rect_area(vec4 px_square, vec4 rect) {
-    const vec2 bl = max(px_square.xy, rect.xy);
-    const vec2 tr = min(px_square.zw, rect.zw);
-    const vec2 coverage = max(tr - bl, vec2(0.0));
-    return coverage.x * coverage.y;
-}
 
 void main()
 {
@@ -205,7 +314,7 @@ void main()
     // Sample texture and frame history with final coordinates
     vec3 foreground_source = texture(Source, final_tex_coord).rgb;
 
-    // Sample frame history for response time calculation (full 7-frame history restored)
+    // Sample frame history for response time calculation (uses full 7-frame history)
     vec3 curr_rgb = abs(1.0 - texture(Source, final_tex_coord).rgb);
     vec3 prev0_rgb = abs(1.0 - texture(OriginalHistory1, final_tex_coord).rgb);
     vec3 prev1_rgb = abs(1.0 - texture(OriginalHistory2, final_tex_coord).rgb);
@@ -222,7 +331,7 @@ void main()
         if ( mod(final_tex_coord.x, dot_size.x) > one_texel.x && mod(final_tex_coord.y, dot_size.y) > one_texel.y )
             is_on_dot = 1.0;
     } else {
-        // Non-integer scaling mode (smooth anti-aliased)
+        // Non-integer scaling mode - use geometric intersection for accuracy
         vec2 tx_coord_i;
         const vec2 tx_coord_f = modf(tx_coord, tx_coord_i);
 
@@ -230,32 +339,51 @@ void main()
         vec2 pixel_center = (tx_coord_f - 0.5) * tx_to_px;
         vec4 pixel_rect = vec4(pixel_center - tx_to_px * 0.5, pixel_center + tx_to_px * 0.5);
 
-        // Create Game Boy dot rectangle with adjustable squareness
-        vec2 dot_size_adjusted = dot_size_in_px;
+        // Create Game Boy dot rectangle (dot_size_in_px calculated in vertex shader)
+        vec4 dot_rect = vec4(-dot_size_in_px * 0.5, dot_size_in_px * 0.5);
 
-        if (registers.pixel_aspect > 0.0) {
-            dot_size_adjusted = dot_size_in_px * (1.0 + registers.pixel_aspect * 0.2);
-        }
+        // RECTANGULAR METHOD: Calculate 1D line segment intersections
+        float x_coverage = intersect_line_segment(pixel_rect.x, pixel_rect.z, dot_rect.x, dot_rect.z) / tx_to_px.x;
+        float y_coverage = intersect_line_segment(pixel_rect.y, pixel_rect.w, dot_rect.y, dot_rect.w) / tx_to_px.y;
 
-        vec4 dot_rect = vec4(-dot_size_adjusted * 0.5, dot_size_adjusted * 0.5);
+        // Linear coverage (no sharpening)
+        float rect_linear = x_coverage * y_coverage;
 
-        // Calculate geometric coverage
-        float dot_coverage = intersect_rect_area(pixel_rect, dot_rect) / (tx_to_px.x * tx_to_px.y);
-
-        // Power curve vs Sigmoid sharpening
+        // Apply sharpening to X and Y separately (preserves rectangular shape)
+        float rect_sharpened;
         if (registers.sharp_mode < 0.5) {
-            // Mode 0: Power curve sharpening (exponential scaling)
-            is_on_dot = pow(dot_coverage, 1.0 / max(registers.pixel_size, 0.001));
-
+            // Mode 0: Power curve
+            float sharp_factor = 1.0 / max(registers.pixel_softness, 0.001);
+            rect_sharpened = pow(x_coverage, sharp_factor) * pow(y_coverage, sharp_factor);
         } else {
-            // Mode 1: Linear-to-sigmoid blend with independent controls
-            // pixel_size controls the sigmoid curve steepness
-            // sigmoid_blend controls the mix between linear (0) and sigmoid (1)
-            float sigmoid_strength = registers.pixel_size * 10.0;
-            float sigmoid = 1.0 / (1.0 + exp(-sigmoid_strength * (dot_coverage - 0.5)));
-            float linear_coverage = dot_coverage;
-            is_on_dot = mix(linear_coverage, sigmoid, clamp(registers.sigmoid_blend, 0.0, 1.0));
+            // Mode 1: Sigmoid
+            // Base steepness of 10.0 provides moderate sharpness, scaled by pixel_softness
+            float sigmoid_strength = 10.0 / max(registers.pixel_softness, 0.001);
+            float x_sharp = 1.0 / (1.0 + exp(-sigmoid_strength * (x_coverage - 0.5)));
+            float y_sharp = 1.0 / (1.0 + exp(-sigmoid_strength * (y_coverage - 0.5)));
+            rect_sharpened = x_sharp * y_sharp;
         }
+
+        // Blend between linear and sharpened coverage
+        float rect_coverage = mix(rect_linear, rect_sharpened, registers.sharpening_amount);
+
+        // CIRCULAR METHOD: 2D area intersection with sharpening applied after
+        float circ_linear = intersect_rect_area(pixel_rect, dot_rect) / (tx_to_px.x * tx_to_px.y);
+
+        // Apply sharpening to 2D coverage (creates circular gradients)
+        float circ_sharpened;
+        if (registers.sharp_mode < 0.5) {
+            circ_sharpened = pow(circ_linear, 1.0 / max(registers.pixel_softness, 0.001));
+        } else {
+            float sigmoid_strength = 10.0 / max(registers.pixel_softness, 0.001);
+            circ_sharpened = 1.0 / (1.0 + exp(-sigmoid_strength * (circ_linear - 0.5)));
+        }
+
+        // Blend between linear and sharpened coverage
+        float circ_coverage = mix(circ_linear, circ_sharpened, registers.sharpening_amount);
+
+        // Blend between circular and rectangular based on pixel_shape parameter
+        is_on_dot = mix(circ_coverage, rect_coverage, registers.pixel_shape);
     }
 
     // Sample color from the current and previous frames, apply response time modifier
@@ -277,13 +405,9 @@ void main()
         brightness = (0.2126 * input_rgb.r) + (0.7152 * input_rgb.g) + (0.0722 * input_rgb.b);
     }
 
-    // Compensate for antialiasing intensity reduction in fullscreen mode
-    // Mode 0 applies geometric antialiasing which reduces average intensity by ~3.0x
-    // (calculated from average is_on_dot value across a dot with default sharpness settings)
-    float grey_balance_adjusted = registers.grey_balance;
-    if (registers.integer_mode < 0.5) {
-        grey_balance_adjusted = grey_balance_adjusted / 3.0;
-    }
+    // Apply numerical grey balance compensation (calculated in vertex shader)
+    float grey_balance_adjusted = registers.grey_balance / aa_compensation_factor;
+
     // Compensate for brightness range difference between modes
     // Perceptual mode outputs 0-1, simple mode outputs 0-3
     if (registers.brightness_mode >= 0.5) {
@@ -316,7 +440,7 @@ void main()
     else
         out_color = vec4(foreground_source, rgb_to_alpha);
 
-    // Apply dot matrix mask - zeros out gaps, applies antialiasing gradient in Mode 0
+    // Apply dot matrix mask - zeros out gaps in integer mode, applies antialiasing gradient in fullscreen mode
     out_color.a *= is_on_dot;
 
     FragColor = out_color;
