@@ -54,15 +54,15 @@ void main()
 #ifdef INT_OPS
      color.rgb *= 255.0;
 
-     int r = (int)color.r;
-     int g = (int)color.g;
-     int b = (int)color.b;
+     int r = int(color.r);
+     int g = int(color.g);
+     int b = int(color.b);
 
      int R = (r * 13 + g * 2 + b) >> 4;
      int G = (g *  3 + b) >> 2;
      int B = (r *  3 + g * 2 + b * 11) >> 4;
 
-     color.rgb = vec3((float)R, (float)G, (float)B);
+     color.rgb = vec3(float(R), float(G), float(B));
      color.rgb /= 255.0;
 
      FragColor = color;
