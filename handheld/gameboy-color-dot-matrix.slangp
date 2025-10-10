@@ -6,6 +6,7 @@ scale_type0 = viewport
 scale0 = 1.0
 alias0 = "PASS0"
 color_toggle = "1.000000"
+response_time = "0.33"
 
 shader1 = shaders/gameboy/shader-files/gb-pass1.slang
 filter_linear1 = false
