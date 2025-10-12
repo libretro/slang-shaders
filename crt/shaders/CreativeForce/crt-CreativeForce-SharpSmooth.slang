@@ -27,7 +27,7 @@ This program is free software; you can redistribute it and/or
 #pragma parameter V_PHASE             "Vertical Phase"                         0.00 -256.00 256.00 1.00
 
 // Sharpen (post-linearize, pre-mask) — Radius fixed to 1px
-#pragma parameter SHARPEN_AMOUNT      "Sharpen Amount"                          0.42 0.00 1.00 0.01
+#pragma parameter SHARPEN_AMOUNT      "Sharpen Amount"                          0.00 0.00 1.00 0.01
 #pragma parameter SHARPEN_CLAMP       "Sharpen Clamp"                           0.10 0.00 0.50 0.01
 
 // Auto-phase (placed last)
