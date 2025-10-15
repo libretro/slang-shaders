@@ -71,7 +71,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 #define PI 3.14159265358979323846 
 #define TAU 6.2831852
 #define cycles 170.666/OriginalSize.x
-#define crawl ((u_system == 0.0) ? mod(float(FrameCount), 2.0) * PI : 0.0)
+#define crawl ((u_system == 0.0) ? mod(float(FrameCount), 2.0) * TAU*cycles : 0.0)
 
 vec3 yiq(vec3 c) {
   float Y = 0.299*c.r + 0.587*c.g + 0.114*c.b;
