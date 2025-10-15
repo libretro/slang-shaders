@@ -63,7 +63,7 @@ void main()
    gl_Position = global.MVP * Position;
    vTexCoord = TexCoord;
    ogl2pos = vTexCoord*SourceSize.xy;
-   invdims = 1.0/SourceSize.xy;
+   invdims = u_deconv/SourceSize.xy;
    maskpos = vTexCoord.xy*OutputSize.xy*2.0/u_wid;
    barrel = vec2(1.0-u_warp*u_overscanx, 1.0-u_warp*u_overscany);
 
@@ -104,7 +104,7 @@ void main() {
     // chroma separation: shift R and B horizontally by +/- small amounts
     vec2 offR = vec2(  px, 0.0);
     vec2 offB = vec2(- px, 0.0);
-    vec2 dx = vec2(invdims.x, 0.0);
+    vec2 dx = vec2(1.0/SourceSize.x, 0.0);
 
     // fetch center (G), left/right for R/B
     vec3 colG = texture(Source, uv).rgb;
