@@ -306,47 +306,12 @@ vec3 DecodeGamma(vec3 color, float gamma)
     return color;
 }
 
+mat3 sRGB_to_NTSC1953 = mat3(
+     0.949758,  0.059310, -0.008310,
+     0.023541,  0.968011,  0.008448,
+     0.064513,  0.082466,  0.853021
+);
 
-
-
-vec3 RGBtoXYZ(vec3 RGB)
-{
-    const mat3x3 m = mat3x3(
-        0.6068909, 0.1735011, 0.2003480,
-        0.2989164, 0.5865990, 0.1144845,
-        0.0000000, 0.0660957, 1.1162243);
-    return RGB * m;
-}
-
- vec3 NTSC(vec3 c)
- {
-     vec3 v = vec3(pow(c.r, 2.2), pow(c.g, 2.2), pow(c.b, 2.2)); //Inverse Companding
-     return RGBtoXYZ(v);
- }
-
-vec3 XYZtoSRGB(vec3 XYZ)
-{
-    const mat3x3 m = mat3x3(
-        3.2404542,-1.5371385,-0.4985314,
-       -0.9692660, 1.8760108, 0.0415560,
-        0.0556434,-0.2040259, 1.0572252);
-    return XYZ * m;
-}
-
-vec3 sRGB(vec3 c)
- {
-     vec3 v = XYZtoSRGB(c);
-     v = DecodeGamma(v, 2.4); //Companding
- 
-     return v;
- }
-
-
-// NTSC RGB to sRGB
-vec3 NTSCtoSRGB( vec3 c )
- { 
-     return sRGB(NTSC( c )); 
- }
 
 float saturate(float v) 
     { 
@@ -401,15 +366,11 @@ if (OriginalSize.y > 400.0 && interlace == 0.0 && progress == 1.0)
     f = fract(0.5+pos.y*SourceSize.y/2.0);
     }
 
-    
     vec3 res = Lanczos3(pos,InvResolution);
     if (ntsc == 1.0) {
-    
-        res = NTSCtoSRGB(res);
-        res = clamp(res,0.0,1.0);
+        res = sRGB_to_NTSC1953*res;
     }
     res *= ColorTemp(TEMP);
-
     float lumscan = max(max(res.r,res.g),res.b);
     float lumsat  = dot(vec3(0.22,0.7,0.08),res);
     res = pow(res,vec3(gammain));
