@@ -370,6 +370,7 @@ if (OriginalSize.y > 400.0 && interlace == 0.0 && progress == 1.0)
     if (ntsc == 1.0) {
         res = sRGB_to_NTSC1953*res;
     }
+	res = clamp(res,vec3(0.0),vec3(1.0));
     res *= ColorTemp(TEMP);
     float lumscan = max(max(res.r,res.g),res.b);
     float lumsat  = dot(vec3(0.22,0.7,0.08),res);

@@ -83,6 +83,8 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 #define TAU 6.2831852
 
 void main() {
+    vec2 interlace = OriginalSize.y >300.0? vec2(0.0,mod(float(FrameCount),2.0)) : vec2(0.0);
+    float interl_lines = OriginalSize.y >300.0? 0.5:1.0;
     // uv in [0,1]
     vec2 uv = vTexCoord;
     // keep "crt frame" stable regardless of overscan
@@ -101,6 +103,8 @@ void main() {
     
     // pixel size for subpixel offsets
     float px = invdims.x;
+    uv += interlace*1.0/SourceSize.y;
+
     // chroma separation: shift R and B horizontally by +/- small amounts
     vec2 offR = vec2(  px, 0.0);
     vec2 offB = vec2(- px, 0.0);
@@ -122,7 +126,7 @@ void main() {
     col = col*(1.0 + u_sharp*1.8) + sharpl+sharpr+sharpl2+sharpr2;
 
     // --- Scanlines / Mask ---
-    float scan = 0.5*sin((uv.y*SourceSize.y-0.25)*TAU)+0.5;
+    float scan = 0.5*sin((uv.y*SourceSize.y*interl_lines-0.25 - interlace.y)*TAU)+0.5;
     float mask = 0.5*sin((maskpos.x)*PI)+0.5;
     col *= mix(1.0, scan, u_scan);
     col *= mix(u_brightb, mask, u_mask);
