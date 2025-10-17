@@ -1,7 +1,6 @@
-shaders = "3"
-shader0 = "../../crt/shaders/crt-consumer/linear.slang"
-shader1 = "../../crt/shaders/crt-consumer/ntsc_module.slang"
-shader2 = "../../crt/shaders/fakelottes.slang"
+shaders = "2"
+shader0 = "../../crt/shaders/crt-consumer/ntsc_module.slang"
+shader1 = "../../crt/shaders/fakelottes.slang"
 
-filter_linear2 = "true"
-scale_type2 = "viewport"
+filter_linear1 = "true"
+scale_type1 = "viewport"
