@@ -50,12 +50,12 @@ void main()
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D PassFeedback1;
+layout(set = 0, binding = 3) uniform sampler2D phosphorFeedback;
 
 void main()
 {
    vec4 screen = texture(Source, vTexCoord);
-   vec4 phosphor = texture(PassFeedback1, vTexCoord);
+   vec4 phosphor = texture(phosphorFeedback, vTexCoord);
    
    vec3 cscrn = pow(screen.rgb, vec3(gamma));
    vec3 cphos = pow(phosphor.rgb, vec3(gamma));
