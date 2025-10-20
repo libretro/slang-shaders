@@ -18,7 +18,7 @@
 #pragma parameter u_deconv "De-Convergence Horiz." 0.3 -2.0 2.0 0.05
 #pragma parameter u_brightb "Bright Boost" 1.35 1.0 2.0 0.05
 #pragma parameter u_vignette "Vignette" 0.15 0.0 0.5 0.01
-#pragma parameter u_smptec "sRGB to 90s SMPTE-C" 0.0 0.0 1.0 1.0
+#pragma parameter u_smptec "sRGB, SMPTE-C, Japan NTSC" 0.0 0.0 2.0 1.0
 
 layout(push_constant) uniform Push
 {
@@ -86,6 +86,31 @@ mat3 smpte_c = mat3(
 0.0089,   -0.0411,  1.1619
 );
 
+/* Japanese primaries as in 
+Association of Radio Industries and Businesses TECHNICAL REPORT
+Association of Radio Industries and Businesses TR-B9 Version 1.0
+July 21, 1998 Version 1.0 
+Source
+https://web.archive.org/web/20130413104152/http://arib.or.jp/english/html/overview/doc/4-TR-B09v1_0.pdf
+Page 26
+
+xr  0.618
+yr  0.35
+xg  0.28
+yg  0.605
+xb  0.152
+yb  0.063
+wx  0.2848
+wy  0.2933
+
+RGB-->XYZ-->RGB final 
+*/
+mat3 japan_d93 = mat3(
+1.0617,  -0.1145, 0.0702,
+0.1261,  0.8585,  0.0199,
+0.0196,  -0.0606, 1.3597
+);
+
 #define PI 3.14159265358979323846 
 #define TAU 6.2831852
 
@@ -132,6 +157,7 @@ void main() {
     
     col = col*(1.0 + u_sharp*1.8) + sharpl+sharpr+sharpl2+sharpr2;
     if (u_smptec == 1.0) col *= smpte_c;
+    if (u_smptec == 2.0) col *= japan_d93;
     // --- Scanlines / Mask ---
     float scan = 0.5*sin((uv.y*SourceSize.y*interl_lines-0.25 - interlace.y)*TAU)+0.5;
     float mask = 0.5*sin((maskpos.x)*PI)+0.5;
