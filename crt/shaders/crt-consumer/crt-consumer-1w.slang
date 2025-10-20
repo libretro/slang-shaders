@@ -18,10 +18,11 @@
 #pragma parameter u_deconv "De-Convergence Horiz." 0.3 -2.0 2.0 0.05
 #pragma parameter u_brightb "Bright Boost" 1.35 1.0 2.0 0.05
 #pragma parameter u_vignette "Vignette" 0.15 0.0 0.5 0.01
+#pragma parameter u_smptec "sRGB to 90s SMPTE-C" 0.0 0.0 1.0 1.0
 
 layout(push_constant) uniform Push
 {
-float u_sharp,u_warp,u_overscanx,u_overscany,u_scan,u_mask,u_wid,u_deconv,u_brightb,u_vignette;
+float u_sharp,u_warp,u_overscanx,u_overscany,u_scan,u_mask,u_wid,u_deconv,u_brightb,u_vignette,u_smptec;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -48,6 +49,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define u_deconv params.u_deconv
 #define u_brightb params.u_brightb
 #define u_vignette params.u_vignette
+#define u_smptec params.u_smptec
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -78,6 +80,11 @@ layout(location = 4) in vec2 barrel;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
+mat3 smpte_c = mat3(
+0.8407,   0.0809,   0.0663,
+-0.0373,  0.9960,   0.0363,
+0.0089,   -0.0411,  1.1619
+);
 
 #define PI 3.14159265358979323846 
 #define TAU 6.2831852
@@ -124,7 +131,7 @@ void main() {
     vec3 sharpr2 = texture(Source, uv + 2.0*dx).rgb*(u_sharp*0.1);
     
     col = col*(1.0 + u_sharp*1.8) + sharpl+sharpr+sharpl2+sharpr2;
-
+    if (u_smptec == 1.0) col *= smpte_c;
     // --- Scanlines / Mask ---
     float scan = 0.5*sin((uv.y*SourceSize.y*interl_lines-0.25 - interlace.y)*TAU)+0.5;
     float mask = 0.5*sin((maskpos.x)*PI)+0.5;
