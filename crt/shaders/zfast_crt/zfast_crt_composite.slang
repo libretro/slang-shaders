@@ -19,7 +19,7 @@ layout(push_constant) uniform Push
     vec4 OriginalSize;
     vec4 OutputSize;
     uint FrameCount;
-float pi, blurx, blury, HIGHSCANAMOUNT1, HIGHSCANAMOUNT2, MASK_DARK, MASK_FADE, sat, FLICK,TYPE,Curvature;
+float pi, blurx, blury, HIGHSCANAMOUNT1, HIGHSCANAMOUNT2, MASK_DARK, MASK_FADE, sat, FLICK,TYPE,Curvature,Interlacing;
 } params;
 
 #pragma parameter Curvature "Curvature" 1.0 0.0 1.0 1.0
@@ -32,6 +32,7 @@ float pi, blurx, blury, HIGHSCANAMOUNT1, HIGHSCANAMOUNT2, MASK_DARK, MASK_FADE, 
 #pragma parameter MASK_FADE "Mask/Scanline Fade" 0.7 0.0 1.0 0.05
 #pragma parameter sat "Saturation" 1.0 0.0 3.0 0.05
 #pragma parameter FLICK "Flicker" 10.0 0.0 50.0 1.0
+#pragma parameter Interlacing "TV 480i Interlacing Simulation" 0.0 0.0 1.0 1.0
 
 
 #define pi 3.14159
@@ -39,13 +40,13 @@ float pi, blurx, blury, HIGHSCANAMOUNT1, HIGHSCANAMOUNT2, MASK_DARK, MASK_FADE, 
 #define blury params.blury
 #define HIGHSCANAMOUNT1 params.HIGHSCANAMOUNT1
 #define HIGHSCANAMOUNT2 params.HIGHSCANAMOUNT2
-#define BRIGHTBOOST params.BRIGHTBOOST
 #define MASK_DARK params.MASK_DARK
 #define MASK_FADE params.MASK_FADE
 #define sat params.sat
 #define FLICK params.FLICK
 #define Curvature params.Curvature
 #define TYPE params.TYPE
+#define Interlacing params.Interlacing
 
 #define SourceSize params.SourceSize
 #define OriginalSize params.OriginalSize
@@ -108,10 +109,11 @@ void main()
    
 }
 
-     else pos = vTexCoord;    
-     float OGL2Pos = pos.y*SourceSize.y;
+     else pos = vTexCoord;
+     bool is_interlaced = OriginalSize.y > 400.0;
+     float OGL2Pos = is_interlaced && Interlacing != 0 ? pos.y*SourceSize.y -0.5 + mod(float(params.FrameCount), 2.0) : pos.y*SourceSize.y;
      float cent = floor(OGL2Pos)+0.5;
-     float ycoord = cent*SourceSize.w; 
+     float ycoord = cent*SourceSize.w;
      ycoord = mix(pos.y,ycoord,0.6);
      pos = vec2(pos.x,ycoord);
 
@@ -124,7 +126,6 @@ void main()
                          sample1.g*0.25 + sample2.g + sample3.g*0.25, 
                                           sample2.b + sample3.b*0.5);
     
-     vec3 interl = colour;
      vec3 lumweight=vec3(0.22,0.71,0.07);
      float lumsat = dot(colour,lumweight);
    
@@ -134,13 +135,13 @@ void main()
      float SCANAMOUNT = mix(HIGHSCANAMOUNT1,HIGHSCANAMOUNT2,max(max(colour.r,colour.g),colour.b));
          
 
-    if (OriginalSize.y > 400.0) {
+    if (is_interlaced && Interlacing == 0) {
     colour ;
     } 
 else {
-    colour *= SCANAMOUNT * sin(fract(OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
-    colour *= SCANAMOUNT * sin(fract(1.0-OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
-    colour *= SCANAMOUNT * sin(fract(1.0+OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
+    colour *= SCANAMOUNT * sin(fract(is_interlaced ? (OGL2Pos-0.5)/2 : OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
+    colour *= SCANAMOUNT * sin(fract(is_interlaced ? 1.0-(OGL2Pos-0.5)/2 : 1.0-OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
+    colour *= SCANAMOUNT * sin(fract(is_interlaced ? 1.0+(OGL2Pos-0.5)/2 : 1.0+OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
     }
 
      float steps; if (TYPE == 0.0) steps = 0.5; else steps = 0.3333;
