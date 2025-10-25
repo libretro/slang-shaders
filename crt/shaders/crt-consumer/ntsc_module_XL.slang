@@ -17,10 +17,11 @@ layout(push_constant) uniform Push
   float Luma_bw ;
    float Chroma_bw ;
    float U_RADIUS ;
-   float c_gain,COMB;
+   float c_gain,COMB,SVIDEO;
 } params;
 
 #pragma parameter dummy1 " [ ----NTSC---- ] " 0.0 0.0 0.0 0.0
+#pragma parameter SVIDEO "S-VIDEO" 0.0 0.0 1.0 1.0
 #pragma parameter N_SYSTEM "SNES,MD/PS320,PCE256,PCE320/STELLA" 0.0 0.0 3.0 1.0
 #pragma parameter COMB "Comb Filter" 0.25 0.0 1.0 0.05
 #pragma parameter Luma_bw "Luma Bandwidth" 2.2 0.0 12.0 0.05
@@ -38,6 +39,7 @@ layout(push_constant) uniform Push
 #define U_RADIUS params.U_RADIUS
 #define c_gain params.c_gain
 #define COMB params.COMB
+#define SVIDEO params.SVIDEO
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -132,11 +134,12 @@ vec3 filter_ntsc(vec2 uv, float bandwidth_luma, float bandwidth_chroma, float ra
         tap2  *= carrier2;
         float wl = ntsc_filter_weight(i, bandwidth_luma, radius);
         float wc = ntsc_filter_weight(i, bandwidth_chroma, radius);
-        float compo1 = dot(tap1,vec3(1.0));
+        float compo1 = SVIDEO == 0.0 ? dot(tap1,vec3(1.0)) : dot(vec2(1.0),tap1.gb);
         float compo2 = dot(tap2,vec3(1.0));
-        float luma = (compo1+compo2)*0.5;
+        float luma = SVIDEO == 0.0 ? (compo1+compo2)*0.5 : tap1.r;
         signal.r  +=  luma* wl;
-        signal.gb += (compo1 - luma*COMB) * carrier1.gb * vec2(wc) * c_gain;
+        signal.gb += SVIDEO == 0.0 ?(compo1 - luma*COMB) * carrier1.gb * vec2(wc) * c_gain : 
+        compo1 * carrier1.gb * vec2(wc) * c_gain ;
         
         total_luma   += wl;
         total_chroma += wc;
