@@ -10,13 +10,12 @@
 */
 #pragma parameter dummy1 " [ ----NTSC---- ]" 0.0 0.0 0.0 0.0 
 #pragma parameter u_svideo "S-Video" 0.0 0.0 1.0 1.0
-#pragma parameter u_system "Clock: NINT, MD/PS 320, MD/PCE/PS 256" 0.0 0.0 2.0 1.0
+#pragma parameter u_system "Clock: NINT, MD/PS320, MD/PCE/PS256, PCE320/STELLA" 0.0 0.0 3.0 1.0
 #pragma parameter u_comb "Comb Filter Strength" 0.6 0.0 1.0 0.05
 #pragma parameter u_chroma "Chroma Gain" 1.5 0.0 3.0 0.05
 #pragma parameter LPY "Luma Resolution" 1.6 0.0 3.0 0.02
 #pragma parameter LPC "Chroma Resolution" 0.32 0.0 0.8 0.01
 #pragma parameter u_res "Taps" 3.0 1.0 3.0 1.0
-#pragma parameter dummy2 " [ ----NTSC---- ]" 0.0 0.0 0.0 0.0 
 
 layout(push_constant) uniform Push
 {
@@ -70,8 +69,9 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #define PI 3.14159265358979323846 
 #define TAU 6.2831852
-// NES/SNES/PCE 5.369Mhz in 256 mode, 13.42Mhz for MD/PS1 (actual PS1 is 13.5)
-#define pix_clock (u_system == 0.0 || u_system == 2.0 ? 5.369e6 : 13.42e6)
+// NES/SNES/PCE 5.369Mhz in 256 mode, 13.42Mhz for MD/PS1 (actual PS1 is 13.5), 
+// Stella will output 320 instead of 160??
+#define pix_clock (u_system == 0.0 || u_system == 2.0 ? 5.369e6 : u_system == 1.0 ? 13.4232e6 : 14.3182e6)
 #define CYCLES 3.5795e6/pix_clock
 #define crawl ((u_system == 0.0) ? mod(float(FrameCount), 2.0)*0.5*TAU*CYCLES: 0.0)
 
@@ -97,7 +97,7 @@ void main()
     vec2 dx = vec2(invdims.x,0.0);
     vec2 dy = vec2(0.0,invdims.y*0.25);
     float sumY = 0.0;
-    float sumI = 0.0;
+    float sumC = 0.0;
     float sumQ = 0.0;
     float nin_delay = u_system == 0.0 ? 3.0 : 2.0;
     float line = mod(floor(ogl2pos.y)*2.0,nin_delay)*SourceSize.x ;
@@ -107,11 +107,9 @@ void main()
     float n = float(i);
     float p = n;
     float wY = exp(-LPY*n*n);
-    float wI = exp(-LPC*p*p);
-    float wQ = exp(-LPC*p*p);
+    float wC = exp(-LPC*p*p);
     sumY += wY;    
-    sumI += wI;    
-    sumQ += wQ;    
+    sumC += wC;    
     float phase = (ogl2pos.x + n + line + crawl)*CYCLES*TAU ;
     float cs = cos(phase);
     float sn = sin(phase);
@@ -123,14 +121,13 @@ void main()
     float signal2 = dot(vec3(1.0),res2);
     float luma = u_svideo == 0.0 ? (signal1 + signal2)*0.5 : res1.r;
     final.r += luma*wY;
-    final.g += u_svideo == 0.0 ? (signal1 - luma*u_comb)*wI*burst1.g*u_chroma :
-    signal1 * wI*burst1.g*u_chroma;
-    final.b += u_svideo == 0.0 ? (signal1 - luma*u_comb)*wQ*burst1.b*u_chroma :
-    signal1 * wQ*burst1.b*u_chroma;
+    final.g += u_svideo == 0.0 ? (signal1 - luma*u_comb)*wC*burst1.g*u_chroma :
+    signal1 * wC*burst1.g*u_chroma;
+    final.b += u_svideo == 0.0 ? (signal1 - luma*u_comb)*wC*burst1.b*u_chroma :
+    signal1 * wC*burst1.b*u_chroma;
     }   
     final.r /= sumY;
-    final.g += final.b*0.2;
-    final.g /= sumI;
-    final.b /= sumQ;
+    final.g += final.b*0.2; // bleed some Q to I
+    final.gb /= sumC;
     FragColor.rgb = rgb(final);
 }
