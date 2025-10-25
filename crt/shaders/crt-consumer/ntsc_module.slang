@@ -71,7 +71,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 #define TAU 6.2831852
 // NES/SNES/PCE 5.369Mhz in 256 mode, 13.42Mhz for MD/PS1 (actual PS1 is 13.5), 
 // Stella will output 320 instead of 160??
-#define pix_clock (u_system == 0.0 || u_system == 2.0 ? 5.369e6 : u_system == 1.0 ? 13.4232e6 : 14.3182e6)
+#define pix_clock (u_system == 0.0 || u_system == 2.0 ? 10.7386e6 : u_system == 1.0 ? 13.4232e6 : 14.3182e6)
 #define CYCLES 3.5795e6/pix_clock
 #define crawl ((u_system == 0.0) ? mod(float(FrameCount), 2.0)*0.5*TAU*CYCLES: 0.0)
 
