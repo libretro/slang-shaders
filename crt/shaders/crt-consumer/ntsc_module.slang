@@ -11,6 +11,7 @@
 #pragma parameter dummy1 " [ ----NTSC---- ]" 0.0 0.0 0.0 0.0 
 #pragma parameter u_svideo "S-Video" 0.0 0.0 1.0 1.0
 #pragma parameter u_system "Clock: NINT, MD/PS320, MD/PCE/PS256, PCE320/STELLA" 0.0 0.0 3.0 1.0
+#pragma parameter uModePAL "PAL" 0.0 0.0 1.0 1.0
 #pragma parameter u_comb "Comb Filter Strength" 0.6 0.0 1.0 0.05
 #pragma parameter u_chroma "Chroma Gain" 1.5 0.0 3.0 0.05
 #pragma parameter LPY "Luma Resolution" 1.6 0.0 3.0 0.02
@@ -19,7 +20,7 @@
 
 layout(push_constant) uniform Push
 {
-float u_svideo,u_system,u_comb,u_chroma,LPY,LPC,u_res;
+float u_svideo,u_system,u_comb,u_chroma,LPY,LPC,u_res,uModePAL;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -43,6 +44,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define LPY params.LPY
 #define LPC params.LPC
 #define u_res params.u_res
+#define uModePAL params.uModePAL
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -111,6 +113,13 @@ void main()
     sumY += wY;    
     sumC += wC;    
     float phase = (ogl2pos.x + n + line + crawl)*CYCLES*TAU ;
+      // PAL alternation: flip one carrier axis 180° every line
+    if (uModePAL == 1.0) {
+        // flip sign every other line (equivalent to add PI)
+        if (mod(floor(ogl2pos.y), 2.0) < 0.5) {
+            phase += PI; // add pi on odd lines
+        }
+    }
     float cs = cos(phase);
     float sn = sin(phase);
     vec3 burst1 = vec3(1.0,cs,sn);
