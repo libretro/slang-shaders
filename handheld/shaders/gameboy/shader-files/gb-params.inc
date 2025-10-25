@@ -1,4 +1,4 @@
-// Game Boy Dot Matrix Shader - Shared Parameters
+// GAME BOY DOT MATRIX SHADER v1.1 - Shared Parameters
 
 // Display mode
 #pragma parameter integer_mode "== Display mode == (0=Full, 1=Pixel Perfect, 2=Scale factor)" 0.0 0.0 2.0 1.0
@@ -20,12 +20,12 @@
 #pragma parameter adjacent_texel_alpha_blending "     ↳ Blend amount" 0.1755 0.0 1.0 0.05
 
 // Fullscreen pixel appearance
-#pragma parameter sharp_mode "== Fullscreen pixel appearance == (0=Soft, 1=Sharp)" 1.0 0.0 1.0 1.0
-#pragma parameter NOTE4 " *  TIP: Adjust to fix grid distortion" 0.0 0.0 1.0 1.0
+#pragma parameter sharp_mode "== Fullscreen pixel appearance == (0=Softer, 1=Sharper)" 1.0 0.0 1.0 1.0
+#pragma parameter NOTE4 " *  TIP: Adjust these settings to fix grid distortion" 0.0 0.0 1.0 1.0
 #pragma parameter NOTE5 " *  Soft pixels / sharp pixels + circles = less distortion" 0.0 0.0 1.0 1.0
-#pragma parameter pixel_shape "     ↳ Pixel shape [Sharp only] (Circle/Rectangle)" 1.0 0.0 1.30 0.05
+#pragma parameter pixel_softness "     ↳ Pixel softness (higher = less distortion)" 1.0 0.20 5.0 0.05
+#pragma parameter pixel_shape "     ↳ Pixel shape [Sharp mode only] (Circle/Rectangle)" 1.0 0.0 1.30 0.05
 #pragma parameter sharpening_amount "     ↳ Sharpening amount" 1.0 0.0 1.0 0.05
-#pragma parameter pixel_softness "     ↳ Pixel softness" 1.0 0.20 3.0 0.05
 #pragma parameter pixel_size "     ↳ Pixel size" 0.80 0.2 1.10 0.05
 
 // LCD effects

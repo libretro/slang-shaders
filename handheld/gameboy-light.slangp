@@ -33,7 +33,7 @@ alias4 = "PASS4"
 
 
 textures = COLOR_PALETTE;BACKGROUND
-COLOR_PALETTE = shaders/gameboy/resources/sample-palettes/gblight-palette.png
+COLOR_PALETTE = shaders/gameboy/resources/sample-palettes/gblight-palette-3.png
 COLOR_PALETTE_linear = false
 BACKGROUND = shaders/gameboy/resources/sample-bgs/paper-bg.png
 BACKGROUND_linear = true

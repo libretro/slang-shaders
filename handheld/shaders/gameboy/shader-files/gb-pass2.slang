@@ -6,7 +6,7 @@
 //  / / __/ /| | / /|_/ / __/    / __  / / / /\  /                       //
 // / /_/ / ___ |/ /  / / /___   / /_/ / /_/ / / /                        //
 // \____/_/  |_/_/  /_/_____/  /_____/\____/ /_/                         //
-//  ==================== DOT MATRIX SHADER v1.0                          //
+//  ==================== DOT MATRIX SHADER v1.1                          //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
 // Copyright (C) 2024-2025 Matt Akins                                    //
@@ -21,6 +21,9 @@
 //   • Performance optimizations (vertex pre-calc, early-exit)           //
 //   • Parameter reorganization for ease of use                          //
 //   • Fixed issue with artifacts sometimes appearing in border          //
+// 10/25/25 - v1.1 by mattakins                                          //
+//   • Fixed fullscreen mode right and bottom border bug                 //
+//   • Improved brightness compensation for fullscreen pixel parameters  //
 //                                                                       //
 // This program is free software: you can redistribute it and/or modify  //
 // it under the terms of the GNU General Public License as published by  //
