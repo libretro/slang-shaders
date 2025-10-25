@@ -24,7 +24,7 @@ layout(push_constant) uniform Push
 #pragma parameter SVIDEO "S-VIDEO" 0.0 0.0 1.0 1.0
 #pragma parameter N_SYSTEM "SNES,MD/PS320,PCE256,PCE320/STELLA" 0.0 0.0 3.0 1.0
 #pragma parameter COMB "Comb Filter" 0.25 0.0 1.0 0.05
-#pragma parameter Luma_bw "Luma Bandwidth" 2.2 0.0 12.0 0.05
+#pragma parameter Luma_bw "Luma Bandwidth" 2.8 0.0 12.0 0.05
 #pragma parameter Chroma_bw "Chroma Bandwidth" 1.0 0.0 6.0 0.05
 #pragma parameter U_RADIUS "Radius (slower)" 7.0 3.0 12.0 1.0
 #pragma parameter c_gain "Chroma Gain" 2.0 0.0 4.0 0.05
