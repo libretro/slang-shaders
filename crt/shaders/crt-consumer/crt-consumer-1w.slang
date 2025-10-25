@@ -8,6 +8,7 @@
     any later version.
     
 */
+#pragma parameter dummy2 " [ ----CRT---- ]" 0.0 0.0 0.0 0.0
 #pragma parameter u_sharp "Reverse Sharpness" 0.25 0.0 0.5 0.01
 #pragma parameter u_warp "Curvature" 0.04 0.0 0.15 0.01
 #pragma parameter u_overscanx "Overscan Horiz." 0.3 0.3 2.0 0.05
