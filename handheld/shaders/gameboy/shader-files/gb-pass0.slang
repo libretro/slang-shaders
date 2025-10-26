@@ -6,7 +6,7 @@
 //  / / __/ /| | / /|_/ / __/    / __  / / / /\  /                       //
 // / /_/ / ___ |/ /  / / /___   / /_/ / /_/ / / /                        //
 // \____/_/  |_/_/  /_/_____/  /_____/\____/ /_/                         //
-//  ==================== DOT MATRIX SHADER v1.0                          //
+//  ==================== DOT MATRIX SHADER v1.1                          //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
 // Copyright (C) 2024-2025 Matt Akins                                    //
@@ -21,6 +21,9 @@
 //   • Performance optimizations (vertex pre-calc, early-exit)           //
 //   • Parameter reorganization for ease of use                          //
 //   • Fixed issue with artifacts sometimes appearing in border          //
+// 10/25/25 - v1.1 by mattakins                                          //
+//   • Fixed fullscreen mode right and bottom border bug                 //
+//   • Improved brightness compensation for fullscreen pixel parameters  //
 //                                                                       //
 // This program is free software: you can redistribute it and/or modify  //
 // it under the terms of the GNU General Public License as published by  //
@@ -41,7 +44,7 @@
  // gb-pass0 - Core dot matrix generation & response time simulation    //
 /////////////////////////////////////////////////////////////////////////
 
-#pragma parameter GAMEBOY_SHADER "=== GAME BOY Dot Matrix Shader v1.0 ===" 0.0 0.0 1.0 1.0
+#pragma parameter GAMEBOY_SHADER "=== GAME BOY DOT MATRIX SHADER v1.1 ===" 0.0 0.0 1.0 1.0
 #pragma parameter NOTE1 " *  TIPS: Turn OFF Integer Scale in Settings > Video > Scaling" 0.0 0.0 1.0 1.0
 #pragma parameter NOTE2 " *  GBC: Turn OFF Core > Color Correction & Interframe Blending" 0.0 0.0 1.0 1.0
 #pragma parameter NOTE3 " *  GBA: Turn ON Core > Color Correction & Interframe Blending" 0.0 0.0 1.0 1.0
@@ -50,7 +53,7 @@
 
   /////////////////////////////////////////////////////////////////////////
  // Shared functions for numerical grey balance compensation            //
- // Uses 16-point coverage sampling with empirical base values          //
+ // Uses 4×4 grid (16-point) coverage sampling with empirical base values //
 /////////////////////////////////////////////////////////////////////////
 
 // 1D line segment intersection
@@ -236,8 +239,8 @@ void main()
 
     // Calculate grey balance compensation using numerical coverage sampling (only needed for fullscreen mode)
     if (registers.integer_mode < 0.5) {
-        // Reference params match empirical tuning baseline: pixel_size=0.80,
-        // pixel_softness=0.80, pixel_shape=1.0, sharpening_amount=1.0
+        // Reference params match empirical tuning baseline:
+        // pixel_size=0.80, pixel_softness=0.80, pixel_shape=1.0, sharpening_amount=1.0
         float ref_brightness = sample_average_coverage(0.80, 0.80, 1.0, 1.0,
                                                        registers.sharp_mode);
         float cur_brightness = sample_average_coverage(registers.pixel_size,
@@ -247,15 +250,28 @@ void main()
                                                        registers.sharp_mode);
 
         // Base compensation values empirically tuned at reference params
-        float base_comp;
-        if (registers.sharp_mode < 0.5) {
-            // Power mode: circular and rectangular are mathematically identical
-            base_comp = 2.8;
-        } else {
-            // Sigmoid mode: circular (2.5) and rectangular (1.60) differ
-            base_comp = mix(2.5, 1.60, registers.pixel_shape);
-        }
-        aa_compensation_factor = base_comp * (ref_brightness / max(cur_brightness, 0.001));
+        float base_comp = (registers.sharp_mode < 0.5)
+            ? 2.8  // Power mode: circular and rectangular are mathematically identical
+            : mix(2.5, 1.60, registers.pixel_shape);  // Sigmoid mode differs by shape
+
+        // Apply empirical corrections for perceptual brightness effects not captured by numerical sampling
+        float brightness_ratio = ref_brightness / max(cur_brightness, 0.001);
+        float size_comp = (registers.pixel_size > 0.80)
+            ? pow(registers.pixel_size / 0.80, 0.62)  // Larger pixels appear brighter (perceptual effect)
+            : 1.0;
+        float softness_comp = (registers.pixel_softness > 1.0)
+            ? pow(registers.pixel_softness, 0.444)  // Higher softness increases perceived brightness
+            : 1.0;
+        float sharpening_comp = (registers.sharp_mode < 0.5)
+            ? mix(0.857, 1.0, registers.sharpening_amount)  // Power: linear coverage is brighter
+            : mix(1.5, 1.0, registers.sharpening_amount);   // Sigmoid: linear coverage is darker
+        float shape_comp = (registers.sharp_mode >= 0.5 && registers.pixel_shape > 1.0)
+            ? 1.0 + (registers.pixel_shape - 1.0) * 0.667  // Rectangular shapes increase coverage ratio
+            : 1.0;
+
+        // Combine all factors
+        aa_compensation_factor = base_comp * brightness_ratio * size_comp *
+                                softness_comp * sharpening_comp * shape_comp;
     } else {
         aa_compensation_factor = 1.0;  // No compensation in integer mode
     }

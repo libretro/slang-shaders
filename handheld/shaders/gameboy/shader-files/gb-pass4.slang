@@ -6,7 +6,7 @@
 //  / / __/ /| | / /|_/ / __/    / __  / / / /\  /                       //
 // / /_/ / ___ |/ /  / / /___   / /_/ / /_/ / / /                        //
 // \____/_/  |_/_/  /_/_____/  /_____/\____/ /_/                         //
-//  ==================== DOT MATRIX SHADER v1.0                          //
+//  ==================== DOT MATRIX SHADER v1.1                          //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
 // Copyright (C) 2024-2025 Matt Akins                                    //
@@ -21,6 +21,9 @@
 //   • Performance optimizations (vertex pre-calc, early-exit)           //
 //   • Parameter reorganization for ease of use                          //
 //   • Fixed issue with artifacts sometimes appearing in border          //
+// 10/25/25 - v1.1 by mattakins                                          //
+//   • Fixed fullscreen mode right and bottom border bug                 //
+//   • Improved brightness compensation for fullscreen pixel parameters  //
 //                                                                       //
 // This program is free software: you can redistribute it and/or modify  //
 // it under the terms of the GNU General Public License as published by  //
@@ -61,6 +64,7 @@ layout(push_constant) uniform Push
 	float shadow_enable;
 	float palette;
 	float shadow_scale;
+	float integer_mode;
 } registers;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -140,7 +144,11 @@ vec4 get_bg_color() {
 #define shadow_offset vec2(registers.shadow_offset_x * texel.x * shadow_scale_factor, registers.shadow_offset_y * texel.y * shadow_scale_factor)    
 
 // Offset for the entire screen
-#define screen_offset vec2((registers.screen_offset_x - 1) * texel.x, (registers.screen_offset_y - 1) * texel.y)
+// Only apply -1 offset in integer scaling modes (not fullscreen)
+#define screen_offset vec2( \
+    (registers.integer_mode > 0.5 ? (registers.screen_offset_x - 1.0) : registers.screen_offset_x) * texel.x, \
+    (registers.integer_mode > 0.5 ? (registers.screen_offset_y - 1.0) : registers.screen_offset_y) * texel.y \
+)
 
   /////////////////////////////////////////////////////////////////////////
  // Fragment shader                                                     //
