@@ -19,38 +19,44 @@ layout(push_constant) uniform Push
     vec4 OriginalSize;
     vec4 OutputSize;
     uint FrameCount;
-float pi, blurx, blury, HIGHSCANAMOUNT1, HIGHSCANAMOUNT2, MASK_DARK, MASK_FADE, sat, FLICK,TYPE,Curvature;
+     float WARP;
+ float SCANLINE;
+ float MASK;
+ float MASK_WID;
+ float BORDER;
+ float U_NOISE;
+ float U_CONVERG;
+ float NTSC_J;
+ float U_SAT;
 } params;
 
-#pragma parameter Curvature "Curvature" 1.0 0.0 1.0 1.0
-#pragma parameter blurx "Convergence X-Axis" 0.85 -1.0 2.0 0.05
-#pragma parameter blury "Convergence Y-Axis" -0.10 -1.0 1.0 0.05
-#pragma parameter HIGHSCANAMOUNT1 "Scanline Amount (Low)" 0.4 0.0 1.0 0.05
-#pragma parameter HIGHSCANAMOUNT2 "Scanline Amount (High)" 0.3 0.0 1.0 0.05
-#pragma parameter TYPE "Mask Type" 0.0 0.0 1.0 1.0
-#pragma parameter MASK_DARK "Mask Effect Amount" 0.3 0.0 1.0 0.05
-#pragma parameter MASK_FADE "Mask/Scanline Fade" 0.7 0.0 1.0 0.05
-#pragma parameter sat "Saturation" 1.0 0.0 3.0 0.05
-#pragma parameter FLICK "Flicker" 10.0 0.0 50.0 1.0
+#pragma parameter WARP "Curvature" 0.08 0.0 0.3 0.01
+#pragma parameter BORDER "Border Smooth" 0.02 0.0 0.1 0.005
+#pragma parameter U_CONVERG "Convergence" 0.8 0.0 3.0 0.05
+#pragma parameter SCANLINE "Scanline Brightness" 0.25 0.0 0.5 0.05
+#pragma parameter MASK "Mask Brightness" 0.35 0.0 0.5 0.05
+#pragma parameter MASK_WID "Mask: CGWG, Slot2, Slot3" 1.0 1.0 3.0 1.0
+#pragma parameter U_NOISE "Glass Dust/Noise" 0.15 0.0 1.0 0.05
+#pragma parameter U_SAT "Saturation" 1.0 0.0 2.0 0.05
+#pragma parameter NTSC_J "NTSC-J colors" 1.0 0.0 1.0 1.0
 
-
-#define pi 3.14159
-#define blurx params.blurx
-#define blury params.blury
-#define HIGHSCANAMOUNT1 params.HIGHSCANAMOUNT1
-#define HIGHSCANAMOUNT2 params.HIGHSCANAMOUNT2
-#define BRIGHTBOOST params.BRIGHTBOOST
-#define MASK_DARK params.MASK_DARK
-#define MASK_FADE params.MASK_FADE
-#define sat params.sat
-#define FLICK params.FLICK
-#define Curvature params.Curvature
-#define TYPE params.TYPE
-
+#define PI 3.14159
+#define TAU 6.28318
+#define u_time float(FrameCount)/60.0
+#define pix 1.0/OutputSize.xy
 #define SourceSize params.SourceSize
 #define OriginalSize params.OriginalSize
 #define OutputSize params.OutputSize
-#define scale vec4(SourceSize.xy/OriginalSize.xy,OriginalSize.xy/SourceSize.xy)
+#define FrameCount params.FrameCount
+#define WARP params.WARP
+#define SCANLINE  params.SCANLINE
+#define MASK  params.MASK
+#define MASK_WID  params.MASK_WID
+#define BORDER  params.BORDER
+#define U_NOISE  params.U_NOISE
+#define U_CONVERG  params.U_CONVERG
+#define NTSC_J  params.NTSC_J
+#define U_SAT  params.U_SAT
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -61,96 +67,117 @@ layout(std140, set = 0, binding = 0) uniform UBO
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out float maskFade;
-layout(location = 2) out float omega;
+layout(location = 1) out float interlace;
+layout(location = 2) out vec2 invdims;
+layout(location = 3) out vec2 maskpos;
 
 void main()
 {
     gl_Position = global.MVP * Position;
-    vTexCoord = TexCoord*1.0001;
-    maskFade = 0.3333*MASK_FADE;
-    omega = 2.0*pi*SourceSize.y;
+    invdims = 1.0/SourceSize.xy;
+    interlace = OriginalSize.y > 300.0 ? mod(float(FrameCount),2.0) : 0.0;
+    vTexCoord = TexCoord*1.0001 + vec2(0.0,invdims.y)*interlace;
+    maskpos = vTexCoord.xy*OutputSize.xy;
 }
 
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in float maskFade;
-layout(location = 2) in float omega;
+layout(location = 1) in float interlace;
+layout(location = 2) in vec2 invdims;
+layout(location = 3) in vec2 maskpos;
 
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-#define blur_y blury/(SourceSize.y*2.0)
-#define blur_x blurx/(SourceSize.x*2.0)
-#define iTimer (float(params.FrameCount)*2.0)
-#define flicker FLICK/1000.0
+#if defined GL_ES
 
-// Distortion of scanlines, and end of screen alpha.
-vec2 Warp(vec2 pos)
-{
-    pos  = pos*2.0-1.0;    
-    pos *= vec2(1.0 + (pos.y*pos.y)*0.03, 1.0 + (pos.x*pos.x)*0.05);
-    
-    return pos*0.5 + 0.5;
+mat3 hue = mat3(                
+0.60722     ,0.25198 ,   0.27164,
+-0.10833    ,0.98873 ,   0.19229,
+-0.02558    ,0.12980 ,   1.10027);
+
+#else
+mat3 hue = mat3(                    
+0.9501  ,   -0.0431 ,   0.0857  ,
+0.0265  ,   0.9278  ,   0.0432  ,
+0.0011  ,   -0.0206 ,   1.3153  );
+
+#endif
+
+float rand(vec2 co) {
+    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
 }
-
-
 
 void main()
 {
-    vec2 pos,corn;
-    if (Curvature == 1.0) 
-{
-    pos = Warp(vTexCoord.xy);
-    corn = min(pos,vec2(1.0)-pos); // This is used to mask the rounded
-    corn.x = 0.00001/corn.x;           // corners later on
-   
-}
+// 0.0 to 1.0 range
+vec2 pos = vTexCoord*(1.0-WARP*0.12) + WARP*vec2(0.06,0.); 
 
-     else pos = vTexCoord;    
-     float OGL2Pos = pos.y*SourceSize.y;
-     float cent = floor(OGL2Pos)+0.5;
-     float ycoord = cent*SourceSize.w; 
-     ycoord = mix(pos.y,ycoord,0.6);
-     pos = vec2(pos.x,ycoord);
+// curve horizontally & vertically
+float cx = pos.x - 0.5; // -0.5 to 0.5
+float cy = pos.y - 0.5; // -0.5 to 0.5
+    pos.x = pos.x + (cy * cy * WARP * cx);
+    pos.y = pos.y + (cx * cx * WARP*2.0 * cy);
+vec2 cpos = pos;
 
+float spos = pos.y*SourceSize.y;    
 
-     vec3 sample1 = sin(iTimer)*flicker + texture(Source,vec2(pos.x + blur_x, pos.y - blur_y)).rgb;
-     vec3 sample2 =                0.5*texture(Source,pos).rgb;
-     vec3 sample3 = sin(iTimer)*flicker + texture(Source,vec2(pos.x - blur_x, pos.y + blur_y)).rgb;
-    
-     vec3 colour = vec3 (sample1.r*0.5  + sample2.r, 
-                         sample1.g*0.25 + sample2.g + sample3.g*0.25, 
-                                          sample2.b + sample3.b*0.5);
-    
-     vec3 interl = colour;
-     vec3 lumweight=vec3(0.22,0.71,0.07);
-     float lumsat = dot(colour,lumweight);
-   
-     vec3 graycolour = vec3(lumsat);
-     colour = vec3(mix(graycolour,colour.rgb,sat));
+    pos = pos*SourceSize.xy + 0.5;
+vec2 i = floor(pos);
+vec2 f = pos - i;        // -0.5 to 0.5
+float s1 = f.y;
+float s2 = 1.0-f.y;
+    f = f*f*(3.0-2.0*f);
+    f.y *= f.y*f.y*f.y;
+    pos = (i + f - 0.5)*invdims;
 
-     float SCANAMOUNT = mix(HIGHSCANAMOUNT1,HIGHSCANAMOUNT2,max(max(colour.r,colour.g),colour.b));
-         
+vec3 rgb = texture(Source,pos).rgb;
 
-    if (OriginalSize.y > 400.0) {
-    colour ;
-    } 
-else {
-    colour *= SCANAMOUNT * sin(fract(OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
-    colour *= SCANAMOUNT * sin(fract(1.0-OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
-    colour *= SCANAMOUNT * sin(fract(1.0+OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
+// shift red and blue sideways (simulate chroma smear)
+float shift = U_CONVERG * 1.5; // adjustable bleed amount in pixels
+// optional blur on chroma to get softer smear
+if (U_CONVERG > 0.01) {
+    vec3 r_blur = texture(Source, pos + vec2(pix.x * shift * 0.5, 0.0)).rgb;
+    vec3 g_blur = texture(Source, pos - vec2(pix.x * shift * 0.5, 0.0)).rgb;
+    vec3 b_blur = texture(Source, pos + vec2(pix.x * shift * 0.5, 0.0)).rgb;
+        rgb.r = mix(rgb.r, r_blur.r, 0.5 * U_CONVERG);
+        rgb.g = mix(rgb.g, g_blur.g, 0.5 * U_CONVERG);
+        rgb.b = mix(rgb.b, b_blur.b, 0.5 * U_CONVERG);
     }
 
-     float steps; if (TYPE == 0.0) steps = 0.5; else steps = 0.3333;
-     float whichmask = fract(vTexCoord.x*OutputSize.x*steps);
-     float mask = 1.0 + float(whichmask < steps) * -MASK_DARK;
+ // Subtle noise/dust
+if (U_NOISE > 0.001) {
+    float nval = rand(vec2(0.0, pos.y * SourceSize.y + u_time));
+    float dust = smoothstep(0.9 - U_NOISE * 0.2, 1.0, nval) * 0.08 * U_NOISE;
+        rgb += dust;
+    } 
 
-    colour.rgb = mix(mask*colour, colour, dot(colour.rgb,vec3(maskFade)));
+if (NTSC_J == 1.0) {rgb *= hue;}
+// calc scanlines
+vec3 lumS = SCANLINE*rgb;
+vec3 scan = 0.5-lumS;
+if (OriginalSize.y > 300.0) spos *= 0.5;
+    rgb *= scan*sin((spos - 0.5 + interlace)*TAU)+0.5+lumS;
 
-    if (Curvature == 1.0 && corn.y < corn.x || Curvature == 1.0 && corn.x < 0.00001 )
-    colour = vec3(0.0); 
+// calc mask
+vec3 lumM = MASK*rgb;
+vec3 mask = 0.5-lumM;
+float slot = MASK_WID > 1.0? floor(maskpos.y): 0.0;
+float mpos = mod(floor(maskpos.x/MASK_WID) + slot ,2.0) ;
+    rgb *= mix(vec3(1.0),0.5+lumM,mpos);
 
-    FragColor.rgb = colour.rgb;
-} 
+
+float l = dot(vec3(0.3,0.6,0.1),rgb);
+rgb = mix(vec3(l),rgb, U_SAT);
+ 
+// fade screen edges (linear falloff)
+float fade_x = smoothstep(0.0, BORDER, cpos.x) *
+               smoothstep(0.0, BORDER, 1.0 - cpos.x);
+float fade_y = smoothstep(0.0, BORDER*1.5, cpos.y) *
+               smoothstep(0.0, BORDER*1.5, 1.0 - cpos.y);
+// combine fades
+float fade = fade_x * fade_y; 
+
+    FragColor.rgb = sqrt(rgb)*fade;
+}
