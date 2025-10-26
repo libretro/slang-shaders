@@ -165,7 +165,7 @@ vec3 lumM = MASK*rgb;
 vec3 mask = 0.5-lumM;
 float slot = MASK_WID > 1.0? floor(maskpos.y): 0.0;
 float mpos = mod(floor(maskpos.x/MASK_WID) + slot ,2.0) ;
-    rgb *= mix(vec3(1.0),0.5+lumM,mpos);
+    rgb *= mix(vec3(1.0),0.7+lumM,mpos);
 
 
 float l = dot(vec3(0.3,0.6,0.1),rgb);
