@@ -32,5 +32,5 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 void main()
 {
 	vec4 res = vec4(texture(Source, vTexCoord).rgb, 1.0);
-   FragColor = pow(res,vec4(2.2));
+   FragColor = res*res;
 }
