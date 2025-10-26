@@ -31,14 +31,14 @@ layout(push_constant) uniform Push
 } params;
 
 #pragma parameter WARP "Curvature" 0.08 0.0 0.3 0.01
-#pragma parameter BORDER "Border Smooth" 0.02 0.0 0.1 0.005
+#pragma parameter BORDER "Border Smooth" 0.015 0.0 0.1 0.005
 #pragma parameter U_CONVERG "Convergence" 0.8 0.0 3.0 0.05
 #pragma parameter SCANLINE "Scanline Brightness" 0.25 0.0 0.5 0.05
 #pragma parameter MASK "Mask Brightness" 0.35 0.0 0.5 0.05
 #pragma parameter MASK_WID "Mask: CGWG, Slot2, Slot3" 1.0 1.0 3.0 1.0
 #pragma parameter U_NOISE "Glass Dust/Noise" 0.15 0.0 1.0 0.05
 #pragma parameter U_SAT "Saturation" 1.0 0.0 2.0 0.05
-#pragma parameter NTSC_J "NTSC-J colors" 1.0 0.0 1.0 1.0
+#pragma parameter NTSC_J "NTSC-J colors" 0.0 0.0 1.0 1.0
 
 #define PI 3.14159
 #define TAU 6.28318
