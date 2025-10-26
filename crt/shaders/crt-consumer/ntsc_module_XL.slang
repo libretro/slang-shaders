@@ -120,7 +120,8 @@ vec3 filter_ntsc(vec2 uv, float bandwidth_luma, float bandwidth_chroma, float ra
     vec3 signal = vec3(0.0);
     float total_luma = 0.0;
     float total_chroma = 0.0;
-    float line = N_SYSTEM == 0.0 ? mod(floor(ogl2pos.y),3.0) : 0.0 ;
+    // snes is 227 1/3, so shifts 120' per line, the rest will use 227 1/2 so shifting 180' per line.
+    float line = N_SYSTEM == 0.0 ? mod(floor(ogl2pos.y),3.0) : mod(floor(ogl2pos.y),2.0) ;
     float time = N_SYSTEM == 0.0 ? mod(float(FrameCount),2.0) : 0.0;
     for (float i = -radius; i <= radius; i += 1.0)
     {
