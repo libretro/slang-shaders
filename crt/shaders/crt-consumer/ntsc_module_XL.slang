@@ -16,15 +16,16 @@ layout(push_constant) uniform Push
    float N_SYSTEM;
   float Luma_bw ;
    float Chroma_bw ;
-   float U_RADIUS ;
+   float U_RADIUS,uModePAL ;
    float c_gain,COMB,SVIDEO;
 } params;
 
 #pragma parameter dummy1 " [ ----NTSC---- ] " 0.0 0.0 0.0 0.0
 #pragma parameter SVIDEO "S-VIDEO" 0.0 0.0 1.0 1.0
-#pragma parameter N_SYSTEM "SNES,MD/PS320,PCE256,PCE320/STELLA" 0.0 0.0 3.0 1.0
+#pragma parameter uModePAL "PAL" 0.0 0.0 1.0 1.0
+#pragma parameter N_SYSTEM "SNES, MD/PS320, PCE256, PCE320/STELLA" 0.0 0.0 3.0 1.0
 #pragma parameter COMB "Comb Filter" 0.25 0.0 1.0 0.05
-#pragma parameter Luma_bw "Luma Bandwidth" 2.8 0.0 12.0 0.05
+#pragma parameter Luma_bw "Luma Bandwidth (RF -0.5, SVID +0.5)" 2.8 0.0 12.0 0.05
 #pragma parameter Chroma_bw "Chroma Bandwidth" 1.0 0.0 6.0 0.05
 #pragma parameter U_RADIUS "Radius (slower)" 7.0 3.0 12.0 1.0
 #pragma parameter c_gain "Chroma Gain" 2.0 0.0 4.0 0.05
@@ -40,6 +41,7 @@ layout(push_constant) uniform Push
 #define c_gain params.c_gain
 #define COMB params.COMB
 #define SVIDEO params.SVIDEO
+#define uModePAL params.uModePAL
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -122,12 +124,22 @@ vec3 filter_ntsc(vec2 uv, float bandwidth_luma, float bandwidth_chroma, float ra
     float total_chroma = 0.0;
     float line = N_SYSTEM == 0.0 ? mod(floor(ogl2pos.y),3.0) : 0.0 ;
     float time = N_SYSTEM == 0.0 ? mod(float(FrameCount),2.0) : 0.0;
+    float pal_alt = 0.0;
+    // PAL alternate lines  
+    if (uModePAL == 1.0) {
+        // flip sign every other line (equivalent to add PI)
+        if (mod(floor(ogl2pos.y), 2.0) < 0.5) {
+            pal_alt = PI; // add pi on odd lines
+        }
+    }
+
     for (float i = -radius; i <= radius; i += 1.0)
     {
         vec3 tap1  = rgb2yiq*texture(Source, uv + vec2(i * one.x, 0.0)).xyz;
         vec3 tap2  = rgb2yiq*texture(Source, uv + vec2(i * one.x, 0.0) - vec2(0.0,one.y)).xyz;
         // double X samples position to compensate for 0.5*invidms.x
         float phase = (floor(ogl2pos.x*2.0) + i + line + time )*PI*cycles ;
+        phase += pal_alt;
         vec3 carrier1 = vec3(1.0,cos(phase),sin(phase)); 
         vec3 carrier2 = vec3(1.0,-carrier1.y,-carrier1.z); 
         tap1  *= carrier1;
