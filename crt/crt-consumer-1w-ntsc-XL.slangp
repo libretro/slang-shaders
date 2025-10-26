@@ -1,0 +1,6 @@
+shaders = "3"
+shader0 = "shaders/crt-consumer/linear.slang"
+shader1 = "shaders/crt-consumer/ntsc_module_XL.slang"
+shader2 = "shaders/crt-consumer/crt-consumer-1w.slang"
+filter_linear2 = "true"
+
