@@ -114,7 +114,7 @@ void main()
      pos += OriginalSize.y > 300.0? timer*vec2(0.0,SourceSize.w) : vec2(0.0);
     
     if (OriginalSize.y > 300.0) {
-    OGL2Pos *= 0.5 ;  OGL2Pos += timer*0.5;
+    OGL2Pos *= 0.5 ;  OGL2Pos -= timer*0.5;
     } 
 
      vec3 sample1 = texture(Source,vec2(pos.x + blur_x, pos.y - blur_y)).rgb;
@@ -133,9 +133,7 @@ void main()
 
      float SCANAMOUNT = mix(HIGHSCANAMOUNT1,HIGHSCANAMOUNT2,max(max(colour.r,colour.g),colour.b));
          
-    colour *= SCANAMOUNT * sin(fract(OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
-    colour *= SCANAMOUNT * sin(fract(1.0-OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
-    colour *= SCANAMOUNT * sin(fract(1.0+OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
+     colour *= SCANAMOUNT * sin(fract(OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
     
      float steps; if (TYPE == 0.0) steps = 0.5; else steps = 0.3333;
      float whichmask = fract(vTexCoord.x*OutputSize.x*steps);
