@@ -1,7 +1,8 @@
 #version 450
 /*
     zfast_crt_standard - A simple, fast CRT shader.
-    Composite YIQ blur, interlace, curvature added by metallic77
+    Composite YIQ blur, interlace, curvature,
+    GTUv050-alike blur added by metallic77
     Copyright (C) 2017 Greg Hogan (SoltanGris42)
 
     This program is free software; you can redistribute it and/or modify it
@@ -27,8 +28,13 @@ layout(push_constant) uniform Push
     uint FrameCount;
    float BLURSCALEX, LOWLUMSCAN, HILUMSCAN, BRIGHTBOOST, MASK_DARK, MASK_FADE, FINEMASK, 
    WARP;
+    float signalResolution;
+    float signalResolutionC;
 } params;
 
+
+#pragma parameter signalResolution "Signal Resolution Y" 200.0 16.0 1024.0 8.0
+#pragma parameter signalResolutionC "Signal Resolution C" 80.0 1.0 350.0 2.0
 #pragma parameter WARP "Curvature" 0.03 0.0 0.3 0.01
 #pragma parameter BLURSCALEX "Blur Amount X-Axis" 0.5 0.0 1.0 0.05
 #pragma parameter LOWLUMSCAN "Scanline Darkness - Low" 6.0 0.0 10.0 0.5
@@ -50,6 +56,8 @@ layout(push_constant) uniform Push
 #define OriginalSize params.OriginalSize
 #define OutputSize params.OutputSize
 #define FrameCount params.FrameCount
+#define signalResolution params.signalResolution
+#define signalResolutionC params.signalResolutionC
 
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -73,7 +81,9 @@ layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out float maskFade;
 layout(location = 2) out vec2 invDims;
 layout(location = 3) out vec2 maskpos;
-
+layout(location = 4) out float range;
+layout(location = 5) out float resY;
+layout(location = 6) out float resC;
 void main()
 {
    gl_Position = global.MVP * Position;
@@ -81,6 +91,9 @@ void main()
     maskFade = 0.3333*MASK_FADE;
     invDims = 1.0/SourceSize.xy;
     maskpos = vTexCoord*OutputSize.xy;
+   range = ceil(0.5+SourceSize.x/min(signalResolution,signalResolutionC));
+   resY = (signalResolution  / SourceSize.x);
+   resC = (signalResolutionC / SourceSize.x);
 }
 
 #pragma stage fragment
@@ -88,11 +101,20 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in float maskFade;
 layout(location = 2) in vec2 invDims;
 layout(location = 3) in vec2 maskpos;
+layout(location = 4) in float range;
+layout(location = 5) in float resY;
+layout(location = 6) in float resC;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #define timer mod(float(FrameCount),2.0)
 
+
+float STU_simplified(float i, float res)
+{
+    float sigma = 0.5 / res;  // blur width
+    return exp(-0.5 * (i * i) / (sigma * sigma));
+}
 
 // Colorspace conversion matrix for RGB-to-YIQ
 const mat3 RGBYIQ = mat3(
@@ -143,10 +165,10 @@ else {
     float sumY = 0.0;
     float sumC = 0.0;
     vec3 colour = vec3(0.0);
-    for (float i=-8; i<9; i += 1.0)
+    for (float i=-range; i<range+1.0; i += 1.0)
     {
-        float wY = exp(-0.6*i*i); sumY += wY;
-        float wC = exp(-0.05*i*i); sumC += wC;
+        float wY = STU_simplified(i,resY); sumY += wY;
+        float wC = STU_simplified(i,resC); sumC += wC;
         colour.r +=  (RGBYIQ*texture(Source,p + dx*i).rgb).r*wY;
         colour.gb += (RGBYIQ*texture(Source,p + dx*i).rgb).gb*wC;
     }
