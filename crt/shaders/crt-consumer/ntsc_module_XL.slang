@@ -162,9 +162,10 @@ vec3 filter_ntsc(vec2 uv, float bandwidth_luma, float bandwidth_chroma, float ra
 }
 
 void main() {
-// keep sharper with 0.5 size horiz. samples
-vec2 one = vec2(invdims.x*0.5,invdims.y*0.25);
+// grab the next "480p" Y pixel in 240p mode, 
+// and 2 pixels away (we don't have access in interlace) in 480i for Comb filtering
+// keep it sharp for better visual clarity
+vec2 one = vec2(invdims.x*0.5, invdims.y*(OriginalSize.y <300.0 ? 0.5:1.0));
 vec3 rgb = filter_ntsc(vTexCoord, Luma_bw, Chroma_bw, U_RADIUS, one);
 FragColor = vec4(yiq2rgb*rgb, 1.0);
-
 }
