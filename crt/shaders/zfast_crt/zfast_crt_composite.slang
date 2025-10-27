@@ -3,8 +3,8 @@
     zfast_crt - A very simple CRT shader.
 
     Copyright (C) 2017 Greg Hogan (SoltanGris42)
-	edited by metallic 77.
-	ported to slang by gregoricavichioli & hunterk.
+    edited by metallic 77.
+    ported to slang by gregoricavichioli & hunterk.
 
     This program is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the Free
@@ -19,7 +19,7 @@ layout(push_constant) uniform Push
     vec4 OriginalSize;
     vec4 OutputSize;
     uint FrameCount;
-float pi, blurx, blury, HIGHSCANAMOUNT1, HIGHSCANAMOUNT2, MASK_DARK, MASK_FADE, sat, FLICK,TYPE,Curvature;
+float pi, blurx, blury, HIGHSCANAMOUNT1, HIGHSCANAMOUNT2, MASK_DARK, MASK_FADE, sat,TYPE,Curvature;
 } params;
 
 #pragma parameter Curvature "Curvature" 1.0 0.0 1.0 1.0
@@ -31,7 +31,6 @@ float pi, blurx, blury, HIGHSCANAMOUNT1, HIGHSCANAMOUNT2, MASK_DARK, MASK_FADE, 
 #pragma parameter MASK_DARK "Mask Effect Amount" 0.3 0.0 1.0 0.05
 #pragma parameter MASK_FADE "Mask/Scanline Fade" 0.7 0.0 1.0 0.05
 #pragma parameter sat "Saturation" 1.0 0.0 3.0 0.05
-#pragma parameter FLICK "Flicker" 10.0 0.0 50.0 1.0
 
 
 #define pi 3.14159
@@ -43,13 +42,13 @@ float pi, blurx, blury, HIGHSCANAMOUNT1, HIGHSCANAMOUNT2, MASK_DARK, MASK_FADE, 
 #define MASK_DARK params.MASK_DARK
 #define MASK_FADE params.MASK_FADE
 #define sat params.sat
-#define FLICK params.FLICK
 #define Curvature params.Curvature
 #define TYPE params.TYPE
 
 #define SourceSize params.SourceSize
 #define OriginalSize params.OriginalSize
 #define OutputSize params.OutputSize
+#define FrameCount params.FrameCount
 #define scale vec4(SourceSize.xy/OriginalSize.xy,OriginalSize.xy/SourceSize.xy)
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -83,8 +82,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #define blur_y blury/(SourceSize.y*2.0)
 #define blur_x blurx/(SourceSize.x*2.0)
-#define iTimer (float(params.FrameCount)*2.0)
-#define flicker FLICK/1000.0
+#define timer mod(float(FrameCount),2.0)
 
 // Distortion of scanlines, and end of screen alpha.
 vec2 Warp(vec2 pos)
@@ -105,27 +103,29 @@ void main()
     pos = Warp(vTexCoord.xy);
     corn = min(pos,vec2(1.0)-pos); // This is used to mask the rounded
     corn.x = 0.00001/corn.x;           // corners later on
-   
 }
+     else pos = vTexCoord ; 
 
-     else pos = vTexCoord;    
      float OGL2Pos = pos.y*SourceSize.y;
      float cent = floor(OGL2Pos)+0.5;
      float ycoord = cent*SourceSize.w; 
-     ycoord = mix(pos.y,ycoord,0.6);
+     ycoord = mix(pos.y,ycoord,0.5);
      pos = vec2(pos.x,ycoord);
+     pos += OriginalSize.y > 300.0? timer*vec2(0.0,SourceSize.w) : vec2(0.0);
+    
+    if (OriginalSize.y > 300.0) {
+    OGL2Pos *= 0.5 ;  OGL2Pos += timer*0.5;
+    } 
 
-
-     vec3 sample1 = sin(iTimer)*flicker + texture(Source,vec2(pos.x + blur_x, pos.y - blur_y)).rgb;
-     vec3 sample2 =                0.5*texture(Source,pos).rgb;
-     vec3 sample3 = sin(iTimer)*flicker + texture(Source,vec2(pos.x - blur_x, pos.y + blur_y)).rgb;
+     vec3 sample1 = texture(Source,vec2(pos.x + blur_x, pos.y - blur_y)).rgb;
+     vec3 sample2 = 0.5*texture(Source,pos).rgb;
+     vec3 sample3 = texture(Source,vec2(pos.x - blur_x, pos.y + blur_y)).rgb;
     
      vec3 colour = vec3 (sample1.r*0.5  + sample2.r, 
                          sample1.g*0.25 + sample2.g + sample3.g*0.25, 
                                           sample2.b + sample3.b*0.5);
     
-     vec3 interl = colour;
-     vec3 lumweight=vec3(0.22,0.71,0.07);
+     vec3 lumweight=vec3(0.3,0.6,0.1);
      float lumsat = dot(colour,lumweight);
    
      vec3 graycolour = vec3(lumsat);
@@ -133,16 +133,10 @@ void main()
 
      float SCANAMOUNT = mix(HIGHSCANAMOUNT1,HIGHSCANAMOUNT2,max(max(colour.r,colour.g),colour.b));
          
-
-    if (OriginalSize.y > 400.0) {
-    colour ;
-    } 
-else {
     colour *= SCANAMOUNT * sin(fract(OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
     colour *= SCANAMOUNT * sin(fract(1.0-OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
     colour *= SCANAMOUNT * sin(fract(1.0+OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
-    }
-
+    
      float steps; if (TYPE == 0.0) steps = 0.5; else steps = 0.3333;
      float whichmask = fract(vTexCoord.x*OutputSize.x*steps);
      float mask = 1.0 + float(whichmask < steps) * -MASK_DARK;
@@ -152,5 +146,5 @@ else {
     if (Curvature == 1.0 && corn.y < corn.x || Curvature == 1.0 && corn.x < 0.00001 )
     colour = vec3(0.0); 
 
-    FragColor.rgb = colour.rgb;
+    FragColor.rgb = sqrt(colour.rgb);
 } 
