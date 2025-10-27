@@ -114,7 +114,7 @@ void main()
      pos += OriginalSize.y > 300.0? timer*vec2(0.0,SourceSize.w) : vec2(0.0);
     
     if (OriginalSize.y > 300.0) {
-    OGL2Pos *= 0.5 ;  OGL2Pos -= timer*0.5;
+    OGL2Pos = OGL2Pos+timer;
     } 
 
      vec3 sample1 = texture(Source,vec2(pos.x + blur_x, pos.y - blur_y)).rgb;
@@ -124,16 +124,16 @@ void main()
      vec3 colour = vec3 (sample1.r*0.5  + sample2.r, 
                          sample1.g*0.25 + sample2.g + sample3.g*0.25, 
                                           sample2.b + sample3.b*0.5);
-    
+     colour = sqrt(colour);
      vec3 lumweight=vec3(0.3,0.6,0.1);
-     float lumsat = dot(colour,lumweight);
+     float grays = dot(colour,lumweight);
    
-     vec3 graycolour = vec3(lumsat);
-     colour = vec3(mix(graycolour,colour.rgb,sat));
+     vec3 graycolour = vec3(grays);
+     colour = vec3(mix(graycolour,colour,sat));
 
      float SCANAMOUNT = mix(HIGHSCANAMOUNT1,HIGHSCANAMOUNT2,max(max(colour.r,colour.g),colour.b));
-         
-     colour *= SCANAMOUNT * sin(fract(OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
+     float interlace = OriginalSize.y > 300.0 ? 1.0 :2.0;    
+     colour *= SCANAMOUNT * sin(OGL2Pos*3.14159*interlace)+1.0-SCANAMOUNT;
     
      float steps; if (TYPE == 0.0) steps = 0.5; else steps = 0.3333;
      float whichmask = fract(vTexCoord.x*OutputSize.x*steps);
@@ -143,6 +143,6 @@ void main()
 
     if (Curvature == 1.0 && corn.y < corn.x || Curvature == 1.0 && corn.x < 0.00001 )
     colour = vec3(0.0); 
-
-    FragColor.rgb = sqrt(colour.rgb);
+    colour = clamp(colour,vec3(0.0),vec3(1.0));
+    FragColor.rgb = (colour);
 } 
