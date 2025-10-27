@@ -1,156 +1,169 @@
 #version 450
 /*
-    zfast_crt - A very simple CRT shader.
-
+    zfast_crt_standard - A simple, fast CRT shader.
+	Composite YIQ blur, interlace, curvature added by metallic77
     Copyright (C) 2017 Greg Hogan (SoltanGris42)
-	edited by metallic 77.
-	ported to slang by gregoricavichioli & hunterk.
 
     This program is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the Free
     Software Foundation; either version 2 of the License, or (at your option)
     any later version.
 
+
+Notes:  This shader does scaling with a weighted linear filter for adjustable
+	sharpness on the x and y axes based on the algorithm by Inigo Quilez here:
+	http://http://www.iquilezles.org/www/articles/texture/texture.htm
+	but modified to be somewhat sharper.  Then a scanline effect that varies
+	based on pixel brighness is applied along with a monochrome aperture mask.
+	This shader runs at 60fps on the Raspberry Pi 3 hardware at 2mpix/s
+	resolutions (1920x1080 or 1600x1200).
 */
 
 layout(push_constant) uniform Push
 {
-    vec4 SourceSize;
-    vec4 OriginalSize;
-    vec4 OutputSize;
-    uint FrameCount;
-float pi, blurx, blury, HIGHSCANAMOUNT1, HIGHSCANAMOUNT2, MASK_DARK, MASK_FADE, sat, FLICK,TYPE,Curvature;
+	vec4 SourceSize;
+	vec4 OriginalSize;
+	vec4 OutputSize;
+	uint FrameCount;
+   float BLURSCALEX, LOWLUMSCAN, HILUMSCAN, BRIGHTBOOST, MASK_DARK, MASK_FADE, FINEMASK, blurx, blury,
+   WARP;
 } params;
 
-#pragma parameter Curvature "Curvature" 1.0 0.0 1.0 1.0
+#pragma parameter WARP "Curvature" 0.03 0.0 0.3 0.01
+#pragma parameter BLURSCALEX "Blur Amount X-Axis" 0.5 0.0 1.0 0.05
 #pragma parameter blurx "Convergence X-Axis" 0.85 -1.0 2.0 0.05
 #pragma parameter blury "Convergence Y-Axis" -0.10 -1.0 1.0 0.05
-#pragma parameter HIGHSCANAMOUNT1 "Scanline Amount (Low)" 0.4 0.0 1.0 0.05
-#pragma parameter HIGHSCANAMOUNT2 "Scanline Amount (High)" 0.3 0.0 1.0 0.05
-#pragma parameter TYPE "Mask Type" 0.0 0.0 1.0 1.0
-#pragma parameter MASK_DARK "Mask Effect Amount" 0.3 0.0 1.0 0.05
-#pragma parameter MASK_FADE "Mask/Scanline Fade" 0.7 0.0 1.0 0.05
-#pragma parameter sat "Saturation" 1.0 0.0 3.0 0.05
-#pragma parameter FLICK "Flicker" 10.0 0.0 50.0 1.0
+#pragma parameter LOWLUMSCAN "Scanline Darkness - Low" 6.0 0.0 10.0 0.5
+#pragma parameter HILUMSCAN "Scanline Darkness - High" 8.0 0.0 50.0 1.0
+#pragma parameter BRIGHTBOOST "Dark Pixel Brightness Boost" 1.25 0.5 1.5 0.05
+#pragma parameter MASK_DARK "Mask Effect Amount" 0.25 0.0 1.0 0.05
+#pragma parameter MASK_FADE "Mask/Scanline Fade" 0.8 0.0 1.0 0.05
+#pragma parameter FINEMASK "Mask Fine/Coarse" 0.0 0.0 1.0 1.0
 
-
-#define pi 3.14159
-#define blurx params.blurx
-#define blury params.blury
-#define HIGHSCANAMOUNT1 params.HIGHSCANAMOUNT1
-#define HIGHSCANAMOUNT2 params.HIGHSCANAMOUNT2
+#define BLURSCALEX params.BLURSCALEX
+#define LOWLUMSCAN params.LOWLUMSCAN
+#define HILUMSCAN params.HILUMSCAN
 #define BRIGHTBOOST params.BRIGHTBOOST
 #define MASK_DARK params.MASK_DARK
 #define MASK_FADE params.MASK_FADE
-#define sat params.sat
-#define FLICK params.FLICK
-#define Curvature params.Curvature
-#define TYPE params.TYPE
-
+#define FINEMASK params.FINEMASK
+#define blurx params.blurx
+#define blury params.blury
+#define WARP params.WARP
 #define SourceSize params.SourceSize
 #define OriginalSize params.OriginalSize
 #define OutputSize params.OutputSize
-#define scale vec4(SourceSize.xy/OriginalSize.xy,OriginalSize.xy/SourceSize.xy)
+#define FrameCount params.FrameCount
+
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
-    mat4 MVP;
+	mat4 MVP;
 } global;
+
+//For testing compilation 
+//#define FRAGMENT
+//#define VERTEX
+
+//Some drivers don't return black with texture coordinates out of bounds
+//SNES Classic is too slow to black these areas out when using fullscreen
+//overlays.  But you can uncomment the below to black them out if necessary
+//#define BLACK_OUT_BORDER
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out float maskFade;
-layout(location = 2) out float omega;
+layout(location = 2) out vec2 invDims;
+layout(location = 3) out vec2 maskpos;
 
 void main()
 {
-    gl_Position = global.MVP * Position;
-    vTexCoord = TexCoord*1.0001;
-    maskFade = 0.3333*MASK_FADE;
-    omega = 2.0*pi*SourceSize.y;
+   gl_Position = global.MVP * Position;
+   vTexCoord = TexCoord;
+	maskFade = 0.3333*MASK_FADE;
+	invDims = 1.0/SourceSize.xy;
+	maskpos = vTexCoord*OutputSize.xy;
 }
-
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in float maskFade;
-layout(location = 2) in float omega;
-
+layout(location = 2) in vec2 invDims;
+layout(location = 3) in vec2 maskpos;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #define blur_y blury/(SourceSize.y*2.0)
 #define blur_x blurx/(SourceSize.x*2.0)
-#define iTimer (float(params.FrameCount)*2.0)
-#define flicker FLICK/1000.0
+#define timer mod(float(FrameCount),2.0)
+
+
+// Colorspace conversion matrix for RGB-to-YIQ
+const mat3 RGBYIQ = mat3(
+      0.2989, 0.5870, 0.1140,
+      0.5959, -0.2744, -0.3216,
+      0.2115, -0.5229, 0.3114
+);
+// Colorspace conversion matrix for YIQ-to-RGB
+const mat3 YIQ2RGB = mat3(
+   1.0, 0.9563, 0.6210,
+   1.0, -0.2721, -0.6474,
+   1.0, -1.1070, 1.7046);
 
 // Distortion of scanlines, and end of screen alpha.
 vec2 Warp(vec2 pos)
 {
     pos  = pos*2.0-1.0;    
-    pos *= vec2(1.0 + (pos.y*pos.y)*0.03, 1.0 + (pos.x*pos.x)*0.05);
+    pos *= vec2(1.0 + (pos.y*pos.y)*WARP, 1.0 + (pos.x*pos.x)*WARP*1.5);
     
     return pos*0.5 + 0.5;
 }
 
-
-
 void main()
 {
-    vec2 pos,corn;
-    if (Curvature == 1.0) 
-{
-    pos = Warp(vTexCoord.xy);
-    corn = min(pos,vec2(1.0)-pos); // This is used to mask the rounded
+	vec2 dx = vec2(invDims.x*0.5,0.0);
+	vec2 ilace_pos = OriginalSize.y>300.0? vTexCoord + vec2(0.0,SourceSize.w)*timer : vTexCoord;
+	vec2 pos = Warp(ilace_pos);
+	vec2 corn = min(pos,vec2(1.0)-pos); // This is used to mask the rounded
     corn.x = 0.00001/corn.x;           // corners later on
-   
-}
+	//This is just like "Quilez Scaling" but sharper
+	vec2 p = pos * SourceSize.xy;
+	vec2 i = floor(p) + 0.50;
+	vec2 f = p - i;
+	p = (i + 4.0*f*f*f)*invDims;
+	p.x = mix( p.x , pos.x, BLURSCALEX);
+	float f_laced = OriginalSize.y > 300.0 ? pos.y*SourceSize.y*0.5 - (floor(pos.y*SourceSize.y*0.5)+0.5) : f.y; 
+	float Y = f_laced*f_laced;
+	float YY = Y*Y;
+float mask = 0.0;
 
-     else pos = vTexCoord;    
-     float OGL2Pos = pos.y*SourceSize.y;
-     float cent = floor(OGL2Pos)+0.5;
-     float ycoord = cent*SourceSize.w; 
-     ycoord = mix(pos.y,ycoord,0.6);
-     pos = vec2(pos.x,ycoord);
-
-
-     vec3 sample1 = sin(iTimer)*flicker + texture(Source,vec2(pos.x + blur_x, pos.y - blur_y)).rgb;
-     vec3 sample2 =                0.5*texture(Source,pos).rgb;
-     vec3 sample3 = sin(iTimer)*flicker + texture(Source,vec2(pos.x - blur_x, pos.y + blur_y)).rgb;
-    
-     vec3 colour = vec3 (sample1.r*0.5  + sample2.r, 
-                         sample1.g*0.25 + sample2.g + sample3.g*0.25, 
-                                          sample2.b + sample3.b*0.5);
-    
-     vec3 interl = colour;
-     vec3 lumweight=vec3(0.22,0.71,0.07);
-     float lumsat = dot(colour,lumweight);
-   
-     vec3 graycolour = vec3(lumsat);
-     colour = vec3(mix(graycolour,colour.rgb,sat));
-
-     float SCANAMOUNT = mix(HIGHSCANAMOUNT1,HIGHSCANAMOUNT2,max(max(colour.r,colour.g),colour.b));
-         
-
-    if (OriginalSize.y > 400.0) {
-    colour ;
-    } 
+if (FINEMASK == 0.0) {
+	float whichmask = fract(floor(maskpos.x)*-0.4999);
+	 mask = 1.0 + float(whichmask < 0.5) * -MASK_DARK;}
 else {
-    colour *= SCANAMOUNT * sin(fract(OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
-    colour *= SCANAMOUNT * sin(fract(1.0-OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
-    colour *= SCANAMOUNT * sin(fract(1.0+OGL2Pos)*3.14159)+1.0-SCANAMOUNT;
-    }
+	float whichmask = fract(floor(maskpos.x)*-0.3333);
+	 mask = 1.0 + float(whichmask <= 0.33333) * -MASK_DARK;
+}
+	float sumY = 0.0;
+	float sumC = 0.0;
+	vec3 colour = vec3(0.0);
+	for (float i=-8; i<9; i += 1.0)
+	{
+		float wY = exp(-0.6*i*i); sumY += wY;
+		float wC = exp(-0.05*i*i); sumC += wC;
+		colour.r +=  (RGBYIQ*texture(Source,p + dx*i).rgb).r*wY;
+		colour.gb += (RGBYIQ*texture(Source,p + dx*i).rgb).gb*wC;
+	}
+	colour.r /= sumY;
+	colour.gb /= sumC;
 
-     float steps; if (TYPE == 0.0) steps = 0.5; else steps = 0.3333;
-     float whichmask = fract(vTexCoord.x*OutputSize.x*steps);
-     float mask = 1.0 + float(whichmask < steps) * -MASK_DARK;
-
-    colour.rgb = mix(mask*colour, colour, dot(colour.rgb,vec3(maskFade)));
-
-    if (Curvature == 1.0 && corn.y < corn.x || Curvature == 1.0 && corn.x < 0.00001 )
-    colour = vec3(0.0); 
-
-    FragColor.rgb = colour.rgb;
-} 
+	colour = YIQ2RGB*colour;
+	float scanLineWeight = (BRIGHTBOOST - LOWLUMSCAN*(Y - 2.05*YY));
+	float scanLineWeightB = 1.0 - HILUMSCAN*(YY-2.8*YY*Y);	
+	colour = colour.rgb*mix(scanLineWeight*mask, scanLineWeightB, dot(colour.rgb,vec3(maskFade)));
+	 if (WARP != 0.0 && corn.y < corn.x || WARP != 0.0 && corn.x < 0.00001 )
+    colour = vec3(0.0);
+	FragColor.rgb = colour;
+}
