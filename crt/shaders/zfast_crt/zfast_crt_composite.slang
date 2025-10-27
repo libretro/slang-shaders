@@ -25,8 +25,8 @@ float pi, blurx, blury, HIGHSCANAMOUNT1, HIGHSCANAMOUNT2, MASK_DARK, MASK_FADE, 
 #pragma parameter Curvature "Curvature" 1.0 0.0 1.0 1.0
 #pragma parameter blurx "Convergence X-Axis" 0.85 -1.0 2.0 0.05
 #pragma parameter blury "Convergence Y-Axis" -0.10 -1.0 1.0 0.05
-#pragma parameter HIGHSCANAMOUNT1 "Scanline Amount (Low)" 0.4 0.0 1.0 0.05
-#pragma parameter HIGHSCANAMOUNT2 "Scanline Amount (High)" 0.3 0.0 1.0 0.05
+#pragma parameter HIGHSCANAMOUNT1 "Scanline Amount (Low)" 0.3 0.0 1.0 0.05
+#pragma parameter HIGHSCANAMOUNT2 "Scanline Amount (High)" 0.15 0.0 1.0 0.05
 #pragma parameter TYPE "Mask Type" 0.0 0.0 1.0 1.0
 #pragma parameter MASK_DARK "Mask Effect Amount" 0.3 0.0 1.0 0.05
 #pragma parameter MASK_FADE "Mask/Scanline Fade" 0.7 0.0 1.0 0.05
@@ -132,8 +132,9 @@ void main()
      colour = vec3(mix(graycolour,colour,sat));
 
      float SCANAMOUNT = mix(HIGHSCANAMOUNT1,HIGHSCANAMOUNT2,max(max(colour.r,colour.g),colour.b));
-     float interlace = OriginalSize.y > 300.0 ? 1.0 :2.0;    
-     colour *= SCANAMOUNT * sin(OGL2Pos*3.14159*interlace)+1.0-SCANAMOUNT;
+     float interlace = OriginalSize.y > 300.0 ? 1.0 :2.0; 
+
+     colour *= SCANAMOUNT * sin((OGL2Pos-0.25)*3.14159*interlace)+1.0-SCANAMOUNT;
     
      float steps; if (TYPE == 0.0) steps = 0.5; else steps = 0.3333;
      float whichmask = fract(vTexCoord.x*OutputSize.x*steps);
