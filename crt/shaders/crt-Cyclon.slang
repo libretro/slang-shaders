@@ -26,8 +26,8 @@ any later version.
 
 layout(push_constant) uniform Push
 {
- float SCANLINE,INTERLACE,M_TYPE,MSIZE,SLOT,SLOTW,BGR,Maskl,Maskh,C_STR,CONV_R,CONV_G,CONV_B,
-  		WARPX,WARPY,BR_DEP,c_space,EXT_GAMMA;
+ float SCANLINE,INTERLACE,M_TYPE,MSIZE,SLOT,SLOTW,BGR,Maskl,Maskh,CONV_R,CONV_G,CONV_B,
+        WARPX,WARPY,BR_DEP,c_space,REFLECT;
 } params;
 
 // Parameter lines go here:
@@ -44,6 +44,7 @@ layout(push_constant) uniform Push
 #pragma parameter bogus_geom " [ GEOMETRY SETTINGS ] " 0.0 0.0 0.0 0.0
 #pragma parameter bzl "Bezel On/Off" 1.0 0.0 1.0 1.0
 #pragma parameter ambient "Ambient Light" 0.25 0.0 1.0 0.05
+#pragma parameter REFLECT "Reflection Strength" 0.3 0.0 1.0 0.02
 #pragma parameter zoomx "Zoom Image X" 0.0 -1.0 1.0 0.005
 #pragma parameter zoomy "Zoom Image Y" 0.0 -1.0 1.0 0.005
 #pragma parameter centerx "Image Center X" 0.0 -5.0 5.0 0.05 
@@ -54,7 +55,6 @@ layout(push_constant) uniform Push
 #pragma parameter bogus_col " [ COLOR SETTINGS ] " 0.0 0.0 0.0 0.0
 #pragma parameter BR_DEP "Scan/Mask Brightness Dependence" 0.2 0.0 0.333 0.01
 #pragma parameter c_space "Color Space: sRGB,PAL,NTSC-U,NTSC-J" 0.0 0.0 3.0 1.0
-#pragma parameter EXT_GAMMA "External Gamma In (Glow etc)" 0.0 0.0 1.0 1.0
 #pragma parameter SATURATION "Saturation" 1.0 0.0 2.0 0.05
 #pragma parameter BRIGHTNESS_ "Brightness, Sega fix:1.06" 1.0 0.0 2.0 0.01
 #pragma parameter BLACK  "Black Level" 0.0 -0.20 0.20 0.01 
@@ -62,7 +62,6 @@ layout(push_constant) uniform Push
 #pragma parameter RB "Blue <-to-> Red Hue"  0.0 -0.25 0.25 0.01
 #pragma parameter GB "Blue <-to-> Green Hue" 0.0 -0.25 0.25 0.01
 #pragma parameter bogus_con " [ CONVERGENCE SETTINGS ] " 0.0 0.0 0.0 0.0
-#pragma parameter C_STR "Convergence Overall Strength" 0.0 0.0 0.5 0.05
 #pragma parameter CONV_R "Convergence Red X-Axis" 0.0 -1.0 1.0 0.05
 #pragma parameter CONV_G "Convergence Green X-axis" 0.0 -1.0 1.0 0.05
 #pragma parameter CONV_B "Convergence Blue X-Axis" 0.0 -1.0 1.0 0.05
@@ -73,12 +72,12 @@ layout(push_constant) uniform Push
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
-	mat4 MVP;
+    mat4 MVP;
     float BLACK, RG, RB, GB, POTATO,SATURATION,BRIGHTNESS_,bzl,zoomx,zoomy,centerx,centery,vig,ambient;
     vec4 SourceSize;
-	vec4 OriginalSize;
-	vec4 OutputSize;
-	uint FrameCount;
+    vec4 OriginalSize;
+    vec4 OutputSize;
+    uint FrameCount;
 } global;
 
 #define SourceSize  global.SourceSize
@@ -91,7 +90,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define MSIZE    params.MSIZE
 #define Maskl    params.Maskl
 #define Maskh    params.Maskh     
-#define C_STR    params.C_STR    
 #define CONV_R   params.CONV_R     
 #define CONV_G   params.CONV_G     
 #define CONV_B   params.CONV_B      
@@ -105,7 +103,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define CORNER      params.CORNER  
 #define B_SMOOTH    params.B_SMOOTH  
 #define BR_DEP      params.BR_DEP   
-#define EXT_GAMMA   params.EXT_GAMMA   
 #define PAL_NTSC    params.PAL_NTSC 
 #define RG global.RG   
 #define RB global.RB   
@@ -121,6 +118,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define centery global.centery
 #define vig global.vig
 #define ambient global.ambient
+#define REFLECT params.REFLECT
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -130,8 +128,8 @@ layout(location = 1) out vec2 scale;
 
 void main()
 {
-	gl_Position = global.MVP * Position;
-	vTexCoord = TexCoord * 1.0001;
+    gl_Position = global.MVP * Position;
+    vTexCoord = TexCoord * 1.0001;
     scale = SourceSize.xy/OriginalSize.xy;
 }
 
@@ -250,6 +248,44 @@ vec2 Warp(vec2 pos)
     return pos;
 }
 
+
+vec2 mirrorEdges(vec2 uv, float edgeSize, float radius) {
+    vec2 mirrorUV = uv;
+
+    // Mirror horizontally
+    if (uv.x < edgeSize)
+        mirrorUV.x = edgeSize - uv.x;
+    else if (uv.x > 1.0 - edgeSize)
+        mirrorUV.x = 2.0 - edgeSize - uv.x;
+
+    // Mirror vertically
+    if (uv.y < edgeSize)
+        mirrorUV.y = edgeSize - uv.y;
+    else if (uv.y > 1.0 - edgeSize)
+        mirrorUV.y = 2.0 - edgeSize - uv.y;
+
+    // Stretch UV (clamped version)
+    vec2 stretchUV = clamp(uv, vec2(edgeSize), vec2(1.0 - edgeSize));
+
+    // Detect "corner weight" using circular distance
+    // Center reference for the safe inner rectangle
+    vec2 center = vec2(0.5);
+    vec2 safeMin = vec2(edgeSize);
+    vec2 safeMax = vec2(1.0 - edgeSize);
+
+    // Map UV to a -1..+1 space relative to the safe area
+    vec2 p = (uv - 0.5) / (0.5 - edgeSize);
+
+    // radial factor: 0 inside safe region, 1 at outer corner
+    float dist = length(p);
+    float t = smoothstep(radius, 1.0, dist);
+
+    // Mix: edges mirrored → corners stretch radially
+    return mix(mirrorUV, stretchUV, t);
+}
+
+
+
 void main()
 {   
 
@@ -263,8 +299,6 @@ mat3 hue = mat3(
     vec2 pos = Warp((vTexCoord*vec2(1.0-zoomx,1.0-zoomy)-vec2(centerx,centery)/100.0));
     vec4 bez = vec4(0.0);
     if (bzl == 1.0) bez = texture(bezel,vTexCoord*SourceSize.xy/OriginalSize.xy*0.97+vec2(0.015,0.015));   
-
-    bez.rgb = mix(bez.rgb, vec3(ambient),0.5);
 
     vec2 bpos = pos;
     vec2 ps = SourceSize.zw;
@@ -282,10 +316,14 @@ mat3 hue = mat3(
     float resb = texture(Source,pos + dx*CONV_B).b;
     float resg = texture(Source,pos + dx*CONV_G).g;
 
-    vec3 res = vec3(  res0.r*(1.0-C_STR) +  resr*C_STR,
-                      res0.g*(1.0-C_STR) +  resg*C_STR,
-                      res0.b*(1.0-C_STR) +  resb*C_STR 
+    vec3 res = vec3(  res0.r*0.5 +  resr*0.5,
+                      res0.g*0.5 +  resg*0.5,
+                      res0.b*0.5 +  resb*0.5 
                    );
+
+   vec2 bez_warp =  mirrorEdges(vTexCoord, 0.06,0.75); // 5% edge mirroring
+   vec3 pinc = texture(Source,bez_warp).rgb;
+   bez.rgb = mix(bez.rgb, vec3(ambient)+pinc*REFLECT,0.5); 
 // Vignette
     float x = 0.0;
     if (vig == 1.0){
@@ -295,7 +333,7 @@ mat3 hue = mat3(
     float l = dot(vec3(BR_DEP),res);
  
  // Color Spaces   
-    if(EXT_GAMMA != 1.0) res *= res;
+    res *= res;
     if (c_space != 0.0) {
     if (c_space == 1.0) res *= PAL;
     if (c_space == 2.0) res *= NTSC;
