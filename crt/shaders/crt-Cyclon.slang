@@ -27,7 +27,7 @@ any later version.
 layout(push_constant) uniform Push
 {
  float SCANLINE,INTERLACE,M_TYPE,MSIZE,SLOT,SLOTW,BGR,Maskl,Maskh,C_STR,CONV_R,CONV_G,CONV_B,
-  		WARPX,WARPY,BR_DEP,c_space,EXT_GAMMA;
+  		WARPX,WARPY,BR_DEP,c_space,EXT_GAMMA,REFLECT;
 } params;
 
 // Parameter lines go here:
@@ -44,6 +44,7 @@ layout(push_constant) uniform Push
 #pragma parameter bogus_geom " [ GEOMETRY SETTINGS ] " 0.0 0.0 0.0 0.0
 #pragma parameter bzl "Bezel On/Off" 1.0 0.0 1.0 1.0
 #pragma parameter ambient "Ambient Light" 0.25 0.0 1.0 0.05
+#pragma parameter REFLECT "Reflection Strength" 0.3 0.0 1.0 0.02
 #pragma parameter zoomx "Zoom Image X" 0.0 -1.0 1.0 0.005
 #pragma parameter zoomy "Zoom Image Y" 0.0 -1.0 1.0 0.005
 #pragma parameter centerx "Image Center X" 0.0 -5.0 5.0 0.05 
@@ -121,6 +122,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define centery global.centery
 #define vig global.vig
 #define ambient global.ambient
+#define REFLECT params.REFLECT
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -250,6 +252,18 @@ vec2 Warp(vec2 pos)
     return pos;
 }
 
+vec2 pincushionWarp(vec2 uv, float amount)
+{
+    // uv in 0–1 space
+    vec2 centered = uv * 2.0 - 1.0;   // convert to -1..1
+    float r2 = dot(centered, centered*1.5);
+
+    // amount > 0 = pincushion, amount < 0 = barrel
+    centered *= 1.0 + amount * r2;
+
+    return (centered * 0.5) + 0.5;    // back to 0..1
+}
+
 void main()
 {   
 
@@ -263,8 +277,6 @@ mat3 hue = mat3(
     vec2 pos = Warp((vTexCoord*vec2(1.0-zoomx,1.0-zoomy)-vec2(centerx,centery)/100.0));
     vec4 bez = vec4(0.0);
     if (bzl == 1.0) bez = texture(bezel,vTexCoord*SourceSize.xy/OriginalSize.xy*0.97+vec2(0.015,0.015));   
-
-    bez.rgb = mix(bez.rgb, vec3(ambient),0.5);
 
     vec2 bpos = pos;
     vec2 ps = SourceSize.zw;
@@ -286,6 +298,10 @@ mat3 hue = mat3(
                       res0.g*(1.0-C_STR) +  resg*C_STR,
                       res0.b*(1.0-C_STR) +  resb*C_STR 
                    );
+
+   vec2 bez_warp = pincushionWarp(vTexCoord*1.1 - 0.05,-0.1);
+   vec3 pinc = texture(Source,bez_warp).rgb;
+   bez.rgb = mix(bez.rgb, vec3(ambient)+pinc*REFLECT,0.5); 
 // Vignette
     float x = 0.0;
     if (vig == 1.0){
