@@ -26,8 +26,8 @@ any later version.
 
 layout(push_constant) uniform Push
 {
- float SCANLINE,INTERLACE,M_TYPE,MSIZE,SLOT,SLOTW,BGR,Maskl,Maskh,C_STR,CONV_R,CONV_G,CONV_B,
-  		WARPX,WARPY,BR_DEP,c_space,EXT_GAMMA,REFLECT;
+ float SCANLINE,INTERLACE,M_TYPE,MSIZE,SLOT,SLOTW,BGR,Maskl,Maskh,CONV_R,CONV_G,CONV_B,
+  		WARPX,WARPY,BR_DEP,c_space,REFLECT;
 } params;
 
 // Parameter lines go here:
@@ -55,7 +55,6 @@ layout(push_constant) uniform Push
 #pragma parameter bogus_col " [ COLOR SETTINGS ] " 0.0 0.0 0.0 0.0
 #pragma parameter BR_DEP "Scan/Mask Brightness Dependence" 0.2 0.0 0.333 0.01
 #pragma parameter c_space "Color Space: sRGB,PAL,NTSC-U,NTSC-J" 0.0 0.0 3.0 1.0
-#pragma parameter EXT_GAMMA "External Gamma In (Glow etc)" 0.0 0.0 1.0 1.0
 #pragma parameter SATURATION "Saturation" 1.0 0.0 2.0 0.05
 #pragma parameter BRIGHTNESS_ "Brightness, Sega fix:1.06" 1.0 0.0 2.0 0.01
 #pragma parameter BLACK  "Black Level" 0.0 -0.20 0.20 0.01 
@@ -63,7 +62,6 @@ layout(push_constant) uniform Push
 #pragma parameter RB "Blue <-to-> Red Hue"  0.0 -0.25 0.25 0.01
 #pragma parameter GB "Blue <-to-> Green Hue" 0.0 -0.25 0.25 0.01
 #pragma parameter bogus_con " [ CONVERGENCE SETTINGS ] " 0.0 0.0 0.0 0.0
-#pragma parameter C_STR "Convergence Overall Strength" 0.0 0.0 0.5 0.05
 #pragma parameter CONV_R "Convergence Red X-Axis" 0.0 -1.0 1.0 0.05
 #pragma parameter CONV_G "Convergence Green X-axis" 0.0 -1.0 1.0 0.05
 #pragma parameter CONV_B "Convergence Blue X-Axis" 0.0 -1.0 1.0 0.05
@@ -92,7 +90,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define MSIZE    params.MSIZE
 #define Maskl    params.Maskl
 #define Maskh    params.Maskh     
-#define C_STR    params.C_STR    
 #define CONV_R   params.CONV_R     
 #define CONV_G   params.CONV_G     
 #define CONV_B   params.CONV_B      
@@ -106,7 +103,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define CORNER      params.CORNER  
 #define B_SMOOTH    params.B_SMOOTH  
 #define BR_DEP      params.BR_DEP   
-#define EXT_GAMMA   params.EXT_GAMMA   
 #define PAL_NTSC    params.PAL_NTSC 
 #define RG global.RG   
 #define RB global.RB   
@@ -292,9 +288,9 @@ mat3 hue = mat3(
     float resb = texture(Source,pos + dx*CONV_B).b;
     float resg = texture(Source,pos + dx*CONV_G).g;
 
-    vec3 res = vec3(  res0.r*(1.0-C_STR) +  resr*C_STR,
-                      res0.g*(1.0-C_STR) +  resg*C_STR,
-                      res0.b*(1.0-C_STR) +  resb*C_STR 
+    vec3 res = vec3(  res0.r*0.5 +  resr*0.5,
+                      res0.g*0.5 +  resg*0.5,
+                      res0.b*0.5 +  resb*0.5 
                    );
 
    vec2 bez_warp =  mirrorEdges(vTexCoord, 0.05); // 5% edge mirroring
@@ -309,7 +305,7 @@ mat3 hue = mat3(
     float l = dot(vec3(BR_DEP),res);
  
  // Color Spaces   
-    if(EXT_GAMMA != 1.0) res *= res;
+    res *= res;
     if (c_space != 0.0) {
     if (c_space == 1.0) res *= PAL;
     if (c_space == 2.0) res *= NTSC;
