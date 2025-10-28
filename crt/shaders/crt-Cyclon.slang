@@ -299,7 +299,7 @@ mat3 hue = mat3(
                       res0.b*(1.0-C_STR) +  resb*C_STR 
                    );
 
-   vec2 bez_warp = pincushionWarp(vTexCoord*1.1 - 0.05,-0.1);
+   vec2 bez_warp = pincushionWarp(vTexCoord*vec2(0.95,0.95) + vec2(0.02),-0.03);
    vec3 pinc = texture(Source,bez_warp).rgb;
    bez.rgb = mix(bez.rgb, vec3(ambient)+pinc*REFLECT,0.5); 
 // Vignette
