@@ -249,39 +249,38 @@ vec2 Warp(vec2 pos)
 }
 
 
-vec2 mirrorEdges(vec2 uv, float edgeSize, float radius) {
-    vec2 mirrorUV = uv;
+vec2 mirrorEdges(vec2 uv, float edgeSize) {
+    vec2 res = uv;
+
+    bool xEdge = false;
+    bool yEdge = false;
 
     // Mirror horizontally
-    if (uv.x < edgeSize)
-        mirrorUV.x = edgeSize - uv.x;
-    else if (uv.x > 1.0 - edgeSize)
-        mirrorUV.x = 2.0 - edgeSize - uv.x;
+    if (uv.x < edgeSize*0.5) {
+        res.x = edgeSize - uv.x;
+        xEdge = true;
+    }
+    else if (uv.x > 1.0 - edgeSize*0.5) {
+        res.x = 2.0 - edgeSize - uv.x;
+        xEdge = true;
+    }
 
     // Mirror vertically
-    if (uv.y < edgeSize)
-        mirrorUV.y = edgeSize - uv.y;
-    else if (uv.y > 1.0 - edgeSize)
-        mirrorUV.y = 2.0 - edgeSize - uv.y;
+    if (uv.y < edgeSize*0.75) {
+        res.y = edgeSize - uv.y;
+        yEdge = true;
+    }
+    else if (uv.y > 1.0 - edgeSize*0.75) {
+        res.y = 2.0 - edgeSize - uv.y;
+        yEdge = true;
+    }
 
-    // Stretch UV (clamped version)
-    vec2 stretchUV = clamp(uv, vec2(edgeSize), vec2(1.0 - edgeSize));
+    // Only stretch if BOTH edges hit = corner case
+    if (xEdge && yEdge) {
+        res = clamp(res, vec2(edgeSize), vec2(1.0 - edgeSize));
+    }
 
-    // Detect "corner weight" using circular distance
-    // Center reference for the safe inner rectangle
-    vec2 center = vec2(0.5);
-    vec2 safeMin = vec2(edgeSize);
-    vec2 safeMax = vec2(1.0 - edgeSize);
-
-    // Map UV to a -1..+1 space relative to the safe area
-    vec2 p = (uv - 0.5) / (0.5 - edgeSize);
-
-    // radial factor: 0 inside safe region, 1 at outer corner
-    float dist = length(p);
-    float t = smoothstep(radius, 1.0, dist);
-
-    // Mix: edges mirrored → corners stretch radially
-    return mix(mirrorUV, stretchUV, t);
+    return res;
 }
 
 
@@ -321,7 +320,7 @@ mat3 hue = mat3(
                       res0.b*0.5 +  resb*0.5 
                    );
 
-   vec2 bez_warp =  mirrorEdges(vTexCoord, 0.06,0.75); // 5% edge mirroring
+   vec2 bez_warp =  mirrorEdges(vTexCoord, 0.07); // 5% edge mirroring
    vec3 pinc = texture(Source,bez_warp).rgb;
    bez.rgb = mix(bez.rgb, vec3(ambient)+pinc*REFLECT,0.5); 
 // Vignette
