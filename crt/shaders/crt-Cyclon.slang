@@ -249,15 +249,33 @@ vec2 Warp(vec2 pos)
 }
 
 
-vec2 mirrorEdges(vec2 uv, float edgeSize) {
-    if (uv.x < edgeSize) uv.x = edgeSize - uv.x;
-    if (uv.x > 1.0 - edgeSize) uv.x = 2.0 - edgeSize - uv.x;
+vec2 mirrorEdges(vec2 uv, float edgeSize, float blend) {
+    // Mirror version
+    vec2 mirrorUV = uv;
 
-    if (uv.y < edgeSize) uv.y = edgeSize - uv.y;
-    if (uv.y > 1.0 - edgeSize) uv.y = 2.0 - edgeSize - uv.y;
+    if (uv.x < edgeSize)              mirrorUV.x = edgeSize - uv.x;
+    else if (uv.x > 1.0 - edgeSize)   mirrorUV.x = 2.0 - edgeSize - uv.x;
 
-    return uv;
+    if (uv.y < edgeSize)              mirrorUV.y = edgeSize - uv.y;
+    else if (uv.y > 1.0 - edgeSize)   mirrorUV.y = 2.0 - edgeSize - uv.y;
+
+    // Stretched version (clamped)
+    vec2 stretchUV = clamp(uv, vec2(edgeSize), vec2(1.0 - edgeSize));
+
+    // Compute corner blend mask
+    // High when both x & y are in edge zone, 0 in normal edges
+    vec2 cornerMask = vec2(
+        smoothstep(edgeSize, edgeSize + blend, uv.x) * smoothstep(edgeSize, edgeSize + blend, uv.y) +
+        smoothstep(1.0 - edgeSize, 1.0 - edgeSize - blend, uv.x) * smoothstep(1.0 - edgeSize, 1.0 - edgeSize - blend, uv.y)
+    );
+
+    float mixVal = clamp(cornerMask.x + cornerMask.y, 0.0, 1.0);
+
+    // Blend: mirror on edges → stretched in corners
+    return mix(mirrorUV, stretchUV, mixVal);
 }
+
+
 void main()
 {   
 
@@ -293,7 +311,7 @@ mat3 hue = mat3(
                       res0.b*0.5 +  resb*0.5 
                    );
 
-   vec2 bez_warp =  mirrorEdges(vTexCoord, 0.05); // 5% edge mirroring
+   vec2 bez_warp =  mirrorEdges(vTexCoord, 0.05,0.03); // 5% edge mirroring
    vec3 pinc = texture(Source,bez_warp).rgb;
    bez.rgb = mix(bez.rgb, vec3(ambient)+pinc*REFLECT,0.5); 
 // Vignette
