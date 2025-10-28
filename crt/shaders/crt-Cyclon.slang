@@ -252,18 +252,16 @@ vec2 Warp(vec2 pos)
     return pos;
 }
 
-vec2 pincushionWarp(vec2 uv, float amount)
-{
-    // uv in 0–1 space
-    vec2 centered = uv * 2.0 - 1.0;   // convert to -1..1
-    float r2 = dot(centered, centered*1.5);
 
-    // amount > 0 = pincushion, amount < 0 = barrel
-    centered *= 1.0 + amount * r2;
+vec2 mirrorEdges(vec2 uv, float edgeSize) {
+    if (uv.x < edgeSize) uv.x = edgeSize - uv.x;
+    if (uv.x > 1.0 - edgeSize) uv.x = 2.0 - edgeSize - uv.x;
 
-    return (centered * 0.5) + 0.5;    // back to 0..1
+    if (uv.y < edgeSize) uv.y = edgeSize - uv.y;
+    if (uv.y > 1.0 - edgeSize) uv.y = 2.0 - edgeSize - uv.y;
+
+    return uv;
 }
-
 void main()
 {   
 
@@ -299,7 +297,7 @@ mat3 hue = mat3(
                       res0.b*(1.0-C_STR) +  resb*C_STR 
                    );
 
-   vec2 bez_warp = pincushionWarp(vTexCoord*vec2(0.95,0.95) + vec2(0.02),-0.03);
+   vec2 bez_warp =  mirrorEdges(vTexCoord, 0.05); // 5% edge mirroring
    vec3 pinc = texture(Source,bez_warp).rgb;
    bez.rgb = mix(bez.rgb, vec3(ambient)+pinc*REFLECT,0.5); 
 // Vignette
