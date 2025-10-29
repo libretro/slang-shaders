@@ -72,7 +72,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #define PI 3.1415926
 #define ntsc 3.579545e6
-#define clock (OriginalSize.x ==256.0 ? ntsc*1.5 : OriginalSize.x == 320.0 ? ntsc*15.0/8.0 : ntsc*160.0/OriginalSize.x)
+#define clock (OriginalSize.x ==256.0 ? ntsc*1.5 : OriginalSize.x == 320.0 ? ntsc*15.0/8.0 : ntsc*OriginalSize.x/160.0)
 #define cycles PI*ntsc/clock
 #define timer (OriginalSize.x == 256.0 ? mod(float(FrameCount),2.0)*cycles : 0.0)
 #define phase_y (OriginalSize.x<300.0? mod(floor(ogl2pos.y),3.0)*cycles*2.0 : mod(floor(ogl2pos.y),2.0)*cycles*2.0)
