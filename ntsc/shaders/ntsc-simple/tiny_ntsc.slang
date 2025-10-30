@@ -18,8 +18,12 @@ float lpf_w_c;
 float y_lpf;
 float c_lpf;
 float ntsc_sat;
+float NINT_MOD;
+float D_CRAWL;
 } params;
 
+#pragma parameter NINT_MOD "NINTENDO Mode" 1.0 0.0 1.0 1.0
+#pragma parameter D_CRAWL "Dot Crawl" 1.0 0.0 1.0 1.0
 #pragma parameter comb "Comb Filter Strength" 0.4 0.0 1.0 0.05
 #pragma parameter taps "Filter Taps (slower)" 6.0 2.0 8.0 2.0
 #pragma parameter lpf_w "Low Pass Width Y" 0.5 0.25 2.0 0.25
@@ -35,6 +39,8 @@ float ntsc_sat;
 #define c_lpf params.c_lpf
 #define y_lpf params.y_lpf
 #define ntsc_sat params.ntsc_sat
+#define NINT_MOD params.NINT_MOD
+#define D_CRAWL params.D_CRAWL
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -72,10 +78,10 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #define PI 3.1415926
 #define ntsc 3.579545e6
-#define clock (OriginalSize.x ==256.0 ? ntsc*1.5 : OriginalSize.x == 320.0 ? ntsc*15.0/8.0 : ntsc*OriginalSize.x/160.0)
+#define clock (OriginalSize.x<300.0 ? ntsc*1.5 : OriginalSize.x == 320.0 ? ntsc*15.0/8.0 : ntsc*(OriginalSize.x/180.0))
 #define cycles PI*ntsc/clock
-#define timer (OriginalSize.x == 256.0 ? mod(float(FrameCount),2.0)*cycles : 0.0)
-#define phase_y (OriginalSize.x<300.0? mod(floor(ogl2pos.y),3.0)*cycles*2.0 : mod(floor(ogl2pos.y),2.0)*cycles*2.0)
+#define timer (D_CRAWL == 1.0? mod(float(FrameCount),2.0)*cycles : 0.0)
+#define phase_y (OriginalSize.x<300.0 && NINT_MOD==1.0? mod(floor(ogl2pos.y),3.0)*cycles*2.0 : mod(floor(ogl2pos.y),2.0)*cycles*2.0)
 
 mat3 RGBYUV = mat3(0.299, 0.587, 0.114,
                    -0.299, -0.587, 0.886, 
@@ -89,7 +95,7 @@ void main()
 {
     vec2 p = vec2(SourceSize.z*lpf_w,0.0);
     vec2 pc = vec2(SourceSize.z*lpf_w_c,0.0);
-    vec2 y = vec2(0.0,SourceSize.w*0.25);
+    vec2 y = vec2(0.0,SourceSize.w*0.5);
     vec3 final = vec3(0.0);
     float sum = 0.0;
     float sumY = 0.0;
@@ -100,7 +106,7 @@ for (int i=-int(steps); i<int(steps+1); i++)
     float w  = exp(-c_lpf*n*n);
     float wY = exp(-y_lpf*n*n);
     // phase cycles horizontally:
-    float phase_x = floor(ogl2pos.x + n)*cycles;
+    float phase_x = (floor(ogl2pos.x) + n)*cycles;
 
 // Combined horizontal + vertical phase in 3-phase space (NES):
     float phase = phase_x + phase_y  + timer;
