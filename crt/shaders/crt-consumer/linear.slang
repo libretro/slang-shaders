@@ -1,5 +1,5 @@
 #version 450
-#pragma parameter u_gamma "Gamma" 1.0 0.5 2.0 0.05
+#pragma parameter u_gamma "Gamma" 1.0 0.5 3.0 0.05
 
 layout(push_constant) uniform Push
 {
