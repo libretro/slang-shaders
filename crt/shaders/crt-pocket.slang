@@ -35,63 +35,74 @@ layout(std140, set = 0, binding = 0) uniform UBO
     ntsc,TEMP,size;
 } global;
 
-#pragma parameter warpX "Curvature X" 0.03 0.00 0.20 0.01 
-#define warpX params.warpX
-#pragma parameter warpY "Curvature Y" 0.05 0.00 0.20 0.01
-#define warpY params.warpY
-#pragma parameter corners "Corners cut On/Off" 1.0 0.0 1.0 1.0
-#define corners params.corners
-#pragma parameter vignette "Vignette On/Off" 1.0 0.0 1.0 1.0
-#define vignette params.vignette
-#pragma parameter vign "Vignette Strength" 0.10 0.0 0.50 0.01
-#define vign params.vign
-#pragma parameter shadowMask "Mask Style 0:cgwg,1-4:Lottes,5:Sin" 1.0 0.0 5.0 1.0
-#define shadowMask global.shadowMask
-#pragma parameter size "Mask Size" 1.0 1.0 2.0 1.0
-#define size global.size
-#pragma parameter maskl "Mask Low" 0.9 0.0 1.0 0.05
-#define maskl global.maskl
-#pragma parameter maskh "Mask High" 0.6 0.0 1.0 0.05
-#define maskh global.maskh
-#pragma parameter bgr "RGB/BGR subpixels" 1.0 0.0 1.0 1.0
-#define bgr global.bgr
-#pragma parameter DOTMASK_STRENGTH "CGWG Dot Mask Strength" 0.7 0.0 1.0 0.05
-#define DOTMASK_STRENGTH global.DOTMASK_STRENGTH
-#pragma parameter maskDark "Lottes maskDark" 0.3 0.0 2.0 0.1
-#define maskDark global.maskDark
-#pragma parameter maskLight "Lottes maskLight" 1.5 0.0 2.0 0.1
-#define maskLight global.maskLight
-#pragma parameter interlace "Interlace On/Off" 1.0 0.0 1.0 1.0
-#define interlace params.interlace
-#pragma parameter progress "Force 240p" 0.0 0.0 1.0 1.0  
-#define progress params.progress
-#pragma parameter flick "Flicker Strength" 4.0 0.0 10.0 0.1
-#define flick params.flick
-#pragma parameter beam1 "Scanline Beam Low" 6.0 1.0 15.0 0.5
-#define beam1 params.beam1
-#pragma parameter beam2 "Scanline Beam High" 8.0 1.0 15.0 0.5
-#define beam2 params.beam2
-#pragma parameter scanline1 "Scanline Low" 1.35 0.5 3.0 0.05
-#define scanline1 params.scanline1
-#pragma parameter scanline2 "Scanline High" 1.05 0.5 3.0 0.05
-#define scanline2 params.scanline2
-#pragma parameter ntsc "NTSC Colors" 1.0 0.0 1.0 1.0
-#define ntsc global.ntsc
-#pragma parameter TEMP "Color Temperature in Kelvins"  8591.0 1031.0 12047.0 72.0
-#define TEMP global.TEMP
-#pragma parameter gammain "Gamma In" 2.45 1.0 4.0 0.05
-#define gammain params.gammain
-#pragma parameter gammaout "Gamma Out" 2.25 1.0 4.0 0.05
-#define gammaout params.gammaout
-#pragma parameter sat "Saturation" 1.0 0.0 2.0 0.01
-#define sat params.sat
-#pragma parameter boost1 "Boost Dark Colors" 1.45 1.0 2.0 0.05
-#define boost1 params.boost1
-#pragma parameter boost2 "Boost Bright Colors" 1.25 1.0 2.0 0.05
-#define boost2 params.boost2
-#pragma parameter gl "Glow Strength" 0.15 0.0 1.0 0.01
-#define gl global.gl
+#pragma parameter bogus_geom "[ GEOMETRY ]" 0.0 0.0 0.0 0.0
 
+#pragma parameter warpX "Curvature X" 0.03 0.00 0.20 0.01 
+#pragma parameter warpY "Curvature Y" 0.05 0.00 0.20 0.01
+#pragma parameter corners "Corners cut On/Off" 1.0 0.0 1.0 1.0
+#pragma parameter vignette "Vignette On/Off" 1.0 0.0 1.0 1.0
+#pragma parameter vign "Vignette Strength" 0.10 0.0 0.50 0.01
+
+#pragma parameter bogus_masks "[ MASK SETTINGS ]" 0.0 0.0 0.0 0.0
+
+#pragma parameter shadowMask "Mask Style 0:cgwg,1-4:Lottes,5:Sin" 1.0 0.0 5.0 1.0
+#pragma parameter size "Mask Size" 1.0 1.0 2.0 1.0
+#pragma parameter maskl "Mask Low" 0.9 0.0 1.0 0.05
+#pragma parameter maskh "Mask High" 0.6 0.0 1.0 0.05
+#pragma parameter bgr "RGB/BGR subpixels" 1.0 0.0 1.0 1.0
+#pragma parameter DOTMASK_STRENGTH "CGWG Dot Mask Strength" 0.7 0.0 1.0 0.05
+#pragma parameter maskDark "Lottes maskDark" 0.3 0.0 2.0 0.1
+#pragma parameter maskLight "Lottes maskLight" 1.5 0.0 2.0 0.1
+
+#pragma parameter bogus_scan "[ SCANLINE SETTINGS ]" 0.0 0.0 0.0 0.0
+
+#pragma parameter interlace "Interlace On/Off" 1.0 0.0 1.0 1.0
+#pragma parameter progress "Force 240p" 0.0 0.0 1.0 1.0  
+#pragma parameter beam1 "Scanline Beam Low" 6.0 1.0 15.0 0.5
+#pragma parameter beam2 "Scanline Beam High" 8.0 1.0 15.0 0.5
+#pragma parameter scanline1 "Scanline Low" 1.35 0.5 3.0 0.05
+#pragma parameter scanline2 "Scanline High" 1.05 0.5 3.0 0.05
+
+#pragma parameter bogus_col "[ COLOR SETTINGS ]" 0.0 0.0 0.0 0.0
+
+#pragma parameter ntsc "NTSC Colors" 0.0 0.0 1.0 1.0
+#pragma parameter TEMP "Color Temperature in Kelvins"  6500.0 1031.0 12047.0 72.0
+#pragma parameter gammain "Gamma In" 2.45 1.0 4.0 0.05
+#pragma parameter gammaout "Gamma Out" 2.25 1.0 4.0 0.05
+#pragma parameter sat "Saturation" 1.0 0.0 2.0 0.01
+#pragma parameter boost1 "Boost Dark Colors" 1.45 1.0 2.0 0.05
+#pragma parameter boost2 "Boost Bright Colors" 1.25 1.0 2.0 0.05
+#pragma parameter gl "Glow Strength" 0.15 0.0 1.0 0.01
+#pragma parameter flick "Flicker Strength" 4.0 0.0 10.0 0.1
+
+#define scanline1 params.scanline1
+#define beam2 params.beam2
+#define beam1 params.beam1
+#define flick params.flick
+#define progress params.progress
+#define interlace params.interlace
+#define maskLight global.maskLight
+#define maskDark global.maskDark
+#define DOTMASK_STRENGTH global.DOTMASK_STRENGTH
+#define bgr global.bgr
+#define maskh global.maskh
+#define maskl global.maskl
+#define size global.size
+#define shadowMask global.shadowMask
+#define vign params.vign
+#define vignette params.vignette
+#define corners params.corners
+#define warpY params.warpY
+#define warpX params.warpX
+#define scanline2 params.scanline2
+#define ntsc global.ntsc
+#define TEMP global.TEMP
+#define gammain params.gammain
+#define gammaout params.gammaout
+#define sat params.sat
+#define boost1 params.boost1
+#define boost2 params.boost2
+#define gl global.gl
 
 #define pi 3.141592
 #define SourceSize params.SourceSize
@@ -306,10 +317,11 @@ vec3 DecodeGamma(vec3 color, float gamma)
     return color;
 }
 
-mat3 sRGB_to_NTSC1953 = mat3(
-     0.949758,  0.059310, -0.008310,
-     0.023541,  0.968011,  0.008448,
-     0.064513,  0.082466,  0.853021
+mat3 sRGB_to_NTSC = mat3(
+  1.0143, -0.0165, 0.0307,
+0.0723,  0.9125,  0.0173,
+0.0175,  -0.0419, 1.1101
+
 );
 
 
@@ -368,7 +380,7 @@ if (OriginalSize.y > 400.0 && interlace == 0.0 && progress == 1.0)
 
     vec3 res = Lanczos3(pos,InvResolution);
     if (ntsc == 1.0) {
-        res = sRGB_to_NTSC1953*res;
+        res = sRGB_to_NTSC*res;
     }
 	res = clamp(res,vec3(0.0),vec3(1.0));
     res *= ColorTemp(TEMP);
