@@ -75,9 +75,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define scanline1 params.scanline1
 #pragma parameter scanline2 "Scanline High" 1.05 0.5 3.0 0.05
 #define scanline2 params.scanline2
-#pragma parameter ntsc "NTSC Colors" 1.0 0.0 1.0 1.0
+#pragma parameter ntsc "NTSC Colors" 0.0 0.0 1.0 1.0
 #define ntsc global.ntsc
-#pragma parameter TEMP "Color Temperature in Kelvins"  8591.0 1031.0 12047.0 72.0
+#pragma parameter TEMP "Color Temperature in Kelvins"  6500.0 1031.0 12047.0 72.0
 #define TEMP global.TEMP
 #pragma parameter gammain "Gamma In" 2.45 1.0 4.0 0.05
 #define gammain params.gammain
@@ -306,10 +306,11 @@ vec3 DecodeGamma(vec3 color, float gamma)
     return color;
 }
 
-mat3 sRGB_to_NTSC1953 = mat3(
-     0.949758,  0.059310, -0.008310,
-     0.023541,  0.968011,  0.008448,
-     0.064513,  0.082466,  0.853021
+mat3 sRGB_to_NTSC = mat3(
+  1.0143, -0.0165, 0.0307,
+0.0723,  0.9125,  0.0173,
+0.0175,  -0.0419, 1.1101
+
 );
 
 
@@ -368,7 +369,7 @@ if (OriginalSize.y > 400.0 && interlace == 0.0 && progress == 1.0)
 
     vec3 res = Lanczos3(pos,InvResolution);
     if (ntsc == 1.0) {
-        res = sRGB_to_NTSC1953*res;
+        res = sRGB_to_NTSC*res;
     }
 	res = clamp(res,vec3(0.0),vec3(1.0));
     res *= ColorTemp(TEMP);
