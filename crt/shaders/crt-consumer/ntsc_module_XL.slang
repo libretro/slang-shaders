@@ -1,6 +1,7 @@
 #version 450
 
 /*
+NTSC module XL, DariusG 2025 — Universal NTSC Composite Emulator
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free
@@ -23,7 +24,7 @@ layout(push_constant) uniform Push
 #pragma parameter dummy1 " [ ----NTSC---- ] " 0.0 0.0 0.0 0.0
 #pragma parameter SVIDEO "S-VIDEO" 0.0 0.0 1.0 1.0
 #pragma parameter uModePAL "PAL" 0.0 0.0 1.0 1.0
-#pragma parameter N_SYSTEM "SNES, MD/PS320, PCE256, PCE320/STELLA" 0.0 0.0 3.0 1.0
+#pragma parameter N_SYSTEM "SNES, MD/PS320, MS/PCE/MD256, ATARI2600" 0.0 0.0 3.0 1.0
 #pragma parameter COMB "Comb Filter" 0.25 0.0 1.0 0.05
 #pragma parameter Luma_bw "Luma Bandwidth (RF -0.5, SVID +0.5)" 2.8 0.0 12.0 0.05
 #pragma parameter Chroma_bw "Chroma Bandwidth" 1.0 0.0 6.0 0.05
@@ -78,7 +79,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 #define MD320 ntsc*15.0/8.0
 #define PCE256 SNES256
 #define PCE320 ntsc*6.0/3.0
-#define clock (N_SYSTEM == 0.0 ? SNES256 : N_SYSTEM == 1.0 ? MD320 : N_SYSTEM == 2.0 ? PCE256 : PCE320)
+#define clock (N_SYSTEM == 0.0 ? SNES256 : N_SYSTEM == 1.0 ? MD320 : N_SYSTEM == 2.0 ? OriginalSize.x<300.0? PCE256 : PCE320 : ntsc*2.0)
 #define cycles ntsc/clock
 
 
@@ -122,7 +123,7 @@ vec3 filter_ntsc(vec2 uv, float bandwidth_luma, float bandwidth_chroma, float ra
     vec3 signal = vec3(0.0);
     float total_luma = 0.0;
     float total_chroma = 0.0;
-    float line = N_SYSTEM == 0.0 ? mod(floor(ogl2pos.y),3.0) : 0.0 ;
+    float line = N_SYSTEM == 0.0 ? mod(floor(ogl2pos.y),3.0) : N_SYSTEM == 1.0? 0.0 : mod(floor(ogl2pos.y),2.0) ;
     float time = N_SYSTEM == 0.0 ? mod(float(FrameCount),2.0) : 0.0;
     float pal_alt = 0.0;
     // PAL alternate lines  
