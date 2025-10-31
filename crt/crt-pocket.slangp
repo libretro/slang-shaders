@@ -1,6 +1,8 @@
-shaders = "1"
-shader0 = "shaders/crt-pocket.slang"
-scale_type0 = viewport
+shaders = "2"
+shader0 = "shaders/crt-consumer/linear.slang"
+shader1 = "shaders/crt-pocket.slang"
+scale_type1 = viewport
+filter_linear1 = true
 
-
+u_gamma = "2.4"
 
