@@ -10,10 +10,10 @@ any later version.
 */
 layout(push_constant) uniform Push
 {
-	vec4 SourceSize;
-	vec4 OriginalSize;
-	vec4 OutputSize;
-	uint FrameCount;
+    vec4 SourceSize;
+    vec4 OriginalSize;
+    vec4 OutputSize;
+    uint FrameCount;
    float N_SYSTEM;
   float Luma_bw ;
    float Chroma_bw ;
@@ -24,7 +24,7 @@ layout(push_constant) uniform Push
 #pragma parameter dummy1 " [ ----NTSC---- ] " 0.0 0.0 0.0 0.0
 #pragma parameter SVIDEO "S-VIDEO" 0.0 0.0 1.0 1.0
 #pragma parameter uModePAL "PAL" 0.0 0.0 1.0 1.0
-#pragma parameter N_SYSTEM "SNES, MD/PS320, MS/PCE/MD256, ATARI2600" 0.0 0.0 3.0 1.0
+#pragma parameter N_SYSTEM "SNES, MD/PS1, PCE, A26, ZX SPEC" 0.0 0.0 4.0 1.0
 #pragma parameter COMB "Comb Filter" 0.25 0.0 1.0 0.05
 #pragma parameter Luma_bw "Luma Bandwidth (RF -0.5, SVID +0.5)" 2.8 0.0 12.0 0.05
 #pragma parameter Chroma_bw "Chroma Bandwidth" 1.0 0.0 6.0 0.05
@@ -44,9 +44,17 @@ layout(push_constant) uniform Push
 #define SVIDEO params.SVIDEO
 #define uModePAL params.uModePAL
 
+#define PI 3.1415926
+#define TAU 6.283185
+#define ntsc 3.579545e6
+#define SNES256 ntsc*6.0/4.0
+#define MD320 ntsc*15.0/8.0
+#define PCE320 ntsc*6.0/3.0
+
+
 layout(std140, set = 0, binding = 0) uniform UBO
 {
-	mat4 MVP;
+    mat4 MVP;
 } global;
 
 #pragma stage vertex
@@ -55,6 +63,7 @@ layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec2 ogl2pos;
 layout(location = 2) out vec2 invdims;
+layout(location = 3) out float cycles;
 
 void main()
 {
@@ -62,6 +71,13 @@ void main()
    vTexCoord = TexCoord*1.0001;
    ogl2pos = vTexCoord*SourceSize.xy;
    invdims = 1.0/SourceSize.xy;
+   float clock = \
+     (N_SYSTEM == 0.0 ? SNES256 \
+    : N_SYSTEM == 1.0 ? OriginalSize.x<300.0 ? SNES256: MD320 \
+    : N_SYSTEM == 2.0 ? OriginalSize.x<300.0 ? SNES256 :PCE320 \
+    : N_SYSTEM == 3.0 ? PCE320 \
+    : SNES256 );
+   cycles = ntsc/clock;
    }
 
 #pragma stage fragment
@@ -69,18 +85,11 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(location = 1) in vec2 ogl2pos;
 layout(location = 2) in vec2 invdims;
+layout(location = 3) in float cycles;
 
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-#define PI 3.1415926
-#define TAU 6.283185
-#define ntsc 3.579545e6
-#define SNES256 ntsc*6.0/4.0
-#define MD320 ntsc*15.0/8.0
-#define PCE256 SNES256
-#define PCE320 ntsc*6.0/3.0
-#define clock (N_SYSTEM == 0.0 ? SNES256 : N_SYSTEM == 1.0 ? MD320 : N_SYSTEM == 2.0 ? OriginalSize.x<300.0? PCE256 : PCE320 : ntsc*2.0)
-#define cycles ntsc/clock
+
 
 
 const mat3 yiq2rgb = mat3(
@@ -123,7 +132,7 @@ vec3 filter_ntsc(vec2 uv, float bandwidth_luma, float bandwidth_chroma, float ra
     vec3 signal = vec3(0.0);
     float total_luma = 0.0;
     float total_chroma = 0.0;
-    float line = N_SYSTEM == 0.0 ? mod(floor(ogl2pos.y),3.0) : N_SYSTEM == 1.0? 0.0 : mod(floor(ogl2pos.y),2.0) ;
+    float line = N_SYSTEM == 0.0 ? mod(floor(ogl2pos.y),3.0) : 0.0 ;
     float time = N_SYSTEM == 0.0 ? mod(float(FrameCount),2.0) : 0.0;
     float pal_alt = 0.0;
     // PAL alternate lines  
