@@ -1,4 +1,4 @@
-#reference "../../../crt-yah.slangp"
+#reference "../crt-yah.slangp"
 
 // Global parameters
 GLOBAL_MASTER = 1.0

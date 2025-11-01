@@ -1,4 +1,1 @@
-shaders = 1
-
-shader0 = "shaders/crt-yah/crt-yah.single-pass.slang"
-filter_linear0 = true
+#reference "shaders/crt-yah/crt-yah.single-pass.slangp"
