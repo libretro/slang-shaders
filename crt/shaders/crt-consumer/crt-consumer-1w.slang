@@ -14,8 +14,10 @@
 #pragma parameter u_overscanx "Overscan Horiz." 0.3 0.3 2.0 0.05
 #pragma parameter u_overscany "Overscan Vertic." 0.3 0.3 2.0 0.05
 #pragma parameter u_scan "Scanlines Strength" 0.35 0.0 1.0 0.05
-#pragma parameter u_mask "Mask Strength" 0.25 0.0 1.0 0.05
 #pragma parameter u_wid "Mask Fine/Coarse" 2.0 2.0 3.0 1.0
+#pragma parameter u_mask "Mask Strength" 0.3 0.0 1.0 0.05
+#pragma parameter u_slot "Slot Mask On/Off" 0.0 0.0 1.0 1.0
+#pragma parameter slot_str "Slot Mask Strength" 0.7 0.0 1.0 0.05
 #pragma parameter u_deconv "De-Convergence Horiz." 0.3 -2.0 2.0 0.05
 #pragma parameter u_brightb "Bright Boost" 1.35 1.0 2.0 0.05
 #pragma parameter u_vignette "Vignette" 0.15 0.0 0.5 0.01
@@ -23,7 +25,8 @@
 
 layout(push_constant) uniform Push
 {
-float u_sharp,u_warp,u_overscanx,u_overscany,u_scan,u_mask,u_wid,u_deconv,u_brightb,u_vignette,u_smptec;
+float u_sharp,u_warp,u_overscanx,u_overscany,u_scan,u_mask,u_wid,u_deconv,u_brightb,u_vignette,
+u_smptec,slot_str,u_slot;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -51,6 +54,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define u_brightb params.u_brightb
 #define u_vignette params.u_vignette
 #define u_smptec params.u_smptec
+#define slot_str params.slot_str
+#define u_slot params.u_slot
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -69,7 +74,6 @@ void main()
    invdims = u_deconv/SourceSize.xy;
    maskpos = vTexCoord.xy*OutputSize.xy*2.0/u_wid;
    barrel = vec2(1.0-u_warp*u_overscanx, 1.0-u_warp*u_overscany);
-
 }
 
 #pragma stage fragment
@@ -114,6 +118,14 @@ mat3 japan_d93 = mat3(
 
 #define PI 3.14159265358979323846 
 #define TAU 6.2831852
+
+float slot(vec2 pos)
+{
+    float odd = 1.0;
+    if (fract(pos.x/(u_wid*2.0)) < 0.5) odd = 0.0;
+
+ return slot_str*sin((pos.y+odd)*PI)+1.0;
+}
 
 void main() {
     vec2 interlace = OriginalSize.y >300.0? vec2(0.0,mod(float(FrameCount),2.0)) : vec2(0.0);
@@ -163,6 +175,9 @@ void main() {
     float scan = 0.5*sin((uv.y*SourceSize.y*interl_lines-0.25 - interlace.y)*TAU)+0.5;
     float mask = 0.5*sin((maskpos.x)*PI)+0.5;
     col *= mix(1.0, scan, u_scan);
+    if (u_slot == 1.0){ 
+        mask *= slot(vTexCoord*OutputSize.xy);
+    }
     col *= mix(u_brightb, mask, u_mask);
 
 
