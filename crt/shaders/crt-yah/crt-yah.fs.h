@@ -43,7 +43,7 @@ float get_brightness_compensation(float color_luma)
 vec3 INPUT(vec3 color)
 {
     color = decode_gamma(color);
-    color = apply_floor(color, PARAM_COLOR_FLOOR);
+    color = apply_floor(color, PARAM_COLOR_FLOOR * PARAM_COLOR_BLACK_LIGHT);
 
     return color;
 }
@@ -423,7 +423,7 @@ vec3 apply_noise(vec3 color, float color_luma, vec2 tex_coord)
     float noise = random(pix_coord * (frame + 1.0));
 
     float mul_noise = noise * 2.0;
-    float add_noise = noise * (1.0 - color_luma) * (4.0 / 256.0 - PARAM_COLOR_FLOOR);
+    float add_noise = noise * (1.0 - color_luma) * (4.0 / 256.0 - PARAM_COLOR_FLOOR) * PARAM_COLOR_BLACK_LIGHT;
 
     return mix(
         color,
