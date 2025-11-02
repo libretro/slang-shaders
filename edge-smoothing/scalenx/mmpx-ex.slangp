@@ -1,0 +1,6 @@
+shaders = 1
+
+shader0 = shaders/mmpx-ex.slang
+filter_linear0 = false
+scale_type0 = source
+scale0 = 2.0
