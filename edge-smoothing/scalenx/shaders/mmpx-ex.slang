@@ -186,15 +186,15 @@ bool isInBounds(vec2 texCoord) {
 }
 
 ///////////////////////     Test Colors     ///////////////////////
- vec3 testcolor = vec3(1.0, 0.0, 1.0);  // Magenta
- vec3 testcolor2 = vec3(0.0, 1.0, 1.0);  // Cyan
- vec3 testcolor3 = vec3(1.0, 1.0, 0.0);  // Yellow
- vec3 testcolor4 = vec3(1.0, 1.0, 1.0);  // White
+ //vec3 testcolor = vec3(1.0, 0.0, 1.0);  // Magenta
+ //vec3 testcolor2 = vec3(0.0, 1.0, 1.0);  // Cyan
+ //vec3 testcolor3 = vec3(1.0, 1.0, 0.0);  // Yellow
+ //vec3 testcolor4 = vec3(1.0, 1.0, 1.0);  // White
 
 
 // pin zz   "Concave + Cross" shaped Weak Mixing (Weak Mix/None)
 vec3 admixC(vec3 X1, vec3 X2, vec3 E) {
-//return testcolor;
+
     // Case of black pincers? Not necessary, if mixing is possible, E is also dark.
     //if (checkblack(X1) && checkblack(X2)) return E;
 
@@ -218,7 +218,7 @@ vec3 admixC(vec3 X1, vec3 X2, vec3 E) {
 
 // K-shaped Forced Weak Mixing (Weak Mix/Weaker)
 vec3 admixK(vec3 X, vec3 E) {
-//return testcolor;
+
 	bool mixok = mixcheck(X, E);
 
 	return mixok ? mix(X, E, 0.618034) : mix(X, E, 0.8541);
@@ -228,8 +228,8 @@ vec3 admixK(vec3 X, vec3 E) {
 // L-shaped 2:1 Slope  Main corner extension
 // Practice: This rule requires all 4 pixels on the strict slope to be identical. Otherwise, various glitches appear!
 vec3 admixL(vec3 X, vec3 E, vec3 S) {
-//return testcolor;
-    //if (eq(X, E)) return testcolor;//return E; // Originally this would catch many duplicate pixels, but after slopeBAD filtering, it's disabled.
+
+    //if (eq(X, E)) return E; // Originally this would catch many duplicate pixels, but after slopeBAD filtering, it's disabled.
 
 	// If target X and reference S(sample) are different, it means mixing has already occurred once, just copy the target.
 	if (noteq(X, S)) return X;
@@ -242,8 +242,8 @@ vec3 admixL(vec3 X, vec3 E, vec3 S) {
 /********************************************************************************************************************************************
  *               												main slope + X cross-processing mechanism					                *
  pin zz **********************************************************************************************************************************  */
-vec3 admixX(vec3 A, vec3 B, vec3 C, vec3 D, vec3 E, vec3 F, vec3 G, vec3 H, vec3 I, vec3 P, vec3 PA, vec3 PC, vec3 Q, vec3 QA, vec3 QG, vec3 R, vec3 RC, vec3 RI, vec3 S, vec3 SG, vec3 SI, vec3 AA, vec3 CC, vec3 GG) {
-//return testcolor2;
+vec3 admixX(vec3 A, vec3 B, vec3 C, vec3 D, vec3 E, vec3 F, vec3 G, vec3 H, vec3 I, vec3 P, vec3 PA, vec3 PC, vec3 Q, vec3 QA, vec3 QG, vec3 R, vec3 RC, vec3 RI, vec3 S, vec3 SG, vec3 SI, vec3 AA) {
+
     // Pre-define 3 types of special exits
     vec3 slopeBAD = vec3(2.0);
     vec3 theEXIT = vec3(8.0);
@@ -349,7 +349,6 @@ if (!eq_B_D){
 
 // Original main rule enhanced with sim
 if ( (sim_EC || sim_EG) && !eq_E_A ){
-//return testcolor;
 
 	eq_A_B = eq(A,B);
 	eq_B_P = eq(B,P);
@@ -446,7 +445,7 @@ if ( (sim_EC || sim_EG) && !eq_E_A ){
   ===============================================zz */
 
 if (eq_E_A) {
-//return testcolor2;
+
 	// When judging cross (✕), have concepts of "region" and "trend". Conditions need tightening for different regions.
 
     // B D not connected to anything exit? Not needed here!!!
@@ -622,8 +621,6 @@ if (eq_E_A) {
 // This side is different from the sim side. Since the inner pixels mostly contrast with the surroundings without sim.
 // Sometimes it's more like the opposite side of sim with B-D as the boundary, so the judgment rules are different from the sim side.
 
-//return testcolor3;
-
 	eq_B_P = eq(B, P);
     eq_B_PC = eq(B, PC);
 	eq_D_Q = eq(D, Q);
@@ -696,8 +693,6 @@ if (eq_E_A) {
         return mixok ? mix(X,E,0.381966) : X;
         // The last two rules are based on experience. Principle: When encountering a triangle, only blend the inner bend, leave the outer bend untouched (Double Dragon Jimmy's eyebrows)
 		// Also, there are very few cases, purely derived from extensive testing.
-
-		//return testcolor;
 
 	}
 
@@ -856,7 +851,7 @@ if ( eq_E_D&&eq_E_F || eq_E_B&&eq_E_H ) return;
     // B - D
     bool slope1 = false;
 	if ( (!eq_E_B&&!eq_E_D) && (!eq_D_H&&!eq_D_F && !eq_B_H&&!eq_B_F) && (El>=Dl&&El>=Bl || eq(E,A)) && ( (El<Dl&&El<Bl) || none_eq2(A,B,D) || noteq(E,P) || noteq(E,Q) ) && ( eq_B_D&&(eq_F_H||eq(E,A)||eq(B,PC)||eq(D,QG)) || sim1(B,D)&&(sim2(E,C)||sim2(E,G)) ) ) {
-		J=admixX(A,B,C,D,E,F,G,H,I,P,PA,PC,Q,QA,QG,R,RC,RI,S,SG,SI,AA,CC,GG);
+		J=admixX(A,B,C,D,E,F,G,H,I,P,PA,PC,Q,QA,QG,R,RC,RI,S,SG,SI,AA);
 		if (J.b > 1.0 ) {
             if (J.b > 30.0 ) {J=J-33.0; slopEND=true;}
 			if (J.b == 8.0 ) return;
@@ -866,7 +861,7 @@ if ( eq_E_D&&eq_E_F || eq_E_B&&eq_E_H ) return;
     // B - F
     bool slope2 = false;
 	if ( (!eq_E_B&&!eq_E_F) && (!eq_B_D&&!eq_B_H && !eq_D_F&&!eq_F_H) && (El>=Bl&&El>=Fl || eq(E,C)) && ( (El<Bl&&El<Fl) || none_eq2(C,B,F) || noteq(E,P) || noteq(E,R) ) && ( eq_B_F&&(eq_D_H||eq(E,C)||eq(B,PA)||eq(F,RI)) || sim1(B,F)&&(sim2(E,A)||sim2(E,I)) ) )  {
-		K=admixX(C,F,I,B,E,H,A,D,G,R,RC,RI,P,PC,PA,S,SI,SG,Q,QA,QG,CC,II,AA);
+		K=admixX(C,F,I,B,E,H,A,D,G,R,RC,RI,P,PC,PA,S,SI,SG,Q,QA,QG,CC);
 		if (K.b > 1.0 ) {
             if (K.b > 30.0 ) {K=K-33.0; slopEND=true;}
 			if (K.b == 8.0 ) return;
@@ -876,7 +871,7 @@ if ( eq_E_D&&eq_E_F || eq_E_B&&eq_E_H ) return;
     // D - H
     bool slope3 = slope1;
 	if ( !slope1 && (!eq_E_D&&!eq_E_H)  &&  (!eq_F_H&&!eq_B_H && !eq_D_F&&!eq_B_D) && (El>=Hl&&El>=Dl || eq(E,G))  &&  ((El<Hl&&El<Dl) || none_eq2(G,D,H) || noteq(E,S) || noteq(E,Q))  &&  ( eq_D_H&&(eq_B_F||eq(E,G)||eq(D,QA)||eq(H,SI)) || sim1(D,H) && (sim2(E,A)||sim2(E,I)) ) )  {
-		L=admixX(G,D,A,H,E,B,I,F,C,Q,QG,QA,S,SG,SI,P,PA,PC,R,RI,RC,GG,AA,II);
+		L=admixX(G,D,A,H,E,B,I,F,C,Q,QG,QA,S,SG,SI,P,PA,PC,R,RI,RC,GG);
 		if (L.b > 1.0 ) {
             if (L.b > 30.0 ) {L=L-33.0; slopEND=true;}
 			if (L.b == 8.0 ) return;
@@ -886,7 +881,7 @@ if ( eq_E_D&&eq_E_F || eq_E_B&&eq_E_H ) return;
     // F - H
     bool slope4 = slope2;
 	if ( !slope2 && (!eq_E_F&&!eq_E_H)  &&  (!eq_B_F&&!eq_D_F && !eq_B_H&&!eq_D_H) && (El>=Fl&&El>=Hl || eq(E,I))  &&  ((El<Fl&&El<Hl) || none_eq2(I,F,H) || noteq(E,R) || noteq(E,S))  &&  ( eq_F_H&&(eq_B_D||eq(F,RC)||eq(H,SG)||eq(E,I)) || sim1(F,H) && (sim2(E,C)||sim2(E,G)) ) )  {
-		M=admixX(I,H,G,F,E,D,C,B,A,S,SI,SG,R,RI,RC,Q,QG,QA,P,PC,PA,II,GG,CC);
+		M=admixX(I,H,G,F,E,D,C,B,A,S,SI,SG,R,RI,RC,Q,QG,QA,P,PC,PA,II);
 		if (M.b > 1.0 ) {
             if (M.b > 30.0 ) {M=M-33.0; slopEND=true;}
 			if (M.b == 8.0 ) return;
