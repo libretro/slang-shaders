@@ -20,7 +20,7 @@ any later version.
 #pragma parameter u_mode "SNES, MD/PS1, PCE" 0.0 -1.0 2.0 1.0
 #pragma parameter u_pal "PAL" 0.0 0.0 1.0 1.0
 #pragma parameter u_cable "RF, Composite, S-Video" 1.0 0.0 2.0 1.0
-#pragma parameter l_bw "Luma Bandwidth" 1.2 0.0 5.0 0.05
+#pragma parameter l_bw "Luma Bandwidth" 1.5 0.0 5.0 0.05
 #pragma parameter c_bw "Chroma Bandwidth" 0.4 0.0 4.0 0.05
 #pragma parameter u_gain "Chroma Gain" 1.5 0.0 3.0 0.05
 
