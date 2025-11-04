@@ -16,6 +16,7 @@ any later version.
 #define nes256 0.6666
 #define md320  0.5333
 #define pce320 0.5
+#define secs float(FrameCount)/60.0
 
 #pragma parameter u_mode "SNES, MD/PS1, PCE" 0.0 -1.0 2.0 1.0
 #pragma parameter u_pal "PAL" 0.0 0.0 1.0 1.0
@@ -67,6 +68,9 @@ void main()
              : u_mode == 1.0 ? OriginalSize.x < 300.0 ? nes256 : md320 \
              : u_mode == 2.0 ? OriginalSize.x < 300.0 ? nes256 : pce320  \
              : ntsc);
+   float rf_drift = (u_cable == 0.0) ? sin(secs * 0.8) * 0.002 * 0.2 : 0.0;
+   vTexCoord.x += rf_drift * sin(vTexCoord.y * 120.0 + secs * 5.0);
+
 }
 
 #pragma stage fragment
@@ -77,6 +81,7 @@ layout(location = 2) in vec2 invdims;
 layout(location = 3) in float cycles;
 
 layout(set = 0, binding = 2) uniform sampler2D Source;
+
 
 vec3 rgb2yiq(vec3 rgb) {
     float Y = dot(rgb, vec3(0.299,  0.587, 0.114));
@@ -98,22 +103,30 @@ float blackman(float n, float N, float bw) {
     return (0.5-bw) - (0.5 * cos((TAU * n) / N)) + (bw * cos((2.0 * TAU * n) / N));
 }
 
+
+float rand(vec2 co) {
+    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
+
 void main() {
     vec2 dx = vec2(invdims.x,0.0);
     float total_luma = 0.0;
     float total_chroma = 0.0;
     vec3 color = vec3(0.0);
-    
     float line = u_mode == 0.0 ? floor(ogl2pos.y)*cycles : u_pal == 1.0 ? mod(floor(ogl2pos.y),2.0)*PI : 0.0;
-    float timer = u_mode == 0.0 ? mod(float(FrameCount),2.0)*cycles : 0.0;
+    float timer = u_mode == 0.0 && u_cable != 0.0 ? mod(float(FrameCount),2.0)*PI \
+    : u_mode == 0.0 && u_cable == 0.0 ? mod(float(FrameCount),3.0)*PI \
+    : 0.0;
 // chroma
     for (float n = 0.0; n<radius; n++)
     {
-    float offset = n - (radius-1.0)/2.0 ;    
+    float offset = n - (radius-1.0)/2.0 ;   
+    float rf_jitter = (u_cable == 0.0) ? (rand(vec2(vTexCoord.y, secs + offset)) - 0.5) * 0.2 :0.0;
+ 
     float weight = blackman(n, radius, c_bw/10.0); total_chroma += weight;  
       
     vec3 res = rgb2yiq(texture(Source,vTexCoord + offset*dx).rgb);
-    float phase = (floor(ogl2pos.x) + offset)*cycles + line + timer;
+    float phase = (floor(ogl2pos.x) + offset + rf_jitter)*cycles + line + timer;
     float cs = cos(phase); float sn = sin(phase);
     vec2 burst = vec2(cs,sn);
     res.gb *= burst;
