@@ -553,7 +553,7 @@ if (eq_E_A) {
 //	E Zone
     if (En3) {
         scoreE += 1;
-        if (B_hori || D_vert) scoreZ = 1;
+        if (B_hori || B_vert || D_hori || D_vert) scoreZ = 1;
     }
 
     if (eq_E_C) {
@@ -574,7 +574,8 @@ if (eq_E_A) {
 
     if ( eq(F,H) ) {
 		scoreE += 1;
-        if ( B_hori && eq(F,R) || D_hori && eq(G,H) || B_vert && eq(C,F) || D_vert && eq(H,S)) scoreZ = 1;
+        if ( scoreZ==0 && B_hori && (eq(F,R) || eq(G,H) || eq(F,I)) ) scoreZ = 1;
+        if ( scoreZ==0 && D_vert && (eq(C,F) || eq(H,S) || eq(F,I)) ) scoreZ = 1;
     }
 
 	bool Bn3 = eq_B_P&&eq_B_C;
@@ -607,6 +608,12 @@ if (eq_E_A) {
     if (scoreFinal >= 2) return X;
 
     if (scoreFinal == 1) return mixok ? mix(X,E,0.381966) : X;
+
+    // Final addition: With a total score of zero and no deductions in zones B and D, a long slope pattern is formed.
+    if (scoreB >= 0 && scoreD >=0) {
+        if (B_hori&&D_hori) return X;
+        if (B_vert&&D_vert) return X;
+    }
 
     return slopeBAD;
 
@@ -684,28 +691,35 @@ if (eq_E_A) {
 
         if (eq_H_S && eq_F_R) return theEXIT; // Both sides extended simultaneously (building edge)
 
-        if (eq_A_B) return  X;
+        if (eq_A_B) return  mixok ? mix(X,E,0.381966) : X;
         // Inner bend
         if (eq_B_C || eq_D_G) return mixok ? mix(X,E,0.381966) : X;
         // Outer bend
         if (eq_B_P || eq_D_Q) return theEXIT;
 
         return mixok ? mix(X,E,0.381966) : X;
-        // The last two rules are based on experience. Principle: When encountering a triangle, only blend the inner bend, leave the outer bend untouched (Double Dragon Jimmy's eyebrows)
-		// Also, there are very few cases, purely derived from extensive testing.
+        // The last two rules are based on experience. Principle: Connect the inner curve of the L-shape, not the outer curve. (Double Dragon Jimmy's eyebrows)
+
 
 	}
 
     // F - H
 	if ( eq(F,H) ) {
-    	if (sim_X_E) return mixok ? mix(X,E,0.381966) : X;
-        // Principle: Peripheral same side forms extension shape
-        if (eq_B_C && eq_F_R) return mixok ? mix(X,E,0.381966) : X;
-        if (eq_D_Q && eq_G_H) return mixok ? mix(X,E,0.381966) : X;
-        if (eq_B_P && eq_C_F) return mixok ? mix(X,E,0.381966) : X;
-        if (eq_D_G && eq_H_S) return mixok ? mix(X,E,0.381966) : X;
-		// B D long slope is already covered in the above 4, this is the last peripheral case: if not forming an extension shape, at least need a triangle.
-        if ( (eq_B_C || eq_B_P) && (eq_D_Q || eq_D_G) && eq(F, I) ) return mixok ? mix(X,E,0.381966) : X;
+    	if (sim_X_E) return mixok ? mix(X,E,0.381966)+slopEND : X+slopEND;
+        // Avoid symmetrical full-coverage compression of single pixels
+		if ( eq_B_C && eq_A_B && eq_G_H &&eq(F, I) ) return theEXIT;
+		if ( eq_D_G && eq_A_B && eq_C_F &&eq(F, I) ) return theEXIT;
+		//Inner bend
+        if (eq_B_C && (eq_F_R||eq_G_H||eq(F, I))) return mixok ? mix(X,E,0.381966)+slopEND : X+slopEND;
+        if (eq_D_G && (eq_C_F||eq_H_S||eq(F, I))) return mixok ? mix(X,E,0.381966)+slopEND : X+slopEND;
+		// E-I F-H Cross-destruction trend
+		if (eq_E_I) return slopeBAD;
+        // Z-shaped outer side
+		if (eq_B_P && eq_A_B) return mixok ? mix(X,E,0.381966)+slopEND : X+slopEND;
+        if (eq_D_Q && eq_A_B) return mixok ? mix(X,E,0.381966)+slopEND : X+slopEND;
+		// Outer curve,unless the opposite side forms a long L-shaped trend
+		if (eq_B_P && (eq_C_F&&eq_H_S)) return mixok ? mix(X,E,0.381966)+slopEND : X+slopEND;
+        if (eq_D_Q && (eq_F_R&&eq_G_H)) return mixok ? mix(X,E,0.381966)+slopEND : X+slopEND;
 
         return slopeBAD;
 	}
@@ -768,19 +782,24 @@ void main()
    vec3 H = src(+0, +1);
    vec3 I = src(+1, +1);
 
-// Boundary check, check and copy the 4 adjacent pixels (excessive copying damages shapes, RA out-of-bounds adds extra row/column of black pixels)
+ vec3 fakeB = vec3(9.0);
+ vec3 fakeD = vec3(8.0);
+ vec3 fakeF = vec3(7.0);
+ vec3 fakeH = vec3(6.0);
+
+// Boundary detection checks four pixels: top, bottom, left, and right. If a pixel is out of bounds, a false pixel is assigned (in RA, out-of-bounds pixels will result in an extra row/column of black pixels).
 
    vec2 tcB = vTexCoord + vec2(0., -1.) * params.SourceSize.zw;
-   if (!isInBounds(tcB)) B = E;
+   if (!isInBounds(tcB)) B = fakeB;
 
    vec2 tcD = vTexCoord + vec2(-1., 0.) * params.SourceSize.zw;
-   if (!isInBounds(tcD)) D = E;
+   if (!isInBounds(tcD)) D = fakeD;
 
    vec2 tcF = vTexCoord + vec2(1., 0.) * params.SourceSize.zw;
-   if (!isInBounds(tcF)) F = E;
+   if (!isInBounds(tcF)) F = fakeF;
 
    vec2 tcH = vTexCoord + vec2(0., 1.) * params.SourceSize.zw;
-   if (!isInBounds(tcH)) H = E;
+   if (!isInBounds(tcH)) H = fakeH;
 
 // Default to nearest-neighbor upscaling
    vec3 J = E;
