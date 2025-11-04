@@ -20,7 +20,7 @@ any later version.
 #pragma parameter u_mode "SNES, MD/PS1, PCE" 0.0 -1.0 2.0 1.0
 #pragma parameter u_pal "PAL" 0.0 0.0 1.0 1.0
 #pragma parameter u_cable "RF, Composite, S-Video" 1.0 0.0 2.0 1.0
-#pragma parameter l_bw "Luma Bandwidth" 2.0 0.0 5.0 0.05
+#pragma parameter l_bw "Luma Bandwidth" 2.4 0.0 5.0 0.05
 #pragma parameter c_bw "Chroma Bandwidth" 0.6 0.0 4.0 0.05
 #pragma parameter u_gain "Chroma Gain" 1.5 0.0 3.0 0.05
 
@@ -92,7 +92,7 @@ vec3 yiq2rgb(vec3 yiq) {
     return vec3(r, g, b);
 }
 
-#define radius (u_cable == 0.0 ? 15.0 : u_cable == 1.0 ? 11.0 : 9.0)
+#define radius (u_cable == 0.0 ? 13.0 : u_cable == 1.0 ? 11.0 : 9.0)
 
 float blackman(float n, float N, float bw) {
     return (0.5-bw) - (0.5 * cos((TAU * n) / N)) + (bw * cos((2.0 * TAU * n) / N));
