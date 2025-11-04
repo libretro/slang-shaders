@@ -72,7 +72,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter boost1 "Boost Dark Colors" 1.45 1.0 2.0 0.05
 #pragma parameter boost2 "Boost Bright Colors" 1.25 1.0 2.0 0.05
 #pragma parameter gl "Glow Strength" 0.15 0.0 1.0 0.01
-#pragma parameter flick "Flicker Strength" 4.0 0.0 10.0 0.1
+#pragma parameter flick "Flicker Strength" 2.0 0.0 10.0 0.1
 
 #define scanline1 params.scanline1
 #define beam2 params.beam2
