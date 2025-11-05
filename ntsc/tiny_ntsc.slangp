@@ -1,4 +1,3 @@
 shaders = 1
 
 shader0 = shaders/ntsc-simple/tiny_ntsc.slang
-scale_type_x0 = "viewport"

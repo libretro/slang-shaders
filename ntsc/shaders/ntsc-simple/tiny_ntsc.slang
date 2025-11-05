@@ -25,10 +25,10 @@ float D_CRAWL;
 #pragma parameter NINT_MOD "NINTENDO Mode" 1.0 0.0 1.0 1.0
 #pragma parameter D_CRAWL "Dot Crawl" 1.0 0.0 1.0 1.0
 #pragma parameter comb "Comb Filter Strength" 0.4 0.0 1.0 0.05
-#pragma parameter taps "Filter Taps (slower)" 6.0 2.0 8.0 2.0
-#pragma parameter lpf_w "Low Pass Width Y" 0.5 0.25 2.0 0.25
-#pragma parameter lpf_w_c "Low Pass Width C" 1.0 0.25 4.0 0.25
-#pragma parameter y_lpf "Luma Low Pass (sharpness)" 0.35 0.0 1.0 0.01
+#pragma parameter taps "Filter Taps (slower)" 4.0 2.0 8.0 2.0
+#pragma parameter lpf_w "Blur Width Y" 0.5 0.25 2.0 0.05
+#pragma parameter lpf_w_c "Blur Width C" 1.0 0.25 4.0 0.05
+#pragma parameter y_lpf "Luma Low Pass (sharpness)" 0.25 0.0 0.5 0.01
 #pragma parameter c_lpf "Chroma Low Pass (bleed)" 0.15 0.0 1.0 0.01
 #pragma parameter ntsc_sat "Saturation" 0.8 0.0 3.0 0.05
 
@@ -76,7 +76,9 @@ layout(location = 1) in vec2 ogl2pos;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-#define PI 3.1415926
+
+#define PI   3.14159265358979323846
+#define TAU  6.28318530717958647693
 #define ntsc 3.579545e6
 #define clock (OriginalSize.x<300.0 ? ntsc*1.5 : OriginalSize.x == 320.0 ? ntsc*15.0/8.0 : ntsc*(OriginalSize.x/180.0))
 #define cycles PI*ntsc/clock
@@ -91,6 +93,10 @@ mat3 YUV2RGB = mat3(1.0, 0.0, 1.13983,
                     1.0, -0.39465, -0.58060,
                     1.0, 2.03211, 0.0);
 
+float blackman(float n, float N, float bw) {
+    return (0.5-bw) - (0.5 * cos((TAU * n) / N)) + (bw * cos((2.0 * TAU * n) / N));
+}
+
 void main()
 {
     vec2 p = vec2(SourceSize.z*lpf_w,0.0);
@@ -100,11 +106,11 @@ void main()
     float sum = 0.0;
     float sumY = 0.0;
     int steps = int(taps); 
-for (int i=-int(steps); i<int(steps+1); i++)
+for (int i=-int(steps); i<=int(steps); i++)
 {
     float n = float(i);    
     float w  = exp(-c_lpf*n*n);
-    float wY = exp(-y_lpf*n*n);
+    float wY = blackman(n+steps,steps*2.0,y_lpf);
     // phase cycles horizontally:
     float phase_x = (floor(ogl2pos.x) + n)*cycles;
 
