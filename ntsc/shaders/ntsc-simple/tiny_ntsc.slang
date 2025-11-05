@@ -28,7 +28,7 @@ float D_CRAWL;
 #pragma parameter taps "Filter Taps (slower)" 4.0 2.0 8.0 2.0
 #pragma parameter lpf_w "Blur Width Y" 0.5 0.25 2.0 0.05
 #pragma parameter lpf_w_c "Blur Width C" 1.0 0.25 4.0 0.05
-#pragma parameter y_lpf "Luma Low Pass (sharpness)" 0.25 0.0 1.0 0.01
+#pragma parameter y_lpf "Luma Low Pass (sharpness)" 0.25 0.0 0.5 0.01
 #pragma parameter c_lpf "Chroma Low Pass (bleed)" 0.15 0.0 1.0 0.01
 #pragma parameter ntsc_sat "Saturation" 0.8 0.0 3.0 0.05
 
