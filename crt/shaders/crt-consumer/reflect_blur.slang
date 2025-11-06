@@ -86,8 +86,16 @@ vec2 mirrorBorderUV(vec2 uv, vec2 rectMin, vec2 rectMax)
 void main() {
 // your border rectangle (normalized UV)
 // adjust these so they match the red outlinex
-vec2 rectMin = vec2(0.04, 0.03);
-vec2 rectMax = vec2(0.97, 0.95);
+vec2 rectMin = vec2(0.0);
+float x = vTexCoord.x*2.0-1.0; x *= x; 
+float y = vTexCoord.y*2.0-1.0; y *= y;
+rectMin.x = mix(0.0, 0.025,x);
+rectMin.y = mix(0.0, 0.025,y);
+
+vec2 rectMax = vec2(0.0);
+rectMax.x = mix(1.0, 0.975,x);
+rectMax.y = mix(1.0, 0.975,y);
+
 vec2 dx = vec2(pix.x,0.0);
 vec2 dy = vec2(0.0,pix.y);
 vec4 col = vec4(0.0);
