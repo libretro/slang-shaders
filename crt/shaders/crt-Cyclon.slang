@@ -140,6 +140,8 @@ layout(location = 1) in vec2 scale;
 
 layout(set = 0, binding = 1) uniform sampler2D Source;
 layout(set = 0, binding = 2) uniform sampler2D bezel;
+layout(set = 0, binding = 3) uniform sampler2D blur;
+layout(set = 0, binding = 4) uniform sampler2D stock;
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -310,10 +312,10 @@ mat3 hue = mat3(
     pos.x = mix(pos.x, i.x*ps.x, 0.2);
 
 // Convergence
-    vec3  res0 = texture(Source,pos).rgb;
-    float resr = texture(Source,pos + dx*CONV_R).r;
-    float resb = texture(Source,pos + dx*CONV_B).b;
-    float resg = texture(Source,pos + dx*CONV_G).g;
+    vec3  res0 = texture(stock,pos).rgb;
+    float resr = texture(stock,pos + dx*CONV_R).r;
+    float resb = texture(stock,pos + dx*CONV_B).b;
+    float resg = texture(stock,pos + dx*CONV_G).g;
 
     vec3 res = vec3(  res0.r*0.5 +  resr*0.5,
                       res0.g*0.5 +  resg*0.5,
@@ -321,7 +323,7 @@ mat3 hue = mat3(
                    );
 
    vec2 bez_warp =  mirrorEdges(vTexCoord, 0.07); // 5% edge mirroring
-   vec3 pinc = texture(Source,bez_warp).rgb;
+   vec3 pinc = texture(blur,pos).rgb;
    bez.rgb = mix(bez.rgb, vec3(ambient)+pinc*REFLECT,0.5); 
 // Vignette
     float x = 0.0;
