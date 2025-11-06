@@ -106,6 +106,6 @@ for (int i=-3; i<4; i++)
 }
 
 col /= sum;
-col = linear(col);
+//col = linear(col);
 FragColor = col;
 }
