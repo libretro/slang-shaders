@@ -82,29 +82,38 @@ vec2 mirrorBorderUV(vec2 uv, vec2 rectMin, vec2 rectMax)
         mirrorBorder1D(uv.y, rectMin.y, rectMax.y)
     );
 }
+vec2 Warp(vec2 pos)
+{
+    pos = pos*2.0-1.0;
+    pos *= vec2(1.0+pos.y*pos.y*-0.03, 1.0+pos.x*pos.x*0.03);
+    pos = pos*0.5+0.5;
+
+    return pos;
+}
 
 void main() {
+vec2 pos = Warp(vTexCoord);    
 // your border rectangle (normalized UV)
 // adjust these so they match the red outlinex
 vec2 rectMin = vec2(0.0);
-float x = vTexCoord.x*2.0-1.0; x *= x; 
-float y = vTexCoord.y*2.0-1.0; y *= y;
-rectMin.x = mix(0.0, 0.025,x);
-rectMin.y = mix(0.0, 0.025,y);
+float x = pos.x*2.0-1.0; x *= x; 
+float y = pos.y*2.0-1.0; y *= y;
+rectMin.x = mix(0.0, 0.02,x);
+rectMin.y = mix(0.0, 0.02,y);
 
 vec2 rectMax = vec2(0.0);
-rectMax.x = mix(1.0, 0.975,x);
-rectMax.y = mix(1.0, 0.975,y);
+rectMax.x = mix(1.0, 0.98,x);
+rectMax.y = mix(1.0, 0.98,y);
 
 vec2 dx = vec2(pix.x,0.0);
 vec2 dy = vec2(0.0,pix.y);
 vec4 col = vec4(0.0);
 float sum = 0.0;
-vec2 uv = mirrorBorderUV(vTexCoord, rectMin, rectMax);
+vec2 uv = mirrorBorderUV(pos, rectMin, rectMax);
 
-for (int i=-3; i<4; i++)
+for (int i=-2; i<3; i++)
 {
-   for (int j=-3; j<4; j++)
+   for (int j=-2; j<3; j++)
    {
    float n = float(i);
    float w = exp(-0.1*n*n);   
@@ -115,5 +124,5 @@ for (int i=-3; i<4; i++)
 
 col /= sum;
 //col = linear(col);
-FragColor = col;
+FragColor = col*1.25;
 }
