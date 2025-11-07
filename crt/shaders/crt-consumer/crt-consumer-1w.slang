@@ -13,6 +13,7 @@
 #pragma parameter u_warp "Curvature" 0.04 0.0 0.15 0.01
 #pragma parameter u_overscanx "Overscan Horiz." 0.3 0.3 2.0 0.05
 #pragma parameter u_overscany "Overscan Vertic." 0.3 0.3 2.0 0.05
+#pragma parameter res_flash "Resolution Switch Glitch" 1.0 0.0 1.0 1.0
 #pragma parameter u_scan "Scanlines Strength" 0.35 0.0 1.0 0.05
 #pragma parameter u_wid "Mask Fine/Coarse" 2.0 2.0 3.0 1.0
 #pragma parameter u_mask "Mask Strength" 0.3 0.0 1.0 0.05
@@ -26,7 +27,7 @@
 layout(push_constant) uniform Push
 {
 float u_sharp,u_warp,u_overscanx,u_overscany,u_scan,u_mask,u_wid,u_deconv,u_brightb,u_vignette,
-u_smptec,slot_str,u_slot;
+u_smptec,slot_str,u_slot,res_flash;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -34,12 +35,14 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	mat4 MVP;
 	vec4 SourceSize;
 	vec4 OriginalSize;
+    vec4 OriginalHistorySize1;
 	vec4 OutputSize;
 	uint FrameCount;
 } global;
 
 #define SourceSize global.SourceSize
 #define OriginalSize global.OriginalSize
+#define OriginalHistorySize1 global.OriginalHistorySize1
 #define OutputSize global.OutputSize
 #define FrameCount global.FrameCount
 
@@ -56,6 +59,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define u_smptec params.u_smptec
 #define slot_str params.slot_str
 #define u_slot params.u_slot
+#define res_flash params.res_flash
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -127,6 +131,30 @@ float slot(vec2 pos)
  return slot_str*sin((pos.y+odd)*PI)+1.0;
 }
 
+float res_glitch (vec2 uv)
+{
+float flash_strength = 0.7;
+float flash_width = 0.08;
+float flash_decay = 0.92;
+
+// res-switch crt glitch emulator
+    float flashTimer = 0.0;
+
+    float curx  = OriginalSize.x;
+    float cury  = OriginalSize.y;
+    float prevx = OriginalHistorySize1.x;
+    float prevy = OriginalHistorySize1.y;
+
+    // detect change in input resolution
+    if (curx != prevx || cury != prevy) flashTimer = 1.0;
+    flashTimer *= flash_decay;
+
+    float y = uv.y;
+    float bar = exp( -pow((y - 0.50) / flash_width, 2.0) );
+   
+   return flashTimer*bar*flash_strength;
+}
+
 void main() {
     vec2 interlace = OriginalSize.y >300.0? vec2(0.0,mod(float(FrameCount),2.0)) : vec2(0.0);
     float interl_lines = OriginalSize.y >300.0? 0.5:1.0;
@@ -179,8 +207,7 @@ void main() {
         mask *= slot(vTexCoord*OutputSize.xy);
     }
     col *= mix(u_brightb, mask, u_mask);
-
-
+    if (res_flash == 1.0) col += res_glitch(uv);
     // --- Vignette ---
     float vig = 1.0 - u_vignette * pow(length(n), 1.5);
     col *= vig;
