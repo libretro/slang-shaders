@@ -29,7 +29,7 @@ layout(push_constant) uniform Push
 #pragma parameter Luma_bw "Luma Bandwidth (RF -0.5, SVID +0.5)" 2.8 0.0 12.0 0.05
 #pragma parameter Chroma_bw "Chroma Bandwidth" 1.0 0.0 6.0 0.05
 #pragma parameter U_RADIUS "Radius (slower)" 7.0 3.0 12.0 1.0
-#pragma parameter RY_boost "R-Y boost" 1.5 1.0 2.0 0.05
+#pragma parameter RY_boost "R-Y boost" 1.35 1.0 2.0 0.05
 #pragma parameter c_gain "Chroma Gain" 1.8 0.0 4.0 0.05
 
 #define SourceSize params.SourceSize
