@@ -29,6 +29,7 @@ layout (push_constant) uniform Push
     float COLOR_CONTRAST;
     float COLOR_PROFILE;
     float COLOR_TEMPERATUE;
+    float COLOR_BLACK_LIGHT;
     float SCANLINES_STRENGTH;
     float SCANLINES_OFFSET;
     float BEAM_WIDTH_MIN;

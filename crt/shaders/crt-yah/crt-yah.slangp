@@ -1,0 +1,40 @@
+shaders = 8
+
+shader0 = "ntsc-pass1.slang"
+filter_linear0 = true // required: sample source linear (compensates artifacts)
+float_framebuffer0 = true
+scale_type_x0 = source
+scale_type_y0 = source
+scale_x0 = 4.0 // up-scale in both dimension to be independent of the orientation
+scale_y0 = 4.0
+
+shader1 = "ntsc-pass2.slang"
+filter_linear1 = true // required: sample ntsc-1-output linear (compensates artifacts)
+float_framebuffer1 = false
+scale_type_x1 = source
+scale_type_y1 = source
+scale_x1 = 0.25 // down-scale in both dimension to be independent of the orientation
+scale_y1 = 0.25
+
+shader2 = "deconverge.slang"
+filter_linear2 = true // required: sample ntsc-2-output linear (factional de-converge)
+
+shader3 = "phosphor.slang"
+filter_linear3 = true
+
+shader4 = "lut.slang"
+filter_linear4 = true
+textures = "SamplerLutNtsc;SamplerLutTrinitron;"
+SamplerLutNtsc = lut/ntsc-lut.png
+SamplerLutNtsc_linear = true
+SamplerLutTrinitron = lut/trinitron-lut.png
+SamplerLutTrinitron_linear = true 
+
+shader5 = "blur-horizontal.slang"
+filter_linear5 = true // required: sample lut-output linear
+
+shader6 = "blur-vertical.slang"
+filter_linear6 = true
+
+shader7 = "crt-yah.slang"
+filter_linear7 = true // required: sample blur-output linear
