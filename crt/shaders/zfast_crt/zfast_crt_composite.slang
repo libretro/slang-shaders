@@ -27,16 +27,13 @@ layout(push_constant) uniform Push
     vec4 OutputSize;
     uint FrameCount;
    float BLURSCALEX, LOWLUMSCAN, HILUMSCAN, BRIGHTBOOST, MASK_DARK, MASK_FADE, FINEMASK, 
-   WARP;
-    float signalResolution;
-    float signalResolutionC;
+   WARP,sharp,chroma_gain;
 } params;
 
-
-#pragma parameter signalResolution "Signal Resolution Y" 200.0 16.0 1024.0 8.0
-#pragma parameter signalResolutionC "Signal Resolution C" 80.0 1.0 350.0 2.0
 #pragma parameter WARP "Curvature" 0.03 0.0 0.3 0.01
 #pragma parameter BLURSCALEX "Blur Amount X-Axis" 0.5 0.0 1.0 0.05
+#pragma parameter sharp "NTSC Sharpness" 5.0 1.0 10.0 0.5
+#pragma parameter chroma_gain "NTSC Chroma Gain" 1.0 0.0 3.0 0.05
 #pragma parameter LOWLUMSCAN "Scanline Darkness - Low" 6.0 0.0 10.0 0.5
 #pragma parameter HILUMSCAN "Scanline Darkness - High" 8.0 0.0 50.0 1.0
 #pragma parameter BRIGHTBOOST "Dark Pixel Brightness Boost" 1.25 0.5 1.5 0.05
@@ -56,8 +53,8 @@ layout(push_constant) uniform Push
 #define OriginalSize params.OriginalSize
 #define OutputSize params.OutputSize
 #define FrameCount params.FrameCount
-#define signalResolution params.signalResolution
-#define signalResolutionC params.signalResolutionC
+#define sharp params.sharp
+#define chroma_gain params.chroma_gain
 
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -81,9 +78,6 @@ layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out float maskFade;
 layout(location = 2) out vec2 invDims;
 layout(location = 3) out vec2 maskpos;
-layout(location = 4) out float range;
-layout(location = 5) out float resY;
-layout(location = 6) out float resC;
 void main()
 {
    gl_Position = global.MVP * Position;
@@ -91,9 +85,6 @@ void main()
     maskFade = 0.3333*MASK_FADE;
     invDims = 1.0/SourceSize.xy;
     maskpos = vTexCoord*OutputSize.xy;
-   range = ceil(0.5+SourceSize.x/min(signalResolution,signalResolutionC));
-   resY = (signalResolution  / SourceSize.x);
-   resC = (signalResolutionC / SourceSize.x);
 }
 
 #pragma stage fragment
@@ -101,32 +92,38 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in float maskFade;
 layout(location = 2) in vec2 invDims;
 layout(location = 3) in vec2 maskpos;
-layout(location = 4) in float range;
-layout(location = 5) in float resY;
-layout(location = 6) in float resC;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #define timer mod(float(FrameCount),2.0)
 
+vec3 RGB_to_YIQ(vec3 rgb) {
+    float R = rgb.r;
+    float G = rgb.g;
+    float B = rgb.b;
 
-float STU_simplified(float i, float res)
-{
-    float sigma = 0.5 / res;  // blur width
-    return exp(-0.5 * (i * i) / (sigma * sigma));
+    // precompute sums
+    float I_tmp = -0.274 * G - 0.322 * B;
+    float Q_tmp = -0.523 * G + 0.312 * B;
+
+    float Y = 0.299 * R + 0.587 * G + 0.114 * B;
+    float I = 0.596 * R + I_tmp;
+    float Q = 0.211 * R + Q_tmp;
+
+    return vec3(Y, I, Q);
 }
 
-// Colorspace conversion matrix for RGB-to-YIQ
-const mat3 RGBYIQ = mat3(
-      0.2989, 0.5870, 0.1140,
-      0.5959, -0.2744, -0.3216,
-      0.2115, -0.5229, 0.3114
-);
-// Colorspace conversion matrix for YIQ-to-RGB
-const mat3 YIQ2RGB = mat3(
-   1.0, 0.9563, 0.6210,
-   1.0, -0.2721, -0.6474,
-   1.0, -1.1070, 1.7046);
+vec3 YIQ_to_RGB(vec3 yiq) {
+    float Y = yiq.x;
+    float I = yiq.y;
+    float Q = yiq.z;
+
+    float R = Y + 0.956*I + 0.621*Q;
+    float G = Y - 0.272*I - 0.647*Q;
+    float B = Y - 1.106*I + 1.703*Q;
+
+    return vec3(R, G, B);
+}
 
 // Distortion of scanlines, and end of screen alpha.
 vec2 Warp(vec2 pos)
@@ -139,7 +136,7 @@ vec2 Warp(vec2 pos)
 
 void main()
 {
-    vec2 dx = vec2(invDims.x*0.5,0.0);
+    vec2 dx = vec2(invDims.x,0.0);
     vec2 ilace_pos = OriginalSize.y>300.0? vTexCoord + vec2(0.0,SourceSize.w)*timer : vTexCoord;
     vec2 pos = Warp(ilace_pos);
     vec2 corn = min(pos,vec2(1.0)-pos); // This is used to mask the rounded
@@ -162,20 +159,20 @@ else {
     float whichmask = fract(floor(maskpos.x)*-0.3333);
      mask = 1.0 + float(whichmask <= 0.33333) * -MASK_DARK;
 }
-    float sumY = 0.0;
-    float sumC = 0.0;
-    vec3 colour = vec3(0.0);
-    for (float i=-range; i<range+1.0; i += 1.0)
-    {
-        float wY = STU_simplified(i,resY); sumY += wY;
-        float wC = STU_simplified(i,resC); sumC += wC;
-        colour.r +=  (RGBYIQ*texture(Source,p + dx*i).rgb).r*wY;
-        colour.gb += (RGBYIQ*texture(Source,p + dx*i).rgb).gb*wC;
-    }
-    colour.r /= sumY;
-    colour.gb /= sumC;
+    vec3 res   = RGB_to_YIQ(texture(Source, p).rgb);
+    vec3 res01 = RGB_to_YIQ(texture(Source, p - dx  ).rgb);
+    vec3 res02 = RGB_to_YIQ(texture(Source, p - 2.0*dx   ).rgb);
+    vec3 res10 = RGB_to_YIQ(texture(Source, p + dx  ).rgb);
+    vec3 res20 = RGB_to_YIQ(texture(Source, p + 2.0*dx   ).rgb);
 
-    colour = YIQ2RGB*colour;
+    float Yfinal = (sharp*res.r + res01.r + res10.r)*(1.0/(sharp+2.0));
+    // around 1/3 of resolution = ~85-100
+    float I = (res.g + res01.g + res10.g)*0.3333*1.3;
+    // around 1/5 of resolution = ~50-60  
+    float Q = (res.b + res01.b + res10.b + res02.b + res20.b)*0.2*0.65;
+
+    vec3 colour =YIQ_to_RGB(vec3(Yfinal,I*chroma_gain,Q*chroma_gain)); 
+
     float scanLineWeight = (BRIGHTBOOST - LOWLUMSCAN*(Y - 2.05*YY));
     float scanLineWeightB = 1.0 - HILUMSCAN*(YY-2.8*YY*Y);  
     colour = colour.rgb*mix(scanLineWeight*mask, scanLineWeightB, dot(colour.rgb,vec3(maskFade)));
