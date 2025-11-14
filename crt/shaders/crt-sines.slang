@@ -9,11 +9,11 @@ any later version.
 */
 
 #pragma parameter glow_str "Glow Strength in mask" 1.25 1.0 2.0 0.05
-#pragma parameter dark_boost "Boost Dark Palettes" 2.5 1.0 4.0 0.05
+#pragma parameter dark_boost "Boost Dark Palettes" 2.2 1.0 4.0 0.05
 #pragma parameter SCNL "Scanline Strength" 0.5 0.0 0.5 0.05
-#pragma parameter mask_type "Mask Fine/Coarse" 0.0 0.0 1.0 1.0
+#pragma parameter mask_type "Mask Fine/Coarse" 1.0 0.0 1.0 1.0
 #pragma parameter MSK_BRI "Mask Brightness" 0.15 0.0 1.0 0.05
-#pragma parameter u_vignette "Vignette Strength" 0.3 0.0 1.0 0.05
+#pragma parameter u_vignette "Vignette Strength" 0.45 0.0 1.0 0.05
 
 layout(push_constant) uniform Push
 {
