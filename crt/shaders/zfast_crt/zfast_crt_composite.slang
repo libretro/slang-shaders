@@ -32,7 +32,7 @@ layout(push_constant) uniform Push
 
 #pragma parameter WARP "Curvature" 0.03 0.0 0.3 0.01
 #pragma parameter BLURSCALEX "Blur Amount X-Axis" 0.5 0.0 1.0 0.05
-#pragma parameter sharp "NTSC Sharpness" 5.0 1.0 10.0 0.5
+#pragma parameter sharp "NTSC Sharpness" 5.0 2.0 10.0 0.1
 #pragma parameter chroma_gain "NTSC Chroma Gain" 1.0 0.0 3.0 0.05
 #pragma parameter LOWLUMSCAN "Scanline Darkness - Low" 6.0 0.0 10.0 0.5
 #pragma parameter HILUMSCAN "Scanline Darkness - High" 8.0 0.0 50.0 1.0
@@ -167,9 +167,9 @@ else {
 
     float Yfinal = (sharp*res.r + res01.r + res10.r)*(1.0/(sharp+2.0));
     // around 1/3 of resolution = ~85-100
-    float I = (res.g + res01.g + res10.g)*0.3333*1.3;
+    float I = (res.g + res01.g + res10.g)*0.3333*1.2;
     // around 1/5 of resolution = ~50-60  
-    float Q = (res.b + res01.b + res10.b + res02.b + res20.b)*0.2*0.65;
+    float Q = (res.b + res01.b + res10.b + res02.b + res20.b)*0.2*0.8;
 
     vec3 colour =YIQ_to_RGB(vec3(Yfinal,I*chroma_gain,Q*chroma_gain)); 
 
