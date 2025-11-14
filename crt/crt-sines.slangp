@@ -1,5 +1,4 @@
-shaders = 1
-
-shader0 = shaders/crt-sines.slang
-filter_linear0 = true
-scale_type0 = viewport
+shaders = 2
+shader0 = shaders/crt-consumer/linearize.slang
+shader1 = shaders/crt-sines.slang
+filter_linear1 = true
