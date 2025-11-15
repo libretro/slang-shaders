@@ -8,12 +8,12 @@ Software Foundation; either version 2 of the License, or (at your option)
 any later version.
 */
 
-#pragma parameter glow_str "Glow Strength in mask" 1.25 1.0 2.0 0.05
+#pragma parameter glow_str "Glow Strength" 0.08 0.0 1.0 0.01
 #pragma parameter dark_boost "Boost Dark Palettes" 2.2 1.0 4.0 0.05
 #pragma parameter SCNL "Scanline Strength" 0.5 0.0 0.5 0.05
 #pragma parameter mask_type "Mask Fine/Coarse" 1.0 0.0 1.0 1.0
 #pragma parameter MSK_BRI "Mask Brightness" 0.15 0.0 1.0 0.05
-#pragma parameter u_vignette "Vignette Strength" 0.45 0.0 1.0 0.05
+#pragma parameter u_vignette "Vignette Strength" 0.3 0.0 1.0 0.05
 
 layout(push_constant) uniform Push
 {
@@ -53,7 +53,7 @@ layout(location = 3) out float maskpos;
 void main()
 {
    gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord;
+   vTexCoord = TexCoord*1.0001;
    ogl2pos = vTexCoord*SourceSize.xy;
    invdims = 1.0/SourceSize.xy;
    maskpos = vTexCoord.x*OutputSize.x;
@@ -92,28 +92,34 @@ void main() {
    float s = sign(f);
    float y = (near + s*f*f*(2.0-f))*invdims.y;
    vec2 pos = vec2(uv.x,y);
-   vec3 res = texture(Source, pos).rgb;
-   vec3 res1 = texture(Source, pos + dx).rgb;
-   vec3 res2 = texture(Source, pos - dx).rgb;
+   vec3 res  = texture(Source, pos).rgb;
+   vec3 res1 = texture(Source, pos + 0.5*dx).rgb;
+   vec3 res2 = texture(Source, pos - 0.5*dx).rgb;
+   vec3 res3 = texture(Source, pos + dx).rgb;
+   vec3 res4 = texture(Source, pos - dx).rgb;
    float l = max(max(res.r,res.g),res.b);
    res *= mix(dark_boost,1.05,l);
    
    float scan = SCNL*sin((fpos-0.25)*TAU)+1.0-SCNL;
-   res *= mix(scan,1.0,l*0.6);
-   float m = mod(floor(maskpos),2.0);
+   res *= mix(scan,1.0,l*0.5);
+   float m = 0.0; vec3 mask = vec3(1.0);
 
-   vec3 mask = mix(vec3(1.0,MSK_BRI,1.0),vec3(MSK_BRI,1.0,MSK_BRI),m);
-if (mask_type == 1.0) {m =  mod(floor(maskpos),3.0);
-   if (m==0.0) mask = vec3(1.0,1.0,MSK_BRI);
-   if (m==1.0) mask = vec3(1.0,MSK_BRI,1.0);
-   if (m==2.0) mask = vec3(MSK_BRI,1.0,1.0);
-}
+if (mask_type == 0.0){ 
+   m = mod(floor(maskpos),2.0);
+   mask = mix(vec3(1.0,MSK_BRI,1.0),vec3(MSK_BRI,1.0,MSK_BRI),m);}
+if (mask_type == 1.0) {
+   m =  mod(floor(maskpos),3.0);
+   if (m==0.0) mask.rg = vec2(MSK_BRI);
+   if (m==1.0) mask.rb = vec2(MSK_BRI);
+   if (m==2.0) mask.gb = vec2(MSK_BRI);
+   }
 
-   vec3 glow = (res+res1+res2)*0.12;
+   vec3 glow = (res+res1+res2+res3+res4)*0.2;
    float lm = dot(vec3(1.0),glow);
-   res *= mix(mask,vec3(glow_str), lm*0.4);
-   float vig = 1.0 - u_vignette * pow(length(vTexCoord.x*2.0-1.0), 1.5);
-    res *= vig;
+   res *= mix(mask,vec3(1.0), lm*0.2);
+   res += glow*glow_str;
+   float vig = 1.0 - u_vignette * pow(length(vTexCoord.x*2.0-1.0), 2.5);
+   res *= vig;
 
    FragColor = vec4(sqrt(res), 1.0);
 }
