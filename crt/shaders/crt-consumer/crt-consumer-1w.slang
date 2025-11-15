@@ -13,7 +13,7 @@
 #pragma parameter u_warp "Curvature" 0.04 0.0 0.15 0.01
 #pragma parameter u_overscanx "Overscan Horiz." 0.3 0.3 2.0 0.05
 #pragma parameter u_overscany "Overscan Vertic." 0.3 0.3 2.0 0.05
-#pragma parameter res_flash "Resolution Switch Glitch" 1.0 0.0 1.0 1.0
+#pragma parameter res_flash "Resolution Switch Glitch" 0.0 0.0 1.0 1.0
 #pragma parameter u_scan "Scanlines Strength" 0.35 0.0 1.0 0.05
 #pragma parameter u_wid "Mask Fine/Coarse" 2.0 2.0 3.0 1.0
 #pragma parameter u_mask "Mask Strength" 0.3 0.0 1.0 0.05

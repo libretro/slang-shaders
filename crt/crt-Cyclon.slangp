@@ -1,6 +1,6 @@
 shaders = 3
 
-shader0 = ../stock.slang
+shader0 = shaders/crt-consumer/linearize.slang
 alias0 = stock
 filter_linear0 = true
 
