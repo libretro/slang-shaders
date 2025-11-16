@@ -23,7 +23,7 @@ layout(push_constant) uniform Push
 #pragma parameter CURVATURE_X "Curvature Horiz." 0.0 0.0 0.3 0.01
 #pragma parameter CURVATURE_Y "Curvature Vert." 0.06 0.0 0.3 0.01
 #pragma parameter CURVATURE_SCALE "Curvature Scale" 0.0 0.0 1.0 0.01
-#pragma parameter u_vignette "Vignette" 0.6 0.0 1.0 0.01
+#pragma parameter u_vignette "Vignette" 0.25 0.0 1.0 0.01
 #pragma parameter mask_type "Mask Fine/Coarse" 0.0 0.0 1.0 1.0
 #pragma parameter MSK_BRI "Mask Brightness" 0.4 0.0 1.0 0.05
 #pragma parameter boost_dark "Boost Dark" 1.5 1.0 4.0 0.05
@@ -163,7 +163,7 @@ void main()
 
 	colour = sqrt(colour);
 	colour += glow(p)*glow_str;
- 	float vig = 1.0 - u_vignette*length(uv.x*0.5-0.25);
+ 	float vig = 1.0 - u_vignette*length(uv.x*2.0-1.0);
    colour *= vig;
 
    vec3 gray = vec3(dot(vec3(grayweights),colour));
