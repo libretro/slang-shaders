@@ -4,3 +4,5 @@ shader1 = "../../crt/shaders/fakelottes.slang"
 
 filter_linear1 = "true"
 scale_type1 = "viewport"
+
+u_chroma = "2.000000"

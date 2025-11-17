@@ -6,3 +6,5 @@ filter_linear1 = "true"
 scale_type1 = "viewport"
 
 u_svideo = "1.000000"
+
+u_chroma = "2.000000"
