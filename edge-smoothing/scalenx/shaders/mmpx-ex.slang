@@ -231,15 +231,17 @@ vec3 admixX(vec3 A, vec3 B, vec3 C, vec3 D, vec3 E, vec3 F, vec3 G, vec3 H, vec3
     const vec3 slopEND = vec3(33.0);
 
 	//pre-cal
-	bool eq_B_D = eq(B, D);
 	bool eq_B_C = eq(B, C);
 	bool eq_D_G = eq(D, G);
 
+    // Bilateral straight wall pincer, exit
+    if (eq_B_C && eq_D_G) return slopeBAD;
+
+	bool eq_B_D = eq(B, D);
     vec3 X;
 
 	if (eq_B_D) {
-        // Bilateral straight wall pincer, exit
-        if (eq_B_C && eq_D_G) return slopeBAD;
+
         X = B;
     } else {
         // E-A equality does not conform to preset logic, exit
@@ -275,21 +277,14 @@ vec3 admixX(vec3 A, vec3 B, vec3 C, vec3 D, vec3 E, vec3 F, vec3 G, vec3 H, vec3
 if (!eq_B_D){
 
 	eq_A_B = eq(A,B);
-	eq_A_D = eq(A,D);
+	if ( !Xisblack && eq_A_B && eq_D_G && eq(B,P) ) return slopeBAD;
 
-	// B D unequal (non-black), one side straight line, the other must be single pixel.
-	// Practice: Avoids mixing at parallel line corners where BD are each continuous.
-    if (!Xisblack){
-        if ( eq_A_B && (eq_D_G||eq(D,Q)) ) return slopeBAD;
-        if ( eq_A_D && (eq_B_C||eq(B,P)) ) return slopeBAD;
-    }
+	eq_A_D = eq(A,D);
+	if ( !Xisblack && eq_A_D && eq_B_C && eq(D,Q) ) return slopeBAD;
 
 
     // B D three-no-stick? Not applicable here (Can eliminate some artifacts, but also lose some shapes, especially non-native pixel art, e.g., Double Dragon intro character portrait)
 
-	// Treat near-black like DB?
-    // Practice: Special treatment for non-black in dark areas easily causes glitches (Samurai Shodown 2 Charlotte)
-	//if (Xisblack) return X +slopEND;
 
 	eq_A_P = eq(A,P);
 	eq_A_Q = eq(A,Q);
@@ -301,22 +296,17 @@ if (!eq_B_D){
 
     // Official original rule
     if ( eq(E,C) || eq(E,G) ) return mixok ? mix(X,E,0.381966) +slopEND : X +slopEND;
-    // Enhanced original rule Practice: Beneficial for non-native pixel art, harmful for native (JoJo's wall and clock)
-    // if (sim_EC && sim_EG) return mixok ? mix(X,E,0.381966) +slopEND : X +slopEND;
 
-    eq_E_F = eq(E, F);
-    eq_E_H = eq(E, H);
-    En3 = eq_E_F && eq_E_H;
+    if ( !eq_D_G&&eq(E,QG)&&sim2(E,G) || !eq_B_C&&eq(E,PC)&&sim2(E,C) ) return mixok ? mix(X,E,0.381966)+slopEND : X+slopEND;
 
-    if (En3) return mixok ? mix(X,E,0.381966) +slopEND : X +slopEND;
-    // Exclude "single stick" cases, including eq_E_I bent stick
-    if ( eq_E_F || eq_E_H ) return slopeBAD;
-    // Exclude "three-cell unilateral wall" cases
-    if ( eq_A_B&&eq_B_C || eq_A_D&&eq_D_G ) return slopeBAD;
-    // F-H inline trend, placed after three-cell wall rule as it might be blocked
+
+    if (!Xisblack){
+        if ( eq_A_B&&eq_B_C || eq_A_D&&eq_D_G ) return slopeBAD;
+    }
+
+
     if ( eq(F,H) ) return mixok ? mix(X,E,0.381966) +slopEND : X +slopEND;
-    // Exclude "two-cell unilateral wall" cases, merged with next rule
-    //if (eq_A_B||eq_A_D) return slopeBAD;
+
     // Remaining are single pixels with no logic but approximate within sim2 range, so use weak mixing??? Just give up!
     return slopeBAD;
 } // B != D
