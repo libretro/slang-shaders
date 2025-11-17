@@ -13,25 +13,32 @@ layout(push_constant) uniform Push
 {
    float beam_max, beam_min, scan_max, scan_min,CURVATURE_X,
    CURVATURE_Y,CURVATURE_SCALE,u_vignette,MSK_BRI,mask_type,
-   boost_bright,boost_dark,glow_str,color_sat,deconv,glass_refl;
+   boost_bright,boost_dark,glow_str,color_sat,deconv,glass_refl,
+   MSK_WIDTH,MSK_HEIGHT,MSK_STAG;
 } params;
 
-#pragma parameter beam_min "Beam Min." 8.0 2.0 15.0 1.0 
-#pragma parameter beam_max "Beam Max." 6.0 2.0 15.0 1.0 
+#pragma parameter beam_min "Scanline Beam Min." 8.0 2.0 15.0 1.0 
+#pragma parameter beam_max "Scanline Beam Max." 6.0 2.0 15.0 1.0 
 #pragma parameter scan_min "Scanlines Min" 1.3 0.0 2.5 0.05
 #pragma parameter scan_max "Scanlines Max" 1.0 0.0 2.5 0.05
+
 #pragma parameter CURVATURE_X "Curvature Horiz." 0.0 0.0 0.3 0.01
 #pragma parameter CURVATURE_Y "Curvature Vert." 0.06 0.0 0.3 0.01
 #pragma parameter CURVATURE_SCALE "Curvature Scale" 0.0 0.0 1.0 0.01
 #pragma parameter u_vignette "Vignette" 0.25 0.0 1.0 0.01
+#pragma parameter glass_refl "Glass Reflection" 0.03 0.0 0.5 0.01
+
 #pragma parameter mask_type "Mask Fine/Coarse" 0.0 0.0 1.0 1.0
+#pragma parameter MSK_WIDTH "Mask Width" 1.0 1.0 4.0 1.0
+#pragma parameter MSK_HEIGHT "Mask Height" 1.0 1.0 4.0 1.0
+#pragma parameter MSK_STAG "Mask Stagger" 0.0 0.0 2.0 1.0
 #pragma parameter MSK_BRI "Mask Brightness" 0.4 0.0 1.0 0.05
+
 #pragma parameter boost_dark "Boost Dark" 1.5 1.0 4.0 0.05
 #pragma parameter boost_bright "Boost Bright" 1.2 1.0 4.0 0.05
 #pragma parameter glow_str "Glow Strength" 0.1 0.0 1.0 0.01
 #pragma parameter color_sat "Saturation" 1.0 0.0 2.0 0.05
 #pragma parameter deconv "Deconvergence" 0.0 0.0 1.0 1.0
-#pragma parameter glass_refl "Glass Reflection" 0.03 0.0 0.5 0.01
 
 #define beam_max params.beam_max
 #define beam_min params.beam_min
@@ -42,6 +49,9 @@ layout(push_constant) uniform Push
 #define CURVATURE_SCALE params.CURVATURE_SCALE
 #define u_vignette params.u_vignette
 #define MSK_BRI params.MSK_BRI
+#define MSK_WIDTH params.MSK_WIDTH
+#define MSK_HEIGHT params.MSK_HEIGHT
+#define MSK_STAG params.MSK_STAG
 #define mask_type params.mask_type
 #define boost_bright params.boost_bright
 #define boost_dark params.boost_dark
@@ -69,20 +79,20 @@ layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec2 invDims;
-layout(location = 2) out float maskpos;
+layout(location = 2) out vec2 maskpos;
 
 void main()
 {
    gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord;
+   vTexCoord = TexCoord*1.0001;
    invDims = 1.0/SourceSize.xy;
-   maskpos = vTexCoord.x*OutputSize.x;
+   maskpos = (vTexCoord*OutputSize.xy)/vec2(MSK_WIDTH,MSK_HEIGHT);
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec2 invDims;
-layout(location = 2) in float maskpos;
+layout(location = 2) in vec2 maskpos;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -131,9 +141,9 @@ vec3 glow(vec2 uv)
    return final;
 }
 
-vec3 mask(float maskpos)
+vec3 mask(vec2 maskpos)
 {
-float m = mod(maskpos, mask_type == 1.0 ? 3.0 : 2.0);
+int m = int(mod(floor(maskpos.x) + mod(floor(maskpos.y),2.0)*MSK_STAG, mask_type == 1.0 ? 3.0 : 2.0));
 
 vec3 mask2[2] = vec3[2](
     vec3(1.0, MSK_BRI, 1.0),
@@ -146,7 +156,7 @@ vec3 mask3[3] = vec3[3](
     vec3(1.0, MSK_BRI, MSK_BRI)
 );
 
-vec3 mask_ = (mask_type == 1.0) ? mask3[int(m)] : mask2[int(m)];
+vec3 mask_ = (mask_type == 1.0) ? mask3[m] : mask2[m];
  return mask_;
 }
 
