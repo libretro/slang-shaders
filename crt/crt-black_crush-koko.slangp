@@ -7,7 +7,13 @@
 // In an existing CRT shader chain, this shader should be placed just before the one
 // responsible for generating the scanlines. However, similar (and less GPU-intensive)
 // results can be achieved by simply placing it at the very beginning of the chain.
-
+//
+// float_framebuffer1 = "true" has been commented, because it triggers HDR on capable
+// systems and may lead to washed colors when this shader is placed at the very
+// end of the chain.
+// On the other side, it has been reported that (depending on subsequent shaders)
+// float_framebuffer1 may produce smoother transitions when this shader is placed 
+// earlier in the chain.
 
 shaders = 2
 
@@ -18,10 +24,10 @@ shaders = 2
             alias0 = "black_crush_avglum_pass"
 float_framebuffer0 = "true""
        
-           shader1 = shaders/crt-black-crush-koko/crt-black_crush-koko.slang
-       scale_type1 = source
-            scale1 = 1.0
-        wrap_mode1 = "mirrored_repeat"
-     mipmap_input1 = "true"
-            alias1 = "black_crush_pass"
-       
+             shader1 = shaders/crt-black-crush-koko/crt-black_crush-koko.slang
+         scale_type1 = source
+              scale1 = 1.0
+          wrap_mode1 = "mirrored_repeat"
+       mipmap_input1 = "true"
+              alias1 = "black_crush_pass"
+//float_framebuffer1 = "true"
