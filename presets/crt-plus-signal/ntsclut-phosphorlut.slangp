@@ -3,7 +3,7 @@ shaders = 6
 shader0 = ../../crt/shaders/crtsim/composite.slang
 filter_linear0 = false
 
-shader1 = ../../crt/shaders/phosphorlut/scanlines-interlace-linearize.slang
+shader1 = ../../crt/crt-effects/shaders/phosphorlut/scanlines-interlace-linearize.slang
 alias1 = firstPass
 scale1 = 2.0
 scale_type1 = source
@@ -24,7 +24,7 @@ scale3 = 1.0
 scale_type3 = source
 srgb_framebuffer3 = true
 
-shader4 = ../../crt/shaders/phosphorlut/phosphorlut-pass0.slang
+shader4 = ../../crt/crt-effects/shaders/phosphorlut/phosphorlut-pass0.slang
 alias4 = phosphorPass
 filter_linear4 = true
 scale_type4 = source
@@ -32,7 +32,7 @@ scale_x4 = 4.0
 scale_y4 = 2.0
 srgb_framebuffer4 = true
 
-shader5 = ../../crt/shaders/phosphorlut/phosphorlut-pass1.slang
+shader5 = ../../crt/crt-effects/shaders/phosphorlut/phosphorlut-pass1.slang
 filter_linear5 = true
 
 textures = "NTSCArtifactSampler;shadow;aperture;slot"

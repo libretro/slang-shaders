@@ -1,7 +1,7 @@
 #tvout preset for 240p CRTs
 
 shaders = "3"
-shader0 = "../../crt/shaders/snes-hires-blend.slang"
+shader0 = "../../crt/crt-effects/shaders/snes-hires-blend.slang"
 shader1 = "../../crt/shaders/tvout-tweaks.slang"
 shader2 = "../../misc/shaders/image-adjustment.slang"
 

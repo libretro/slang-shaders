@@ -3,7 +3,7 @@ shaders = 11
 shader0 = ../stock.slang
 alias0 = "glow_trails_refpass"
 
-shader1 = ../crt/shaders/glow-trails/glow-trails0.slang
+shader1 = ../crt/crt-effects/shaders/glow-trails/glow-trails0.slang
 filter_linear1 = false
 scale_type1 = source
 scale1 = 1.0
@@ -22,7 +22,7 @@ scale_type3 = "source"
 scale3 = "1.0"
 srgb_framebuffer3 = "true"
 
-shader4 = ../crt/shaders/glow-trails/glow-trails1.slang
+shader4 = ../crt/crt-effects/shaders/glow-trails/glow-trails1.slang
 
 shader5 = ../crt/shaders/crt-royale/src/crt-royale-first-pass-linearize-crt-gamma-bob-fields.slang
 srgb_framebuffer5 = true
