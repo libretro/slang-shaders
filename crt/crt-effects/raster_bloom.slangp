@@ -1,0 +1,23 @@
+shaders = 3
+
+shader0 = ../shaders/guest/hd/stock.slang
+filter_linear0 = false
+scale_type0 = source
+scale0 = 1.0
+alias0 = PerRBAvgLumPass
+
+shader1 = shaders/raster_bloom/avg-lum.slang
+filter_linear1 = true
+scale_type1 = source
+scale1 = 1.0
+mipmap_input1 = true
+alias1 = RBAvgLumPass
+
+shader2 = shaders/raster_bloom/raster_bloom.slang
+filter_linear2 = true
+scale_type2 = viewport
+scale_x2 = 1.0
+scale_y2 = 1.0
+
+RB_lsdev = "0.100000"
+RB_BLOOM = "3.000000"
