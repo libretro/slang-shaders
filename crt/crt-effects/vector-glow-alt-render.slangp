@@ -1,16 +1,16 @@
 shaders = 4
 
-shader0 = "../misc/shaders/image-adjustment.slang"
+shader0 = "../../misc/shaders/image-adjustment.slang"
 alias0 = PASS1
 wrap_mode0 = mirrored_repeat
 
-shader1 = "../blurs/shaders/royale/blur43fast-vertical.slang"
+shader1 = "../../blurs/shaders/royale/blur43fast-vertical.slang"
 filter_linear1 = "true"
 scale_type1 = "source"
 scale1 = "1.0"
 wrap_mode1 = mirrored_repeat
 
-shader2 = "../blurs/shaders/royale/blur43fast-horizontal.slang"
+shader2 = "../../blurs/shaders/royale/blur43fast-horizontal.slang"
 filter_linear2 = "true"
 scale_type2 = "source"
 scale2 = "1.0"
