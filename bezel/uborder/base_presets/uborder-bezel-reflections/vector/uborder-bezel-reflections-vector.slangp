@@ -20,7 +20,7 @@ scale_type2 = "source"
 scale2 = "1.0"
 srgb_framebuffer2 = "true"
 
-shader3 = "../../../../../crt/shaders/glow-trails/glow-trails1.slang"
+shader3 = "../../../../../crt/crt-effects/shaders/glow-trails/glow-trails1.slang"
 filter_linear3 = true
 srgb_framebuffer3 = "true"
 
