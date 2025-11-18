@@ -15,7 +15,6 @@ alias1 = RBAvgLumPass
 
 shader2 = shaders/raster_bloom/raster_bloom.slang
 filter_linear2 = true
-float_framebuffer2 = true
 scale_type2 = viewport
 scale_x2 = 1.0
 scale_y2 = 1.0
