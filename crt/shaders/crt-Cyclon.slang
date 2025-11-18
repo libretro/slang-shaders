@@ -298,7 +298,6 @@ mat3 hue = mat3(
     float l = dot(vec3(BR_DEP),res);
  
  // Color Spaces   
-    res *= res;
     if (c_space != 0.0) {
     if (c_space == 1.0) res *= PAL;
     if (c_space == 2.0) res *= NTSC;

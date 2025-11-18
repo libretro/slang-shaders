@@ -25,7 +25,7 @@ scale_type3 = source
 scale_x3 = 1.0
 scale_y3 = 1.0
 
-shader4 = ../../crt/shaders/phosphorlut/scanlines-interlace-linearize.slang
+shader4 = ../../crt/crt-effects/shaders/phosphorlut/scanlines-interlace-linearize.slang
 alias4 = firstPass
 scale4 = 2.0
 scale_type4 = source
@@ -46,7 +46,7 @@ scale6 = 1.0
 scale_type6 = source
 srgb_framebuffer6 = true
 
-shader7 = ../../crt/shaders/phosphorlut/phosphorlut-pass0.slang
+shader7 = ../../crt/crt-effects/shaders/phosphorlut/phosphorlut-pass0.slang
 alias7 = phosphorPass
 filter_linear7 = true
 scale_type7 = source
@@ -54,7 +54,7 @@ scale_x7 = 4.0
 scale_y7 = 2.0
 srgb_framebuffer7 = true
 
-shader8 = ../../crt/shaders/phosphorlut/phosphorlut-pass1.slang
+shader8 = ../../crt/crt-effects/shaders/phosphorlut/phosphorlut-pass1.slang
 filter_linear8 = true
 
 parameters = "diffusion;PHOSPHOR_SCALE_X"

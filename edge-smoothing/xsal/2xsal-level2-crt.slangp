@@ -5,7 +5,7 @@ filter_linear0 = false
 scale_type0 = source
 scale0 = 2.0
 
-shader1 = ../../crt/shaders/dotmask.slang
+shader1 = ../../crt/crt-effects/shaders/dotmask.slang
 filter_linear1 = true
 scale_type1 = viewport
 scale1 = 1.0

@@ -1,192 +1,225 @@
 #version 450
 
 /*
-   April 2023
-   Fast CRT shader by DariusG.
- 
+
+    This program is free software; you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by the Free
+    Software Foundation; either version 2 of the License, or (at your option)
+    any later version.
+
 */
+
 layout(push_constant) uniform Push
 {
-    uint FrameCount;
-	float SCANLINE1;
-	float SCANLINE2;
-	float INTERLACE;
-	float SCALE;
-	float MSK1;
-	float MSK2;
-	float MSK_SIZE;
-	float FADE;
-	float PRESERVE;
-   float SAT;
-   float SIZE;
-   float BLUR;
-   float NOISE;
-   float SEGA;
-   float INGAMMA;
-   float OUTGAMMA,WPR,WPG,WPB,BOOST, BOOSTD;
+   float beam_max, beam_min, scan_max, scan_min,CURVATURE_X,
+   CURVATURE_Y,CURVATURE_SCALE,u_vignette,MSK_BRI,mask_type,
+   boost_bright,boost_dark,glow_str,color_sat,deconv,glass_refl,
+   MSK_WIDTH,MSK_HEIGHT,MSK_STAG;
 } params;
 
-#pragma parameter SIZE "   Soft Pixel Size" 0.5 0.125 4.0 0.125
-#pragma parameter BLUR "   Pixel Softness" 0.6 0.0 1.0 0.05
-#pragma parameter SCANLINE1 "Scanline Strength Dark" 0.75 0.0 1.0 0.05
-#pragma parameter SCANLINE2 "Scanline Strength Bright" 0.4 0.0 1.0 0.05
-#pragma parameter INTERLACE "Interlace Mode" 1.0 0.0 1.0 1.0
-#pragma parameter SCALE "Scanlines downscale"  1.0 1.0 2.0 1.0
-#pragma parameter MSK1 "   Mask Brightness Dark" 0.3 0.0 1.0 0.05
-#pragma parameter MSK2 "   Mask Brightness Bright" 0.6 0.0 1.0 0.05
-#pragma parameter MSK_SIZE "   Mask Size" 0.5002 0.5002 1.0 0.1666
-#pragma parameter FADE "   Mask/Scanlines fade" 0.2 0.0 1.0 0.05
-#pragma parameter PRESERVE "Protect Bright Colors" 0.7 0.0 1.0 0.01
-#pragma parameter SAT "Saturation" 1.0 0.0 2.0 0.05
-#pragma parameter INGAMMA "Gamma In" 2.4 1.0 4.0 0.05
-#pragma parameter OUTGAMMA "Gamma Out" 2.25 1.0 4.0 0.05
-#pragma parameter SEGA "Brightness Fix 1.0:Sega, 2:Amiga/ST" 0.0 0.0 2.0 1.0
-#pragma parameter NOISE "Add Noise" 0.0 0.0 1.0 0.01
-#pragma parameter WPR "  Shift to Red" 0.0 -0.25 0.25 0.01
-#pragma parameter WPG "  Shift to Green" 0.0 -0.25 0.25 0.01
-#pragma parameter WPB "  Shift to Blue" 0.0 -0.25 0.25 0.01
-#pragma parameter BOOST "  Bright Boost" 1.3 1.0 2.0 0.05
-#pragma parameter BOOSTD "  Dark Boost" 1.45 1.0 2.0 0.05
+#pragma parameter beam_min "Scanline Beam Min." 8.0 2.0 15.0 1.0 
+#pragma parameter beam_max "Scanline Beam Max." 6.0 2.0 15.0 1.0 
+#pragma parameter scan_min "Scanlines Min" 1.3 0.0 2.5 0.05
+#pragma parameter scan_max "Scanlines Max" 1.0 0.0 2.5 0.05
 
-#define OUTGAMMA params.OUTGAMMA
-#define INGAMMA params.INGAMMA
-#define SEGA params.SEGA
-#define NOISE params.NOISE
-#define SIZE params.SIZE
-#define BLUR params.BLUR
-#define SCANLINE1 params.SCANLINE1
-#define SCANLINE2 params.SCANLINE2
-#define INTERLACE params.INTERLACE
-#define SCALE params.SCALE
-#define MSK1 params.MSK1
-#define MSK2 params.MSK2
-#define MSK_SIZE params.MSK_SIZE 
-#define FADE params.FADE 
-#define PRESERVE params.PRESERVE
-#define GAMMA params.GAMMA
-#define SAT params.SAT
-#define WPR params.WPR
-#define WPG params.WPG
-#define WPB params.WPB
-#define BOOST params.BOOST
-#define BOOSTD params.BOOSTD
+#pragma parameter CURVATURE_X "Curvature Horiz." 0.0 0.0 0.3 0.01
+#pragma parameter CURVATURE_Y "Curvature Vert." 0.06 0.0 0.3 0.01
+#pragma parameter CURVATURE_SCALE "Curvature Scale" 0.0 0.0 1.0 0.01
+#pragma parameter u_vignette "Vignette" 0.25 0.0 1.0 0.01
+#pragma parameter glass_refl "Glass Reflection" 0.03 0.0 0.5 0.01
 
+#pragma parameter mask_type "Mask Fine/Coarse" 0.0 0.0 1.0 1.0
+#pragma parameter MSK_WIDTH "Mask Width" 1.0 1.0 4.0 1.0
+#pragma parameter MSK_HEIGHT "Mask Height" 1.0 1.0 4.0 1.0
+#pragma parameter MSK_STAG "Mask Stagger" 0.0 0.0 2.0 1.0
+#pragma parameter MSK_BRI "Mask Brightness" 0.4 0.0 1.0 0.05
 
+#pragma parameter boost_dark "Boost Dark" 1.5 1.0 4.0 0.05
+#pragma parameter boost_bright "Boost Bright" 1.2 1.0 4.0 0.05
+#pragma parameter glow_str "Glow Strength" 0.1 0.0 1.0 0.01
+#pragma parameter color_sat "Saturation" 1.0 0.0 2.0 0.05
+#pragma parameter deconv "Deconvergence" 0.0 0.0 1.0 1.0
+
+#define beam_max params.beam_max
+#define beam_min params.beam_min
+#define scan_max params.scan_max
+#define scan_min params.scan_min
+#define CURVATURE_X params.CURVATURE_X
+#define CURVATURE_Y params.CURVATURE_Y
+#define CURVATURE_SCALE params.CURVATURE_SCALE
+#define u_vignette params.u_vignette
+#define MSK_BRI params.MSK_BRI
+#define MSK_WIDTH params.MSK_WIDTH
+#define MSK_HEIGHT params.MSK_HEIGHT
+#define MSK_STAG params.MSK_STAG
+#define mask_type params.mask_type
+#define boost_bright params.boost_bright
+#define boost_dark params.boost_dark
+#define glow_str params.glow_str
+#define color_sat params.color_sat
+#define deconv params.deconv
+#define glass_refl params.glass_refl
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
-	mat4 MVP;
-    vec4 SourceSize;
-    vec4 OriginalSize;
-    vec4 OutputSize;
+   mat4 MVP;
+   vec4 SourceSize;
+   vec4 OriginalSize;
+   vec4 OutputSize;
+   uint FrameCount;
 } global;
 
-#define iTimer float(params.FrameCount/60.0)
-#define OutputSize global.OutputSize
 #define SourceSize global.SourceSize
-#define pi  3.141592654
-
+#define OriginalSize global.OriginalSize
+#define OutputSize global.OutputSize
+#define FrameCount global.FrameCount
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out vec2 omega;
+layout(location = 1) out vec2 invDims;
+layout(location = 2) out vec2 maskpos;
 
 void main()
 {
-	gl_Position = global.MVP * Position;
-	vTexCoord = TexCoord * 1.0001;
-    omega = vec2(pi * OutputSize.x, pi * SourceSize.y/SCALE);
+   gl_Position = global.MVP * Position;
+   vTexCoord = TexCoord*1.0001;
+   invDims = 1.0/SourceSize.xy;
+   maskpos = (vTexCoord*OutputSize.xy)/vec2(MSK_WIDTH,MSK_HEIGHT);
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in vec2 omega;
+layout(location = 1) in vec2 invDims;
+layout(location = 2) in vec2 maskpos;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 1) uniform sampler2D Source;
+layout(set = 0, binding = 2) uniform sampler2D Source;
 
-float snow(vec2 pos)
+#define grayweights vec3(0.3,0.6,0.1)
+
+vec2 applyCurvature(vec2 uv)
 {
-    return fract(sin(iTimer * dot(pos.xy ,vec2(13,78.233))) * 43758.5453);
+    // Convert UV from 0–1 space to -1–1 space
+    vec2 p = uv * 2.0 - 1.0;
+    // Store original for later
+    vec2 original = p;
+    // Horizontal curvature
+    p.x += (original.y * original.y) * original.x * CURVATURE_X;
+    // Vertical curvature
+    p.y += (original.x * original.x) * original.y * CURVATURE_Y;
+    // Optional uniform curvature (tube warping)
+    float r = dot(original, original);
+    p *= 1.0 + r * CURVATURE_SCALE;
+
+    // Return to 0–1 space
+    return p * 0.5 + 0.5;
 }
 
+float kernel[5] = float[](
+    0.0625,   // tap -2
+    0.25,     // tap -1
+    0.375,    // tap  0
+    0.25,     // tap +1
+    0.0625    // tap +2
+);
 
+vec3 glow(vec2 uv)
+{
+   vec3 final = vec3(0.0);
+
+   for (int i=-2; i<3; i++)
+   {
+      float n = float(i);
+      final += texture(Source,uv + vec2(invDims.x,0.0)*n).rgb*kernel[i+2];
+   }
+   for (int i=-2; i<3; i++)
+   {
+      float n = float(i);
+      final += texture(Source,uv + vec2(0.0,invDims.y)*n).rgb*kernel[i+2];
+   }
+   return final;
+}
+
+vec3 mask(vec2 maskpos)
+{
+int m = int(mod(floor(maskpos.x) + mod(floor(maskpos.y),2.0)*MSK_STAG, mask_type == 1.0 ? 3.0 : 2.0));
+
+vec3 mask2[2] = vec3[2](
+    vec3(1.0, MSK_BRI, 1.0),
+    vec3(MSK_BRI, 1.0, MSK_BRI)
+);
+
+vec3 mask3[3] = vec3[3](
+    vec3(MSK_BRI, MSK_BRI, 1.0),
+    vec3(MSK_BRI, 1.0, MSK_BRI),
+    vec3(1.0, MSK_BRI, MSK_BRI)
+);
+
+vec3 mask_ = (mask_type == 1.0) ? mask3[m] : mask2[m];
+ return mask_;
+}
 
 void main()
 {
+// curve screen   
+   vec2 uv = applyCurvature(vTexCoord);
 
-   vec2 pos = vTexCoord.xy;
-/// SHARP-BILINEAR  Author: rsn8887
- 	vec2 texel = pos * SourceSize.xy;
- 	vec2 texel2 = pos * OutputSize.xy;
-   vec2 scale = max(floor(OutputSize.xy / SourceSize.xy), vec2(1.0, 1.0));
-   vec2 pixel = vec2(SIZE/OutputSize.x,0.0);
-	vec2 pixely = vec2(0.0,SIZE/OutputSize.y);
+// calculate some x,y axis filtering   
+   vec2 p = uv * SourceSize.xy;
+   float scanpos = p.y;
+   vec2 i = floor(p) + 0.50;
 
-   vec2 texel_floored = floor(texel);
-   vec2 texel_floored2 = floor(texel2);
-   vec2 s = fract(texel);
-   vec2 s2 = fract(texel2);
-   vec2 region_range = 0.5 - 0.5 / scale;
+   float y = p.y - i.y;
+   float x = fract(p.x);
 
-   // Figure out where in the texel to sample to get correct pre-scaled bilinear.
-   // Uses the hardware bilinear interpolator to avoid having to sample 4 times manually.
+   // blurrier X axis
+   p.x = (i.x + x*x*(3.0-2.0*x))*invDims.x;
+   // sharp Y axis, max sharp quillez modification
+   p.y = (i.y + 16.0*y*y*y*y*y)*invDims.y;
 
-   vec2 center_dist = s - 0.5;
-   vec2 center_dist2 = s2 - 0.5;
-   vec2 f = (center_dist - clamp(center_dist, -region_range, region_range)) * scale + 0.5;
-   vec2 f2 = (center_dist2 - clamp(center_dist2, -region_range, region_range))/scale  + 0.5;
+   vec3 colour = texture(Source, p).rgb;
 
-   vec2 mod_texel = texel_floored + f;
-   vec2 mod_texel2 = texel_floored2 + f2;
-   vec2 uv=mod_texel / SourceSize.xy;
-   vec2 uv2=mod_texel2 / OutputSize.xy;
+// hardcoded deconvergence
+if (deconv == 1.0){   
+colour.r = texture(Source, applyCurvature(vTexCoord + vec2(0.001,0))).r;
+colour.b = texture(Source, applyCurvature(vTexCoord - vec2(0.001,0))).b;
+}
 
-/// "GHOST" PIXELS LEFT/RIGHT CALCULATION
-   vec3 col   = texture(Source, uv).rgb;
-   vec3 colr  = texture(Source, uv2-pixel).rgb;
-   vec3 coll  = texture(Source, uv2+pixel).rgb;
-   vec3 cold  = texture(Source, uv2-pixely).rgb;
+// glass reflect
+float glass = pow(1.0 - distance(uv, vec2(0.5)), 4.0) * glass_refl;
+colour += vec3(glass);
 
-	vec3 color = vec3 (col.r*(1.0-BLUR) + coll.r*BLUR,
-						    col.g*(1.0-BLUR)                              + cold.g*BLUR,
-						    col.b*(1.0-BLUR)               + colr.b*BLUR);
+// grab max pixel R/G/B value
+   float l = max(max(colour.r,colour.g),colour.b);
 
-  
-    vec3 lumweight=vec3(0.3,0.6,0.1);
-    float lum = dot(color,lumweight);
+// calculate beam width based on the above
+   float beam = mix(beam_min, beam_max, l);
+   float scan = mix(scan_min, scan_max, l);
 
- 
-//APPLY MASK 
-         float MSK  = mix(MSK1,MSK2,lum);       
-         float mask = mix(abs(sin(vTexCoord.x*omega.x*MSK_SIZE)), 1.0, lum*PRESERVE);
+// apply gaussian scanlines
+   colour *= exp(-beam*y*y*scan);
 
-         float scan = 1.0;
-         float SCANLINE = mix(SCANLINE1,SCANLINE2,lum);
-//INTERLACING MODE FIX SCANLINES
-    if (INTERLACE > 0.0 && global.OriginalSize.y > 400.0 ) scan; else
-         color *=  SCANLINE * sin(fract(vTexCoord.y*SourceSize.y/SCALE)*3.141529) +(1.0-SCANLINE);
-    color = pow(color,vec3(INGAMMA));
+// apply mask
+   colour *= mix(mask(maskpos),vec3(boost_bright),l*0.5);
 
-         color =mix(color*mask, color, dot(color, vec3(FADE)));
-    
-    color *= mix(BOOSTD,BOOST,lum);
-    color *= vec3(1.0+WPR,     1.0-WPR/2.0, 1.0-WPR/2.0);
-    color *= vec3(1.0-WPG/2.0, 1.0+WPG,     1.0-WPG/2.0);
-    color *= vec3(1.0-WPB/2.0, 1.0-WPB/2.0, 1.0+WPB);
-    
-    color *= 1.0 + snow(uv * 2.0) * (1.0-lum) *NOISE;
-	 if (SEGA == 1.0) color *= 1.0625; else if (SEGA == 2.0) color *=2.0; else color;
+// boost dark palettes
+   colour *= mix(vec3(boost_dark),vec3(1.0),l);
 
-	 color = pow(color,vec3(1.0/OUTGAMMA));
+// gamma out
+   colour = sqrt(colour);
 
-//FAST SATURATION CONTROL
-        if(SAT !=1.0)
-        {
-        vec3 gray = vec3(lum);
-        color = vec3(mix(gray, color, SAT));
-        }
+// add cheap glow effect  
+   colour += glow(p)*glow_str;
 
-    FragColor = vec4(color,1.0);
+// vignette
+float dist = distance(uv, vec2(0.5));
+float vig = 1.0 - u_vignette * dist;
+colour *= vig;
+
+// saturation
+   vec3 gray = vec3(dot(vec3(grayweights),colour));
+   colour = mix(gray,colour,color_sat);
+
+   FragColor.rgb = colour;
 }
