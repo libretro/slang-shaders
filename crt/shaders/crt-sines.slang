@@ -14,31 +14,36 @@ layout(push_constant) uniform Push
    float beam_max, beam_min, scan_max, scan_min,CURVATURE_X,
    CURVATURE_Y,CURVATURE_SCALE,u_vignette,MSK_BRI,mask_type,
    boost_bright,boost_dark,glow_str,color_sat,deconv,glass_refl,
-   MSK_WIDTH,MSK_HEIGHT,MSK_STAG;
+   MSK_WIDTH,MSK_HEIGHT,MSK_STAG,glass_refl_pos;
 } params;
 
+#pragma parameter dummy_beam " [ BEAM ] " 0.0 0.0 0.0 0.0
 #pragma parameter beam_min "Scanline Beam Min." 8.0 2.0 15.0 1.0 
 #pragma parameter beam_max "Scanline Beam Max." 6.0 2.0 15.0 1.0 
 #pragma parameter scan_min "Scanlines Min" 1.3 0.0 2.5 0.05
 #pragma parameter scan_max "Scanlines Max" 1.0 0.0 2.5 0.05
 
-#pragma parameter CURVATURE_X "Curvature Horiz." 0.0 0.0 0.3 0.01
-#pragma parameter CURVATURE_Y "Curvature Vert." 0.06 0.0 0.3 0.01
-#pragma parameter CURVATURE_SCALE "Curvature Scale" 0.0 0.0 1.0 0.01
-#pragma parameter u_vignette "Vignette" 0.25 0.0 1.0 0.01
-#pragma parameter glass_refl "Glass Reflection" 0.03 0.0 0.5 0.01
-
+#pragma parameter dummy_mask " [ MASK ] " 0.0 0.0 0.0 0.0
 #pragma parameter mask_type "Mask Fine/Coarse" 0.0 0.0 1.0 1.0
 #pragma parameter MSK_WIDTH "Mask Width" 1.0 1.0 4.0 1.0
 #pragma parameter MSK_HEIGHT "Mask Height" 1.0 1.0 4.0 1.0
 #pragma parameter MSK_STAG "Mask Stagger" 0.0 0.0 2.0 1.0
 #pragma parameter MSK_BRI "Mask Brightness" 0.4 0.0 1.0 0.05
 
-#pragma parameter boost_dark "Boost Dark" 1.5 1.0 4.0 0.05
-#pragma parameter boost_bright "Boost Bright" 1.2 1.0 4.0 0.05
-#pragma parameter glow_str "Glow Strength" 0.1 0.0 1.0 0.01
-#pragma parameter color_sat "Saturation" 1.0 0.0 2.0 0.05
+#pragma parameter dummy_tube " [ TUBE ] " 0.0 0.0 0.0 0.0
+#pragma parameter CURVATURE_X "Curvature Horiz." 0.0 0.0 0.3 0.01
+#pragma parameter CURVATURE_Y "Curvature Vert." 0.06 0.0 0.3 0.01
+#pragma parameter CURVATURE_SCALE "Curvature Scale" 0.0 0.0 1.0 0.01
+#pragma parameter u_vignette "Vignette" 0.25 0.0 1.0 0.01
 #pragma parameter deconv "Deconvergence" 0.0 0.0 1.0 1.0
+#pragma parameter glass_refl "Glass Reflection" 0.15 0.0 0.5 0.01
+#pragma parameter glass_refl_pos "Glass Reflection Pos." 0.5 0.0 1.0 0.01
+
+#pragma parameter dymmy_col " [ COLORS ] " 0.0 0.0 0.0 0.0
+#pragma parameter boost_dark "Boost Dark Pixels" 1.5 1.0 4.0 0.05
+#pragma parameter boost_bright "Boost Bright Pixels" 1.2 1.0 4.0 0.05
+#pragma parameter glow_str "Glow Strength" 0.15 0.0 1.0 0.01
+#pragma parameter color_sat "Saturation" 1.0 0.0 2.0 0.05
 
 #define beam_max params.beam_max
 #define beam_min params.beam_min
@@ -59,6 +64,7 @@ layout(push_constant) uniform Push
 #define color_sat params.color_sat
 #define deconv params.deconv
 #define glass_refl params.glass_refl
+#define glass_refl_pos params.glass_refl_pos
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -111,7 +117,7 @@ vec2 applyCurvature(vec2 uv)
     // Optional uniform curvature (tube warping)
     float r = dot(original, original);
     p *= 1.0 + r * CURVATURE_SCALE;
-
+    
     // Return to 0–1 space
     return p * 0.5 + 0.5;
 }
@@ -138,7 +144,7 @@ vec3 glow(vec2 uv)
       float n = float(i);
       final += texture(Source,uv + vec2(0.0,invDims.y)*n).rgb*kernel[i+2];
    }
-   return final;
+   return final*0.5;
 }
 
 vec3 mask(vec2 maskpos)
@@ -187,7 +193,7 @@ colour.b = texture(Source, applyCurvature(vTexCoord - vec2(0.001,0))).b;
 }
 
 // glass reflect
-float glass = pow(1.0 - distance(uv, vec2(0.5)), 4.0) * glass_refl;
+float glass = pow(1.0 - distance(uv, vec2(glass_refl_pos)), 6.0) * glass_refl/10.0;
 colour += vec3(glass);
 
 // grab max pixel R/G/B value
@@ -196,6 +202,9 @@ colour += vec3(glass);
 // calculate beam width based on the above
    float beam = mix(beam_min, beam_max, l);
    float scan = mix(scan_min, scan_max, l);
+
+// add cheap glow effect  
+   colour += glow(p)*glow_str;
 
 // apply gaussian scanlines
    colour *= exp(-beam*y*y*scan);
@@ -208,9 +217,6 @@ colour += vec3(glass);
 
 // gamma out
    colour = sqrt(colour);
-
-// add cheap glow effect  
-   colour += glow(p)*glow_str;
 
 // vignette
 float dist = distance(uv, vec2(0.5));
