@@ -398,6 +398,8 @@ if (OriginalSize.y > 400.0 && interlace == 0.0 && progress == 1.0)
     }
 
     vec3 res = Lanczos(pos, InvResolution);
+    float lumsat  = dot(vec3(0.3,0.6,0.1),res);
+    res = mix(vec3(lumsat),res,sat);
 
     if (ntsc == 1.0) {
         res = sRGB_to_NTSC*res;
@@ -406,7 +408,7 @@ if (OriginalSize.y > 400.0 && interlace == 0.0 && progress == 1.0)
     res += glow(pos);
     res *= ColorTemp(TEMP);
     float lumscan = max(max(res.r,res.g),res.b);
-    float lumsat  = dot(vec3(0.22,0.7,0.08),res);
+
     res = res*sw(f,lumscan) + res*sw(abs(1.0-f),lumscan);
     float msk = mix(maskl,maskh,lumscan);
     res *= mix(vec3(1.0),Mask(floor(vTexCoord.xy * OutputSize.xy/size + vec2(0.5))),msk);
@@ -419,7 +421,6 @@ if (OriginalSize.y > 400.0 && interlace == 0.0 && progress == 1.0)
     vec2 corn = min(pos,vec2(1.0)-pos); // This is used to mask corners
     corn.x = 0.0001/corn.x;             
     if (corners == 1.0 && corn.y <= corn.x || corn.x < 0.0001 ) res = vec3(0.0);
-    res = mix(vec3(lumsat),res,sat);
 
     FragColor = vec4(res,1.0);
 }
