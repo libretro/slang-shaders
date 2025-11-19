@@ -177,8 +177,8 @@ vec2 applyVAngle(vec2 uv, vec2 strength) {
 #define pi 3.141592654
 #define FIX_ZERO(c) (max(abs(c), 0.0000152587890625))   //  2^-16
 
-#include "../../include/compat_macros.inc"
-#include "../../crt/shaders/crt-royale/src/tex2Dantialias.h"
+#include "../../../include/compat_macros.inc"
+#include "../../shaders/crt-royale/src/tex2Dantialias.h"
 
 mat2 mul_scale(vec2 scale, mat2 matrix)
 {
