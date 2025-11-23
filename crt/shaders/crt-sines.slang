@@ -151,18 +151,8 @@ vec3 mask(vec2 maskpos)
 {
 int m = int(mod(floor(maskpos.x) + mod(floor(maskpos.y),2.0)*MSK_STAG, mask_type == 1.0 ? 3.0 : 2.0));
 
-vec3 mask2[2] = vec3[2](
-    vec3(MSK_BRI),
-    vec3(1.0)
-);
+vec3 mask_ = (m == 0.0)? vec3(MSK_BRI) : vec3(1.0);
 
-vec3 mask3[3] = vec3[3](
-    vec3(MSK_BRI),
-    vec3(1.0),
-    vec3(1.0)
-);
-
-vec3 mask_ = (mask_type == 1.0) ? mask3[m] : mask2[m];
  return mask_;
 }
 
