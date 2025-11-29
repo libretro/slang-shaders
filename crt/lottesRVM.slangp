@@ -1,0 +1,7 @@
+shaders = 2
+
+shader0 = ../linear/linearize.slang
+
+shader1 = shaders/lottesRVM.slang
+scale_type1 = viewport
+scale1 = 1.0
