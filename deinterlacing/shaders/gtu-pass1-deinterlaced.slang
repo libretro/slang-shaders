@@ -23,7 +23,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 // Note: Deinterlacer added by cyanosin
 ////////////////////////////////////////////////////////
 
-#include "config.h"
+#include "../../crt/shaders/gtu-v050/config.h"
 
 #define RGB_to_YIQ mat3x3( \
     0.299    ,  0.595716 ,  0.211456 , \
