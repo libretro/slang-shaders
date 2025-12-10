@@ -55,43 +55,52 @@ bool checkblack(vec3 col) {
 // pin zz
 bool sim1(vec3 col1, vec3 col2) {
 
-    vec3 diff = abs(col1 - col2);
+    vec3 diff = col1 - col2;
+    vec3 absdiff = abs(col1 - col2);
 
-    // 1. Quick per-channel difference check
-    if ( diff.r > 0.09652388 || diff.g > 0.09652388 || diff.b > 0.09652388 ) return false;
+    // fast chanels check
+    if ( absdiff.r > 0.1 || absdiff.g > 0.1 || absdiff.b > 0.1 ) return false;
 
-    // 2. Quick filter for identical, extremely dark, or extremely bright pixels after clamping
-    vec3 clampCol1 = clamp(col1, vec3(0.078),vec3(0.922));
-    vec3 clampCol2 = clamp(col2, vec3(0.078),vec3(0.922));
-    vec3 clampdiff = clampCol1 - clampCol2;
-    vec3 absclampdiff = abs(clampdiff);
-    if ( absclampdiff.r < 0.05572809 && absclampdiff.g < 0.021286 && absclampdiff.b < 0.05572809 ) return true;
-
-    // 3. Quick squared distance check
+    // fast dot_distence check
 	float dot_diff = dot(diff, diff);
-    if (dot_diff > 0.00931686) return false;
+    if (dot_diff < 0.001359312) return true;
 
-	// 4. Add squared opposite channel distance and judge again
-	float teamA = 0.0;
-	float teamB = 0.0;
 
-	if (clampdiff.r > 0.0) teamA += absclampdiff.r; else teamB += absclampdiff.r;
-	if (clampdiff.g > 0.0) teamA += absclampdiff.g; else teamB += absclampdiff.g;
-	if (clampdiff.b > 0.0) teamA += absclampdiff.b; else teamB += absclampdiff.b;
-	float team = min(teamA,teamB);
-	// Empirically, at least 3 times the opposite channel value needs to be added. (+1x draws, +2x forms an increasing trend)
-	if (dot_diff + team*team*3.0 > 0.00931686) return false;
+    float min_diff = min(diff.r, min(diff.g, diff.b));
+    float max_diff = max(diff.r, max(diff.g, diff.b));
+    if ( max_diff-min_diff>0.096 ) return false;
+    if ( max_diff-min_diff<0.024 && dot_diff<0.024391856)  return true;
 
-	// 5. Check for gray pixels
-    float sum1 = dot(col1, vec3(1.0));  // Sum of three channels, slightly more efficient than writing r+g+b
-    float sum2 = dot(col2, vec3(1.0));  // Tolerance empirically set to 0.08
+	// 4. grey pixel check
+    float sum1 = dot(col1, vec3(1.0));
+    float sum2 = dot(col2, vec3(1.0));
     float avg1 = sum1 * 0.3333333;
     float avg2 = sum2 * 0.3333333;
-    bool Col1isGray = all(lessThan(abs(col1 - vec3(avg1)), vec3(avg1 * 0.08)));
-    bool Col2isGray = all(lessThan(abs(col2 - vec3(avg2)), vec3(avg2 * 0.08)));
 
-	// Return true if both are gray or both are not gray
-	return Col1isGray == Col2isGray;
+	vec3 graydiff1 = col1 - vec3(avg1);
+	vec3 graydiff2 = col2 - vec3(avg2);
+	float dotgray1 = dot(graydiff1,graydiff1);
+	float dotgray2 = dot(graydiff2,graydiff2);
+
+	float tolerance1 = avg1<0.08 ? 0.002 : 0.0004;
+	float tolerance2 = avg2<0.08 ? 0.002 : 0.0004;
+
+    bool Col1isGray = sum1<0.078||dotgray1<tolerance1;
+    bool Col2isGray = sum2<0.078||dotgray2<tolerance2;
+
+
+    if ( Col1isGray && Col2isGray && dot_diff<0.024391856 ) return true;
+
+
+    if ( Col1isGray != Col2isGray ) return false;
+
+
+    float team_pos = abs(dot(max(diff, 0.0), vec3(1.0)));
+    float team_neg = abs(dot(min(diff, 0.0), vec3(1.0)));
+
+    float team_rebel = min(team_pos, team_neg);
+
+    return dot_diff + team_rebel*team_rebel*3 < 0.00931686;
 }
 
 bool sim23(vec3 col1, vec3 col2, int Lv) {
@@ -120,29 +129,21 @@ bool sim3(vec3 col1, vec3 col2) {
 bool mixcheck(vec3 col1, vec3 col2) {
 
     vec3 diff = col1 - col2;
-    vec3 absdiff = abs(diff);
 
-    // 1. Quick per-channel difference check
-    if ( absdiff.r > 0.618034 || absdiff.g > 0.618034 || absdiff.b > 0.618034 ) return false;
-    // Quick filter for similar pixels (0.4377 divided by 6, sqrt max can be 0.27)
-    if ( absdiff.r < 0.27 && absdiff.g < 0.27 && absdiff.b < 0.27 ) return true;
 
-    // 3. Quick squared distance check
+    float min_diff = min(diff.r, min(diff.g, diff.b));
+    float max_diff = max(diff.r, max(diff.g, diff.b));
+    if ( max_diff-min_diff>0.618034 ) return false;    // 超过24
 	float dot_diff = dot(diff, diff);
-    if (dot_diff > 0.4377) return false;	// The first short golden ratio of Euclidean distance
+    if( max_diff-min_diff<0.024 && dot_diff<0.75)  return true;  //  0.02不超过5    0.024 不超过6
 
-	// 4. Add squared opposite channel distance and judge again
-	float teamA = 0.0;
-	float teamB = 0.0;
 
-	if (diff.r > 0.0) teamA += absdiff.r; else teamB += absdiff.r;
-	if (diff.g > 0.0) teamA += absdiff.g; else teamB += absdiff.g;
-	if (diff.b > 0.0) teamA += absdiff.b; else teamB += absdiff.b;
-	float team = min(teamA,teamB);
-	// Empirically, at least 3 times the opposite channel value needs to be added. (+1x draws, +2x forms an increasing trend)
-	if (dot_diff + team*team*3.0 > 0.4377) return false;
+    float team_pos = abs(dot(max(diff, 0.0), vec3(1.0)));
+    float team_neg = abs(dot(min(diff, 0.0), vec3(1.0)));
 
-    return true;
+    float team_rebel = min(team_pos, team_neg);
+
+    return dot_diff + team_rebel*team_rebel*3 < 0.4377;
 }
 //bool eq(vec3 col1, vec3 col2) {
 //    vec3 diff = abs(col1 - col2);
