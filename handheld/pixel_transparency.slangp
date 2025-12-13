@@ -1,9 +1,5 @@
 shaders = 1
 
-shader0 = shaders/pixel_transparency/pixel_transparency.slang
+shader0 = shaders/pixel_transparency.slang
 filter_linear0 = false
 scale_type0 = viewport
-
-textures = PT_BACKGROUND
-PT_BACKGROUND = shaders/pixel_transparency/paper-bg.png
-PT_BACKGROUND_linear = true

@@ -103,7 +103,6 @@ layout(location = 2) in float shadow_scale_factor;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D Original;
-layout(set = 0, binding = 4) uniform sampler2D PT_BACKGROUND;
 
 // Gambatte luminance constants (ITU-R BT.709 standard)
 #define LUMA_R 0.2126
@@ -156,6 +155,48 @@ vec3 darkenRgb(vec3 color, float darkFilterLevel) {
     return color * darkFactor;
 }
 
+// Procedural paper grain noise generation
+float hash(vec2 p) {
+    // High-quality hash for paper grain
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float paperNoise(vec2 uv, float scale) {
+    // Multi-octave noise for paper texture
+    vec2 p = uv * scale * 512.0; // Scale to approximate texture resolution
+
+    float n = 0.0;
+    float amplitude = 0.5;
+    float frequency = 1.0;
+
+    // 3 octaves of noise for paper-like grain
+    for (int i = 0; i < 3; i++) {
+        n += hash(p * frequency) * amplitude;
+        amplitude *= 0.5;
+        frequency *= 2.0;
+    }
+
+    return n;
+}
+
+vec3 generateProceduralBackground(vec2 uv) {
+    // Base gray matched to original paper texture (avg brightness 0.474)
+    // Grain intensity 0.0135 matches original texture range of 3 RGB values
+    const vec3 baseColor = vec3(0.474);
+    const float grainIntensity = 0.0135;
+    const float scale = 1.0;
+
+    // Generate paper grain
+    float grain = paperNoise(uv, scale);
+
+    // Center the noise around 0 and apply intensity
+    float grainOffset = (grain - 0.5) * grainIntensity;
+
+    return baseColor + vec3(grainOffset);
+}
+
 void main() {
     // Cache texture samples to eliminate redundant reads
     vec4 lcd_color = texture(Source, vTexCoord);
@@ -178,8 +219,8 @@ void main() {
     // Pre-calculate white detection for current pixel
     bool current_is_white = isWhitePixel(original_pixel, param.PT_THRESHOLD);
 
-    // Get background color
-    vec4 background = texture(PT_BACKGROUND, vTexCoord);
+    // Generate procedural background
+    vec4 background = vec4(generateProceduralBackground(vTexCoord), 1.0);
 
     // Apply drop shadow to background if enabled (BEFORE tinting)
     if (param.PT_SHADOW_ENABLE > 0.5) {
