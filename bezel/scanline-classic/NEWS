@@ -1,0 +1,37 @@
+Version 6.0
+
+* Completely new shader system, first version included with RetroArch
+
+Version 4.2
+
+* Adds more presets, mostly for monochrome monitors.
+
+Version 4.1
+
+* Fixes a bug with line doubler.
+
+* Adds Scanline Basic preset
+
+* Adjusts focus on various presets.
+
+Version 4.0
+
+* Adds support for multi-scan.  The following parameters have been
+  added: SCAN_TYPE, MAX_SCAN_RATE, LINE_DOUBLER, INT_OFF
+
+* The following parameters have been removed: ON_PIXELS, OFF_PIXELS,
+  HI_RES_THRES
+
+Version 3.1
+
+* Fixes a bug with color transformations.
+
+Version 3.0
+
+* New phosphor decay model (requires 3-pass setup).
+
+Version 2.0
+
+* Added support for shadow masks provided by hunterk.
+
+* Changed gamma model to simple 2.4 power law.

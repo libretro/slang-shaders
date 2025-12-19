@@ -1,0 +1,1 @@
+#pragma parameter GAMUT_COMPRESSION "Gamut mapping (off, basic, advanced clip, advanced compress)" 3.0 0.0 3.0 1.0
