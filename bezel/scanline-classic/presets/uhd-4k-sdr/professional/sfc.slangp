@@ -36,7 +36,6 @@ shader5 = ..\..\..\shaders\crt-linear.slang
 filter_linear5 = false
 scale_type5 = source
 scale5 = 1.0
-alias5 = PHOSPHOR
 
 shader6 = ..\..\..\shaders\beam-mask.slang
 filter_linear6 = false
@@ -86,7 +85,7 @@ SHORTEN_ODD_FIELD_TIME = 1.0
 PIXEL_CLOCK = 6.0
 DECODER_SETUP = 0.0
 COLORIMETRY_PRESET = 2.0
-BORDER = ..\..\..\share\bezel-trinitron.png
+BORDER = ..\..\..\share\bezel-trinitron.jpg
 MASK_TYPE = 0.0
 MASK_DIFFUSION = 2.0
 MAGNETIC_CORRECTION = 30.0

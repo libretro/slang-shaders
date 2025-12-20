@@ -61,7 +61,6 @@ shader10 = ..\..\..\shaders\crt-linear.slang
 filter_linear10 = false
 scale_type10 = source
 scale10 = 1.0
-alias10 = PHOSPHOR
 
 shader11 = ..\..\..\shaders\beam-mask.slang
 filter_linear11 = false
@@ -116,7 +115,7 @@ DECODER_TYPE = 2.0
 BANDPASS_ATTEN_DB = 3.0
 BANDPASS_WIDTH = 1.3
 COLORIMETRY_PRESET = 3.0
-BORDER = ..\..\..\share\bezel-tv.png
+BORDER = ..\..\..\share\bezel-tv.jpg
 MASK_TYPE = 1.0
 MASK_DIFFUSION = 2.0
 MAGNETIC_CORRECTION = 30.0

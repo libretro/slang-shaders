@@ -80,7 +80,6 @@ shader14 = ..\..\..\shaders\crt-linear.slang
 filter_linear14 = false
 scale_type14 = source
 scale14 = 1.0
-alias14 = PHOSPHOR
 
 shader15 = ..\..\..\shaders\beam-mask.slang
 filter_linear15 = false
@@ -138,7 +137,7 @@ DECODER_TYPE = 2.0
 BANDPASS_ATTEN_DB = 3.0
 BANDPASS_WIDTH = 1.3
 COLORIMETRY_PRESET = 3.0
-BORDER = ..\..\..\share\bezel-trinitron.png
+BORDER = ..\..\..\share\bezel-trinitron.jpg
 MASK_TYPE = 0.0
 MASK_DIFFUSION = 2.0
 MAGNETIC_CORRECTION = 30.0

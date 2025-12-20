@@ -24,6 +24,8 @@
 
 #pragma parameter BEZEL_BYPASS "Bypass bezel" 0.0 0.0 1.0 1.0
 #pragma parameter GLOW_BYPASS "Bypass glow" 0.0 0.0 1.0 1.0
+#pragma parameter KEY_THRESH "Bezel chroma key threshold" 0.18 0.0 0.5 0.01
+#pragma parameter KEY_SOFT "Bezel chroma key softness" 0.08 0.0 0.5 0.01
 
 layout(push_constant) uniform Push
 {
@@ -45,6 +47,8 @@ layout(push_constant) uniform Push
     float GLOW_JITTER;
     float GLOW_FALLOFF;
     float GLOW_TEMPERATURE;
+    float KEY_THRESH;
+    float KEY_SOFT;
 } config;
 
 #define ASPECT config.ASPECT
@@ -62,6 +66,9 @@ layout(push_constant) uniform Push
 #define GLOW_JITTER config.GLOW_JITTER
 #define GLOW_FALLOFF config.GLOW_FALLOFF
 #define GLOW_TEMPERATURE config.GLOW_TEMPERATURE
+
+#define KEY_THRESH config.KEY_THRESH
+#define KEY_SOFT config.KEY_SOFT
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -134,7 +141,6 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D Original;
 layout(set = 0, binding = 4) uniform sampler2D BORDER;
-layout(set = 0, binding = 5) uniform sampler2D PHOSPHOR;
 
 /**
  * Blends two colors using multiply blend mode.
@@ -281,7 +287,7 @@ vec3 sample_mirror_safe(sampler2D tex, vec2 uv)
  * 
  * Features:
  * - Multi-step diffusion: samples at varying distances for smooth falloff
- * - Anisotropic scaling: more perpendicular spread (mimics phosphor bloom)
+ * - Anisotropic scaling: more perpendicular spread
  * - Vertical bias: emphasizes vertical glow (CRT scanline characteristic)
  * - Jitter: randomized offsets to eliminate banding artifacts
  * - Color compression: reduces extreme brightness impact
@@ -327,7 +333,6 @@ vec3 calculate_glow(vec2 coord, float radius, float diffusion_steps)
             
             // Anisotropic scaling: increase perpendicular diffusion
             // Horizontal rays spread vertically, vertical rays spread horizontally
-            // This mimics phosphor bloom on CRTs
             vec2 anisotropic_scale = vec2(
                 1.0 + vertical_component * 2.0,    // Expand X when moving vertically
                 1.0 + horizontal_component * 2.0   // Expand Y when moving horizontally
@@ -343,7 +348,7 @@ vec3 calculate_glow(vec2 coord, float radius, float diffusion_steps)
             
             // Sample and compress color to reduce extreme brightness impact
             vec3 sample_color = compress_color(
-                sample_mirror_safe(PHOSPHOR, coord + offset),
+                sample_mirror_safe(Source, coord + offset),
                 GLOW_COMPRESSION
             );
             
@@ -397,6 +402,15 @@ void main()
 
     // Sample background/bezel texture
     vec4 background = texture(BORDER, vTexCoord);
+
+    // Color key against green to create transparency in bezel when JPEG is used
+    // Smooth chroma key: alpha is 0 for pure green, 1 for non-green, smooth in between
+    float key_thresh = KEY_THRESH; // Tolerance for keying (tweak as needed)
+    float key_soft = KEY_SOFT;   // Soft edge width for smooth transition
+    vec3 key_color = vec3(0.0, 1.0, 0.0);
+    float key_dist = distance(background.rgb, key_color);
+    float key_alpha = smoothstep(key_thresh, key_thresh + key_soft, key_dist);
+    background.a *= key_alpha;
 
     // Transform glow sampling coordinates (centered on screen viewport)
     vec2 glow_coord = screen_coord;

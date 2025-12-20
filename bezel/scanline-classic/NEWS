@@ -1,3 +1,7 @@
+Version 6.1
+
+* Allow for color keyed JPEGS to be used for bezel
+
 Version 6.0
 
 * Completely new shader system, first version included with RetroArch

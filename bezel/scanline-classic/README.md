@@ -13,7 +13,7 @@ https://github.com/anikom15/scanline-classic
 A general purpose RetroArch shader with an emphasis on realism while
 maintaining a high degree of flexibility and aesthetic quality. 
 
-Version 6.0
+Version 6.1
 
 README Edition 7x
 
@@ -83,6 +83,10 @@ After building, the shaders can be found in the `out` directory.
 * **stock.slang**: Stock/utility shader pass.
 * **svideo.slang, yc-composite.slang, yc-svideo.slang**: S-Video and Y/C signal simulation.
 * **sys-component.slang, sys-display-rgb-bandlimit.slang, sys-rgb-amp.slang, sys-rgb-bandlimit.slang, sys-yc.slang**: System-level signal and bandlimit simulation.
+
+### Includes
+
+
 
 ### SDR and WCG Shaders
 
