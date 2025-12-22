@@ -94,11 +94,10 @@ However nice effects may be obtained (eg: with vector games). <br>
         self explanatory.
     Input signal gain:
         Gain applied in the chain just before the crt emulation stages.
-    Adaptive black level range:
-        On old CRTs the contrast was higher on high luminosity content,
-        and lower on low luminosity content.
-        This setting modulate the range of the effect; 0.0 disables it.
-
+    CRT Black crush:
+        Emulate an old or low-quality CRT behaviour:
+        Clips dark tones to black as the overall image brightness increases.
+        
     It is also possible to emulate a monochrome display with custom colors:
     
         Monochrome screen colorization:
@@ -130,6 +129,14 @@ However nice effects may be obtained (eg: with vector games). <br>
                                may produce posterization effects.
 
 
+** Fake Transparencies blending:**<br>
+    Detect vertical patterns used in some games to
+    fake transparent colors and blends them.
+    (eg Sonic waterfalls or Kirby's dreamland 3 water)
+    
+    Overridden X(Y)-sharpness: The lower, the blurrier.
+    
+    
 **CVBS: NTSC color artifacts:**<br>
     Emulate typical NTSC color artifacting<br>
     It is able to emulate straight rainbowing effects as seen on Megadrive<br>
@@ -159,16 +166,15 @@ However nice effects may be obtained (eg: with vector games). <br>
 		Switch bandwidths to match different standards.
 	Strength
 		Self explanatory.
-	Size
-		Maximum bleed size.
-	Falloff
+	Size/Quality
+		Maximum bleed size (the higher, the slower).
+	Shrpness
 		The bleed falloff speed.
 
 
 **CVBS: Dot crawl**<br>
     Emulates rolling chroma->luma crosstalks observed in composite signals.<br>
     
-    Colorspace: You can switch between pal and ntsc behaviour.
     Speed:
         Lower absolute values gives a more visible effect.
         A negative value will switch to verically crawling artifacts.
@@ -177,12 +183,16 @@ However nice effects may be obtained (eg: with vector games). <br>
 **Persistence of phosphors:**<br>
     This emulates the unexcited phosphors that continue to emit light.
 
-    Early decay: is the immediate light cut after the phosphor is no more/less excited.
-    Late persistence: modulates the time the residual light will stay on screen
-
+    Early decay (blue): is the immediate light cut after the blue phosphor is no more/less excited.
+    Late persistence (blue): modulates the time the residual blue light will stay on screen
+    Red/Green decay time multiplier: 
+                       Chemical composition makes different phosphors have different decay times.
+                       Highering this parameter will make them slower than blue.
+    
 
 **Deconvergence:**<br>
     Shift R,G,B components separately to mimic channel deconvergence.<br>
+    Scanlines will be "staggered" according to the Y setting.
     
     Red,Green,Blue X,Y:
         The channels deconvergence offsets
@@ -204,13 +214,6 @@ However nice effects may be obtained (eg: with vector games). <br>
     Uniform noise: Balanced noise that ranges from -x to +x.
     Snow noise: Sparkling/Rarefied noise 
         
-**Megadrive fake transparencies:**<br>
-    Detect patterns used in some Megadrive/Genesis games to
-    fake transparent colors and blends them.
-    
-    Overridden X(Y)-sharpness: The lower, the blurrier.
-
-
         
 **Glow/Blur:**<br>
 	Blur the image and/or embolds bright pixels.
@@ -219,6 +222,7 @@ However nice effects may be obtained (eg: with vector games). <br>
         Higher negative values -> more glow : brighter colors expands over darker ones.
         Higher positive values -> means blur: all the colors are blurred.
         0.0 means no blur, no glow.
+        Please note that this always reverts to full blur (1.0) when using "Fake transparencies/blending" feature
     Glow spread amount:
         The higher, the more the bright colors will smoothly expand.
         It emulates the natural antialiasing you see on CRTs on bright areas.
@@ -242,13 +246,15 @@ However nice effects may be obtained (eg: with vector games). <br>
         nearby pixels, thereby altering their "Warped" shape.
 
 
-**Tate mode:**<br>
+
+**Tate mode (use horizontal scanlines):**<br>
     Rotates (or not) mask and scanlines by 90°<br>
     
-    0: Never rotate.
-    1: Rotate only for rotated content (typical 3:4 aspect arcade games)
-    2: Always rotate/Force rotation.
-        
+    1: Use horizontal scanlines and vertical mask only for rotated content (typical 3:4 aspect arcade games)
+    2: Always.
+    0: Never.
+    
+    
 **Glitch if vertical resolution changes:**<br>
     Emulates the crt circuits syncing to the new signal timing.<br>
     Will shake the screen for a while when the resolution changes.<br>
@@ -351,16 +357,11 @@ However nice effects may be obtained (eg: with vector games). <br>
             The previous effect staggers scanlines at "triad width interval", but here you can alter
             that interval.
             Setting an interval of 1.0 can be used to hide moire patterns.
-        Deconvergence Y: R,G,B phosphor" 
-            This emulates Y deconvergence on phosphor level rather than on image level as seen in
-            the previous deconvergence section.
-            Emulating deconvergence here is good because phosphors will be able to brighten the
-            dark gap left by scanlines.
         Dedot mask between scanlines
             When using Horizontal masks, you mai notice a disturbing dot pattern left between high
             scanlines, that's the residual of horizontal mask.
             Use this parameter to clear it and use it only if needed or it would have counter-effects.
-            Also, mutating dots to straight lines would make moiree more visible when using curvature.
+            Also, mutating dots to straight lines would make moire more visible when using curvature.
     
     
     Horizontal mask (rgb subpixel mask strength)
@@ -490,8 +491,8 @@ However nice effects may be obtained (eg: with vector games). <br>
             0: display is always slow to refresh (Game gear)
             1: display is slow to refresh bright pixels (??)
             2: display is slow to refresh dark pixels (Game Boy)
-    Shadow strength:
-        Emulates the typical shadow seen on Gameboy mono handhelds
+    Diorama/Shadow strength:
+        Emulates the typical diorama effect seen on Gameboy mono handhelds
         casted by on the underlying screen.
         Shadow offset:
             Moves the shadow left or right.
@@ -504,39 +505,22 @@ However nice effects may be obtained (eg: with vector games). <br>
     So you can use this to restore the brightness and color saturation<br>
     loss when using features like scanlines, darklines or RGB masks.<br>
     
-    (Halo): Pre-attenuate input signal gain to 1x:
+    Pre-attenuate input signal gain to 1x:
         Nullifies the input gain applied in the color correction section.
         This way the halo effect will be consistent and will not depend on 
         it, avoiding hard to manage cascading effects.
-    (Halo): Strength (negative = 10x precision)
+    Strength (negative = 10x precision)
         The effect strength.
         Negative values are interpreted as positive ones, divided by 10,
         when fine tuning is needed.
-    (Halo): Sharpness
+    Sharpness
         The lower, the wider the halo.
-    (Halo): Gamma in
+    Gamma in
         Act like a soft treshold; the higher, the less the darker colors
         will be "haloed"
-    (Halo): Gamma out
+    Gamma out
         Post-gamma correction applied to the halo.
-    Mask Helper: Additional brighness if horizontal mask clips
-        This function will add more color to the subpixel mask (eg: RGB, RBGX...)
-        when it is unable to reach the enough brightness.
-        This will allow to fully exploit subpixel mask capacity while retaining
-        the desidered brightness.
-        Please note that a well calibrated monitor is needed.
-        
-        How to Use Mask Helper:
-        -----------------------
-            Adjust "Input signal gain" based on mask size:
-               ~2.0..3.0 for 2-sized (gm, wx)
-               ~3.0..4.0 for 3-sized (gmx, rgb,rbg)
-               ~4.0..5.0 for 4-sized (rgbx, rbgx)
-                
-            Activate the "Horizontal mask" parameter.
-               Set "Phosphors width Min, Max" to the minimum.
-               Set "Phosphors width min->max gamma" to the maximum.
-               
+    
     Light up scanline gaps and dot grid gaps too:
         Theoretically Halo has to be applied
         "over" everything, because that is the way it works in nature.
@@ -545,12 +529,12 @@ However nice effects may be obtained (eg: with vector games). <br>
         cost of some graphical artifacts visible on high contrasted areas.
         The same apply for the grid emulated via dot matrix emulation feature.
  
-**Bloom:**<br>
+**Bloom/Halation:**<br>
     Acts like Halo, but affects a much wider area and is more configurable.<br>
     By using this effect and playing with its parameters, you can achieve funny<br>
     or even artistic results.<br>
     
-    Final mix:
+    Strength:
         Modulates between the original images and the bloomed one.
     Radius:
         Controls how much the bloom has to be wide.
@@ -562,19 +546,23 @@ However nice effects may be obtained (eg: with vector games). <br>
     Output Gamma (contour smoothness):
         Lowering it will make the bloom contour more pronunced.
         Handy to simulate well defined "Aura" effects.
-    Power multiplier:
-        Just apply a gain to the final bloom.
-    Modulate: Local exposure eye adaption strength
-        Simulate the process through which the pupil adapt itself to different
-        light conditions.
-    Modulate: Strength on bright areas (0 = aura)
+    Power/Vibrance multiplier:
+        Push bloom vibrance/saturation and gain.
+    Target strength over narrow bright areas
         Since the light produced by the bloom effect is added to the underlying
         image, it can produce clipping effects on the already bright areas.
         This is actually an hack that will avoid to bloom them.
-    Bypass/Solo:
-        See how the bloomed image looks alone.
-        Use 1.0 to see naked bloom without any modulation applied
-        Use 2.0 to see naked bloom with modulation applied 
+    Reduce bloom strength over wide bright areas
+        Lower bloom strength on wide bright areas.
+    Push dark/mid bloom shades visibility (safe range: 0-1)
+        By using a a soft Roll-off curve, this causes the darker to mid bloom shades 
+        to be more visible and pronounced, while rolling off the intensity of the brightest areas.
+        Use with caution for values > 1.0, because mid bloom tones will becomes brighter than bright ones.
+    Halation strength:
+        Emulates a very wide halo from light scattering in CRT glass.
+        Since the implementation targets a good looking image, it is heavily tweaked and so not accurate.
+    Solo:
+        See how the bloom and halation image look without the main content.
 
 **Curvature:**<br>
     Emulates a curved CRT display.<br>
@@ -648,7 +636,7 @@ However nice effects may be obtained (eg: with vector games). <br>
             and no zoom/shift will be allowed
     
         
-**Backgound image:**<br>
+**Background image:**<br>
     Draws an image on screen picked from the "textures" shader subdirectory,<br>
     named by default background_over.png and background_under.png<br>
     <br>
@@ -892,7 +880,7 @@ Changes are applied after a shader reload.*<br>
 
 **Higher quality defocus:**<br>
     Use higher quality deconvergence by flattering rgb scanlines when <br>
-    deconvergence is high and by syncing them to the deconvergence settings.<br>
+    deconvergence is high.<br>
     This has a measurable performance impact on lower spec GPUs.<br><br>
     To use it, in file config-user-optional.txt, write:
     ```#define HQ_DECON```<br>
@@ -934,6 +922,7 @@ Changes are applied after a shader reload.*<br>
     . Not compatible Direct3D<br>
     . Disabled with DELTA_RENDER)<br>
     . Disabled with Adaptive strobe<br>
+    . Disabled with Antiburn<br>
     
     LCD displays often suffer from high pixel refresh times <br>
     which produces ghosting when game changes on screen.<br>
@@ -980,3 +969,8 @@ Changes are applied after a shader reload.*<br>
     ```#define ANTIBURN_Y 1.0```<br>
     ```#define ANTIBURN_X 1.0```<br><br>
     (1.0 is the effect speed).<br>
+    By enabling the following, not just the content, but the whole screen will shake:
+    ```#define ANTIBURN_COMPLETE```<br>
+    The following modulates the shake size:
+    ```#define ANTIBURN_AMPLITUDE 1.0```<br>
+    Antiburn disables LCD antighosting.

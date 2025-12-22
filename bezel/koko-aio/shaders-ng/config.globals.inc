@@ -152,10 +152,6 @@
     #define DOT_C		global.DOT_C
 #endif
 
-#ifndef DOT_C_YUV
-    #define DOT_C_YUV		global.DOT_C_YUV
-#endif
-
 #ifndef DOT_C_SPEED
     #define DOT_C_SPEED		global.DOT_C_SPEED
 #endif
@@ -281,10 +277,6 @@
     #define DO_HALO		global.DO_HALO
 #endif
 
-#ifndef HALO_DO_MASK_HELPER
-    #define HALO_DO_MASK_HELPER		params.HALO_DO_MASK_HELPER
-#endif
-
 #ifndef HALO_SHARPNESS
     #define HALO_SHARPNESS	params.HALO_SHARPNESS
 #endif
@@ -317,12 +309,16 @@
     #define BLOOM_MIX		global.BLOOM_MIX
 #endif
 
+#ifndef BLOOM_HALATION_MIX
+    #define BLOOM_HALATION_MIX		global.BLOOM_HALATION_MIX
+#endif
+
 #ifndef BLOOM_EYE_ADPT_SRT
     #define BLOOM_EYE_ADPT_SRT	global.BLOOM_EYE_ADPT_SRT
 #endif
 
-#ifndef BLOOM_EYE_INERTIA
-    #define BLOOM_EYE_INERTIA	global.BLOOM_EYE_INERTIA
+#ifndef BLOOM_SOFT_LIMITER
+    #define BLOOM_SOFT_LIMITER	global.BLOOM_SOFT_LIMITER
 #endif
 
 #ifndef BLOOM_QUALITY
@@ -819,18 +815,6 @@
     #define PIXELGRID_BASAL_GRID global.PIXELGRID_BASAL_GRID
 #endif
 
-#ifndef PIXELGRID_DECON_R_H
-    #define PIXELGRID_DECON_R_H		global.PIXELGRID_DECON_R_H
-#endif
-
-#ifndef PIXELGRID_DECON_G_H
-    #define PIXELGRID_DECON_G_H		global.PIXELGRID_DECON_G_H
-#endif
-
-#ifndef PIXELGRID_DECON_B_H
-    #define PIXELGRID_DECON_B_H		global.PIXELGRID_DECON_B_H
-#endif
-
 #ifndef PIXELGRID_Y_MASK
     #define PIXELGRID_Y_MASK	global.PIXELGRID_Y_MASK
 #endif
@@ -929,6 +913,14 @@
 
 #ifndef DO_PPERSISTENCE
 	#define DO_PPERSISTENCE		global.DO_PPERSISTENCE
+#endif
+
+#ifndef PPERSISTENCE_MUL_R
+	#define PPERSISTENCE_MUL_R		global.PPERSISTENCE_MUL_R
+#endif
+
+#ifndef PPERSISTENCE_MUL_G
+	#define PPERSISTENCE_MUL_G		global.PPERSISTENCE_MUL_G
 #endif
 
 #ifndef PPERSISTENCE_START

@@ -1,0 +1,4 @@
+#reference "Lynx.slangp"
+
+DO_BG_IMAGE = "1.0"
+DO_GLOBAL_SHZO = "1.0"

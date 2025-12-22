@@ -11,11 +11,16 @@ layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out float vIn_aspect;
 layout(location = 2) out vec2 vTexCoord_rotated_maybe;
 layout(location = 3) out float vUniformity_return_current; //or feedback
-
+layout(location = 4) out float vIsRotated;
+layout(location = 5) out float vEnough_res_y;
 
 void main() {
 	gl_Position = global.MVP * Position;
 	vTexCoord = TexCoord;// + 0.0001;
+	
+    bool bIsRotated = is_rotated();
+    vIsRotated = float(bIsRotated);
+	
 	vIn_aspect = get_in_aspect();
 	vTexCoord_rotated_maybe = vTexCoord;
 	#ifdef _HAS_ROTATION_UNIFORM
@@ -31,11 +36,21 @@ void main() {
 	#endif
 
     bool bIs_Interlaced = is_interlaced();
-
+	
+	
     vUniformity_return_current = float ( (!bdelta_render_enabled()) || 
                                          (!deltarender_preconditions_met(bIs_Interlaced)) || 
                                          (params.FrameCount == 0.0)
 								 );
+	/*
+	float do_tate = need_tate(bIsRotated);
+	float vScanlinePeriod = 1.0;
+	if (scanlines_will_alternate(bIs_Interlaced))
+		vScanlinePeriod = 0.5;
+		
+	vEnough_res_y = float(!fn_very_lowres_y(global.final_passFeedbackSize.xy, params.OriginalSize.xyzw, do_tate, bIsRotated, need_integer_scale(), get_in_aspect(), vScanlinePeriod));
+	*/
+	
 }
 
 #pragma stage fragment
@@ -44,8 +59,8 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in float vIn_aspect;
 layout(location = 2) in vec2 vTexCoord_rotated_maybe;
 layout(location = 3) in float vUniformity_return_current; //or feedback
-
-
+layout(location = 4) in float vIsRotated;
+layout(location = 5) in float vEnough_res_y;
 
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D monitor_body_curved;
@@ -60,17 +75,12 @@ float vignette(vec2 co){
 	co=zoom(co, 1.05);
 	float s = mix(0.3, 0.8,abs(V_SHAPE) );	
 	
-	
-	
 	float pillow_exp = mix(0.0, 0.30, 1-abs(V_SHAPE));
 	vec2 xo=1-abs(co*2-1);
-	//vec2 veryedge = 1-pow(cos(co*pi), vec2(500.0));
-	//vec2 veryedge = smoothstep_fast(0.00, 0.06, xo);	
-	//veryedge = mix( veryedge, vec2(1.0), clamp(abs( abs(V_SHAPE)-0.8), 0.0, 1.0)  );
-	
+
 	xo=pow(xo, vec2(pillow_exp));
 	vec2 pillow = smoothstep(s,0.9,xo);
-
+	
 	//Vignette
 	vec2 vignette = cos((co-0.5) / V_SIZE);
 	
@@ -81,7 +91,6 @@ float vignette(vec2 co){
 	    //veryedge.y = 1.0;
 	}
 	
-	//veryedge = vec2(1.0);
 	return (vignette.x * vignette.y) * (pillow.x * pillow.y); // * (veryedge.x * veryedge.y);
 
 }
@@ -155,7 +164,7 @@ vec2 get_curved_coords(vec2 co) {
     if ( curvature_needed() > 0.0 ) {
         co = Warp_koko(co, vec2(GEOM_WARP_X, GEOM_WARP_Y*float(need_NO_integer_scale())), 0.5);
     }
-	return co; //stub
+	return co;
 }
 
 void main() {
@@ -167,14 +176,18 @@ void main() {
     
    FragColor = vec4(0.0);
 	
-
+    // Tilt?
+	vec2 co = vTexCoord_rotated_maybe;
+    if (DO_TILT == 1.0)
+        co = tilt(co, vIsRotated, TILT_X);
+   
 	//Vignette/Spot:
-		vec2 curved_coords = get_curved_coords(vTexCoord);
+		co = get_curved_coords(co);
 		//Vignette defaults to 1.0 (multiplied in final pass), spot to 0.0 (added in final pass)
 		FragColor.zw = vec2(1.0, 0.0); 
 		
 		if (DO_VIGNETTE == 1.0) {
-			FragColor.z = screen_uniformity_wrap(curved_coords);
+			FragColor.z = screen_uniformity_wrap(co);
 		}
 		
 		//Spot:
@@ -183,5 +196,12 @@ void main() {
 			                     vec2(   S_POSITION_X     * vIn_aspect, S_POSITION_Y) );
 			FragColor.w = smoothstep(S_SIZE,0.0,dist) * S_POWER;
 		}
+		
+		//Distance from center for progressive defocusing
+		
+		/*if (DO_SHIFT_RGB == 1.0) {
+			float decon_y_strength = DO_SHIFT_RGB * NEW_SCALEMOD_Y * vEnough_res_y ;
+			FragColor.x = decon_y_strength;
+		}*/
 
 }

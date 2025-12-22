@@ -19,7 +19,7 @@ void main() {
     blur_radius_adpt = radius_blur_adapt(BLOOM_SIZE);
 
     //Get fuzzy mul and pow factor
-        vFuzzy_main_pass_stage_1 = apply_fuzzy_main_pass_stage_1();
+    vFuzzy_main_pass_stage_1 = apply_fuzzy_main_pass_stage_1();
 
 }
 
@@ -28,17 +28,13 @@ void main() {
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec2 vFuzzy_main_pass_stage_1;
 layout(location = 5) in vec2 blur_radius_adpt;
-//layout(location = 5) in vec2 vCo_avglum;
 
 layout(location = 0) out vec4 FragColor;
 
 layout(set = 0, binding = 1) uniform sampler2D Source;
-//layout(set = 0, binding = 2) uniform sampler2D avglum_pass;
-layout(set = 0, binding = 3) uniform sampler2D colortools_and_ntsc_pass;
-layout(set = 0, binding = 4) uniform sampler2D bloom_pass_finalFeedback;
+layout(set = 0, binding = 2) uniform sampler2D colortools_and_ntsc_pass;
+layout(set = 0, binding = 5) uniform sampler2D avglum_pass;
 
-
-//#include "includes/functions.include.slang"
 #include "includes/blooms.include.slang"
 
 #define offset 0.5890486225480862 // TAU/8.0/4.0*3.0
@@ -49,54 +45,66 @@ layout(set = 0, binding = 4) uniform sampler2D bloom_pass_finalFeedback;
 //How big is the zone in which the luminance will be computed for puple temporal adaption (range 2..20)
 #define BLOOM_PUPIL_LUM_ZONE_W 6
 
-//The speed of the pupil adaption
-#define BLOOM_PUPIL_ADAPTION_SPEED 0.2
-
-
 float get_avg_lum_from_mip(sampler2D tex, vec2 co, float lod) {
     vec3 mip = textureLod(colortools_and_ntsc_pass, co, lod).rgb;
     mip = apply_fuzzy_main_pass_stage_2(mip, vFuzzy_main_pass_stage_1);
-    //return (mip.r+mip.g+mip.b)/3.0;
-
-    float luminance_first_pass = texture(bloom_pass_finalFeedback,vTexCoord).a;
-    luminance_first_pass = max(luminance_first_pass, 0.0); // <- Sanitize input to avoid glitches when enabling the option runtime.
-    //temporal smooth.
-    //the defined emulated eye adaption speed needs to be divided 
-    //by the eye adaption strength (BLOOM_EYE_ADPT_SRT)
-
-    float eye_adaption_speed;
-    float luminance_from_feedback = rgb_to_gray(mip);
-    
-    if (delta_render_enabled() == 0.0) {
-        //The following makes the adaption speed more constant:
-        eye_adaption_speed = BLOOM_PUPIL_ADAPTION_SPEED * ( luminance_first_pass / luminance_from_feedback ) ;
-
-        //The following is needed so that the speed is the same even for higher strength
-        eye_adaption_speed = (eye_adaption_speed / BLOOM_EYE_ADPT_SRT);
-            
-        //The following simulates pupil inertia
-        eye_adaption_speed = clamp(eye_adaption_speed, 1.0/BLOOM_EYE_INERTIA, 1.0);
-    } else {
-        //Temporal adaption speed is no good with deltarenter.
-        eye_adaption_speed = 1.0;
-    }
-
-    float luminance = mix(luminance_first_pass, luminance_from_feedback, eye_adaption_speed);
-    return luminance + eps;
-    
-    
+    return rgb_to_gray(mip) + eps;
 }
 
 
+vec3 get_halation(sampler2D mip_texture, vec4 mip_textureSize, vec2 co) {
+    //too much lod will cause halation to be visible only when there are wide solid areas (outrun)
+    //a lower low will allow to "colorize" smaller parts too
+    //too much low lod will produce visible artifacts.
+    float halation_lod = 6.0;
+
+        
+    //sample and blur mip to clear artifacts:
+    vec2 mipsize = mip_textureSize.zw * pow(2, halation_lod) * 1.0;
+    vec3 h0 = textureLod(mip_texture, co , halation_lod).rgb;
+    vec3 h1 = textureLod(mip_texture, co + vec2(0.0,mipsize.y) , halation_lod).rgb;
+    vec3 h2 = textureLod(mip_texture, co + vec2(0.0,-mipsize.y) , halation_lod).rgb;
+    vec3 h3 = textureLod(mip_texture, co + vec2(mipsize.x, 0.0) , halation_lod).rgb;
+    vec3 h4 = textureLod(mip_texture, co + vec2(-mipsize.x, 0.0) , halation_lod).rgb;
+    vec3 halation = (h1+h2+h3+h4)/4.0;
+
+    /*vec3 h5 = textureLod(mip_textureFeedback, co + vec2(mipsize.x, mipsize.y) , halation_lod).rgb;
+    vec3 h6 = textureLod(mip_textureFeedback, co + vec2(mipsize.x,-mipsize.y) , halation_lod).rgb;
+    vec3 h7 = textureLod(mip_textureFeedback, co + vec2(-mipsize.x,mipsize.y) , halation_lod).rgb;
+    vec3 h8 = textureLod(mip_textureFeedback, co + vec2(-mipsize.x,-mipsize.y) , halation_lod).rgb;
+    vec3 halation = (h1+h2+h3+h4+h5+h6+h7+h8)/8.0;*/
+
+    //make it colorful
+    halation = pow(halation, vec3(4.0));
+    halation = pixel_push_luminance(halation, 1.5);
+
+    float lum = max3(textureLod(colortools_and_ntsc_pass, vTexCoord, 7.0).rgb ); //  texture(avglum_pass, vec2(0.5)).a;
+    float halation_mix_adapted = BLOOM_HALATION_MIX  * mix(1.0, 0.125, pow(lum, 0.5));
+    halation*=halation_mix_adapted;
+
+
+    
+/*  halation = pow(halation, vec3(4.0));
+    halation = pixel_push_luminance(halation, 1.5);   
+    
+    float s_source = saturation_get(halation) ;
+    float sat_source_k = mix(1.0, 4.0, s_source);
+    
+    float s_target = saturation_get(textureLod(colortools_and_ntsc_pass, vTexCoord, 6.0).rgb);
+    float sat_target_k = mix(1.0, 0.25, s_target ); //don't oversturate
+
+    
+    float lum_target = max3(textureLod(colortools_and_ntsc_pass, vTexCoord, 7.0).rgb );
+    float lum_target_k = mix(1,0.125, pow(lum_target, 0.5)); //don't clip
+
+    halation = halation * BLOOM_HALATION_MIX * sat_source_k * sat_target_k * min(sat_target_k,lum_target_k);
+*/
+    
+    return halation;
+}
 
 void main() {
-    if (DO_BLOOM == 0.0) {
-        // Initialize bloom "Feedback" alpha to avoid glitches
-        // When enabling the effect runtime
-        FragColor.a = 1.0;
-        return;
-    }
-    
+  
     vec3 bloomed = bloom(
         Source,
         vTexCoord,
@@ -111,48 +119,27 @@ void main() {
     bloomed = pow(bloomed,vec3(BLOOM_GAMMA_OUT));
     bloomed = pixel_push_luminance(bloomed, BLOOM_POWER);
     
-    float fbloom_mix = BLOOM_MIX;
-    float bloom_mix_adapted = 1.0;
-    float over_white_correction = 1.0;
-    
-    
-    if (BLOOM_OVER_WHITE < 1.0) {
-        
-
-    //Apply other content coords modifiers        
-        //Use mipmap available in colortools_and_ntsc_pass to identify bright areas.
-        #define ZONE_LUMINANCE_LOD 2.0 //Higher values lead to ugly glitch when panning or banding in static content.
-        
-        vec3 avglum = textureLod(colortools_and_ntsc_pass, vTexCoord, ZONE_LUMINANCE_LOD).rgb;
-        float b_brightness = max(avglum.b,max(avglum.r,avglum.g));
-        b_brightness *= 1-BLOOM_OVER_WHITE;
-        over_white_correction =1- b_brightness;
-    }
-    
     bloomed*=BLOOM_POWER;
     
-    //                                                  (Branching with (if BLOOM_EYE_ADPT_SRT == 0.0) does not gain anything.)
     // Modulate exposure over time too.
     //Smooth luminance with specified lod in this alpha channel
+    // (Branching with (if BLOOM_EYE_ADPT_SRT == 0.0) does not gain anything.)
     float zone_luminance = get_avg_lum_from_mip(colortools_and_ntsc_pass, vTexCoord, BLOOM_PUPIL_LUM_ZONE_W);
     float smoothed_avglum = zone_luminance * BLOOM_EYE_ADPT_SRT;
-    bloom_mix_adapted = max(0.0, BLOOM_MIX - smoothed_avglum);
-    
-    
-    if (BLOOM_BYPASS == 2.0) fbloom_mix = 1.0;
-    
-    
+    float bloom_mix_adapted = max(0.0, BLOOM_MIX - smoothed_avglum);
+        
     float pow_exp = BLOOM_PUPIL_EXPOSURE_CURVE_SHOULDER - smoothed_avglum * BLOOM_PUPIL_EXPOSURE_CURVE_SHOULDER;
     pow_exp = max(0.0, pow_exp); //avoid negative exps.
-    bloom_mix_adapted = fbloom_mix * ( 1- pow(smoothed_avglum, pow_exp) );
+    bloom_mix_adapted = BLOOM_MIX * ( 1- pow(smoothed_avglum, pow_exp) );
+    bloomed = soft_limiter01_chroma_safe(bloomed, bloom_mix_adapted, BLOOM_SOFT_LIMITER);
     
+    //Halation
+    vec3 halation = vec3(0.0);
+    if (!bdelta_render_enabled())
+        halation = get_halation(colortools_and_ntsc_pass, global.colortools_and_ntsc_passSize, vTexCoord);
+        
+    bloomed = max(bloomed,halation);
+
     
-    if (BLOOM_BYPASS != 1.0)
-        bloomed = bloomed * bloom_mix_adapted * over_white_correction ;
-    
-    
-    FragColor = vec4(bloomed, zone_luminance);   
-    
-    //FragColor = vec4(zone_luminance); //Use me to see luminosity zones
-    
+    FragColor.rgb = bloomed;    
 }

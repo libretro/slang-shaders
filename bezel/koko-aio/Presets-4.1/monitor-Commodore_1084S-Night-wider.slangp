@@ -1,4 +1,5 @@
 #reference "monitor-Commodore_1084S-Night.slangp"
+
 BEZEL_FRAME_ZOOM = "0.179000"
 BEZEL_IMAGE_BORDER = "1.030000"
 

@@ -9,7 +9,8 @@
 
 // STATIC FEATURES ENABLE/DISABLE
 
-// In case you're running an old pRetrtoarch version (pre 1.16), please comment this (prepend: // )
+
+	// In case you're running an old Retrtoarch version (pre 1.16), please comment this (prepend: // )
 #define _HAS_ROTATION_UNIFORM
 
 
@@ -77,6 +78,10 @@
 #define BEZEL_TILT_Y_SHIFT 0.32
 
 
+
+
+
+
 // AMBIENT LIGHT STATIC CONFIG ##########################################################################################
 
 	// 0.0-1.0: sensitivity to scene change (ambilike stuff), 0.0 changes more
@@ -92,6 +97,10 @@
 	// try between (1/avglum_divider) and (1/avglum_divider)/3
 //#define AMBI_FAST_STEP 0.125
 #define AMBI_FAST_STEP 0.25
+
+
+
+
 
 
 
@@ -132,8 +141,13 @@
 	//Sampling points from test pass
 #define SMP_RANGE1 vec4(0.24,0.24  ,  0.26,0.26)
 #define SMP_POINT1 vec2(         0.25          )
-	
+
+
+
+
+
 // RESOLUTION SWITCH GLITCH EMULATION ##########################################################################################
+
 	//Where to sample alpha from avglum pass to understand if resolution has changed (very internal setting) 
 #define RESSWITCH_SAMPLING_POINT vec2(0.9) 
 	//How much the resolution have to change for shake to be activated (in relation to the old size).
@@ -142,8 +156,13 @@
 #define RESSWITCH_SHAKE_SPEED 0.3
 
 
+
+
+
+
 // MISC STATIC CONFIG ##########################################################################################
-	//Static dithering applied over vignette and spot
+
+//Static dithering applied over vignette and spot
 #define NOISEPOWER ((1/255.0) * 1.2)
 	//Temporal noise strength applied on green channel when green is dark over ambient lights (multiplied by NOISEPOWER)
 #define NOISEPOWER_AMBI (NOISEPOWER * 3.0)
@@ -158,5 +177,7 @@
 // uncomment/remove leading // to enable
 // #define FLICKER_IN_MOTION
 
+//We want at least that screen lines per single scanline; this is also used to trigger fake integer scanlines
+#define MIN_SCREEN_CORE_RATIO 3.5 
 
 // STATIC CONFIG ENDS HERE ##########################################################################################
