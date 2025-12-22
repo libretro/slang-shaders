@@ -13,8 +13,8 @@ layout(location = 4) out float vDo_wtfl;
 layout(location = 12) out float vWarpedglow_scale_tated;
 layout(location = 14) out float vIn_glow_edge_sharpness;
 layout(location = 15) out float vIn_glow_edge_defocus_strength;
-layout(location = 16) out vec2 vWarpedglow_vtexcoord_offsets_plus;
-layout(location = 17) out vec2 vWarpedglow_vtexcoord_offsets_minus;
+layout(location = 16) out float vWarpedglow_vtexcoord_offsets_plus;
+layout(location = 17) out float vWarpedglow_vtexcoord_offsets_minus;
 
 void main() {
    gl_Position = global.MVP * Position;
@@ -50,8 +50,8 @@ void main() {
    
    float warpedglow_delta = params.OriginalSize.z * 0.5;
       
-   vWarpedglow_vtexcoord_offsets_plus = vTexCoord  + vec2(warpedglow_delta, 0.0); 
-   vWarpedglow_vtexcoord_offsets_minus = vTexCoord - vec2(warpedglow_delta, 0.0); 
+   vWarpedglow_vtexcoord_offsets_plus = vTexCoord.x  + warpedglow_delta;
+   vWarpedglow_vtexcoord_offsets_minus = vTexCoord.x - warpedglow_delta;
    
    vWarpedglow_scale_tated = IN_GLOW_WARPSHARP_X;
    if (need_tate(is_rotated()) == 1.0)
@@ -81,8 +81,8 @@ layout(location = 12) in float vWarpedglow_scale_tated;
 
 layout(location = 14) in float vIn_glow_edge_sharpness;
 layout(location = 15) in float vIn_glow_edge_defocus_strength;
-layout(location = 16) in vec2 vWarpedglow_vtexcoord_offsets_plus;
-layout(location = 17) in vec2 vWarpedglow_vtexcoord_offsets_minus;
+layout(location = 16) in float vWarpedglow_vtexcoord_offsets_plus;
+layout(location = 17) in float vWarpedglow_vtexcoord_offsets_minus;
 
 
 layout(location = 0) out vec4 FragColor;
@@ -113,8 +113,8 @@ void main() {
    #ifndef SKIP_WARPEDGLOW_X
       if (DO_IN_GLOW == 1.0) {
          float max_inLum = max( 1.0, DO_CCORRECTION * apply_contrast_brightness(1.0, CONTRAST, BRIGHTNESS));
-         vec3 gx = texture(shift_and_bleed_pass, vWarpedglow_vtexcoord_offsets_plus).rgb
-                 - texture(shift_and_bleed_pass, vWarpedglow_vtexcoord_offsets_minus).rgb;
+         vec3 gx = texture(shift_and_bleed_pass, vec2(vWarpedglow_vtexcoord_offsets_plus, vTexCoord.y)).rgb
+                 - texture(shift_and_bleed_pass, vec2(vWarpedglow_vtexcoord_offsets_minus, vTexCoord.y)).rgb;
                
          gx /=max_inLum;
 

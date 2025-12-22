@@ -63,11 +63,14 @@
 
 
 // Enable Antiburn protection (OLEDs)
-// It works by slowly shaking the content image in order to prevent image retention
-// The value defines the speed of the effect, leave it to 1.0 if unsure.
+// It works by slowly shaking the image in order to prevent image retention
+// The value of ANTIBURN_X/Y defines the speed of the effect, leave it to 1.0 if unsure.
+// If ANTIBURN_COMPLETE is enabled, not only the content, but the whole screen will shake.
+// ANTIBURN_AMPLITUDE modulates the shake size.
 // #define ANTIBURN_Y 1.0
 // #define ANTIBURN_X 1.0
-
+// #define ANTIBURN_COMPLETE
+// #define ANTIBURN_AMPLITUDE 1.0
 
 // Enable lcd antighosting.
 // It works by temporal sharpening pixels, and the  
@@ -154,6 +157,7 @@
 // Cores may or not update OriginalFps uniform. So you may trust it or not.
 // In case you don't, it is derived by averaging frametimes.
 // The latter is less reliable depending on the video driver behaviour, and slower.
+// if D3D_WORKAROUND is defined, OriginalFps is always used.
 // #define ORIGINAL_FPS_TRUSTED
 
 ////////////////////////////////////////////////////////////////////////////
@@ -177,7 +181,7 @@
 // #define LUMINANCE  0.2               //        Luminance push
 // #define BRIGHTNESS  0.0              //        Brightness in
 // #define CONTRAST  0.0                //        Contrast in
-// #define ADAPTIVE_BLACK 0.1           //        Adaptive Black level range
+// #define ADAPTIVE_BLACK 0.1           //        CRT Black crush
 // #define TEMPERATURE  7700.0          //        Temperature in (6500=off)
 // #define COLOR_MONO_COLORIZE  0.0     //        Monochrome screen colorization
 // #define COLOR_MONO_HUE1  0.25        //        . Hue bright
@@ -201,6 +205,11 @@
 // #define DEDITHER_STRENGTH2  0.0      //         Extensive search strength
 
 
+// #define DO_WTFL 0.0                  // ★ Megadrive fake transparencies enable?
+// #define WTFL_SHARPNESS 0.6           //         Overridden X-sharpness
+// #define WTFL_THRESHOLD 1.0           //         Detection threshold
+
+
 // #define DO_NTSC_ARTIFACTS  0.0       // ★ CVBS: NTSC color artifacts enable? 
 // #define NTSC_MIX  0.5                //         Strength
 // #define NTSC_FILTER_WIDTH  17.0      //         Filter width
@@ -214,20 +223,21 @@
 // #define DO_SAT_BLEED  0.0            // ★ CVBS: Bandwidth limited chroma enable?
 // #define SAT_BLEED_PAL  0.0           //         Colorspace (NTSC, PAL)
 // #define SAT_BLEED_STRENGTH  1.0      //         Strength
-// #define SAT_BLEED_SIZE  5.0          //         Size (capped to 5.0 in d3d)
-// #define SAT_BLEED_FALLOFF  1.7       //         Falloff
+// #define SAT_BLEED_SIZE  5.0          //         Size/Quality (capped to 5.0 in d3d)
+// #define SAT_BLEED_FALLOFF  1.7       //         Sharpness
 
 // #define DOT_C 0.0                    // ★ CVBS: Dot crawl
-// #define DOT_C_YUV 0.0                //         Colorspace (NTSC, PAL)
 // #define DOT_C_SPEED 8.0				//         Speed
 
 // #define DO_PPERSISTENCE  0.0         // ★ Persistence of phosphors enable?
-// #define PPERSISTENCE_START  0.9      //         Early decay
-// #define PPERSISTENCE_END  0.5        //         Late Persistence
-
+// #define PPERSISTENCE_START  0.9      //         Early decay (blue)
+// #define PPERSISTENCE_END  0.5        //         Late Persistence (blue)
+// #define PPERSISTENCE_MUL_R           //         Red decay time multiplier
+// #define PPERSISTENCE_MUL_G           //         Green decay time multiplier
 
 // #define DO_SHIFT_RGB  1.0           // ★ Deconvergence enable?
 // #define OFFSET_STRENGTH  0.3        //         Strength
+
 
 // #define DECON_RX 0.0                   // Red x offset
 // #define DECON_RY -1.0                  // Red y offset
@@ -239,13 +249,11 @@
 // #define EDGE_DEFOCUS_DO_BLUR 0.0       // Blur screen edges
 // #define EDGE_DEFOCUS_AREA_INV 0.4      // Focused Area
 
+
 // #define SHIFT_R  -20.0              //         Red offset
 // #define SHIFT_G  0.0                //         Green offset
 // #define SHIFT_B  20.0               //         Blue offset
 
-// #define DO_WTFL 0.0                  // ★ Megadrive fake transparencies enable?
-// #define WTFL_SHARPNESS 0.6           //         Overridden X-sharpness
-// #define WTFL_THRESHOLD 1.0           //         Detection threshold
 
 // #define DO_IN_GLOW  1.0             // ★ Glow/Blur enable?
 // #define IN_GLOW_BIAS  1.0           //         Glow to blur bias
@@ -284,9 +292,6 @@
 // #define PIXELGRID_NO_INTERBLEED_H  1.0    //          . Inter line extra steepness (1.0 to disable)
 // #define PIXELGRID_OFFSET_CORE   0.0       //          . Slotmask(fake) offset
 // #define PIXELGRID_OFFSET_CORE_W 0.0       //            . Slotmask(fake) width override (0=no override)
-// #define PIXELGRID_DECON_R_H  0.0          //          . Deconvergence Y: R phosphor
-// #define PIXELGRID_DECON_G_H  0.0          //          . Deconvergence Y: G phosphor
-// #define PIXELGRID_DECON_B_H  0.0          //          . Deconvergence Y: B phosphor
 // #define PIXELGRID_H_DEDOT  0.0            //          . Dedot mask between scanlines (use only if needed!)
 
 // #define DO_PIXELGRID_W  1.0         //       ★ Horizontal mask (0 to disable)
@@ -325,31 +330,31 @@
 // #define DOT_M_G_SHARP  0.0     //            . Grid sharpness (0.0 for auto)
 // #define DOT_M_MBLUR_STR  0.45  //         Ghosting
 // #define DOT_M_MBLUR_MODE  0.0  //            . Apply on: both,white,black
-// #define DOT_M_SHADOW_STR  0.0  //         Shadow strength (disables deconvergence)
 // #define DOT_M_SHADOW_OFF  0.0  //            . Shadow offset
 
 
-// #define DO_HALO  1.0            // ★ Halo or mask helper enable?
-// #define HALO_NO_PREGAIN  1.0    //         Halo: Pre-attenuate input signal gain to 1x
-// #define HALO_POWER  0.5         //         Halo: Strength (negative = 10x precision)
-// #define HALO_SHARPNESS  6.5     //         Halo: Sharpness
-// #define HALO_GAMMA  2.0         //         Halo: Gamma in: Higher -> less halo on dark colors
-// #define HALO_GAMMA_OUT  1.0     //         Halo: Gamma out
-// #define HALO_DO_MASK_HELPER 0.0 //         Additional brighness if horizontal mask clips
-// #define HALO_VS_SCAN  0.7       //         Light up scanline gaps and dot grid gaps too
+// #define DO_HALO  1.0            // ★ Halo enable?
+// #define HALO_NO_PREGAIN  1.0    //        Pre-attenuate input signal gain to 1x
+// #define HALO_POWER  0.5         //        Strength (negative = 10x precision)
+// #define HALO_SHARPNESS  6.5     //        Sharpness
+// #define HALO_GAMMA  2.0         //        Gamma in: Higher -> less halo on dark colors
+// #define HALO_GAMMA_OUT  1.0     //        Gamma out
+// #define HALO_VS_SCAN  0.7       //        Light up scanline gaps and dot grid gaps too
 
 
 // #define DO_BLOOM  1.0             // ★ Bloom enable?
-// #define BLOOM_MIX 0.40            //         Final mix, (0.0=off)
+// #define BLOOM_MIX 0.40            //         Bloom strength
 // #define BLOOM_SIZE  4.0           //         Radius
 // #define BLOOM_QUALITY  1.0        //         Quality: more is better but slower
 // #define BLOOM_GAMMA  8.0          //         Gamma in (threshold)
 // #define BLOOM_GAMMA_OUT  1.2      //         Gamma out (contour smoothness)
 // #define BLOOM_POWER  1.20         //         Power multiplier
-// #define BLOOM_EYE_ADPT_SRT  0.6   //         Modulate: Local exposure eye adaption strength
-// #define BLOOM_EYE_INERTIA  750    //         Modulate: Time before eye adaption starts
-// #define BLOOM_OVER_WHITE  0.5     //         Modulate: Strength on bright areas (0 = aura)
-// #define BLOOM_BYPASS  0.0         //         Bypass/Solo (1=Unmodulated, 2=Modulated)
+// #define BLOOM_HALATION_MIX 0.4    //         Halation strength
+// #define BLOOM_OVER_WHITE  0.5     //         Target strength over narrow bright areas
+// #define BLOOM_EYE_ADPT_SRT  0.6   //         Reduce bloom strength over wide bright areas
+// #DEFINE BLOOM_SOFT_LIMITER  0.0   //         Use a soft Roll-off curve (safe range: 0-1)
+// #define BLOOM_HALATION_MIX "      //         Halation strength 	
+// #define BLOOM_BYPASS  0.0         //         Solo
 
 
 // #define DO_CURVATURE  1.0          // ★ Curvature/Corners/Edges enable?

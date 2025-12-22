@@ -183,7 +183,8 @@ float_framebuffer4 = true
             scale5 = 1.0
        scale_type5 = source
 // float_framebuffer here is needed to avoid visible bandings
-// check flycast:D.O.A. intro.
+// (check flycast:D.O.A. intro.)
+// *and* because the alpha carries the fps estimation.
 float_framebuffer5 = true
         // This has to be clamp_to_border in order for the glow pass to return a black frame
         // around it, which is needed so that when using geometry override and zooming out the content,

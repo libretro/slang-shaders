@@ -17,8 +17,8 @@ layout(location = 8) out float vWarpedglow;
 layout(location = 9) out float vDynamicSeed;
 layout(location = 10) out float vIn_glow_edge_sharpness;
 layout(location = 11) out float vIn_glow_edge_defocus_strength;
-layout(location = 12) out vec2 vWarpedglow_vtexcoord_offsets_plus;
-layout(location = 13) out vec2 vWarpedglow_vtexcoord_offsets_minus;
+layout(location = 12) out float vWarpedglow_vtexcoord_offsets_plus;
+layout(location = 13) out float vWarpedglow_vtexcoord_offsets_minus;
 
 void main() {
    gl_Position = global.MVP * Position;
@@ -27,10 +27,13 @@ void main() {
    // If * at least one sharpness is lower than the max
    //    * we dont want just blur
    //    * we don't want to show ntsc artifact masks if we're doing ntsc artifacts
+   //    * we don't use fake transparencies.
    // Then do in glow bias
    vDoInGlowBias = float (  IN_GLOW_BIAS < IN_GLOW_BIAS_MAX && 
                             (abs(IN_GLOW_W) < GLOW_SHARP_MAX || IN_GLOW_H < GLOW_SHARP_MAX) &&
-                            (DO_NTSC_ARTIFACTS + NTSC_SHOW_ARTF_MASK < 1.5)   );
+                            (DO_NTSC_ARTIFACTS + NTSC_SHOW_ARTF_MASK < 1.5) &&
+                            (DO_WTFL < 0.5)
+   );
    
    bool bDo_wtfl = (DO_WTFL > 0.9 && WTFL_SHARPNESS_Y < 3.0);
    bool bDo_defocus = (DO_SHIFT_RGB > 0.5 && EDGE_DEFOCUS_DO_BLUR > 0.0);
@@ -74,8 +77,8 @@ void main() {
    vWarpedglow = (IN_GLOW_WARPSHARP_TATED * warpedglow_scale) * 0.6 / 1400.0 * 3.0;   //*3.0 needed because we scale to 0->1 to use pow in the fragment.
 
    float warpedglow_delta = params.OriginalSize.w * 0.5;
-   vWarpedglow_vtexcoord_offsets_minus = vTexCoord - vec2(0.0, warpedglow_delta);
-   vWarpedglow_vtexcoord_offsets_plus =  vTexCoord + vec2(0.0, warpedglow_delta); 
+   vWarpedglow_vtexcoord_offsets_minus = vTexCoord.y - warpedglow_delta;
+   vWarpedglow_vtexcoord_offsets_plus =  vTexCoord.y + warpedglow_delta;
    
    
    //Generate a seed that changes over time for temporal random noise
@@ -127,8 +130,8 @@ layout(location = 8) in float vWarpedglow;
 layout(location = 9) in float vDynamicSeed;
 layout(location = 10) in float vIn_glow_edge_sharpness;
 layout(location = 11) in float vIn_glow_edge_defocus_strength;
-layout(location = 12) in vec2 vWarpedglow_vtexcoord_offsets_plus;
-layout(location = 13) in vec2 vWarpedglow_vtexcoord_offsets_minus;
+layout(location = 12) in float vWarpedglow_vtexcoord_offsets_plus;
+layout(location = 13) in float vWarpedglow_vtexcoord_offsets_minus;
 
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 4) uniform sampler2D upscale_pass;
@@ -190,8 +193,8 @@ void main() {
    #ifndef SKIP_WARPEDGLOW_Y
       if (DO_IN_GLOW == 1.0) {
          float max_inLum = max( 1.0, DO_CCORRECTION * apply_contrast_brightness(1.0, CONTRAST, BRIGHTNESS));
-         vec3 gy = texture(Source, vWarpedglow_vtexcoord_offsets_plus).rgb
-                 - texture(Source, vWarpedglow_vtexcoord_offsets_minus).rgb;
+         vec3 gy = texture(Source, vec2(vTexCoord.x, vWarpedglow_vtexcoord_offsets_plus) ).rgb
+                 - texture(Source, vec2(vTexCoord.x, vWarpedglow_vtexcoord_offsets_minus)  ).rgb;
                
          gy /=max_inLum;
                
