@@ -166,7 +166,10 @@ vec3 dotc(sampler2D in_texture, vec3 pixel_in, vec2 co, vec4 tex_size){
 }
 
 vec4 pixel_bleed(vec4 pixel_in, vec2 co, sampler2D in_texture, float sourcesize_z) { //FIXME pixelin.a è passante, non serve vec4
-
+   //sometimes first frame has 0x0 size, that makes gpu mad in a way or another.
+   //hopefully fixes: https://github.com/kokoko3k/koko-aio-slang/issues/28   
+   if (sourcesize_z > 1.0) return pixel_in;
+      
    mat3 colorspace_out;
    mat3 colorspace_rgb;
 
