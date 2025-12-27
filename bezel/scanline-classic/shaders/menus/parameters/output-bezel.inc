@@ -14,5 +14,4 @@
 #pragma parameter GLOW_DIFFUSION "Glow diffusion" 3.0 1.0 10.0 1.0
 #pragma parameter GLOW_COMPRESSION "Glow compression" 0.5 0.0 1.0 0.01
 #pragma parameter GLOW_FALLOFF "Glow radial falloff" 1.0 0.5 10.0 0.1
-#pragma parameter GLOW_JITTER "Glow jitter" 0.3 0.0 1.0 0.01
 #pragma parameter GLOW_VERTICAL_BIAS "Glow vertical bias" 2.0 1.0 5.0 0.1

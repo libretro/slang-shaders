@@ -1,6 +1,20 @@
+Version 6.1.1
+
+* Add generic presets, based on standard timing; may not be accurate.
+
+* Add Mega Drive presets
+
+* Add Neo Geo presets
+
+* Enable different output aspect ratios besides 16:9; smartly letterboxes and crops for ideal presentation
+
+* Add arcade bezels: flat is a rectangular border, tvstyle is in the shape of a 'bubble' tv viewport
+
+* Remove glow jitter parameter
+
 Version 6.1
 
-* Allow for color keyed JPEGS to be used for bezel
+* Allow for color keyed JPEGs to be used for bezel
 
 Version 6.0
 

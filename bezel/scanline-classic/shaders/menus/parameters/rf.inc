@@ -7,9 +7,9 @@
 #pragma parameter USB_BANDWIDTH "Video channel bandwidth (MHz)" 4.2 1.0 10.0 0.1
 #pragma parameter LSB_BANDWIDTH "Vestigial bandwidth (MHz)" 0.75 0.01 10.0 0.01
 
-#pragma parameter NOISE_MODE "Noise mode (fast=0 adv=1)" 1.0 0.0 1.0 1.0
+#pragma parameter NOISE_MODE "Noise mode (fast, advanced)" 1.0 0.0 1.0 1.0
 #pragma parameter NOISE_AWGN_DB "AWGN level (dB)" -35.0 -96.0 48.0 1.0
-#pragma parameter NOISE_PHASE_JITTER_DEG "Phase jitter deg RMS" 0.10 0.0 5.0 0.01
+#pragma parameter NOISE_PHASE_JITTER_DEG "Phase jitter (° RMS)" 0.10 0.0 5.0 0.01
 #pragma parameter NOISE_GHOST1_DB "Ghost1 level (dB)" -40.0 -80.0 0.0 1.0
 #pragma parameter NOISE_GHOST1_PIX "Ghost1 delay (px)" 12.0 0.0 120.0 1.0
 #pragma parameter NOISE_IMPULSE_RATE "Impulse rate (ppm)" 5.0 0.0 200.0 1.0
