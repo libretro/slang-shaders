@@ -31,7 +31,7 @@
 #include "menus/parameters/sys-yc.inc"
 
 #pragma name YCComposite
-#pragma format R16G16_SFLOAT
+#pragma format R16_SFLOAT
 
 #pragma parameter BYPASS_YC_FILTER "Bypass Y/C filter (off, on)" 0.0 0.0 1.0 1.0
 
@@ -59,7 +59,6 @@ layout(push_constant) uniform Push
     float LUMA_NOTCH_ENABLE;
     float LUMA_NOTCH_WIDTH;
     float LUMA_NOTCH_ATTEN_DB;
-    float YC_MONITOR;
 } config;
 
 #define BYPASS_YC_FILTER config.BYPASS_YC_FILTER
@@ -81,8 +80,6 @@ layout(push_constant) uniform Push
 #define LUMA_NOTCH_ENABLE config.LUMA_NOTCH_ENABLE
 #define LUMA_NOTCH_WIDTH config.LUMA_NOTCH_WIDTH
 #define LUMA_NOTCH_ATTEN_DB config.LUMA_NOTCH_ATTEN_DB
-
-#define YC_MONITOR config.YC_MONITOR
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -107,7 +104,7 @@ void main()
         config.FrameCount,
         vTexCoord,
         config.OriginalSize.xy,
-        config.OutputSize.x,
+        config.OutputSize.xy,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -172,17 +169,9 @@ void main()
         vec2 yc = texture(Source, Tex).rg;
         float y_out = yc.r;
         float c_bp = yc.g;
-        vec2 color;
-        if (YC_MONITOR < 0.5) {
-            color = vec2(y_out + c_bp, 0.0);
-        } else if (YC_MONITOR < 1.5) {
-            color = vec2(y_out, 0.0);
-        } else if (YC_MONITOR < 2.5) {
-            color = vec2(c_bp, 0.0);
-        } else {
-            color = vec2(y_out, c_bp);
-        }
-        FragColor = vec4(color, 0.0, 1.0);
+        float color = y_out + c_bp;
+        
+        FragColor = vec4(color, 0.0, 0.0, 1.0);
         return;
     }
 
@@ -272,16 +261,7 @@ void main()
     float y_out = (LUMA_NOTCH_ENABLE > 0.5) ? y_notch : y_lp;
 
     // Sum Y+C to create composite output (notch-filtered luma + bandpass chroma)
-    vec2 color;
-    if (YC_MONITOR < 0.5) {
-        color = vec2(y_out + c_bp, 0.0);
-    } else if (YC_MONITOR < 1.5) {
-        color = vec2(y_out, 0.0);
-    } else if (YC_MONITOR < 2.5) {
-        color = vec2(c_bp, 0.0);
-    } else {
-        color = vec2(y_out, c_bp);
-    }
+    float color = y_out + c_bp;
 
-    FragColor = vec4(color, 0.0, 1.0);
+    FragColor = vec4(color, 0.0, 0.0, 1.0);
 }

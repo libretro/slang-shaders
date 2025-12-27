@@ -25,13 +25,13 @@
 #pragma parameter BEZEL_BYPASS "Bypass bezel" 0.0 0.0 1.0 1.0
 #pragma parameter GLOW_BYPASS "Bypass glow" 0.0 0.0 1.0 1.0
 #pragma parameter KEY_THRESH "Bezel chroma key threshold" 0.18 0.0 0.5 0.01
-#pragma parameter KEY_SOFT "Bezel chroma key softness" 0.08 0.0 0.5 0.01
 
 layout(push_constant) uniform Push
 {
     vec4 OutputSize;
     vec4 OriginalSize;
     vec4 SourceSize;
+    vec4 BORDERSize;
     float ASPECT;
     float VIEWPORT_H_POS;
     float VIEWPORT_V_POS;
@@ -44,31 +44,32 @@ layout(push_constant) uniform Push
     float GLOW_DIFFUSION;
     float GLOW_VERTICAL_BIAS;
     float GLOW_COMPRESSION;
-    float GLOW_JITTER;
     float GLOW_FALLOFF;
     float GLOW_TEMPERATURE;
     float KEY_THRESH;
-    float KEY_SOFT;
 } config;
 
 #define ASPECT config.ASPECT
 #define VIEWPORT_H_POS config.VIEWPORT_H_POS
 #define VIEWPORT_V_POS config.VIEWPORT_V_POS
+
 #define BEZEL_BYPASS config.BEZEL_BYPASS
 #define BEZEL_GAIN config.BEZEL_GAIN
 #define BEZEL_BIAS config.BEZEL_BIAS
+
 #define GLOW_BYPASS config.GLOW_BYPASS
 #define GLOW_RADIUS config.GLOW_RADIUS
 #define GLOW_WEIGHT config.GLOW_WEIGHT
 #define GLOW_DIFFUSION config.GLOW_DIFFUSION
 #define GLOW_VERTICAL_BIAS config.GLOW_VERTICAL_BIAS
 #define GLOW_COMPRESSION config.GLOW_COMPRESSION
-#define GLOW_JITTER config.GLOW_JITTER
 #define GLOW_FALLOFF config.GLOW_FALLOFF
 #define GLOW_TEMPERATURE config.GLOW_TEMPERATURE
 
 #define KEY_THRESH config.KEY_THRESH
-#define KEY_SOFT config.KEY_SOFT
+#define KEY_SOFT 0.08
+
+#define GLOW_JITTER 0.3
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -92,20 +93,33 @@ layout(location = 5) out vec2 viewport_max_dist; // Precomputed normalization di
  */
 void main()
 {
+    gl_Position = global.MVP * Position;
+    vec2 tex = TexCoord.xy; // Unmodified coords for background/border sampling
+
+    // Fit border in display area based on texture to ouput aspect ratio
+    float border_dar = config.BORDERSize.x / config.BORDERSize.y;
+    border_dar = 3840.0 / 2160.0; // Force 16:9 for now
+    float output_dar = config.OutputSize.x / config.OutputSize.y;
+
+    vec2 corrected_size;
+    vec2 scale;
+
     // Selected target aspect ratio for framing
     AspectRatio = (ASPECT < 0.5)   ? (4.0 / 3.0)
         : (ASPECT < 1.5) ? (16.0 / 9.0)
         : (ASPECT < 2.5) ? (5.0 / 4.0)
         : (16.0 / 10.0);
-    gl_Position = global.MVP * Position;
 
-    // Calculate aspect-corrected viewport size
-    vec2 corrected_size = AspectRatio > 1.0 ?
-        vec2(config.OutputSize.y * AspectRatio, config.OutputSize.y):
-        vec2(config.OutputSize.x, config.OutputSize.x / AspectRatio);
-
-    // Calculate scale factor and centering offset for the independently-sized viewport
-    vec2 scale = config.OutputSize.xy / corrected_size;
+    // Letterbox: fit screen inside output area
+    if (AspectRatio > output_dar) {
+        // Screen is wider than output area: scale down Y
+        corrected_size = vec2(config.OutputSize.x, config.OutputSize.x / AspectRatio);
+        scale = config.OutputSize.xy / corrected_size;
+    } else {
+        // Screen is taller than output area: scale down X
+        corrected_size = vec2(config.OutputSize.y * AspectRatio, config.OutputSize.y);
+        scale = config.OutputSize.xy / corrected_size;
+    }
 
     // Normalize viewport position offsets to texture coordinate space
     float h_shift = VIEWPORT_H_POS / config.OutputSize.x;
@@ -125,9 +139,25 @@ void main()
     viewport_offset = offset;
     viewport_max_dist = max_dist;
 
+    tex = tex * scale + offset;
+
     // Map texture coordinates to the scaled and shifted screen viewport
-    screen_coord = TexCoord.xy * scale + offset;
-    vTexCoord = TexCoord.xy;  // Unmodified coords for background/border sampling
+    screen_coord = tex;
+
+    // Mixed technique: fill output area up to viewport
+    vec2 final_border_size;
+
+    if (border_dar > AspectRatio) {
+        // Border is wider than view area: scale up X to fill viewport
+        final_border_size = vec2(corrected_size.y * border_dar, corrected_size.y);
+        scale = corrected_size.xy / final_border_size;
+    } else {
+        // Border is taller than view area: scale up Y to fill viewport
+        final_border_size = vec2(corrected_size.x, corrected_size.x / border_dar);
+        scale = corrected_size.xy / final_border_size;
+    }
+
+    vTexCoord = (tex - 0.5) * scale + 0.5;
 }
 
 #pragma stage fragment

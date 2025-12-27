@@ -9,5 +9,3 @@
 
 #pragma parameter CHROMA_BANDPASS_WIDTH "Chroma bandpass width (MHz)" 1.3 0.1 6.0 0.1
 #pragma parameter CHROMA_EDGE_ATTEN_DB "Chroma edge attenuation (dB)" 2.0 0.0 24.0 0.1
-
-#pragma parameter YC_MONITOR "Y/C monitor mode (off, Y only, C only, Y+C)" 0.0 0.0 3.0 1.0

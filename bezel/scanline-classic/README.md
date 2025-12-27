@@ -13,9 +13,9 @@ https://github.com/anikom15/scanline-classic
 A general purpose RetroArch shader with an emphasis on realism while
 maintaining a high degree of flexibility and aesthetic quality. 
 
-Version 6.1
+Version 6.1.1
 
-README Edition 7x
+README Edition 8
 
 ## Quick start
 
@@ -34,15 +34,17 @@ Scanline Classic provides a wide range of presets tailored for both consumer and
 
 - **sfc-composite.slangp**: Super Famicom (Japan) with composite video signal simulation
 - **sfc-rf.slangp**: Super Famicom (Japan) with RF signal simulation
-- **sfc-rgb.slangp**: Super Famicom (Japan) with RGB signal simulation
+- **sfc.slangp**: Super Famicom (Japan) with RGB signal simulation
 - **sfc-svideo.slangp**: Super Famicom (Japan) with S-Video signal simulation
 - **snes-composite.slangp**: Super Nintendo (North America) with composite video
 - **snes-svideo.slangp**: Super Nintendo (North America) with S-Video
 - **snes-rf.slangp**: Super Nintendo (North America) with RF
 - **snes-eu-composite.slangp**: Super Nintendo (Europe) with composite video
 - **snes-eu-rf.slangp**: Super Nintendo (Europe) with RF
-- **snes-gb-rf.slangp**: Super Nintendo (Game Boy) with RF
+- **snes-gb-rf.slangp**: Super Nintendo (Great Britain) with RF
 - **snes-br.slangp**: Super Nintendo (Brazil) professional preset
+
+The Super Nintendo presets are representative for other systems.  For other systems, the distribution included with Libretro/slang-shaders is limited to a consumer and a professional preset for each major region (Japan, America, and Europe).  A full set of presets can downloaded from the EXTRAS distribution.
 
 Each preset is designed to closely match the characteristics of the original hardware and signal path, including colorimetry, geometry, and signal artifacts. Use these as starting points for your own customizations or as reference-quality emulation targets.
 
@@ -59,6 +61,10 @@ For best results with Scanline Classic presets in RetroArch:
 - To save your configuration for future sessions, use **Quick Menu > Shaders > Save > Save Game Preset** (for per-game) or **Save Core Preset** (for all games on the current core).
 
 These settings help ensure the presets display as designed and make it easy to recall your preferred look.
+
+## Installing additional presets
+
+Download the latest EXTRAS release from github and copy the files your installation folder.  For Retroarch, this would be shaders/shaders_slang/bezel/scanline-classic.
 
 ## Building the Shader Presets
 
@@ -84,9 +90,9 @@ After building, the shaders can be found in the `out` directory.
 * **svideo.slang, yc-composite.slang, yc-svideo.slang**: S-Video and Y/C signal simulation.
 * **sys-component.slang, sys-display-rgb-bandlimit.slang, sys-rgb-amp.slang, sys-rgb-bandlimit.slang, sys-yc.slang**: System-level signal and bandlimit simulation.
 
-### Includes
+### Parameters
 
-
+For details about all the parameters available in the shader, see `doc/PARAMETERS.md`
 
 ### SDR and WCG Shaders
 
