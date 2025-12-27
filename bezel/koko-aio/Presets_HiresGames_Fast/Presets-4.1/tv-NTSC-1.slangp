@@ -5,7 +5,7 @@ GAMMA_OUT = "0.56"
 
 DO_NTSC_ARTIFACTS = "1.0"
 
-DOT_C = "0.45"
+DOT_C = "1.2"
 DOT_C_SPEED = "9.000000"
 
 DO_SHIFT_RGB = "1.0"

@@ -87,10 +87,15 @@ void main() {
             else
         pre_pass_coords = integer_scale(TexCoord, in_aspect, isrotated, Do_Tate, GAME_GEOM_INT_SCALE-1.0 ) ;
 
-    if (bNeed_NO_integer_scale) {
-        if (DO_GLOBAL_SHZO >0.5)
-            pre_pass_coords = zoom(pre_pass_coords + vec2(-GLOBAL_OFFX, -GLOBAL_OFFY), GLOBAL_ZOOM );
 
+    if (DO_GLOBAL_SHZO >0.5) {
+        if (bNeed_NO_integer_scale)
+            pre_pass_coords = zoom(pre_pass_coords + vec2(-GLOBAL_OFFX, -GLOBAL_OFFY), GLOBAL_ZOOM );
+        else
+            pre_pass_coords += vec2(-GLOBAL_OFFX, -GLOBAL_OFFY);
+    }
+    
+    if (bNeed_NO_integer_scale) {
         if (DO_GAME_GEOM_OVERRIDE > 0.5)
             pre_pass_coords = content_geom_override_zoom(pre_pass_coords, GAME_GEOM_ASPECT, get_in_aspect(), GAME_GEOM_VSHIFT, GAME_GEOM_HSHIFT, GAME_GEOM_ZOOM);
     }

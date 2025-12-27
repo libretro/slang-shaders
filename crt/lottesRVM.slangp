@@ -1,7 +1,17 @@
 shaders = 2
 
+# This isn't vital but it saves some cycles in the actual shader
 shader0 = ../linear/linearize.slang
+srgb_framebuffer0 = "true"
 
 shader1 = shaders/lottesRVM.slang
 scale_type1 = viewport
 scale1 = 1.0
+filter_linear1 = false
+
+# Tell the shader that we already linearized the input
+RVM_linear_in = 1.0
+
+# uncomment these lines if you need to maintain linearity for subsequent passes
+#RVM_linear_out = 1.0
+#srgb_framebuffer1 = "true"

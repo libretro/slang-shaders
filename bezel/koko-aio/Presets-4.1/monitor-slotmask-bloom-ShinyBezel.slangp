@@ -1,4 +1,5 @@
 #reference "monitor-slotmask-bloom-bezel.slangp"
+
 BEZEL_R = "-0.115000"
 BEZEL_G = "-0.115000"
 BEZEL_B = "-0.115000"

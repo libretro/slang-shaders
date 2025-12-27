@@ -12,6 +12,7 @@ layout(location = 2) out vec2 vG_offset;
 layout(location = 3) out vec2 vB_offset;
 layout(location = 4) out float vDo_shadow_mode;
 layout(location = 5) out float vDecon_or_JustShadow;
+layout(location = 6) out vec3 vCVBS_bandwidths;
 
 layout(location = 9) out float vDotCrawlShift;
 layout(location = 10) out vec4 vDotCrawlCoords_and_period;
@@ -35,16 +36,23 @@ void main()
       vG_offset *= d;
       vB_offset *= d;
    } else if (DO_SHIFT_RGB == 1.0) {
-      vR_offset=-vec2(DECON_RX, DECON_RY) * vec2(NEW_SCALEMOD_X, NEW_SCALEMOD_Y) / global.upscale_passSize.xy ;
-      vG_offset=-vec2(DECON_GX, DECON_GY) * vec2(NEW_SCALEMOD_X, NEW_SCALEMOD_Y) / global.upscale_passSize.xy ;
-      vB_offset=-vec2(DECON_BX, DECON_BY) * vec2(NEW_SCALEMOD_X, NEW_SCALEMOD_Y) / global.upscale_passSize.xy ;
-   }
-   
+      // divide y by pi/2.0 to sync with sin() period in pixelgrid code in final pass.
+      vR_offset=-(vec2(DECON_RX, DECON_RY) * vec2(NEW_SCALEMOD_X, NEW_SCALEMOD_Y) / global.upscale_passSize.xy) / vec2(pi/2.0);
+      vG_offset=-(vec2(DECON_GX, DECON_GY) * vec2(NEW_SCALEMOD_X, NEW_SCALEMOD_Y) / global.upscale_passSize.xy) / vec2(pi/2.0);
+      vB_offset=-(vec2(DECON_BX, DECON_BY) * vec2(NEW_SCALEMOD_X, NEW_SCALEMOD_Y) / global.upscale_passSize.xy) / vec2(pi/2.0);
+   }   
+
    
    //Precalc some conditions:
    bool do_shadow = (DO_DOT_MATRIX == 1.0 && DOT_M_SHADOW_STR > 0.0);
    vDecon_or_JustShadow =  float(DO_SHIFT_RGB > 0.0 || do_shadow    );
 
+   //https://www.sciencedirect.com/topics/computer-science/color-subcarrier
+   //YIQ/YUV Ntsc/Pal bandwidths
+   if (SAT_BLEED_PAL == 0.0)
+      vCVBS_bandwidths = vec3(4.2, 1.5, 0.5); //NTSC
+   else
+      vCVBS_bandwidths = vec3(5.0, 1.3, 1.3); //PAL
    
    //Mod framecount for animating dot crawl (needed to avoid precision errors)   
       float dot_c_steps = 6.0; // frames needed to reach sin period; higher = slower;
@@ -69,6 +77,7 @@ layout(location = 2) in vec2 vG_offset;
 layout(location = 3) in vec2 vB_offset;
 layout(location = 4) in float vDo_shadow_mode;
 layout(location = 5) in float vDecon_or_JustShadow;
+layout(location = 6) in vec3 vCVBS_bandwidths;
 
 layout(location = 9) in float vDotCrawlShift;
 layout(location = 10) in vec4 vDotCrawlCoords_and_period;
@@ -76,37 +85,6 @@ layout(location = 10) in vec4 vDotCrawlCoords_and_period;
 layout(location = 0) out vec4 FragColor;
 
 layout(set = 0, binding = 1) uniform sampler2D upscale_pass;
-
-
-#define bandwidth_mhz_Y_ntsc 4.2
-#define bandwidth_mhz_I 1.5
-#define bandwidth_mhz_Q 0.5
-
-const mat3 mat3_RGB2YIQ = mat3(
-   0.2989,  0.5959,  0.2115,
-   0.5870, -0.2744, -0.5229,
-   0.1140, -0.3216,  0.3114);
-
-const mat3 mat3_YIQ2RGB = mat3(
-   1.0,     1.0,     1.0,
-   0.956,  -0.2720, -1.1060,
-   0.6210, -0.6474,  1.7046);
-
-//https://www.sciencedirect.com/topics/computer-science/color-subcarrier
-#define bandwidth_mhz_Y_pal 5.0
-#define bandwidth_mhz_U 1.3
-#define bandwidth_mhz_V 1.3
-
-const mat3 mat3_RGB2YUV = mat3(
-   0.299,     0.587,     0.114,
-   -0.14713, -0.28886,   0.436,
-   0.615,    -0.514991, -0.10001);
-
-const mat3 mat3_YUV2RGB = mat3(
-   1.000, 0.000,   1.13983,
-   1.000,-0.39465,-0.58060,
-   1.000, 2.03211, 0.00000);
-
 
 
 vec3 deconvergence_shadow(vec2 coords, sampler2D in_texture, vec3 source_pixel) {
@@ -145,63 +123,6 @@ vec3 deconvergence_shadow(vec2 coords, sampler2D in_texture, vec3 source_pixel) 
       return mix_step(deconvergence_mode, shadow_mode, vDo_shadow_mode);
 }
 
-#define SIDE_RIGHT 1
-#define SIDE_LEFT -1
-
-vec3 pixel_bleed_side_NTSC(vec4 pixel_in, vec2 co, float size, sampler2D in_texture, float sourcesize_z) {
-   //apply strength modifier to blur ntsc artifacts more.
-   float w = SAT_BLEED_STRENGTH;
-      
-   vec3 blur_YIQ_l = pixel_in.rgb * mat3_RGB2YIQ;    //Work in YIQ space
-   vec3 blur_YIQ_r = blur_YIQ_l;
-
-   vec2 off_l = vec2(SIDE_LEFT  * sourcesize_z,0.0);
-   vec2 off_r = vec2(SIDE_RIGHT * sourcesize_z,0.0);
-   
-   for ( float i=1 ; i <= size ; i++ ){
-      w=w/SAT_BLEED_FALLOFF;  //w = w * exp(i*i*(1-SAT_BLEED_FALLOFF)*0.1);
-      vec3 smp_YIQ = texture(in_texture, co - i*off_l ).rgb * mat3_RGB2YIQ;
-      //Blur Y, I and Q
-      blur_YIQ_l = mix(blur_YIQ_l.xyz, smp_YIQ.xyz, w/vec3( bandwidth_mhz_Y_ntsc, bandwidth_mhz_I, bandwidth_mhz_Q));
-     
-      smp_YIQ = texture(in_texture, co - i*off_r ).rgb * mat3_RGB2YIQ;
-      //Blur Y, I and Q
-      blur_YIQ_r = mix(blur_YIQ_r.xyz, smp_YIQ.xyz, w/vec3( bandwidth_mhz_Y_ntsc, bandwidth_mhz_I, bandwidth_mhz_Q));
-   }
-   vec3 blur_RGB_l = blur_YIQ_l * mat3_YIQ2RGB; //return to RGB colorspace
-   vec3 blur_RGB_r = blur_YIQ_r * mat3_YIQ2RGB; //return to RGB colorspace
-   
-   // Clamping min to 0.0 is needed for nvidia to avoid bad graphical glitches, why?
-   return max(mix(blur_RGB_l,blur_RGB_r,0.5), 0.0);
-}
-
-vec3 pixel_bleed_side_PAL(vec4 pixel_in, vec2 co, float size, sampler2D in_texture, float sourcesize_z) {
-   float w = SAT_BLEED_STRENGTH;
-      
-   vec3 blur_YUV_l = pixel_in.rgb * mat3_RGB2YUV;    //Work in YIQ space
-   vec3 blur_YUV_r = blur_YUV_l;
-   
-   vec2 off_l = vec2(SIDE_LEFT  * sourcesize_z,0.0);
-   vec2 off_r = vec2(SIDE_RIGHT * sourcesize_z,0.0);  
-   for ( float i=1 ; i <= size ; i++ ){
-      w=w/SAT_BLEED_FALLOFF;
-      vec2 off = vec2(sourcesize_z*i,0.0);
-      vec3 smp_YUV = texture(in_texture, co - i*off_l ).rgb * mat3_RGB2YUV;
-      //Blur Y, U, V
-      blur_YUV_l = mix(blur_YUV_l.xyz, smp_YUV.xyz, w/vec3( bandwidth_mhz_Y_pal, bandwidth_mhz_U, bandwidth_mhz_V));
-     
-      smp_YUV = texture(in_texture, co - i*off_r ).rgb * mat3_RGB2YUV;
-      //Blur Y, U, V
-      blur_YUV_r = mix(blur_YUV_r.xyz, smp_YUV.xyz, w/vec3( bandwidth_mhz_Y_pal, bandwidth_mhz_U, bandwidth_mhz_V));
-   }
-   vec3 blur_RGB_l = blur_YUV_l * mat3_YUV2RGB; //return to RGB colorspace
-   vec3 blur_RGB_r = blur_YUV_r * mat3_YUV2RGB; //return to RGB colorspace
-   
-   // Clamping min to 0.0 is needed for nvidia to avoid bad graphical glitches, why?
-   return max(mix(blur_RGB_l,blur_RGB_r,0.5), 0.0);
-
-}
-
 float dotc_carrier(vec2 co, vec2 OriginalSize) {  
    float sin_crawl = sin(co.x*OriginalSize.x*pi - vDotCrawlShift ) *
                      sin(co.y*OriginalSize.y*pi);
@@ -218,46 +139,80 @@ float distance_approx(vec2 a, vec2 b, float p) {
    return pow(d,p);
 }
 
-vec3 dotc(sampler2D in_texture, vec3 pixel_in, vec2 co, vec4 tex_size, mat3 rgb2x, mat3 x2rgb){
+vec3 dotc(sampler2D in_texture, vec3 pixel_in, vec2 co, vec4 tex_size){
    //Sample adiacent texels and switch colorspace.
    const float dot_crawl_size = 1.0; //0.5, 1.0, 1.5
-   vec3 cm = texture(in_texture, co).rgb * rgb2x;
-   vec3 cr = texture(in_texture, co + vec2(tex_size.z*dot_crawl_size, 0.0)).rgb * rgb2x;
-   vec3 cl = texture(in_texture, co - vec2(tex_size.z*dot_crawl_size, 0.0)).rgb * rgb2x;
+   vec3 cm = rgb2yiq( texture(in_texture, co).rgb );
+   vec3 cr = rgb2yiq( texture(in_texture, co + vec2(tex_size.z*dot_crawl_size, 0.0)).rgb );
+   vec3 cl = rgb2yiq( texture(in_texture, co - vec2(tex_size.z*dot_crawl_size, 0.0)).rgb );
    //Compute max chroma change
       //float d = max(distance(cm.yz,cr.yz),  distance(cm.yz,cl.yz));
       //d = pow(d, 1.5); // bias, less on lower distance.
       //The following have less cycles, but same result.
       const float p = 0.75;
       float d = max(distance_approx(cm.yz,cr.yz,p),  distance_approx(cm.yz,cl.yz,p));
-   
+      d=pow(d, 0.5);
+      
    //apply moving square carrier (already modulatd by strength) to the chroma distance
       float crosstalk = d * dotc_carrier(vDotCrawlCoords_and_period.xy, vDotCrawlCoords_and_period.zw);
       //return vec3(dotc_carrier(co, tex_size.xy));
    
    // chroma into luma
-      pixel_in *= rgb2x;
-      pixel_in.x = mix(pixel_in.x, (pixel_in.y+pixel_in.z)*0.5, crosstalk);
-   
-   return pixel_in * x2rgb;
-
+      pixel_in = rgb2yiq( pixel_in );
+      //pixel_in.x = mix(pixel_in.x, (pixel_in.y+pixel_in.z)*0.5, crosstalk);
+      pixel_in.x = pixel_in.x - (abs(pixel_in.y)+abs(pixel_in.z)) * crosstalk;
+      
+   return yiq2rgb( pixel_in );
 }
 
 vec4 pixel_bleed(vec4 pixel_in, vec2 co, sampler2D in_texture, float sourcesize_z) { //FIXME pixelin.a è passante, non serve vec4
-   float size = SAT_BLEED_SIZE;
+   //sometimes first frame has 0x0 size, that makes gpu mad in a way or another.
+   //hopefully fixes: https://github.com/kokoko3k/koko-aio-slang/issues/28   
+   if (sourcesize_z > 1.0) return pixel_in;
+      
+   mat3 colorspace_out;
+   mat3 colorspace_rgb;
+
+   //https://www.sciencedirect.com/topics/computer-science/color-subcarrier
+   if (SAT_BLEED_PAL > 0.5) {
+      colorspace_out = RGB2YUV;
+      colorspace_rgb = YUV2RGB;
+   } else {
+      colorspace_out = RGB2YIQ;
+      colorspace_rgb = YIQ2RGB;
+   }
+   
    #ifdef D3D_WORKAROUND
       // d3d11 compiler complains it is unable to unroll the loop because it is
       // clueless about the maximum pragma value; d3d12 hangs somewhere.
-      size = min(5.0,SAT_BLEED_SIZE) ;
+      float size = min(5.0,SAT_BLEED_SIZE) ;
    #else
-      size = min(20.0,SAT_BLEED_SIZE) ;
+      float size = min(20.0,SAT_BLEED_SIZE) ;
    #endif
    
-   if (SAT_BLEED_PAL == 1.0) {
-         return vec4 ( pixel_bleed_side_PAL(pixel_in.rgba, co, size, in_texture, sourcesize_z), pixel_in.a);
-   } else {
-         return vec4 ( pixel_bleed_side_NTSC(pixel_in.rgba, co, size, in_texture, sourcesize_z), pixel_in.a);
+   //Initial mix strength.
+   float w = SAT_BLEED_STRENGTH;
+
+   //Initial color in yiq space
+   vec3 out_YIQ = colorspace_out * ( pixel_in.rgb );
+   
+   for ( float off = sourcesize_z ; off <= sourcesize_z*size ; off+=sourcesize_z ){
+      //float new_offset = i*initial_offset;
+      vec3 smp_YIQ  = colorspace_out * ( texture(in_texture, co - vec2(off,0.0) ).rgb) * 0.5; //sample left
+           smp_YIQ += colorspace_out * ( texture(in_texture, co + vec2(off,0.0) ).rgb) * 0.5; //sample right
+
+      //Blur Y,I,Q
+      w=w/SAT_BLEED_FALLOFF;  //w = w * exp(i*i*(1-SAT_BLEED_FALLOFF)*0.1);
+      //out_YIQ = mix(out_YIQ.xyz, smp_YIQ.xyz, w/vCVBS_bandwidths);
+      out_YIQ = mix(out_YIQ.xyz,smp_YIQ.xyz, clamp(w/vCVBS_bandwidths, 0.0, 1.0));
+     
    }
+   vec3 pixel_bleeded = colorspace_rgb * ( out_YIQ ); //return to RGB colorspace
+
+   // Clamping min to 0.0 is needed for nvidia to avoid bad graphical glitches, why?
+   pixel_bleeded = clamp(pixel_bleeded, 0.0, 1.0);
+   
+   return vec4( pixel_bleeded, pixel_in.a);
 }
 
 void main() {
@@ -278,32 +233,16 @@ void main() {
    if (DO_SAT_BLEED > 0.5)
       pixel_out = pixel_bleed(pixel_out, vTexCoord, upscale_pass, params.OriginalSize.z*0.5);
 
-   //pixel_out.rgb = dotc(upscale_pass, vTexCoord, params.OriginalSize, mat3_RGB2YIQ, mat3_YIQ2RGB);
-   if (DOT_C > 0.0) {
-      if (DOT_C_YUV > 0.0)
-         pixel_out.rgb = dotc(upscale_pass, pixel_out.rgb, vTexCoord, params.OriginalSize, mat3_RGB2YUV, mat3_YUV2RGB);
-      else
-         pixel_out.rgb = dotc(upscale_pass, pixel_out.rgb, vTexCoord, params.OriginalSize, mat3_RGB2YIQ, mat3_YIQ2RGB);
-   }
-   
-   
+   if (DOT_C > 0.0)
+      pixel_out.rgb = dotc(upscale_pass, pixel_out.rgb, vTexCoord, params.OriginalSize);
+
    //... and shift
    if (vDecon_or_JustShadow > 0.0 )
       pixel_out.rgb = deconvergence_shadow(vTexCoord, upscale_pass, pixel_out.rgb);
 
-
-   
-
    pixel_out.rgb = max(vec3(0.0), pixel_out.rgb);  //make sure everything is over 0.0
 
-   
-   /*float waterfall = pixel_out.a;
-   float blur_radius = (1-smoothstep(0.9, 1.0, waterfall))*7.0+0.5;
-   pixel_out.rgb = blur9_x(upscale_pass, vTexCoord, params.SourceSize.xy, blur_radius).rgb;
-   */
    pixel_out.rgb = pow(pixel_out.rgb, vec3(IN_GLOW_GAMMA)); //apply gamma in 
-   
-
-   
+      
    FragColor = pixel_out;
 }

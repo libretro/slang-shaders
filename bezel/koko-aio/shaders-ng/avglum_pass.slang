@@ -45,7 +45,7 @@ void main() {
 
     vReduced_sample_time_is_now = mod(params.FrameCount,AMBI_AVGLUM_DIVIDER);
     
-    vAvglum_needed = DO_AMBILIGHT + DO_BEZEL + (DO_DYNZOOM*10.0) + (RESSWITCH_GLITCH_SIZE*10.0) + AUTOCROP_MAX ;
+    vAvglum_needed = DO_BLOOM + DO_AMBILIGHT + DO_BEZEL + (DO_DYNZOOM*10.0) + (RESSWITCH_GLITCH_SIZE*10.0) + AUTOCROP_MAX ;
     
     //RESSWITCH shaking:
         vResSwitch_res_changed = 0.0;
