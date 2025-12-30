@@ -46,7 +46,7 @@
 #pragma parameter HALATION_DIFFUSION "   Halation > Diffusion  (0-Low .. 1-High)" 0.5 0.0 1.0 0.05
 
 // NTSC parameters
-#pragma parameter NTSC_PROFILE "·  NTSC > Profile  (0-Off, 1-Separate Y/C, 2-Composite, 3-RF)" 0.0 0.0 3.0 1.0
+#pragma parameter NTSC_PROFILE "·  NTSC > Profile  (0-Off, 1-Separate Y/C, 2-Composite 5-RB)" 0.0 0.0 5.0 1.0
 #pragma parameter NTSC_QUALITY "   NTSC > Quality  (1-Two Phase, 2-Three Phase & 3-Field Merge)" 1.0 1.0 3.0 1.0
 
 // CRT parameters
@@ -60,20 +60,24 @@
 #pragma parameter INFO2 "² Compensates brightness changes of marked effects" 0.0 0.0 0.0 0.0
 #pragma parameter INFO3 "³ Increases the black level of marked effects" 0.0 0.0 0.0 0.0
 
+#define PARAM_GLOBAL_MASTER global.GLOBAL_MASTER
+#define PARAM_SCREEN_ORIENTATION global.SCREEN_ORIENTATION
+#define PARAM_SCREEN_SCALE global.SCREEN_SCALE
+
 float mix_master(float value, float off_value, float min_value, float max_value)
 {
-    return param.GLOBAL_MASTER > 1.0
+    return PARAM_GLOBAL_MASTER > 1.0
         ? mix(
             value,
             clamp(
-                (value - off_value * 0.5) * param.GLOBAL_MASTER,
+                (value - off_value * 0.5) * PARAM_GLOBAL_MASTER,
                 min(value, min_value),
                 max(value, max_value)),
-            param.GLOBAL_MASTER - 1.0)
+            PARAM_GLOBAL_MASTER - 1.0)
         : mix(
             off_value,
             value,
-            param.GLOBAL_MASTER);
+            PARAM_GLOBAL_MASTER);
 }
 
 #define PARAM_COLOR_FLOOR max(PARAM_SCANLINES_STRENGTH, PARAM_MASK_INTENSITY) * (1.0 / 256.0)
@@ -103,8 +107,6 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 #define PARAM_CRT_NOISE_AMOUNT mix_master(param.CRT_NOISE_AMOUNT, 0.0, 0.0, 1.0)
 #define PARAM_CRT_CORNER_RAIDUS mix_master(param.CRT_CORNER_RAIDUS, 0.0, 0.0, 0.25)
 #define PARAM_CRT_CORNER_SMOOTHNESS param.CRT_CORNER_SMOOTHNESS
-#define PARAM_SCREEN_ORIENTATION param.SCREEN_ORIENTATION
-#define PARAM_SCREEN_SCALE param.SCREEN_SCALE
 #define PARAM_COLOR_PROFILE mix_master(param.COLOR_PROFILE, 0.0, -1.0, 1.0)
 #define PARAM_NTSC_PROFILE param.NTSC_PROFILE
 #define PARAM_NTSC_QUALITY param.NTSC_QUALITY
