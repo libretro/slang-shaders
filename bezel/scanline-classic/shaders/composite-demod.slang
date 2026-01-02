@@ -39,6 +39,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
+    vec4 FrameSize;
     uint FrameCount;
     float OriginalFPS;
     float BYPASS_COMPOSITE_DEMOD;
@@ -59,13 +60,8 @@ layout(push_constant) uniform Push
     float DISPLAY_CUTOFF_ATTEN_Y;
     float DISPLAY_CUTOFF_ATTEN_C;
     float BW_MODE;
-    float USER_COLOR;   // Color (%)
-    float USER_TINT;    // Tint (degrees)
-    float PAL_DECODER_MODE;  // PAL decoder mode (0=simple, 1=delay-line, 2=adaptive)
 } config;
 
-#define USER_COLOR config.USER_COLOR
-#define USER_TINT config.USER_TINT
 #define BYPASS_COMPOSITE_DEMOD config.BYPASS_COMPOSITE_DEMOD
 
 #define V_FREQ_MODE config.V_FREQ_MODE
@@ -89,11 +85,14 @@ layout(push_constant) uniform Push
 #define DISPLAY_CUTOFF_ATTEN_C config.DISPLAY_CUTOFF_ATTEN_C
 
 #define BW_MODE config.BW_MODE
-#define PAL_DECODER_MODE config.PAL_DECODER_MODE
+
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
+    float USER_COLOR;       // Color (%)
+    float USER_TINT;        // Tint (degrees)
+    float PAL_DECODER_MODE; // PAL decoder mode (0=simple, 1=delay-line, 2=adaptive)
     float DECODER_TYPE; // Decoder type (0=YIQ, 1=YPbPr, 2=PAL)
     float DECODER_SETUP;
     float USER_MONOCHROME; // Monochrome mode (off, B&W, sepia)
@@ -102,6 +101,10 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float COMPOSITE_DEMOD_FILTER_BYPASS;
     float CORRELATION;
 } global;
+
+#define USER_COLOR global.USER_COLOR
+#define USER_TINT global.USER_TINT
+#define PAL_DECODER_MODE global.PAL_DECODER_MODE
 
 #define DECODER_TYPE global.DECODER_TYPE
 #define DECODER_SETUP global.DECODER_SETUP
@@ -132,6 +135,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
+        config.FrameSize.xy,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -331,7 +335,7 @@ void main()
 
     // Symmetric lobed processing with early exit
     if (COMPOSITE_DEMOD_FILTER_BYPASS < 0.5) {
-        for (int n = 1; n <= 20; ++n) {
+        for (int n = 1; n <= 32; ++n) {
             float nf = float(n);
             // Symmetric distances: right = n - Ax, left = n + Ax
             float w_y_r = gaussian(nf - Ax, sigma.x);

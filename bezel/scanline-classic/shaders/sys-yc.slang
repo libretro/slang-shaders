@@ -27,7 +27,7 @@
 #include "modulation.inc"
 #include "menus/parameters/sys-timing.inc"
 #include "menus/parameters/sys-encode.inc"
-#include "menus/parameters/sys-component.inc"
+#include "menus/parameters/sys-yc.inc"
 
 #pragma name SysYC
 #pragma format R16G16_SFLOAT
@@ -36,6 +36,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
+    vec4 FrameSize;
     uint FrameCount;
     float OriginalFPS;
     float V_FREQ_MODE;
@@ -48,7 +49,6 @@ layout(push_constant) uniform Push
     float H_FREQ_MODE;
     float H_FREQ;
     float H_BLANK_FUZZ;
-    float ENCODER_SETUP;
     float PAL;
     float YC_MODEL;
     float SYS_GAIN_Y;
@@ -69,7 +69,6 @@ layout(push_constant) uniform Push
 #define H_FREQ_MODE config.H_FREQ_MODE
 #define H_FREQ config.H_FREQ
 #define H_BLANK_FUZZ config.H_BLANK_FUZZ
-#define ENCODER_SETUP config.ENCODER_SETUP
 #define PAL config.PAL
 #define YC_MODEL config.YC_MODEL
 #define SYS_GAIN_Y config.SYS_GAIN_Y
@@ -82,7 +81,10 @@ layout(push_constant) uniform Push
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
+    float ENCODER_SETUP;
 } global;
+
+#define ENCODER_SETUP global.ENCODER_SETUP
 
 // Convert RGB to selected luma-chroma space.
 // For YDbDr: RGB -> YUV -> scale (U,V) to (Db,Dr).
@@ -125,6 +127,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
+        config.FrameSize.xy,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,

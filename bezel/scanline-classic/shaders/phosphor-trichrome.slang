@@ -112,7 +112,7 @@ void main()
 
     vec3 gamma_c = (pow(vec3(10.0), 1.0 / n) - 1.0) / tau;
 
-    vec3 gamma_frame = gamma_c / config.OriginalFPS;
+    vec3 gamma_frame = gamma_c / 60.0;
 
     // Point-sample normalization so that the average of the first two point samples is 0.5.
     // A_point = 1 / (1 + (1 + r)^(-n)), with r = gamma_frame and per-channel n.

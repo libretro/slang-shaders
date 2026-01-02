@@ -46,6 +46,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
+    vec4 FrameSize;
     uint FrameCount;
     float OriginalFPS;
     float BYPASS_IQ_DEMOD;
@@ -62,6 +63,8 @@ layout(push_constant) uniform Push
     float H_BLANK_FUZZ;
     float USB_BANDWIDTH;
     float LSB_BANDWIDTH;
+    float USB_ROLL_OFF;
+    float LSB_ROLL_OFF;
 } config;
 
 #define BYPASS_IQ_DEMOD config.BYPASS_IQ_DEMOD
@@ -76,8 +79,11 @@ layout(push_constant) uniform Push
 #define H_FREQ_MODE config.H_FREQ_MODE
 #define H_FREQ config.H_FREQ
 #define H_BLANK_FUZZ config.H_BLANK_FUZZ
+
 #define USB_BANDWIDTH config.USB_BANDWIDTH
 #define LSB_BANDWIDTH config.LSB_BANDWIDTH
+#define USB_ROLL_OFF config.USB_ROLL_OFF
+#define LSB_ROLL_OFF config.LSB_ROLL_OFF
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -92,7 +98,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 // Stopband: ~43 dB, minimal ringing (~1.5% overshoot)
 // Analytical tap count formula: N = 3.3 / transition_width
 const float HAMMING_TRANSITION_CONST = 3.3;  // Hamming -43 dB stopband
-const float TRANSITION_FACTOR = 0.15;        // 15% of cutoff frequency
 
 // Hilbert demod removed; weighted method only
 
@@ -116,6 +121,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
+        config.FrameSize.xy,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -128,32 +134,24 @@ void main()
         H_BLANK_FUZZ,
         SHORTEN_ODD_FIELD_TIME);
 
-    // Compute output texture sample rate
-    float sample_rate_hz = 1.0 / tb.pixel_time_px;
+    float transition_i = USB_ROLL_OFF / USB_BANDWIDTH;
+    float transition_q = LSB_ROLL_OFF / LSB_BANDWIDTH;
 
     // Normalize per-channel cutoffs
-    fc_i_norm = (VSB_I_CUTOFF_MHZ * 1.0e6) / sample_rate_hz;
-    fc_q_norm = (VSB_Q_CUTOFF_MHZ * 1.0e6) / sample_rate_hz;
+    fc_i_norm = (VSB_I_CUTOFF_MHZ * 1.0e6) * tb.pixel_time_px;
+    fc_q_norm = (VSB_Q_CUTOFF_MHZ * 1.0e6) * tb.pixel_time_px;
 
     // Analytical tap count design for Hamming window
     // Formula: N = HAMMING_TRANSITION_CONST / transition_width
     // Transition band = TRANSITION_FACTOR × cutoff frequency
+    float taps_i_calc = HAMMING_TRANSITION_CONST / max(transition_i * fc_i_norm, EPS);
+    float taps_q_calc = HAMMING_TRANSITION_CONST / max(transition_q * fc_q_norm, EPS);
     
-    // I channel: wider bandwidth → narrower transition → fewer taps needed
-    float transition_i = TRANSITION_FACTOR * fc_i_norm;
-    float taps_i_calc = HAMMING_TRANSITION_CONST / max(transition_i, 0.01);
-    
-    // Q channel: narrower bandwidth → needs more taps for sharp cutoff
-    float transition_q = TRANSITION_FACTOR * fc_q_norm;
-    float taps_q_calc = HAMMING_TRANSITION_CONST / max(transition_q, 0.01);
-    
-    // Round to even numbers for symmetric FIR
-    taps_i = ceil(taps_i_calc * 0.5) * 2.0;
-    taps_q = ceil(taps_q_calc * 0.5) * 2.0;
-    
-    // Clamp to reasonable bounds (avoid degenerate or excessive tap counts)
-    taps_i = clamp(taps_i, 8.0, 32.0);
-    taps_q = clamp(taps_q, 12.0, 56.0);
+    // Round to odd numbers for symmetric FIR (center + pairs)
+    taps_i = int(ceil(taps_i_calc));
+    if (int(mod(taps_i, 2.0)) == 0) taps_i += 1.0;
+    taps_q = int(ceil(taps_q_calc));
+    if (int(mod(taps_q, 2.0)) == 0) taps_q += 1.0;
 }
 
 #pragma stage fragment
@@ -196,44 +194,60 @@ void main()
     // Center coefficients
     float c0_i = sinc_lowpass_hamming(-Ax, fc_i_norm, taps_i);
     float c0_q = sinc_lowpass_hamming(-Ax, fc_q_norm, taps_q);
-    I_lp = c0_i * iq0.r; I_w = c0_i;
-    Q_lp = c0_q * iq0.g; Q_w = c0_q;
+    I_lp = c0_i * iq0.r;
+    I_w = c0_i;
+    Q_lp = c0_q * iq0.g;
+    Q_w = c0_q;
     
     // Hilbert at center is zero for odd kernel, skip
 
     int max_i = int(taps_i);
     int max_q = int(taps_q);
     int max_n = max(max_i, max_q);
-    
-    for (int n = 1; n <= 56; ++n) {
-        if (n > max_n)
+
+    int n_pairs = int(floor(max_n * 0.5));
+
+    for (int n = 1; n <= 45; ++n) {
+        if (n > n_pairs)
             break;
+
         float nf = float(n);
 
+        // Neighbor analytic samples
+        vec2 tex_r = Tex + nf * dx;
+        vec2 tex_l = Tex - nf * dx;
+
         float coeff_mag = 0.0;
+        float coeff_r_i = 0.0;
+        float coeff_l_i = 0.0;
+        float coeff_r_q = 0.0;
+        float coeff_l_q = 0.0;
 
-        vec2 iq_r = texture(Source, Tex + nf * dx).rg;
-        vec2 iq_l = texture(Source, Tex - nf * dx).rg;
-
+        // Apply lowpass filter coefficients
         if (n <= max_i) {
-            float cr_i = sinc_lowpass_hamming(nf - Ax, fc_i_norm, taps_i);
-            float cl_i = sinc_lowpass_hamming(-nf - Ax, fc_i_norm, taps_i);
-            I_lp += cr_i * iq_r.r + cl_i * iq_l.r;
-            I_w  += cr_i + cl_i;
-            coeff_mag = max(coeff_mag, abs(cr_i) + abs(cl_i));
+            coeff_r_i = sinc_lowpass_hamming(nf - Ax, fc_i_norm, taps_i);
+            coeff_l_i = sinc_lowpass_hamming(-nf - Ax, fc_i_norm, taps_i);
+            coeff_mag = max(coeff_mag, abs(coeff_r_i) + abs(coeff_l_i));
         }
 
+        // Q channel (may use fewer/more taps); skip when beyond taps_q
         if (n <= max_q) {
-            float cr_q = sinc_lowpass_hamming(nf - Ax, fc_q_norm, taps_q);
-            float cl_q = sinc_lowpass_hamming(-nf - Ax, fc_q_norm, taps_q);
-            float qr = iq_r.g, ql = iq_l.g;
-            Q_lp += cr_q * qr + cl_q * ql;
-            Q_w  += cr_q + cl_q;
-            coeff_mag = max(coeff_mag, abs(cr_q) + abs(cl_q));
+            coeff_r_q = sinc_lowpass_hamming(nf - Ax, fc_q_norm, taps_q);
+            coeff_l_q = sinc_lowpass_hamming(-nf - Ax, fc_q_norm, taps_q);
+            coeff_mag = max(coeff_mag, abs(coeff_r_q) + abs(coeff_l_q));
         }
 
         if (coeff_mag < FILTER_THRESHOLD)
             break;
+
+        vec2 iq_r = texture(Source, tex_r).rg;
+        vec2 iq_l = texture(Source, tex_l).rg;
+
+        I_lp += coeff_r_i * iq_r.r + coeff_l_i * iq_l.r;
+        I_w += coeff_r_i + coeff_l_i;
+
+        Q_lp += coeff_r_q * iq_r.g + coeff_l_q * iq_l.g;
+        Q_w += coeff_r_q + coeff_l_q;
     }
 
     // Normalize

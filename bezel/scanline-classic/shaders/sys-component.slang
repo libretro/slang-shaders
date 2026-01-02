@@ -53,6 +53,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
+    vec4 FrameSize;
     uint FrameCount;
     float OriginalFPS;
 
@@ -68,10 +69,6 @@ layout(push_constant) uniform Push
     float H_FREQ;
     float H_BLANK_FUZZ;
 
-    // Bypasses
-    float SYS_COMPONENT_BYPASS;        // 0 or 1
-    float SYS_COMPONENT_FILTER_BYPASS; // 0 or 1
-
     // Color model selection
     float YC_MODEL; // 0=YIQ, 1=YPbPr, 2=YUV, 3=YDbDr, 4=YCbCr
 
@@ -85,8 +82,6 @@ layout(push_constant) uniform Push
 } config;
 
 // Short-hand macros
-#define SYS_COMPONENT_BYPASS config.SYS_COMPONENT_BYPASS
-#define SYS_COMPONENT_FILTER_BYPASS config.SYS_COMPONENT_FILTER_BYPASS
 
 #define V_FREQ_MODE config.V_FREQ_MODE
 #define V_FREQ config.V_FREQ
@@ -113,6 +108,11 @@ layout(push_constant) uniform Push
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
+
+    // Bypasses
+    float SYS_COMPONENT_BYPASS;        // 0 or 1
+    float SYS_COMPONENT_FILTER_BYPASS; // 0 or 1
+
     // Post-filter gain/bias per component
     float SYS_GAIN_Y;
     float SYS_GAIN_U;
@@ -121,6 +121,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float SYS_BIAS_U;
     float SYS_BIAS_V;
 } global;
+
+#define SYS_COMPONENT_BYPASS global.SYS_COMPONENT_BYPASS
+#define SYS_COMPONENT_FILTER_BYPASS global.SYS_COMPONENT_FILTER_BYPASS
 
 #define SYS_GAIN_Y global.SYS_GAIN_Y
 #define SYS_GAIN_U global.SYS_GAIN_U
@@ -173,6 +176,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
+        config.FrameSize.xy,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -257,7 +261,7 @@ void main()
     wsum  += vec3(wy, wu, wv);
 
     // Symmetric lobes with early exit
-    for (int n = 1; n <= 24; ++n) {
+    for (int n = 1; n <= 16; ++n) {
         float nf = float(n);
         // Symmetric distances: right = n - Ax, left = n + Ax
         float wy_r = gaussian(nf - Ax, sigma.x);

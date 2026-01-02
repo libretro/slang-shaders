@@ -1,3 +1,17 @@
+Version 6.2
+
+* More realistic RF simulation
+
+* Add specialized Mega Drive presets
+
+* Add PC Engine presets
+
+* Filter parameter values were tweaked and tap counts optimized for accuracy
+
+* Framing was resized to optimize performance; oversampling applied by composite shader pipelines as needed
+
+* A compiling issue with certain Mega Drive/Genesis presets on Vulkan was fixed
+
 Version 6.1.1
 
 * Add generic presets, based on standard timing; may not be accurate.

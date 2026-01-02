@@ -28,6 +28,7 @@
 #include "common.inc"
 #include "modulation.inc"
 
+#include "menus/parameters/scanraster.inc"
 #include "menus/parameters/sys-timing.inc"
 
 #pragma name Frame
@@ -57,6 +58,8 @@ layout(push_constant) uniform Push
     float H_FREQ_MODE;
     float H_FREQ;
     float H_BLANK_FUZZ;
+    float DOUBLE_REFRESH;
+    float SCANLINE_BLANK_WEIGHT;
 } config;
 
 #define FRAME_VIZ_ACTIVE config.FRAME_VIZ_ACTIVE
@@ -72,6 +75,9 @@ layout(push_constant) uniform Push
 #define H_FREQ_MODE config.H_FREQ_MODE
 #define H_FREQ config.H_FREQ
 #define H_BLANK_FUZZ config.H_BLANK_FUZZ
+
+#define DOUBLE_REFRESH config.DOUBLE_REFRESH
+#define SCANLINE_BLANK_WEIGHT config.SCANLINE_BLANK_WEIGHT
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -103,6 +109,7 @@ void main()
         config.FrameCount,
         vTexCoord,
         config.OriginalSize.xy,
+        config.OutputSize.xy,
         config.OutputSize.xy,
         config.OriginalFPS,
         SC_FREQ_MODE,
@@ -137,13 +144,9 @@ void main()
     full_pad_left = (int(config.OutputSize.x) - scaled_full_width) / 2;
     full_pad_top = (int(config.OutputSize.y) - scaled_full_height) / 2;
     
-    // Active content offset within full video frame (before scaling)
-    int active_left_unscaled = (int(full_width) - int(config.OriginalSize.x)) / 2;
-    int active_top_unscaled = (int(full_height) - int(config.OriginalSize.y)) / 2;
-    
     // Calculate scaled active region position
-    active_left_scaled = full_pad_left + active_left_unscaled * h_scale;
-    active_top_scaled = full_pad_top + active_top_unscaled * v_scale;
+    active_left_scaled = full_pad_left + (scaled_full_width - int(config.OriginalSize.x) * h_scale) / 2;
+    active_top_scaled = full_pad_top + (scaled_full_height - int(config.OriginalSize.y) * v_scale) / 2;
 }
 
 #pragma stage fragment
@@ -169,25 +172,26 @@ vec3 sample_active_content(int output_x, int output_y) {
     int original_x = scaled_active_x / h_scale;
     int original_y = scaled_active_y / v_scale;
     int v_scanline_offset = scaled_active_y - (original_y * v_scale);
+
+    vec2 texCoord = (vec2(original_x, original_y) + 0.5) / config.OriginalSize.xy;
     
     // Interlaced field blanking: alternate drawing odd/even lines based on field
     if (is_interlaced > 0.5) {
+        if (DOUBLE_REFRESH > 0.5)
+            return texture(Source, texCoord).rgb * 0.707;
         // In interlaced mode, only render lines that match the current field
         int field_parity = int(mod(field, 2.0));
         int line_parity = original_y % 2;
         
         // If this line doesn't match the current field, blank it
-        if (line_parity != field_parity) {
-            return vec3(0.0);
-        }
+        if (line_parity != field_parity)
+            return mix(texture(Source, texCoord).rgb, vec3(0.0), SCANLINE_BLANK_WEIGHT / 100.0);
     }
     
-    if (v_scanline_offset == 0 && scaled_active_x >= 0 && scaled_active_y >= 0 && 
-        original_x < int(config.OriginalSize.x) && original_y < int(config.OriginalSize.y)) {
-        vec2 texCoord = (vec2(original_x, original_y) + 0.5) / config.OriginalSize.xy;
+    if (v_scanline_offset == 0)
         return texture(Source, texCoord).rgb;
-    }
-    return vec3(0.0);
+
+    return mix(texture(Source, texCoord).rgb, vec3(0.0), SCANLINE_BLANK_WEIGHT / 100.0);
 }
 
 void main()

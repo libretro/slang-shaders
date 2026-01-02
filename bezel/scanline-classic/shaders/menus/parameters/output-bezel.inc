@@ -3,6 +3,7 @@
 #pragma parameter VIEWPORT_H_POS "Viewport horizontal position" 0.5 0.0 1.0 0.001
 #pragma parameter VIEWPORT_V_POS "Viewport vertical position" 0.5 0.0 1.0 0.001
 
+#pragma parameter BEZEL_ZOOM "Bezel zoom" 100.0 0.0 200.0 0.1
 #pragma parameter BEZEL_GAIN "Bezel gain (dB)" -3.0 -48.0 48.0 1.0
 #pragma parameter BEZEL_BIAS "Bezel bias (IRE)" 0.0 -100.0 100.0 0.5
 

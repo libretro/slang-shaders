@@ -36,6 +36,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
+    vec4 FrameSize;
     uint FrameCount;
     float OriginalFPS;
     float V_FREQ_MODE;
@@ -48,8 +49,7 @@ layout(push_constant) uniform Push
     float H_FREQ_MODE;
     float H_FREQ;
     float H_BLANK_FUZZ;
-    float DISPLAY_RGB_FILTER_BYPASS;
-    float DISPLAY_RGB_AMP_BYPASS;
+
     float DISPLAY_BANDLIMIT_R;
     float DISPLAY_BANDLIMIT_G;
     float DISPLAY_BANDLIMIT_B;
@@ -58,9 +58,6 @@ layout(push_constant) uniform Push
     float DISPLAY_CUTOFF_ATTEN_B;
     float USER_BLUE_ONLY;
 } config;
-
-#define DISPLAY_RGB_FILTER_BYPASS config.DISPLAY_RGB_FILTER_BYPASS
-#define DISPLAY_RGB_AMP_BYPASS config.DISPLAY_RGB_AMP_BYPASS
 
 #define V_FREQ_MODE config.V_FREQ_MODE
 #define V_FREQ config.V_FREQ
@@ -88,6 +85,8 @@ layout(push_constant) uniform Push
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
+    float DISPLAY_RGB_FILTER_BYPASS;
+    float DISPLAY_RGB_AMP_BYPASS;
     float DISPLAY_GAIN_R;
     float DISPLAY_GAIN_G;
     float DISPLAY_GAIN_B;
@@ -95,6 +94,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float DISPLAY_BIAS_G;
     float DISPLAY_BIAS_B;
 } global;
+
+#define DISPLAY_RGB_FILTER_BYPASS global.DISPLAY_RGB_FILTER_BYPASS
+#define DISPLAY_RGB_AMP_BYPASS global.DISPLAY_RGB_AMP_BYPASS
 
 #define DISPLAY_GAIN_R global.DISPLAY_GAIN_R
 #define DISPLAY_GAIN_G global.DISPLAY_GAIN_G
@@ -123,6 +125,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
+        config.FrameSize.xy,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,

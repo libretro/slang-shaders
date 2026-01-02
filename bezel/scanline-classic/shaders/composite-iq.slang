@@ -47,9 +47,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
     mat4 MVP;
 } global;
 
-// Hilbert transform taps (fixed, odd-only). Windowing is implicit by truncation.
-const int HILBERT_TAPS = 31; // odd length preferred for Type III FIR
-
 // Minimal vertex stage: passes through texture coordinates
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
