@@ -31,8 +31,6 @@
 #include "menus/parameters/composite.inc"
 
 #pragma parameter BYPASS_PREFILTER "Bypass prefilter (off, on)" 0.0 0.0 1.0 1.0
-#pragma parameter COMB_ADJUST_X "Comb filter phase adjustment X (texels)" 0.0 -10.0 10.0 0.01
-#pragma parameter COMB_ADJUST_Y "Comb filter phase adjustment Y (texels)" 0.0 -10.0 10.0 0.01
 
 #pragma name CompositePreFilter
 #pragma format R16G16B16A16_SFLOAT
@@ -41,6 +39,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
+    vec4 FrameSize;
     uint FrameCount;
     float OriginalFPS;
     float BYPASS_PREFILTER;
@@ -59,15 +58,9 @@ layout(push_constant) uniform Push
     float NOTCH_ATTEN_DB;
     float BANDPASS_WIDTH;
     float BANDPASS_ATTEN_DB;
-    float BW_MODE;
     float COMB_FILTER_LUMA_ADAPT;
     float COMB_FILTER_CHROMA_ADAPT;
-    float COMB_ADJUST_X;
-    float COMB_ADJUST_Y;
 } config;
-
-#define COMB_ADJUST_X config.COMB_ADJUST_X
-#define COMB_ADJUST_Y config.COMB_ADJUST_Y
 
 #define BYPASS_PREFILTER config.BYPASS_PREFILTER
 
@@ -93,12 +86,13 @@ layout(push_constant) uniform Push
 #define COMB_FILTER_LUMA_ADAPT config.COMB_FILTER_LUMA_ADAPT
 #define COMB_FILTER_CHROMA_ADAPT config.COMB_FILTER_CHROMA_ADAPT
 
-#define BW_MODE config.BW_MODE
-
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
+    float BW_MODE;
 } global;
+
+#define BW_MODE global.BW_MODE
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -118,6 +112,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
+        config.FrameSize.xy,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -208,7 +203,7 @@ void main()
         sum_notch += g_notch0;
 
         // Bandpass + notch filter: shared symmetric lobed processing with early exit
-        for (int n = 1; n <= 24; ++n) {
+        for (int n = 1; n <= 32; ++n) {
             float nf = float(n);
 
             float g_bp_r = gaussian(nf - Ax, sigma_bp);

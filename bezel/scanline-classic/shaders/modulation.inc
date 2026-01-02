@@ -96,6 +96,7 @@ TimebaseConfig compute_timebase(
     vec2 tex_coord,
     vec2 original_size,
     vec2 output_size,
+    vec2 frame_size,
     float core_refresh_hz,
     float sc_freq_mode,
     float sc_freq_custom_mhz,
@@ -197,13 +198,7 @@ TimebaseConfig compute_timebase(
     bool is_pal = (!is_ntsc && config.v_lines_per_field < 350.0);
 
     // Calculate lines per frame
-    if (is_ntsc) {
-        config.v_lines_per_frame = 526.0;
-    } else if (is_pal) {
-        config.v_lines_per_frame = 626.0;
-    } else {
-        config.v_lines_per_frame = config.v_lines_per_field * 2.0 + 2.0;
-    }
+    config.v_lines_per_frame = config.v_lines_per_field * 2.0 + 2.0;
 
     // For interlaced content, add one extra line to even fields (field 0, 2, 4, ...)
     // This simulates the extra scanline in the second field of interlaced video
@@ -267,8 +262,14 @@ TimebaseConfig compute_timebase(
     config.field_phase = mod(config.field_phase, 2.0 * PI) - PI;
 
     // Scale factors for output size
-    float h_scale = max(floor(output_size.x / total_pixels), 1.0);
-    float v_scale = max(floor(output_size.y / config.v_lines_per_field), 1.0);
+    float h_scale1 = floor(frame_size.x / total_pixels);
+    float v_scale1 = floor(frame_size.y / config.v_lines_per_field);
+
+    float h_scale2 = floor(output_size.x / (total_pixels * h_scale1));
+    float v_scale2 = floor(output_size.y / (config.v_lines_per_field * v_scale1));
+
+    float h_scale = max(h_scale1 * h_scale2, 1.0);
+    float v_scale = max(v_scale1 * v_scale2, 1.0);
 
     // Per-output-pixel time (cycles-per-pixel scaling)
     config.pixel_time_px = config.pixel_time / h_scale;
@@ -352,14 +353,14 @@ vec2 compute_vsb_chroma_gain(float sc_freq_hz, float iq_cutoff_mhz,
 //   Equivalent forms:
 //     Original:   σ = sqrt(-2 ln(10^(-A/20))) / (2π f_c)
 //     Simplified: σ = sqrt((A/10) ln 10) / (2π f_c)
-//   where f_c is in cycles per pixel: f_c = cutoff_freq_hz * pixel_time_px
+//   where f_c is in normalized frequency: f_c = cutoff_freq_hz * pixel_time_px
 float sigma_tb(TimebaseConfig tb, float cutoff_freq_mhz, float cutoff_atten_db)
 {
-    // Convert cutoff to cycles-per-pixel
-    float f_c_px = cutoff_freq_mhz * 1.0e6 * tb.pixel_time_px;
+    // Convert cutoff to normalized frequency
+    float f_c = cutoff_freq_mhz * 1.0e6 * tb.pixel_time_px;
 
     // Guard: require positive frequency scale and attenuation
-    if (f_c_px <= 0.0 || cutoff_atten_db <= 0.0)
+    if (f_c <= 0.0 || cutoff_atten_db <= 0.0)
         return 0.0;
 
     // Simplified stable form avoids pow/log on tiny values
@@ -367,6 +368,6 @@ float sigma_tb(TimebaseConfig tb, float cutoff_freq_mhz, float cutoff_atten_db)
     float factor = (cutoff_atten_db * LN10) * 0.1; // (A/10)·ln(10) = -2·ln(a)
 
     // σ in texels
-    float sigma = sqrt(factor) / (2.0 * PI * f_c_px);
+    float sigma = sqrt(factor) / (2.0 * PI * f_c);
     return sigma;
 }

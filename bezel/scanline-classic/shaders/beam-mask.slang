@@ -48,6 +48,7 @@ layout(push_constant) uniform Push
     vec4 SourceSize;     // xy = input size in pixels
     vec4 OriginalSize;   // xy = input size in pixels
     vec4 OutputSize;     // xy = output size in pixels
+    vec4 FrameSize;
     uint FrameCount;
     float OriginalFPS;
     float OriginalAspect;
@@ -64,8 +65,6 @@ layout(push_constant) uniform Push
     float H_FREQ;
     float H_BLANK_FUZZ;
     float MASK_DIFFUSION;
-    float ASPECT;
-    float MASK_FRAME_DEBUG;
 } config;
 
 #define MASK_BYPASS config.MASK_BYPASS
@@ -81,11 +80,12 @@ layout(push_constant) uniform Push
 #define H_FREQ config.H_FREQ
 #define H_BLANK_FUZZ config.H_BLANK_FUZZ
 #define MASK_DIFFUSION config.MASK_DIFFUSION
-#define ASPECT config.ASPECT
-#define MASK_FRAME_DEBUG config.MASK_FRAME_DEBUG
 
 layout(std140, set = 0, binding = 0) uniform UBO {
     mat4 MVP;
+    float ASPECT;
+    float MASK_FRAME_DEBUG;
+
     // ---- Geometry/user viewport controls ----
     float USER_H_SIZE;            // % (50 = 1.0)
     float USER_V_SIZE;            // % (50 = 1.0)
@@ -111,6 +111,9 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 
     float DAR_SCALE;
 } global;
+
+#define ASPECT global.ASPECT
+#define MASK_FRAME_DEBUG global.MASK_FRAME_DEBUG
 
 // Geometry macro bindings
 #define USER_H_SIZE global.USER_H_SIZE
@@ -619,6 +622,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
+        config.FrameSize.xy,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -655,8 +659,14 @@ void main()
     float full_par = full_dar / max(full_sar, EPS);
 
     // When there's padding, adjust full aspect to account for it
-    float h_scale = floor(config.SourceSize.x / total_h_pixels);
-    float v_scale = floor(config.SourceSize.y / total_v_lines);
+    float h_scale1 = floor(config.FrameSize.x / total_h_pixels);
+    float v_scale1 = floor(config.FrameSize.y / total_v_lines);
+
+    float h_scale2 = floor(config.SourceSize.x / (total_h_pixels * h_scale1));
+    float v_scale2 = floor(config.SourceSize.y / (total_v_lines * v_scale1));
+
+    float h_scale = max(h_scale1 * h_scale2, 1.0);
+    float v_scale = max(v_scale1 * v_scale2, 1.0);
 
     // Calculate the active (non-padded) dimensions in the input texture
     float active_width = floor(total_h_pixels) * h_scale;

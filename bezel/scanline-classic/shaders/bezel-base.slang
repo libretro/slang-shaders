@@ -29,13 +29,12 @@
 layout(push_constant) uniform Push
 {
     vec4 OutputSize;
-    vec4 OriginalSize;
-    vec4 SourceSize;
     vec4 BORDERSize;
     float ASPECT;
     float VIEWPORT_H_POS;
     float VIEWPORT_V_POS;
     float BEZEL_BYPASS;
+    float BEZEL_ZOOM;
     float BEZEL_GAIN;
     float BEZEL_BIAS;
     float GLOW_BYPASS;
@@ -54,6 +53,7 @@ layout(push_constant) uniform Push
 #define VIEWPORT_V_POS config.VIEWPORT_V_POS
 
 #define BEZEL_BYPASS config.BEZEL_BYPASS
+#define BEZEL_ZOOM config.BEZEL_ZOOM
 #define BEZEL_GAIN config.BEZEL_GAIN
 #define BEZEL_BIAS config.BEZEL_BIAS
 
@@ -156,6 +156,9 @@ void main()
         final_border_size = vec2(corrected_size.x, corrected_size.x / border_dar);
         scale = corrected_size.xy / final_border_size;
     }
+
+    // Apply bezel zoom
+    scale /= (BEZEL_ZOOM / 100.0);
 
     vTexCoord = (tex - 0.5) * scale + 0.5;
 }

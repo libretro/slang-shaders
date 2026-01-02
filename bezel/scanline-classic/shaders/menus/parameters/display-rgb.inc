@@ -12,9 +12,9 @@
 #pragma parameter DISPLAY_GAIN_G "Drive G (dB)" 0.0 -30.0 30.0 0.1
 #pragma parameter DISPLAY_GAIN_B "Drive B (dB)" 0.0 -30.0 30.0 0.1
 
-#pragma parameter DISPLAY_BANDLIMIT_R "Bandwidth R (MHz)" 5.4 0.0 75.0 0.01
-#pragma parameter DISPLAY_BANDLIMIT_G "Bandwidth G (MHz)" 5.4 0.0 75.0 0.01
-#pragma parameter DISPLAY_BANDLIMIT_B "Bandwidth B (MHz)" 5.4 0.0 75.0 0.01
+#pragma parameter DISPLAY_BANDLIMIT_R "Bandwidth R (MHz)" 5.4 1.5 150.0 0.01
+#pragma parameter DISPLAY_BANDLIMIT_G "Bandwidth G (MHz)" 5.4 1.5 150.0 0.01
+#pragma parameter DISPLAY_BANDLIMIT_B "Bandwidth B (MHz)" 5.4 1.5 150.0 0.01
 
 #pragma parameter DISPLAY_CUTOFF_ATTEN_R "Cutoff attenuation R (dB)" 12.5 0.0 30.0 1.0
 #pragma parameter DISPLAY_CUTOFF_ATTEN_G "Cutoff attenuation G (dB)" 12.5 0.0 30.0 1.0

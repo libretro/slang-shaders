@@ -168,6 +168,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
+    vec4 FrameSize;
     uint FrameCount;
     float OriginalFPS;
     float V_FREQ_MODE;
@@ -188,7 +189,6 @@ layout(push_constant) uniform Push
     float DISPLAY_BANDWIDTH_C;
     float DISPLAY_CUTOFF_ATTEN_Y;
     float DISPLAY_CUTOFF_ATTEN_C;
-    float BW_MODE;
 } config;
 
 #define V_FREQ_MODE config.V_FREQ_MODE
@@ -210,19 +210,22 @@ layout(push_constant) uniform Push
 #define DISPLAY_BANDWIDTH_C config.DISPLAY_BANDWIDTH_C
 #define DISPLAY_CUTOFF_ATTEN_Y config.DISPLAY_CUTOFF_ATTEN_Y
 #define DISPLAY_CUTOFF_ATTEN_C config.DISPLAY_CUTOFF_ATTEN_C
-#define BW_MODE config.BW_MODE
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
     float BYPASS_SVIDEO;
     float SVIDEO_FILTER_BYPASS;
+    float BW_MODE;
     float ENCODER_SETUP;
     float DECODER_SETUP;
 } global;
 
 #define BYPASS_SVIDEO global.BYPASS_SVIDEO
 #define SVIDEO_FILTER_BYPASS global.SVIDEO_FILTER_BYPASS
+
+#define BW_MODE global.BW_MODE
+
 #define ENCODER_SETUP global.ENCODER_SETUP
 #define DECODER_SETUP global.DECODER_SETUP
 
@@ -246,6 +249,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
+        config.FrameSize.xy,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -340,9 +344,9 @@ void main()
         wsum  += vec3(wy0, wc0, wc0);
 
         // Symmetric lobes
-        // Limited to 32 iterations for faster shader compilation
+        // Limited to 16 iterations for faster shader compilation
         // Gaussian weights fall off rapidly, so early exit handles quality
-        for (int n = 1; n <= 20; ++n) {
+        for (int n = 1; n <= 16; ++n) {
             float nf = float(n);
             // Symmetric distances: right = n - Ax, left = n + Ax
             float wy_r = gaussian(nf - Ax, sigma.x);

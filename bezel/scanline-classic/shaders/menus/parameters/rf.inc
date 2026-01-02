@@ -4,8 +4,10 @@
 
 #pragma parameter RF_MODULATOR_HEADER " —— System: RF Modulator —— " 0.0 0.0 0.0 0.0
 
-#pragma parameter USB_BANDWIDTH "Video channel bandwidth (MHz)" 4.2 1.0 10.0 0.1
-#pragma parameter LSB_BANDWIDTH "Vestigial bandwidth (MHz)" 0.75 0.01 10.0 0.01
+#pragma parameter USB_BANDWIDTH "Video channel bandwidth (MHz)" 4.2 1.5 12.0 0.1
+#pragma parameter LSB_BANDWIDTH "Vestigial bandwidth (MHz)" 0.75 0.25 3.0 0.01
+#pragma parameter USB_ROLL_OFF "Video channel roll-off (MHz)" 0.55 0.05 3.0 0.05
+#pragma parameter LSB_ROLL_OFF "Vestigial roll-off (MHz)" 0.50 0.05 3.0 0.05
 
 #pragma parameter NOISE_MODE "Noise mode (fast, advanced)" 1.0 0.0 1.0 1.0
 #pragma parameter NOISE_AWGN_DB "AWGN level (dB)" -35.0 -96.0 48.0 1.0

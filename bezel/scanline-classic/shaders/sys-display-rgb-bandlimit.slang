@@ -46,6 +46,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
+    vec4 FrameSize;
     uint FrameCount;
     float OriginalFPS;
     float SYS_DISPLAY_RGB_BANDLIMIT_BYPASS;
@@ -66,7 +67,6 @@ layout(push_constant) uniform Push
     float DISPLAY_BANDLIMIT_G;
     float DISPLAY_BANDLIMIT_B;
     float USER_BLUE_ONLY;
-    float DISPLAY_RGB_AMP_BYPASS;
 } config;
 
 #define SYS_DISPLAY_RGB_BANDLIMIT_BYPASS config.SYS_DISPLAY_RGB_BANDLIMIT_BYPASS
@@ -91,11 +91,10 @@ layout(push_constant) uniform Push
 
 #define USER_BLUE_ONLY config.USER_BLUE_ONLY
 
-#define DISPLAY_RGB_AMP_BYPASS config.DISPLAY_RGB_AMP_BYPASS
-    
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
+    float DISPLAY_RGB_AMP_BYPASS;
     float DISPLAY_BIAS_R;
     float DISPLAY_BIAS_G;
     float DISPLAY_BIAS_B;
@@ -109,6 +108,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float DISPLAY_CUTOFF_ATTEN_G;
     float DISPLAY_CUTOFF_ATTEN_B;
 } global;
+
+#define DISPLAY_RGB_AMP_BYPASS global.DISPLAY_RGB_AMP_BYPASS
 
 #define DISPLAY_BIAS_R global.DISPLAY_BIAS_R
 #define DISPLAY_BIAS_G global.DISPLAY_BIAS_G
@@ -146,6 +147,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
+        config.FrameSize.xy,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,

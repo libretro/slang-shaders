@@ -233,6 +233,10 @@ These settings apply to the system, i.e. everything that happens before the sign
 
   * LSB_BANDWIDTH - Vestigial bandwidth (MHz): The lower sideband bandwidth of the RF signal
 
+  * USB_ROLL_OFF - Video channel roll-off (MHz): How much transition is allowed between the passband and stop band for the upper sideband RF signal
+
+  * LSB_ROLL_OFF - Vestigial roll-off (MHz): How much transition is allowed between the passband and stop band for the lower sideband RF signal; usually 0.75 MHz
+
   * NOISE_MODE - Noise mode (fast, advanced): Fast is AWGN only, advanced has more realistic effects at the expense of performance
 
   * NOISE_AWGN_DB - AWGN level (dB): Determines the overall noise level of the RF signal

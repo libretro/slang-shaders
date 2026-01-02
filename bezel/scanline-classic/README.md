@@ -13,7 +13,7 @@ https://github.com/anikom15/scanline-classic
 A general purpose RetroArch shader with an emphasis on realism while
 maintaining a high degree of flexibility and aesthetic quality. 
 
-Version 6.1.1
+Version 6.2
 
 README Edition 8
 

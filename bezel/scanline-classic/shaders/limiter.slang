@@ -57,9 +57,9 @@
 layout(push_constant) uniform Push
 {
     // Timing and source geometry (added for sharpness bandpass)
-    vec4 SourceSize;      // .xy size, .zw inv size
     vec4 OriginalSize;    // .xy size, .zw inv size
     vec4 OutputSize;
+    vec4 FrameSize;
     uint FrameCount;
     float OriginalFPS;    // Vertical frequency (Hz)
     float V_FREQ_MODE;
@@ -234,6 +234,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
+        config.FrameSize.xy,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,

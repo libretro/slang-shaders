@@ -32,7 +32,7 @@ vec3 bandlimit_convolve_gaussian_x(vec2 vTexCoord, vec4 OutputSize, sampler2D So
 
     const float THRESHOLD = 1.0 / 255.0;
 
-    for (int n = 1; n <= 16; ++n) {
+    for (int n = 1; n <= 8; ++n) {
         float nf = float(n);
 
         // Correct symmetric distances
