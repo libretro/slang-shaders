@@ -11,7 +11,7 @@
    | || | | (_| | | | \__ \ |_) | (_| | | |  __/ | | | (__| |_| |
    |_||_|  \__,_|_| |_|___/ .__/ \__,_|_|  \___|_| |_|\___|\__, |
                           |_|                              |___/
-    v1.0 by mattakins
+    v1.1 by mattakins
     Copyright (C) 2025 Matt Akins.
 
     Grid shaders look great on Game Boy Color games - except for one glaring issue.
@@ -25,7 +25,7 @@
 
 */
 
-#pragma parameter PT_ENABLE "=== Pixel Transparency v1.0 === (OFF/ON)" 1.0 0.0 1.0 1.0
+#pragma parameter PT_ENABLE "=== Pixel Transparency v1.1 === (OFF/ON)" 1.0 0.0 1.0 1.0
 #pragma parameter NOTE1 " *  Append to any LCD shader as last pass. Try with GBC & GBA." 0.0 0.0 1.0 1.0
 #pragma parameter NOTE2 " *  Turn ON Core > Color Correction & Interframe Blending" 0.0 0.0 1.0 1.0
 
@@ -40,6 +40,7 @@
 #pragma parameter PT_WHITE_BOOST "== 3. Boost white transparency == (OFF/ON)" 0.0 0.0 1.0 1.0
 #pragma parameter PT_WHITE_TRANSPARENCY "     ↳ Boost amount" 0.50 0.0 1.0 0.01
 
+#pragma parameter PT_BRIGHTNESS_GRID "== Grid reduces pixel transparency == (OFF/ON)" 1.0 0.0 1.0 1.0
 #pragma parameter PT_BRIGHTNESS_MODE "== Brightness mode == (0=Simple, 1=Perceptual)" 1.0 0.0 1.0 1.0
 
 #pragma parameter PT_DARK_FILTER_ENABLE "== Color harshness filter == (OFF/ON)" 0.0 0.0 1.0 1.0
@@ -56,6 +57,7 @@ layout(push_constant) uniform Push {
     vec4 SourceSize;
     vec4 OutputSize;
     float PT_ENABLE;
+    float PT_BRIGHTNESS_GRID;
     float PT_PIXEL_MODE;
     float PT_BRIGHTNESS_MODE;
     float PT_WHITE_BOOST;
@@ -67,9 +69,9 @@ layout(push_constant) uniform Push {
     float PT_DARK_FILTER_ENABLE;
     float PT_DARK_FILTER_LEVEL;
     float PT_SHADOW_ENABLE;
-    float PT_SHADOW_OPACITY;
     float PT_SHADOW_OFFSET_X;
     float PT_SHADOW_OFFSET_Y;
+    float PT_SHADOW_OPACITY;
     float PT_SHADOW_BLUR;
 } param;
 
@@ -182,17 +184,16 @@ float paperNoise(vec2 uv, float scale) {
 }
 
 vec3 generateProceduralBackground(vec2 uv) {
-    // Base gray matched to original paper texture (avg brightness 0.474)
-    // Grain intensity 0.0135 matches original texture range of 3 RGB values
-    const vec3 baseColor = vec3(0.474);
-    const float grainIntensity = 0.0135;
-    const float scale = 1.0;
+    // Procedural background parameters
+    const vec3 baseColor = vec3(0.4773);
+    const float grainIntensity = 0.065;
+    const float scale = 0.25;  // 128.0 / 512.0
 
     // Generate paper grain
     float grain = paperNoise(uv, scale);
 
     // Center the noise around 0 and apply intensity
-    float grainOffset = (grain - 0.5) * grainIntensity;
+    float grainOffset = (grain - 0.4375) * grainIntensity;  // 0.4375 = mean of 3-octave noise
 
     return baseColor + vec3(grainOffset);
 }
@@ -298,9 +299,13 @@ void main() {
     }
 
     // PIXEL MODE TOGGLE: Choose between different transparency modes
+    // Grid influence OFF: use original_pixel (unaffected by previous shader passes)
+    // Grid influence ON: use lcd_color.rgb (affected by previous shaders like lcd1x)
+    vec3 brightness_source = (param.PT_BRIGHTNESS_GRID > 0.5) ? lcd_color.rgb : original_pixel;
+
     if (param.PT_PIXEL_MODE > 0.5 && param.PT_PIXEL_MODE < 1.5) {
         // === MODE 1: BRIGHT PIXEL TRANSPARENCY (different formula) ===
-        float pixel_intensity = getBrightness(lcd_color.rgb);
+        float pixel_intensity = getBrightness(brightness_source);
         // Scale to match Mode 0/2 behavior: 0.20 BASE → 0.533 transparency
         float transparency = (param.PT_BASE_ALPHA * pixel_intensity) * 2.665;
 
@@ -314,7 +319,7 @@ void main() {
         bool should_apply = (param.PT_PIXEL_MODE < 0.5) ? current_is_white : true;
 
         if (should_apply) {
-            float pixel_intensity = getBrightness(lcd_color.rgb);
+            float pixel_intensity = getBrightness(brightness_source);
             float pixel_alpha = (pixel_intensity / 3.0) + param.PT_BASE_ALPHA;
 
             if (current_is_white && param.PT_WHITE_BOOST > 0.5) {
