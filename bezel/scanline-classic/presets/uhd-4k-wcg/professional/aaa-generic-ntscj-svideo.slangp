@@ -78,6 +78,8 @@ scale13 = 1.0
 textures = BORDER
 
 ENCODER_SETUP = 0.0
+H_FREQ_MODE = 1.0
+H_FREQ = 858.0
 DECODER_SETUP = 0.0
 COLORIMETRY_PRESET = 2.0
 BORDER = ..\..\..\share\bezel-trinitron.jpg

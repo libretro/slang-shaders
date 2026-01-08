@@ -1,3 +1,7 @@
+Version 6.2.1
+
+* Tweak generic timing to be more stable by using a division-based H-Freq
+
 Version 6.2
 
 * More realistic RF simulation
