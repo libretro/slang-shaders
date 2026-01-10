@@ -4,6 +4,7 @@
 // Screen parameters
 #pragma parameter SCREEN_ORIENTATION "·  Screen > Orientation  (0-Auto, 1-Horizontal, 2-Vertical)" 0.0 0.0 2.0 1.0
 #pragma parameter SCREEN_SCALE "   Screen > Scale  (-Down / 0-Auto / +Up)" 0.0 -2.0 2.0 0.05
+#pragma parameter SCREEN_FREQUENCY "   Screen > ⁴Frequence  (30Hz, 60Hz)" 60.0 30.0 60.0 30.0
 
 // Color parameters
 #pragma parameter COLOR_PROFILE "·  Color > Profile¹  (-NTSC .. +Trinitron)" 0.0 -1.0 1.0 0.1
@@ -23,7 +24,7 @@
 #pragma parameter BEAM_FILTER "   Scanlines > Beam Filter  (-Blocky .. +Blurry)" 0.0 -1.0 1.0 0.05
 #pragma parameter ANTI_RINGING "   Scanlines > Anti-Ringing  (0-None .. 1-Full)" 1.0 0.0 1.0 0.1
 #pragma parameter SCANLINES_COLOR_BURN "   Scanlines > Color Burn¹  (0-None .. 1-Full)" 1.0 0.0 1.0 0.25
-#pragma parameter SCANLINES_OFFSET "   Scanlines > Offset  (-with .. +without Jitter)" -0.25 -2.0 2.0 0.05
+#pragma parameter SCANLINES_OFFSET "   Scanlines > Offset⁴  (-with .. +without Jitter)" -0.25 -2.0 2.0 0.05
 
 // Mask parameters
 #pragma parameter MASK_INTENSITY "·  Mask > Intensity¹²³  (0-None .. 1-Full)" 0.5 0.0 1.0 0.05
@@ -49,7 +50,7 @@
 #pragma parameter NTSC_PROFILE "·  NTSC > Profile  (0-Off, 1-Separate Y/C, 2-Composite, 3-RF)" 0.0 0.0 3.0 1.0
 #pragma parameter NTSC_QUALITY "   NTSC > Chroma Phase  (2-Two Phase, 3-Three Phase)" 2.0 2.0 3.0 1.0
 #pragma parameter NTSC_SHIFT "   NTSC > Chroma Shift  (-left .. +right)" 0.0 -1.0 1.0 0.1
-#pragma parameter NTSC_JITTER "   NTSC > Jitter  (0-None .. 1-Full)" 1.0 0.0 2.0 0.1
+#pragma parameter NTSC_JITTER "   NTSC > Jitter⁴  (0-None .. 1-Full)" 1.0 0.0 2.0 0.1
 
 // CRT parameters
 #pragma parameter CRT_CURVATURE_AMOUNT "·  CRT > Curvature¹  (0-None .. 1-Full)" 0.0 0.0 1.0 0.05
@@ -61,10 +62,12 @@
 #pragma parameter INFO1 "¹ Reduces marked effects" 0.0 0.0 0.0 0.0
 #pragma parameter INFO2 "² Compensates brightness changes of marked effects" 0.0 0.0 0.0 0.0
 #pragma parameter INFO3 "³ Increases the black level of marked effects" 0.0 0.0 0.0 0.0
+#pragma parameter INFO4 "⁴ Affects frequency of marked effects" 0.0 0.0 0.0 0.0
 
 #define PARAM_GLOBAL_MASTER global.GLOBAL_MASTER
 #define PARAM_SCREEN_ORIENTATION global.SCREEN_ORIENTATION
 #define PARAM_SCREEN_SCALE global.SCREEN_SCALE
+#define PARAM_SCREEN_FREQUENCY global.SCREEN_FREQUENCY
 
 float mix_master(float value, float off_value, float min_value, float max_value)
 {
@@ -119,4 +122,4 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 #define PARAM_PHOSPHOR_AMOUNT mix_master(param.PHOSPHOR_AMOUNT, 0.0, 0.0, 1.0)
 #define PARAM_PHOSPHOR_DECAY param.PHOSPHOR_DECAY
 #define PARAM_HALATION_INTENSITY mix_master(param.HALATION_INTENSITY, 0.0, 0.0, 1.0)
-#define PARAM_HALATION_DIFFUSION param.HALATION_DIFFUSION
+#define PARAM_HALATION_DIFFUSION param.HALATION_DIFFUSION * 0.9 // change range from [0.0, 1.0] to [0.0, 0.9]

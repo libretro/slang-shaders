@@ -30,6 +30,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float GLOBAL_MASTER;
     float SCREEN_ORIENTATION;
     float SCREEN_SCALE;
+    float SCREEN_FREQUENCY;
 } global;
 
 layout (push_constant) uniform Push
@@ -107,8 +108,8 @@ void main()
         return;
     }
 
-    // used for chroma phase offset with 30fps
-    uint frame_count = GetUniformFrameCount(30);
+    // used for chroma phase offset with 30/60Hz
+    uint frame_count = GetUniformFrameCount(PARAM_SCREEN_FREQUENCY);
 
     vec3 yiq = pass1(Source, TexCoord, PixCoord, int(PARAM_NTSC_QUALITY), PARAM_NTSC_SHIFT, PARAM_NTSC_JITTER, MIX, frame_count);
 
