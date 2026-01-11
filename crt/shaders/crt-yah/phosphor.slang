@@ -18,11 +18,11 @@ layout(std140, set = 0, binding = 0) uniform UBO
     vec4 FinalViewportSize;
     uint FrameCount;
     uint FrameTimeDelta;
+    float GLOBAL_MASTER;
 } global;
 
 layout (push_constant) uniform Push
 {
-    float GLOBAL_MASTER;
     float PHOSPHOR_AMOUNT;
     float PHOSPHOR_DECAY;
 } param;

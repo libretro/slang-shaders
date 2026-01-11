@@ -1,7 +1,7 @@
 shaders = 8
 
 shader0 = "ntsc-pass1.slang"
-filter_linear0 = true // required: sample source linear (compensates artifacts)
+filter_linear0 = false // required: sample source nearest neighbor (avoids blurriness)
 float_framebuffer0 = true
 scale_type_x0 = source
 scale_type_y0 = source

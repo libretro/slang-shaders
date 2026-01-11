@@ -15,13 +15,14 @@ layout(std140, set = 0, binding = 0) uniform UBO
     vec4 FinalViewportSize;
     uint FrameCount;
     uint FrameTimeDelta;
+    float GLOBAL_MASTER;
+    float SCREEN_ORIENTATION;
+    float SCREEN_SCALE;
+    float SCREEN_FREQUENCY;
 } global;
 
 layout (push_constant) uniform Push
 {
-    float GLOBAL_MASTER;
-    float SCREEN_SCALE;
-    float SCREEN_ORIENTATION;
     float COLOR_BRIGHTNESS;
     float COLOR_COMPENSATION;
     float COLOR_SATURATION;

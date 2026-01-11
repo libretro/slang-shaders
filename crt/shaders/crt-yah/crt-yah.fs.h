@@ -245,8 +245,8 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple
     float scanlines_offset = PARAM_SCANLINES_OFFSET > 0.0
         // fixed offset
         ? PARAM_SCANLINES_OFFSET
-        // jitter offset each 2nd frame with 60fps
-        : mod(GetUniformFrameCount(60), 2) > 0.0
+        // jitter offset each 2nd frame with 30/60Hz
+        : mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 2) > 0.0
             ? 0.0
             : abs(PARAM_SCANLINES_OFFSET);
 
@@ -418,7 +418,7 @@ vec3 apply_noise(vec3 color, float color_luma, vec2 tex_coord)
     // scale noise based on mask's sub-pixel size
     pix_coord = floor(pix_coord / int(subpixel_size)) * int(subpixel_size);
 
-    // repeat every 20 frames with 12fps
+    // repeat every 20 frames with 12Hz
     float frame = mod(GetUniformFrameCount(12), 20);
     float noise = random(pix_coord * (frame + 1.0));
 
