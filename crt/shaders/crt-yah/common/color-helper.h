@@ -14,16 +14,6 @@ float max_color(vec3 color)
     return max(max(color.r, color.g), color.b);
 }
 
-// Applies a new scale to the given color.
-// @color - the color.
-// @scale - the new scale.
-vec3 apply_scale(vec3 color, float scale)
-{
-    vec3 normalized_color = color / (max_color(color) + EPSILON);
-    
-    return normalized_color * scale;
-}
-
 // Applies the contrast to the given color.
 // @color - the color.
 // @contrast - the contrast to apply.
@@ -32,22 +22,24 @@ vec3 apply_scale(vec3 color, float scale)
 //   >0.0 - increasing
 vec3 apply_contrast(vec3 color, float contrast)
 {
-    float linear = min(1.0, max_color(color));
+    float linear = clamp(max_color(color), 0.0, 1.0);
     
     float nonlinear = linear;
 
     // move range [0, 1] to [-1, 1]
-    nonlinear = 2.0 * nonlinear - 1.0;
+    nonlinear = (nonlinear * 2.0) - 1.0;
 
     // apply non-linear mapping
     nonlinear = sin(nonlinear * PI * 0.5);
 
     // move range [-1, 1] to [0, 1]
-    nonlinear = (nonlinear + 1.0) * 0.5;
+    nonlinear = (nonlinear + 1.0) * 0.5;   
 
-    return apply_scale(
-        color,
-        mix(linear, nonlinear, contrast));
+    float scale = mix(linear, nonlinear, contrast);
+
+    float factor = scale / (linear + EPSILON);
+
+    return color * factor;
 }
 
 // Applies the brightness to the given color.
@@ -72,18 +64,14 @@ vec3 apply_floor(vec3 color, float floor)
 // Applies the saturation to the given color.
 // @color - the color.
 // @saturation - the saturation to apply.
-//   <0.0 - decreasing
-//    0.0 - unchanged
-//   >0.0 - increasing
+//   <1.0 - decreasing
+//    1.0 - unchanged
+//   >1.0 - increasing
 vec3 apply_saturation(vec3 color, float saturation)
 {
     float luminance = get_luminance(color);
 
-    return saturation > 1.0
-        // increase
-        ? apply_scale(pow(color, vec3(saturation)), max_color(color))
-        // decrease
-        : mix(vec3(luminance), color, saturation);
+    return mix(vec3(luminance), color, saturation);
 }
 
 // Applies the temperature to the given color based on the given white point.

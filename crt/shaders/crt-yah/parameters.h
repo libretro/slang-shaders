@@ -9,9 +9,9 @@
 // Color parameters
 #pragma parameter COLOR_PROFILE "·  Color > Profile¹  (-NTSC .. +Trinitron)" 0.0 -1.0 1.0 0.1
 #pragma parameter COLOR_TEMPERATUE "   Color > Temperature¹  (-Colder .. +Warmer)" 0.0 -1.0 1.0 0.1
-#pragma parameter COLOR_SATURATION "   Color > Saturation¹  (0-Low .. 2-High)" 1.15 0.0 2.0 0.05
+#pragma parameter COLOR_SATURATION "   Color > Saturation¹  (0-Low .. 2-High)" 1.1 0.0 2.0 0.05
 #pragma parameter COLOR_CONTRAST "   Color > Contrast¹  (-Lower .. +Higher)" 0.1 -1.0 1.0 0.05
-#pragma parameter COLOR_BRIGHTNESS "   Color > Brightnes¹  (-Darken .. +Lighten)" 0.25 -1.0 2.0 0.05
+#pragma parameter COLOR_BRIGHTNESS "   Color > Brightnes¹  (-Darken .. +Lighten)" 0.30 -1.0 2.0 0.05
 #pragma parameter COLOR_OVERFLOW "   Color > Brightnes Overflow¹  (0-None .. 1-Full / 2-More)" 1.0 0.0 2.0 0.25
 #pragma parameter COLOR_COMPENSATION "   Color > ²Brightnes Compensation  (0-Off, 1-On)" 1.0 0.0 1.0 1.0
 #pragma parameter COLOR_BLACK_LIGHT "   Color > ³Black Lightening (0-None .. 1-Full / 2-More)" 0.5 0.0 2.0 0.1
@@ -28,7 +28,7 @@
 
 // Mask parameters
 #pragma parameter MASK_INTENSITY "·  Mask > Intensity¹²³  (0-None .. 1-Full)" 0.5 0.0 1.0 0.05
-#pragma parameter MASK_BLEND "   Mask > Blend²  (0-Multiplicative .. 1-Additive)" 0.5 0.0 1.0 0.05
+#pragma parameter MASK_BLEND "   Mask > Blend²  (0-Multiplicative .. 1-Additive)" 0.25 0.0 1.0 0.05
 #pragma parameter MASK_TYPE "   Mask > Type²  (1-Aperture, 2-Slot, 3-Shadow)" 1.0 1.0 3.0 1.0
 #pragma parameter MASK_SUBPIXEL "   Mask > Sub-Pixel²  (1-BY, 2-MG, 3-MGK, 4-RGB, 5-RGBK)" 4.0 1.0 5.0 1.0
 #pragma parameter MASK_COLOR_BLEED "   Mask > Color Bleed¹  (0-None .. 1-Full)" 0.25 0.0 1.0 0.25
