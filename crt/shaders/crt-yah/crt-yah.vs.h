@@ -79,15 +79,15 @@ float get_brightness_compensation()
     // mask sub-pixel
     float subpixel_offset =
         // white, black
-        PARAM_MASK_SUBPIXEL == 1 ? mix(-1.2, -0.3, mask_blend) :
+        PARAM_MASK_SUBPIXEL == 1 ? mix(-1.0, -0.25, mask_blend) :
         // green, magenta
-        PARAM_MASK_SUBPIXEL == 2 ? mix(-1.2, -0.3, mask_blend) :
+        PARAM_MASK_SUBPIXEL == 2 ? mix(-1.0, -0.25, mask_blend) :
         // green, magenta, black
-        PARAM_MASK_SUBPIXEL == 3 ? 0.0 :
+        PARAM_MASK_SUBPIXEL == 3 ? mix(-0.4, -0.1, mask_blend) :
         // red, green, blue
         PARAM_MASK_SUBPIXEL == 4 ? 0.0 :
         // red, green, blue, black
-        PARAM_MASK_SUBPIXEL == 5 ? mix(1.2, 0.3, mask_blend) : 0.0;
+        PARAM_MASK_SUBPIXEL == 5 ? mix(0.6, 0.15, mask_blend) : 0.0;
 
     // mask type
     float type_offset =
