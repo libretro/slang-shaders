@@ -34,6 +34,7 @@ layout (push_constant) uniform Push
 {
     float NTSC_PROFILE;
     float NTSC_QUALITY;
+    float NTSC_SCALE;
 } param;
 
 #include "parameters.h"
@@ -52,7 +53,7 @@ void main()
     TexCoord = Coord;
 
     float screen_orientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
-    float screen_scale = 1.0 / get_multiple(global.OriginalSize.xy, screen_orientation, -PARAM_SCREEN_SCALE);
+    float screen_scale = 1.0 / get_multiple(global.OriginalSize.xy, screen_orientation, -(PARAM_SCREEN_SCALE + PARAM_NTSC_SCALE));
 
     ScanTexelSize = int(screen_orientation) == 0
         ? vec2(global.SourceSize.z / screen_scale, 0.0)

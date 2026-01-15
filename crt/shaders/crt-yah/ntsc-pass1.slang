@@ -37,6 +37,7 @@ layout (push_constant) uniform Push
 {
     float NTSC_PROFILE;
     float NTSC_QUALITY;
+    float NTSC_SCALE;
     float NTSC_SHIFT;
     float NTSC_JITTER;
 } param;
@@ -58,7 +59,7 @@ void main()
 	gl_Position = global.MVP * Position;
 
     float screen_orientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
-    float screen_scale = 1.0 / get_multiple(global.OriginalSize.xy, screen_orientation, -PARAM_SCREEN_SCALE);
+    float screen_scale = 1.0 / get_multiple(global.OriginalSize.xy, screen_orientation, -(PARAM_SCREEN_SCALE + PARAM_NTSC_SCALE));
 
     TexCoord = Coord;
     PixCoord = TexCoord * global.OutputSize.xy;

@@ -50,6 +50,7 @@
 #pragma parameter NTSC_PROFILE "·  NTSC > Profile  (0-Off, 1-Separate Y/C, 2-Composite, 3-RF)" 0.0 0.0 3.0 1.0
 #pragma parameter NTSC_QUALITY "   NTSC > Chroma Phase  (2-Two Phase, 3-Three Phase)" 2.0 2.0 3.0 1.0
 #pragma parameter NTSC_SHIFT "   NTSC > Chroma Shift  (-left .. +right)" 0.0 -1.0 1.0 0.1
+#pragma parameter NTSC_SCALE "   NTSC > Scale  (-Down / 0-None / +Up)" 0.0 -0.5 0.5 0.05
 #pragma parameter NTSC_JITTER "   NTSC > Jitter⁴  (0-None .. 1-Full)" 1.0 0.0 2.0 0.1
 
 // CRT parameters
@@ -117,6 +118,7 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 #define PARAM_NTSC_JITTER param.NTSC_JITTER
 #define PARAM_NTSC_SHIFT param.NTSC_SHIFT
 #define PARAM_NTSC_QUALITY param.NTSC_QUALITY
+#define PARAM_NTSC_SCALE param.NTSC_SCALE
 #define PARAM_DECONVERGE_LINEAR mix_master(param.DECONVERGE_LINEAR, 0.0, -2.0, 2.0)
 #define PARAM_DECONVERGE_RADIAL mix_master(param.DECONVERGE_RADIAL, 0.0, -2.0, 2.0)
 #define PARAM_PHOSPHOR_AMOUNT mix_master(param.PHOSPHOR_AMOUNT, 0.0, 0.0, 1.0)
