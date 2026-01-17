@@ -144,10 +144,10 @@ vec4 get_bg_color() {
 #define shadow_offset vec2(registers.shadow_offset_x * texel.x * shadow_scale_factor, registers.shadow_offset_y * texel.y * shadow_scale_factor)    
 
 // Offset for the entire screen
-// Only apply -1 offset in integer scaling modes (not fullscreen)
+// Apply -1 offset to all modes
 #define screen_offset vec2( \
-    (registers.integer_mode > 0.5 ? (registers.screen_offset_x - 1.0) : registers.screen_offset_x) * texel.x, \
-    (registers.integer_mode > 0.5 ? (registers.screen_offset_y - 1.0) : registers.screen_offset_y) * texel.y \
+    (registers.screen_offset_x - 1.0) * texel.x, \
+    (registers.screen_offset_y - 1.0) * texel.y \
 )
 
   /////////////////////////////////////////////////////////////////////////
