@@ -15,26 +15,37 @@ const vec3 Magenta = vec3(1.0, 0.0, 1.0);
 const vec3 Yellow = vec3(1.0, 1.0, 0.0);
 const vec3 Cyan = vec3(0.0, 1.0, 1.0);
 
-// Returns an offset to shift the given pixel coordinate by the amount of x for every second y-block.
+// Returns an offset to shift the given pixel coordinate by x-amount for every second y-block.
 // @pixCoord - the pixel coordinate
-// @x - the amount to shift the x-coordinate 
-// @y - the size of a y-block
-vec2 shift_x_every_y(vec2 pixCoord, float x, float y)
+// @amount - the amount to shift the x-coordinate 
+// @size - the size of a y-block
+vec2 shift_x_every_y(vec2 pixCoord, float amount, float size)
 {
     return vec2(
-        mix(0.0, x, floor(mod(pixCoord.y / y, 2.0))),
+        mix(0.0, amount, floor(mod(pixCoord.y / size, 2.0))),
         0.0);
 }
 
-// Returns an offset to shift the given pixel coordinate by the amount of y for every second x-block.
+// Returns an offset to shift the given pixel coordinate by y-amount for every second x-block.
 // @pixCoord - the pixel coordinate
-// @y - the amount to shift the y-coordinate 
-// @x - the size of a x-block
-vec2 shift_y_every_x(vec2 pixCoord, float y, float x)
+// @amount - the amount to shift the y-coordinate 
+// @size - the size of a x-block
+vec2 shift_y_every_x(vec2 pixCoord, float amount, float size)
 {
     return vec2(
         0.0,
-        mix(0.0, y, floor(mod(pixCoord.x / x, 2.0))));
+        mix(0.0, amount, floor(mod(pixCoord.x / size, 2.0))));
+}
+
+// Returns an offset to shift the given pixel coordinate by x-amount for each x-block.
+// @pixCoord - the pixel coordinate
+// @amount - the amount to shift the x-coordinate 
+// @size - the size of a x-block
+vec2 shift_x_each_x(vec2 pixCoord, float amount, float size)
+{
+    return vec2(
+        mix(0.0, amount, floor(pixCoord.x / size)),
+        0.0);
 }
 
 int get_index(float pixCoord, int count)
@@ -89,9 +100,9 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
 
     pixCoord /= size;
 
-    vec3 c1 = color_swap ? Red : Blue;
+    vec3 c1 = color_swap ? Blue : Red;
     vec3 c2 = Green;
-    vec3 c3 = color_swap ? Blue : Red;
+    vec3 c3 = color_swap ? Red : Blue;
     vec3 c4 = Black;
 
     if (subpixel_type == 1)
@@ -109,6 +120,32 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
         c1 = color_swap ? Yellow : Magenta;
         c2 = color_swap ? Blue : Green;
         c3 = Black;
+    }
+
+    // Aperture-grille
+    // Slot-mask
+    if (mask_type == 1
+        || mask_type == 2)
+    {
+        // change gap (black) between color-blocks (e.g. RGB) to "half" a sub-pixel
+        float gap = floor(0.5 * size) / size;
+
+        // green, magenta, black
+        if (subpixel_type == 3)
+        {
+            // for size larger 1
+            pixCoord += size > 1
+                ? shift_x_each_x(pixCoord, gap, 3.0 - gap)
+                : vec2(0.0, 0.0);
+        }
+        // red, green, blue, black
+        else if (subpixel_type == 5)
+        {
+            // for size larger 1
+            pixCoord += size > 1
+                ? shift_x_each_x(pixCoord, gap, 4.0 - gap)
+                : vec2(0.0, 0.0);
+        }
     }
 
     // Aperture-grille
@@ -231,9 +268,9 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
     vec2 bounds = vec2(1.0, 1.0);
     vec2 scale = vec2(1.0, 1.0);
 
-    vec3 c1 = color_swap ? Red : Blue;
+    vec3 c1 = color_swap ? Blue : Red;
     vec3 c2 = Green;
-    vec3 c3 = color_swap ? Blue : Red;
+    vec3 c3 = color_swap ? Red : Blue;
     vec3 c4 = Black;
 
     if (subpixel_type == 1)
@@ -251,6 +288,32 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
         c1 = color_swap ? Yellow : Magenta;
         c2 = color_swap ? Blue : Green;
         c3 = Black;
+    }
+
+    // Aperture-grille
+    // Slot-mask
+    if (mask_type == 1
+        || mask_type == 2)
+    {
+        // change gap (black) between color-blocks (e.g. RGB) to "half" a sub-pixel
+        float gap = floor(0.5 * size) / size;
+
+        // green, magenta, black
+        if (subpixel_type == 3)
+        {
+            // for size larger 1
+            pixCoord += size > 1
+                ? shift_x_each_x(pixCoord, gap, 3.0 - gap)
+                : vec2(0.0, 0.0);
+        }
+        // red, green, blue, black
+        else if (subpixel_type == 5)
+        {
+            // for size larger 1
+            pixCoord += size > 1
+                ? shift_x_each_x(pixCoord, gap, 4.0 - gap)
+                : vec2(0.0, 0.0);
+        }
     }
 
     // Aperture-grille

@@ -9,9 +9,9 @@
 // Color parameters
 #pragma parameter COLOR_PROFILE "·  Color > Profile¹  (-NTSC .. +Trinitron)" 0.0 -1.0 1.0 0.1
 #pragma parameter COLOR_TEMPERATUE "   Color > Temperature¹  (-Colder .. +Warmer)" 0.0 -1.0 1.0 0.1
-#pragma parameter COLOR_SATURATION "   Color > Saturation¹  (0-Low .. 2-High)" 1.15 0.0 2.0 0.05
+#pragma parameter COLOR_SATURATION "   Color > Saturation¹  (0-Low .. 2-High)" 1.1 0.0 2.0 0.05
 #pragma parameter COLOR_CONTRAST "   Color > Contrast¹  (-Lower .. +Higher)" 0.1 -1.0 1.0 0.05
-#pragma parameter COLOR_BRIGHTNESS "   Color > Brightnes¹  (-Darken .. +Lighten)" 0.25 -1.0 2.0 0.05
+#pragma parameter COLOR_BRIGHTNESS "   Color > Brightnes¹  (-Darken .. +Lighten)" 0.30 -1.0 2.0 0.05
 #pragma parameter COLOR_OVERFLOW "   Color > Brightnes Overflow¹  (0-None .. 1-Full / 2-More)" 1.0 0.0 2.0 0.25
 #pragma parameter COLOR_COMPENSATION "   Color > ²Brightnes Compensation  (0-Off, 1-On)" 1.0 0.0 1.0 1.0
 #pragma parameter COLOR_BLACK_LIGHT "   Color > ³Black Lightening (0-None .. 1-Full / 2-More)" 0.5 0.0 2.0 0.1
@@ -28,9 +28,9 @@
 
 // Mask parameters
 #pragma parameter MASK_INTENSITY "·  Mask > Intensity¹²³  (0-None .. 1-Full)" 0.5 0.0 1.0 0.05
-#pragma parameter MASK_BLEND "   Mask > Blend²  (0-Multiplicative .. 1-Additive)" 0.5 0.0 1.0 0.05
+#pragma parameter MASK_BLEND "   Mask > Blend²  (0-Multiplicative .. 1-Additive)" 0.25 0.0 1.0 0.05
 #pragma parameter MASK_TYPE "   Mask > Type²  (1-Aperture, 2-Slot, 3-Shadow)" 1.0 1.0 3.0 1.0
-#pragma parameter MASK_SUBPIXEL "   Mask > Sub-Pixel²  (1-BY, 2-MG, 3-MGK, 4-RGB, 5-RGBK)" 4.0 1.0 5.0 1.0
+#pragma parameter MASK_SUBPIXEL "   Mask > Sub-Pixel²  (1-BY, 2,3-MG/x, 4,5-RGB/x)" 4.0 1.0 5.0 1.0
 #pragma parameter MASK_COLOR_BLEED "   Mask > Color Bleed¹  (0-None .. 1-Full)" 0.25 0.0 1.0 0.25
 #pragma parameter MASK_SIZE "   Mask > Size  (-Down / 0-Auto / +Up)" 0.0 -2.0 2.0 1.0
 
@@ -50,6 +50,7 @@
 #pragma parameter NTSC_PROFILE "·  NTSC > Profile  (0-Off, 1-Separate Y/C, 2-Composite, 3-RF)" 0.0 0.0 3.0 1.0
 #pragma parameter NTSC_QUALITY "   NTSC > Chroma Phase  (2-Two Phase, 3-Three Phase)" 2.0 2.0 3.0 1.0
 #pragma parameter NTSC_SHIFT "   NTSC > Chroma Shift  (-left .. +right)" 0.0 -1.0 1.0 0.1
+#pragma parameter NTSC_SCALE "   NTSC > Scale  (-Down / 0-None / +Up)" 0.0 -0.5 0.5 0.05
 #pragma parameter NTSC_JITTER "   NTSC > Jitter⁴  (0-None .. 1-Full)" 1.0 0.0 2.0 0.1
 
 // CRT parameters
@@ -117,6 +118,7 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 #define PARAM_NTSC_JITTER param.NTSC_JITTER
 #define PARAM_NTSC_SHIFT param.NTSC_SHIFT
 #define PARAM_NTSC_QUALITY param.NTSC_QUALITY
+#define PARAM_NTSC_SCALE param.NTSC_SCALE
 #define PARAM_DECONVERGE_LINEAR mix_master(param.DECONVERGE_LINEAR, 0.0, -2.0, 2.0)
 #define PARAM_DECONVERGE_RADIAL mix_master(param.DECONVERGE_RADIAL, 0.0, -2.0, 2.0)
 #define PARAM_PHOSPHOR_AMOUNT mix_master(param.PHOSPHOR_AMOUNT, 0.0, 0.0, 1.0)
