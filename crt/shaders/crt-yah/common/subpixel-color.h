@@ -123,6 +123,32 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
     }
 
     // Aperture-grille
+    // Slot-mask
+    if (mask_type == 1
+        || mask_type == 2)
+    {
+        // change gap (black) between color-blocks (e.g. RGB) to "half" a sub-pixel
+        float gap = floor(0.5 * size) / size;
+
+        // green, magenta, black
+        if (subpixel_type == 3)
+        {
+            // for size larger 1
+            pixCoord += size > 1
+                ? shift_x_each_x(pixCoord, gap, 3.0 - gap)
+                : vec2(0.0, 0.0);
+        }
+        // red, green, blue, black
+        else if (subpixel_type == 5)
+        {
+            // for size larger 1
+            pixCoord += size > 1
+                ? shift_x_each_x(pixCoord, gap, 4.0 - gap)
+                : vec2(0.0, 0.0);
+        }
+    }
+
+    // Aperture-grille
     if (mask_type == 1)
     {
         // white, black
@@ -269,8 +295,8 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
     if (mask_type == 1
         || mask_type == 2)
     {
-        // set gap (black) between color-blocks (e.g. RGB) to half a pixel
-        float gap = 0.5;
+        // change gap (black) between color-blocks (e.g. RGB) to "half" a sub-pixel
+        float gap = floor(0.5 * size) / size;
 
         // green, magenta, black
         if (subpixel_type == 3)
@@ -283,7 +309,7 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
         // red, green, blue, black
         else if (subpixel_type == 5)
         {
-            // for size larger 1    
+            // for size larger 1
             pixCoord += size > 1
                 ? shift_x_each_x(pixCoord, gap, 4.0 - gap)
                 : vec2(0.0, 0.0);
