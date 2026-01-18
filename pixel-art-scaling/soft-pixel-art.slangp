@@ -5,12 +5,12 @@ filter_linear0 = false
 scale_type0 = source
 scale0 = 4.0
 
-shader1 = ../interpolation/shaders/b-spline-x.slang
+shader1 = ../interpolation/shaders/bicubic/b-spline-x.slang
 filter_linear1 = false
 scale_type_x1 = viewport
 scale_type_y1 = source
 scale1 = 1.0
 
-shader2 = ../interpolation/shaders/b-spline-y.slang
+shader2 = ../interpolation/shaders/bicubic/b-spline-y.slang
 filter_linear2 = false
 scale_type2 = viewport
