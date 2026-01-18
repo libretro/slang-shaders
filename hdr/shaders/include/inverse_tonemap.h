@@ -1,6 +1,24 @@
 
-#define kMaxNitsFor2084     10000.0f
 #define kEpsilon            0.0001f
+
+#ifdef SONY_MEGATRON_VERSION_2
+
+vec3 InverseTonemap(const vec3 sdr_linear, const float max_nits, const float paper_white_nits)
+{
+   const float input_val = max(sdr_linear.r, max(sdr_linear.g, sdr_linear.b));
+
+   if (input_val < kEpsilon) return sdr_linear;
+
+   const float peak_ratio = max_nits / paper_white_nits;
+
+   const float numerator = input_val;
+   const float denominator = 1.0 - input_val * (1.0 - (1.0 / peak_ratio));
+   const float tonemapped_val = numerator / max(denominator, kEpsilon);
+
+   return sdr_linear * (tonemapped_val / input_val);
+}
+
+#else // !SONY_MEGATRON_VERSION_2
 
 vec3 InverseTonemap(const vec3 sdr_linear, const float max_nits, const float paper_white_nits)
 {
@@ -19,3 +37,5 @@ vec3 InverseTonemap(const vec3 sdr_linear, const float max_nits, const float pap
 
    return hdr;
 }
+
+#endif // SONY_MEGATRON_VERSION_2
