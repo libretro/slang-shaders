@@ -14,6 +14,23 @@ const mat3 kExpanded709_to_2020 = mat3 (
 
 const mat3 k2020Gamuts[2] = { k709_to_2020, kExpanded709_to_2020 };
 
+#ifdef SONY_MEGATRON_VERSION_2
+
+float LinearToST2084_1(const float channel)
+{
+   float ST2084 = pow((0.8359375f + 18.8515625f * pow(channel, 0.1593017578f)) / (1.0f + 18.6875f * pow(channel, 0.1593017578f)), 78.84375f);
+   return ST2084;  /* Don't clamp between [0..1], so we can still perform operations on scene values higher than 10,000 nits */
+}
+
+vec3 LinearToST2084(const vec3 colour)
+{
+	const vec3 positive = max(colour, vec3(0.0f));
+	
+	return vec3(LinearToST2084_1(positive.r), LinearToST2084_1(positive.g), LinearToST2084_1(positive.b));
+}
+
+#else // !SONY_MEGATRON_VERSION_2
+
 float LinearToST2084_1(const float channel)
 {
    float ST2084 = pow((0.8359375f + 18.8515625f * pow(abs(channel), 0.1593017578f)) / (1.0f + 18.6875f * pow(abs(channel), 0.1593017578f)), 78.84375f);
@@ -24,6 +41,8 @@ vec3 LinearToST2084(const vec3 colour)
 {
 	return vec3(LinearToST2084_1(colour.r), LinearToST2084_1(colour.g), LinearToST2084_1(colour.b));
 }
+
+#endif // SONY_MEGATRON_VERSION_2
 
 /* END Converted from (Copyright (c) Microsoft Corporation - Licensed under the MIT License.)  https://github.com/microsoft/Xbox-ATG-Samples/tree/master/Kits/ATGTK/HDR */
 
