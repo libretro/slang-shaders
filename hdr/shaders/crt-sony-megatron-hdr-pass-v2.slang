@@ -80,30 +80,12 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
-   vec3 source = COMPAT_TEXTURE(Source, vTexCoord).rgb;
-
-   vec3 hdr_colour;
-   
-   if(HCRT_HDR < 1.0f)
-   {
-      hdr_colour = source;
-   }
-   else
-   {
-      hdr_colour = InverseTonemap(source, HCRT_MAX_NITS, HCRT_PAPER_WHITE_NITS);
-   }
-
-   vec3 transformed_colour;
+   vec3 hdr_colour = COMPAT_TEXTURE(Source, vTexCoord).rgb;
 
    if(HCRT_HDR >= 1.0f)
    {
-      const vec3 rec2020  = hdr_colour * k2020Gamuts[uint(HCRT_EXPAND_GAMUT)];
-      transformed_colour  = rec2020 * (HCRT_PAPER_WHITE_NITS / kMaxNitsFor2084);
-   }
-   else
-   {      
-      transformed_colour = hdr_colour;
+      hdr_colour = InverseTonemap(hdr_colour, HCRT_MAX_NITS, HCRT_PAPER_WHITE_NITS);
    }
 
-   FragColor = vec4(transformed_colour, 1.0);
+   FragColor = vec4(hdr_colour, 1.0);
 }
