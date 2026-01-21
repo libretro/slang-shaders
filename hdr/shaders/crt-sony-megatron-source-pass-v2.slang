@@ -95,23 +95,5 @@ void main()
 
    const vec3 colour   = ColourGrade(source);
 
-   vec3 transformed_colour;
-
-   if(HCRT_HDR < 1.0f)
-   {
-      if(HCRT_OUTPUT_COLOUR_SPACE == 2.0f)
-      {
-         transformed_colour = (colour * k709_to_XYZ) * kXYZ_to_DCIP3; 
-      }
-      else
-      {
-         transformed_colour = colour;
-      }
-   }
-   else
-   {
-      transformed_colour = colour;
-   }
-
-   FragColor = vec4(transformed_colour, 1.0);
+   FragColor = vec4(colour, 1.0);
 }
