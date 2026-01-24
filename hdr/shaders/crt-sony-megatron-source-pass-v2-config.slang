@@ -1,18 +1,16 @@
 #version 450
 
+#define SONY_MEGATRON_VERSION_2
+
 #pragma format R16G16B16A16_SFLOAT
 
 layout(push_constant) uniform Push
 {
-   float hcrt_hdr;
    float hcrt_colour_space;
-   float hcrt_max_nits;
-   float hcrt_paper_white_nits;
    float hcrt_lcd_resolution;
    float hcrt_lcd_subpixel;
    float hcrt_colour_system;
    float hcrt_phosphor_set;
-   float hcrt_expand_gamut;
    float hcrt_white_temperature_D65;
    float hcrt_white_temperature_D93;
    float hcrt_brightness;
@@ -30,11 +28,12 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
+   float EnableHDR;
 } global;
 
-#include "include/parameters.h"
+#include "include/parameters_v2_config.h"
 
-#define HCRT_HDR                            params.hcrt_hdr
+#define HCRT_HDR                            global.EnableHDR
 #define HCRT_OUTPUT_COLOUR_SPACE            params.hcrt_colour_space
 #define HCRT_CRT_COLOUR_SYSTEM              params.hcrt_colour_system
 #define HCRT_CRT_PHOSPHOR_SET               params.hcrt_phosphor_set
@@ -47,4 +46,4 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define HCRT_GAMMA_CUTOFF                   params.hcrt_gamma_cutoff
 #define HCRT_COLOUR_ACCURATE                params.hcrt_colour_accurate
 
-#include "include/sdr_pass_v1.h"
+#include "include/sdr_pass_v2.h"
