@@ -14,20 +14,26 @@ Originally part of the crt\crt-sony-pvm-4k-hdr.slangp but can be used for any sh
 
 #include "include\inverse_tonemap.h"
 
+layout(push_constant) uniform Push
+{
+	vec4 SourceSize;
+	vec4 OriginalSize;
+	vec4 OutputSize;
+	uint FrameCount;
+   float PaperWhiteNits;
+   float MaxNits;
+   float DisplayGamma;
+} params;
+
+#pragma parameter PaperWhiteNits    "Paper White Luminance" 200.0    0.0 10000.0 10.0
+#pragma parameter MaxNits           "Peak Luminance"        1000.0   0.0 10000.0 10.0
+#pragma parameter DisplayGamma      "Display Gamma"         2.2      0.0 5.0     0.1
+
 layout(std140, set = 0, binding = 0) uniform UBO
 {
 	mat4 MVP;
 	float EnableHDR;
-	float PaperWhiteNits;
-	float MaxNits;
 } global;
-
-layout(push_constant) uniform Push
-{
-   float DisplayGamma;
-} params;
-
-#pragma parameter DisplayGamma      "Display Gamma"         2.2      0.0 5.0     0.1
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -53,7 +59,7 @@ void main()
 
    if(global.EnableHDR >= 1.0f)
    {
-      FragColor = vec4(InverseTonemap(sdr, global.MaxNits, global.PaperWhiteNits), source.a); 
+      FragColor = vec4(InverseTonemap(sdr, params.MaxNits, params.PaperWhiteNits), source.a); 
    }
    else
    {
