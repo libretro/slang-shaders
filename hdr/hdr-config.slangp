@@ -3,10 +3,9 @@ feedback_pass = "0"
 
 shader0 = "shaders/hdr_v2_config.slang"
 filter_linear0 = "false"
-scale_type0 = "source"
 wrap_mode0 = "clamp_to_border"
 mipmap_input0 = "false"
 alias0 = ""
-float_framebuffer0 = "true"
+float_framebuffer0 = "false"
 srgb_framebuffer0 = "false"
 
