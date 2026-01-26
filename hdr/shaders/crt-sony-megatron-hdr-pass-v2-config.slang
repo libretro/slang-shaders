@@ -24,7 +24,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #include "include/parameters_v2_config.h"
 
-#define HCRT_HDR                            gloabl.EnableHDR
+#define HCRT_HDR                            global.EnableHDR
 #define HCRT_MAX_NITS                       params.hcrt_max_nits
 #define HCRT_PAPER_WHITE_NITS               params.hcrt_paper_white_nits
 #define HCRT_EXPAND_GAMUT                   params.hcrt_expand_gamut

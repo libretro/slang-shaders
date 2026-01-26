@@ -51,7 +51,7 @@ void main()
 {
    vec4 hdr_linear = texture(Source, vTexCoord);
    
-   if(gloabl.EnableHDR >= 1.0f)
+   if(global.EnableHDR >= 1.0f)
    {
       FragColor = vec4(Hdr10(hdr_linear.rgb, params.PaperWhiteNits, params.ColourSpace, params.ExpandGamut), hdr_linear.a); 
    }
