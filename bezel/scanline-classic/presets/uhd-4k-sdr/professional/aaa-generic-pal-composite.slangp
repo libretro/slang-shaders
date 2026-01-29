@@ -33,13 +33,13 @@ scale4 = 1.0
 shader5 = ..\..\..\shaders\composite-mod.slang
 filter_linear5 = false
 scale_type5 = source
-scale5 = 1.0
+scale_x5 = 2.0
+scale_y5 = 1.0
 
 shader6 = ..\..\..\shaders\composite-prefilter.slang
 filter_linear6 = false
 scale_type6 = source
-scale_x6 = 2.0
-scale_y6 = 1.0
+scale6 = 1.0
 
 shader7 = ..\..\..\shaders\composite-demod.slang
 filter_linear7 = false
@@ -93,7 +93,7 @@ PAL = 1.0
 H_FREQ_MODE = 1.0
 H_FREQ = 864.0
 DECODER_SETUP = 0.0
-DECODER_TYPE = 2.0
+DECODER_TYPE = 1.0
 BANDPASS_ATTEN_DB = 3.0
 BANDPASS_WIDTH = 1.3
 COLORIMETRY_PRESET = 3.0

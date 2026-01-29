@@ -77,14 +77,14 @@ layout(std140, set = 0, binding = 0) uniform UBO
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out TimebaseConfig tb;
+layout(location = 1) out CarrierPhaseConfig carrier;
 
 void main()
 {
     gl_Position = global.MVP * Position;
     vTexCoord = TexCoord;
 
-    tb = compute_timebase(
+    TimebaseConfig tb = compute_timebase(
         config.FrameCount,
         vTexCoord,
         config.OriginalSize.xy,
@@ -101,11 +101,12 @@ void main()
         V_FREQ,
         H_BLANK_FUZZ,
         SHORTEN_ODD_FIELD_TIME);
+    carrier = extract_carrier_phase(tb);
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in TimebaseConfig tb;
+layout(location = 1) in CarrierPhaseConfig carrier;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -117,7 +118,7 @@ void main()
     }
 
     vec2 UV = vTexCoord * config.OutputSize.xy;
-    float line = floor(UV.y) / tb.pixels_per_line;
+    float line = floor(UV.y) / carrier.pixels_per_line;
     float baseIndex = floor(UV.x);
     float baseCenter = baseIndex + 0.5;
     vec2 Tex = vec2(
@@ -125,8 +126,8 @@ void main()
         (floor(UV.y) + 0.5) * config.OutputSize.w);
 
     vec3 pixel0 = texture(Source, Tex).rgb;
-    float t0 = line / tb.h_freq_hz + baseCenter * tb.pixel_time_px;
-    float phase0 = compute_carrier_phase(t0, tb.sc_freq_hz, tb.field_phase);
+    float t0 = line / carrier.h_freq_hz + baseCenter * carrier.pixel_time_px;
+    float phase0 = compute_carrier_phase(t0, carrier.sc_freq_hz, carrier.field_phase);
     
     // PAL V-axis alternation: simply invert V on odd lines
     float pal_v_sign = 1.0 - 2.0 * floor(mod(line, 2.0)) * PAL;

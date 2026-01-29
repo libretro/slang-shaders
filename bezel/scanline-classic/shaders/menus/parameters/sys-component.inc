@@ -1,6 +1,6 @@
 #pragma parameter SYS_COMPONENT_HEADER " —— System: Component Video —— " 0.0 0.0 0.0 0.0
 
-#pragma parameter YC_MODEL "System color space (YIQ, YPbPr, YUV, YDbDr, YCbCr)" 1.0 0.0 4.0 1.0
+#pragma parameter YC_MODEL "System color space (YPbPr, YDbDr, YCbCr)" 0.0 0.0 2.0 1.0
 
 #pragma parameter SYS_BIAS_Y "Offset Y (IRE)" 0.0 -30.0 30.0 0.1
 #pragma parameter SYS_BIAS_U "Offset U (IRE)" 0.0 -30.0 30.0 0.1

@@ -99,16 +99,6 @@ mat3 YIQ_TO_RGB = mat3(
     0.956,  -0.272,   -1.106,
     0.621,  -0.647,    1.703);
 
-mat3 RGB_TO_YUV = mat3(
-    0.299, -0.14713, 0.615,
-    0.587, -0.28886, -0.51499,
-    0.114,  0.436,   -0.10001);
-
-mat3 YUV_TO_RGB = mat3(
-    1.0,      1.0,      1.0,
-    0.0,     -0.39465,  2.03211,
-    1.13983, -0.58060,  0.0);
-
 mat3 RGB_TO_YPbPr = mat3(
     0.299, -0.168736,  0.5,
     0.587, -0.331264, -0.418688,
@@ -118,6 +108,9 @@ mat3 YPbPr_TO_RGB = mat3(
     1.0,    1.0,      1.0,
     0.0,   -0.344136, 1.772,
     1.402, -0.714136, 0.0);
+
+#define RGB_TO_YUV RGB_TO_YPbPr
+#define YUV_TO_RGB YPbPr_TO_RGB
 
 mat3 RGB_TO_YCbCr = mat3(
     0.2126, -0.1146,  0.5,
@@ -257,4 +250,38 @@ mat3 zhai2018_cat16(vec3 ref_XYZ, vec3 tgt_XYZ, float d)
         0.0, 0.0, d * tgt_cone.z / src_cone.z + 1.0 - d);
 
     return cat16_M_inv * D * cat16_M;
+}
+
+// Convert RGB to selected luma-chroma space.
+// For YDbDr: RGB -> YUV -> scale (U,V) to (Db,Dr).
+vec3 rgb_to_luma_chroma(vec3 rgb, float model)
+{
+    if (model < 0.5) { // YPbPr
+        return RGB_TO_YPbPr * rgb;
+    } else if (model < 1.5) { // YDbDr via YUV scale
+        // Db = (1.333 / 0.436) * U ; Dr = (-1.333 / 0.615) * V
+        const float K_DB_FROM_U = 1.333 / 0.436;  // ≈ 3.056880734
+        const float K_DR_FROM_V = -1.333 / 0.615; // ≈ -2.168292683
+
+        vec3 yuv = RGB_TO_YUV * rgb;
+
+        return vec3(yuv.r, K_DB_FROM_U * yuv.g, K_DR_FROM_V * yuv.b);
+    } else { // YCbCr
+        return RGB_TO_YCbCr * rgb;
+    }
+}
+
+// Helper: decode from selected luma-chroma model to RGB
+vec3 decode_luma_chroma_to_rgb(vec3 yc, float model) {
+    if (model < 0.5) {
+        return YPbPr_TO_RGB * yc;
+    } else if (model < 1.5) {
+        // YDbDr -> YUV -> RGB
+        const float U_FROM_DB = 0.436 / 1.333;
+        const float V_FROM_DR = -0.615 / 1.333;
+        vec3 yuv = vec3(yc.r, yc.g * U_FROM_DB, yc.b * V_FROM_DR);
+        return YUV_TO_RGB * yuv;
+    } else {
+        return YCbCr_TO_RGB * yc;
+    }
 }

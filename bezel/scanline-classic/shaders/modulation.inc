@@ -86,6 +86,350 @@ float compute_carrier_phase(float t, float sc_freq_hz, float field_phase) {
     return normalize_phase(phase);
 }
 
+// Compute odd-field time adjustment for precise t00 incorporation
+// This centralizes the odd-field logic so t00 can fully encapsulate all timing
+float compute_odd_field_time_adjustment(
+    float field, float shorten_odd_field_time,
+    float pixel_time, float original_width,
+    bool is_ntsc, bool is_interlaced)
+{
+    if (shorten_odd_field_time < 0.5)
+        return 0.0;
+    
+    float odd_time_adjust = original_width / 256.0 * pixel_time;
+    float adjustment = 0.0;
+    
+    if (is_ntsc) {
+        // NTSC: Apply shortening only for progressive scan
+        if (!is_interlaced) {
+            adjustment = -odd_time_adjust;
+        }
+    } else {
+        // PAL: Different behavior based on scan type
+        if (is_interlaced) {
+            // Interlaced PAL: lengthen odd field
+            adjustment = odd_time_adjust;
+        }
+    }
+    
+    return ceil(field / 2.0) * adjustment;
+}
+
+// Discrete carrier phase: start from a precomputed base fractional cycle at t00
+// (top-left pixel center within the field), then step by per-pixel and per-line
+// cycle increments. Field progression and phase offset handled via field_phase parameter.
+float compute_carrier_phase_discrete(
+    float base_cycles,        // fract(sc_freq_hz * t00) where t00 is within-field time only
+    float cycles_per_pixel,   // sc_freq_hz * pixel_time_px
+    float cycles_per_line,    // sc_freq_hz / h_freq_hz
+    float pixel_x,            // pixel index (use center: n + 0.5)
+    float line,               // line index in output space
+    float field_phase)        // field progression and timing adjustments as phase
+{
+    float fractional_cycles = fract(base_cycles + pixel_x * cycles_per_pixel + line * cycles_per_line);
+    float phase = 2.0 * PI * fractional_cycles + field_phase;
+    return normalize_phase(phase);
+}
+
+// ============================================================================
+// Helper functions for modular compute_timebase
+// ============================================================================
+
+// Compute subcarrier frequency and identify video standard
+// Returns standard: 0=NTSC, 1=PAL, 2=PAL-M, 3=custom
+void compute_subcarrier_freq(
+    float sc_freq_mode, float sc_freq_custom_mhz,
+    float core_refresh_hz,
+    out float sc_freq_hz, out int standard)
+{
+    if (sc_freq_mode < 0.5) {
+        // Auto mode: choose based on refresh rate
+        if (core_refresh_hz > 55.0) {
+            sc_freq_hz = NTSC_FSC;
+            standard = 0;
+        } else {
+            sc_freq_hz = PAL_FSC;
+            standard = 1;
+        }
+    } else if (sc_freq_mode < 1.5) {
+        sc_freq_hz = NTSC_FSC;
+        standard = 0;
+    } else if (sc_freq_mode < 2.5) {
+        sc_freq_hz = PAL_FSC;
+        standard = 1;
+    } else if (sc_freq_mode < 3.5) {
+        sc_freq_hz = PAL_M_FSC;
+        standard = 2;
+    } else {
+        sc_freq_hz = sc_freq_custom_mhz * 1.0e6;
+        standard = 3;
+    }
+}
+
+// Compute pixel clock frequency from mode and parameters
+float compute_pixel_clock(
+    float pixel_clock_mode, float pixel_clock_mhz,
+    float sc_freq_hz)
+{
+    if (pixel_clock_mode < 0.5) {
+        return pixel_clock_mhz * 1.0e6;
+    } else {
+        return sc_freq_hz * pixel_clock_mhz;
+    }
+}
+
+// Compute horizontal frequency from mode, standard, and parameters
+void compute_h_freq(
+    float h_freq_mode, int standard, float h_freq_custom_khz,
+    float pixel_clock_hz, float core_refresh_hz,
+    out float h_freq_hz)
+{
+    if (h_freq_mode < 0.5) {
+        // Standard
+        if (standard == 0) {
+            h_freq_hz = NTSC_H_FREQ;
+        } else if (standard == 1) {
+            h_freq_hz = PAL_H_FREQ;
+        } else if (standard == 2) {
+            h_freq_hz = PAL_M_H_FREQ;
+        } else {
+            // Guess from core refresh rate
+            if (core_refresh_hz > 55.0)
+                h_freq_hz = NTSC_H_FREQ;
+            else
+                h_freq_hz = PAL_H_FREQ;
+        }
+    } else if (h_freq_mode < 1.5) {
+        // From pixel clock
+        h_freq_hz = pixel_clock_hz / h_freq_custom_khz;
+    } else {
+        // Custom
+        h_freq_hz = h_freq_custom_khz * 1.0e3;
+    }
+}
+
+// Compute vertical lines per field based on mode and parameters
+float compute_v_lines_per_field(
+    float v_freq_mode, float h_freq_hz,
+    float core_refresh_hz, float custom_v_freq)
+{
+    if (v_freq_mode < 2.5 || v_freq_mode > 3.5) {
+        return round(h_freq_hz / core_refresh_hz);
+    } else {
+        return custom_v_freq;
+    }
+}
+
+// Detect interlacing and video standard type
+void detect_scan_mode(
+    float original_height, float v_lines_per_field,
+    float core_refresh_hz,
+    out bool is_interlaced, out bool is_ntsc, out bool is_pal)
+{
+    // Detect interlacing: original height significantly larger than lines per field
+    float interlace_ratio = original_height / v_lines_per_field;
+    is_interlaced = (interlace_ratio > 1.5);
+
+    // Detect NTSC vs PAL based on vertical frequency
+    is_ntsc = (core_refresh_hz > 55.0 && v_lines_per_field < 350.0);
+    is_pal = (!is_ntsc && v_lines_per_field < 350.0);
+}
+
+// Compute vertical frequency from mode and parameters
+float compute_v_freq(
+    float v_freq_mode, float h_freq_hz, float v_lines_per_field,
+    float custom_v_freq)
+{
+    if (v_freq_mode < 0.5) {
+        return h_freq_hz / v_lines_per_field;
+    } else if (v_freq_mode < 1.5) {
+        return NTSC_V_FREQ;
+    } else if (v_freq_mode < 2.5) {
+        return PAL_V_FREQ;
+    } else if (v_freq_mode < 3.5) {
+        return h_freq_hz / custom_v_freq;
+    } else {
+        return custom_v_freq;
+    }
+}
+
+// Compute horizontal pixel count and pixel timing
+void compute_h_timing(
+    float pixel_clock_hz, float h_freq_hz, float h_blank_fuzz,
+    float original_width,
+    out float total_pixels, out float pixel_time)
+{
+    float total_cycles = pixel_clock_hz / h_freq_hz;
+    float fuzz_frac = h_blank_fuzz / 100.0;
+    float clock_factor = round(total_cycles * fuzz_frac / original_width);
+    total_pixels = total_cycles / clock_factor;
+    pixel_time = 1.0 / (h_freq_hz * total_pixels);
+}
+
+// Compute output scaling factors for both horizontal and vertical dimensions
+void compute_scale_factors(
+    float frame_width, float frame_height,
+    float output_width, float output_height,
+    float total_pixels, float v_lines_per_field,
+    out float h_scale, out float v_scale)
+{
+    float h_scale1 = floor(frame_width / total_pixels);
+    float v_scale1 = floor(frame_height / v_lines_per_field);
+
+    float h_scale2 = floor(output_width / (total_pixels * h_scale1));
+    float v_scale2 = floor(output_height / (v_lines_per_field * v_scale1));
+
+    h_scale = max(h_scale1 * h_scale2, 1.0);
+    v_scale = max(v_scale1 * v_scale2, 1.0);
+}
+
+// Compute field phase with intelligent odd-field timing adjustment
+float compute_field_phase(
+    float field, float h_freq_hz, float v_lines_per_field,
+    float v_freq, float sc_freq_hz, bool is_ntsc, 
+    bool is_interlaced, float pixel_time, float original_width,
+    float shorten_odd_field_time)
+{
+    float field_time = 1.0 / v_freq;
+    float phase = field_time * field * 2.0 * PI * sc_freq_hz;
+
+    // Apply odd-field timing adjustment based on standard and scan type
+    float odd_field_adjust = 0.0;
+    if (shorten_odd_field_time > 0.5) {
+        float odd_time_adjust = original_width / 256.0 * pixel_time;
+
+        if (is_ntsc) {
+            // NTSC: Apply shortening only for progressive scan
+            if (!is_interlaced) {
+                odd_field_adjust = -odd_time_adjust;
+            }
+        } else {
+            // PAL: Different behavior based on scan type
+            if (is_interlaced) {
+                // Interlaced PAL: lengthen odd field
+                odd_field_adjust = odd_time_adjust;
+            }
+        }
+    }
+
+    phase += ceil(field / 2.0) * odd_field_adjust * 2.0 * PI * sc_freq_hz;
+    return mod(phase, 2.0 * PI) - PI;
+}
+
+// ============================================================================
+// Specialized timebase structs for different shader purposes
+// ============================================================================
+
+// Frame geometry only (for frame.slang, beam-mask.slang)
+// Contains: h_pixels, v_lines_per_field, v_lines_per_frame, is_interlaced, field
+struct FrameGeometry {
+    float h_pixels;
+    float v_lines_per_field;
+    float v_lines_per_frame;
+    float is_interlaced;
+    float field;
+};
+
+// Carrier phase and modulation (for composite/S-Video modulators and demodulators)
+// Contains: h_freq_hz, sc_freq_hz, pixel_time_px, field_phase, pixels_per_line, field
+struct CarrierPhaseConfig {
+    float h_freq_hz;
+    float sc_freq_hz;
+    float pixel_time_px;
+    float field_phase;
+    float pixels_per_line;
+    float field;
+};
+
+// Filter design (for bandlimit and IQ processing)
+// Contains: pixel_time_px, pixel_time, field
+struct FilterDesignConfig {
+    float pixel_time_px;
+    float pixel_time;
+    float field;
+};
+
+// ============================================================================
+// Extraction helpers for specialized timebase structs
+// ============================================================================
+
+// Extract carrier phase configuration from full timebase
+CarrierPhaseConfig extract_carrier_phase(TimebaseConfig tb) {
+    return CarrierPhaseConfig(
+        tb.h_freq_hz,
+        tb.sc_freq_hz,
+        tb.pixel_time_px,
+        tb.field_phase,
+        tb.pixels_per_line,
+        tb.field);
+}
+
+// Extract filter design configuration from full timebase
+FilterDesignConfig extract_filter_design(TimebaseConfig tb) {
+    return FilterDesignConfig(
+        tb.pixel_time_px,
+        tb.pixel_time,
+        tb.field);
+}
+
+// ============================================================================
+// Lightweight frame geometry computation (for frame.slang, beam-mask.slang)
+FrameGeometry compute_frame_geometry(
+    uint frame_count,
+    vec2 original_size,
+    float core_refresh_hz,
+    float sc_freq_mode,
+    float sc_freq_custom_mhz,
+    float pixel_clock_mhz,
+    float pixel_clock_mode,
+    float h_freq_mode,
+    float h_freq_custom_khz,
+    float v_freq_mode,
+    float custom_v_freq,
+    float h_blank_fuzz)
+{
+    FrameGeometry geom;
+    geom.field = float(frame_count % 12u);
+
+    // Frequency derivation
+    int standard;
+    float sc_freq_hz;
+    compute_subcarrier_freq(sc_freq_mode, sc_freq_custom_mhz, core_refresh_hz,
+                            sc_freq_hz, standard);
+
+    float pixel_clock_hz = compute_pixel_clock(pixel_clock_mode, pixel_clock_mhz, sc_freq_hz);
+
+    float h_freq_hz;
+    compute_h_freq(h_freq_mode, standard, h_freq_custom_khz, pixel_clock_hz,
+                   core_refresh_hz, h_freq_hz);
+
+    // Vertical line derivation
+    geom.v_lines_per_field = compute_v_lines_per_field(v_freq_mode, h_freq_hz,
+                                                       core_refresh_hz, custom_v_freq);
+
+    // Interlacing detection
+    bool is_interlaced, is_ntsc, is_pal;
+    detect_scan_mode(original_size.y, geom.v_lines_per_field, core_refresh_hz,
+                     is_interlaced, is_ntsc, is_pal);
+    geom.is_interlaced = is_interlaced ? 1.0 : 0.0;
+
+    // Calculate frame dimensions
+    geom.v_lines_per_frame = geom.v_lines_per_field * 2.0 + 2.0;
+    
+    if (is_interlaced) {
+        geom.v_lines_per_field += 0.5;
+    }
+
+    // Calculate horizontal pixels
+    float total_cycles = pixel_clock_hz / h_freq_hz;
+    float fuzz_frac = h_blank_fuzz / 100.0;
+    float clock_factor = round(total_cycles * fuzz_frac / original_size.x);
+    geom.h_pixels = total_cycles / clock_factor;
+
+    return geom;
+}
+
+// ============================================================================
 // Compute complete timebase configuration for composite/S-Video processing
 // Assumptions:
 //   - Vertical line index derived from v_lines_per_field (includes blanking as needed).
@@ -114,162 +458,62 @@ TimebaseConfig compute_timebase(
     // Field number cycling (retain existing modulus behavior)
     config.field = float(frame_count % 12u);
 
-    float line = floor(tex_coord.y * original_size.y);
-
+    // === Frequency derivation ===
     int standard;
-    // Subcarrier frequency derivation
-    if (sc_freq_mode < 0.5) {
-        // Auto mode: choose based on refresh rate
-        if (core_refresh_hz > 55.0) {
-            config.sc_freq_hz = NTSC_FSC;
-            standard = 0;
-        } else {
-            config.sc_freq_hz = PAL_FSC;
-            standard = 1;
-        }
-    } else if (sc_freq_mode < 1.5) {
-        config.sc_freq_hz = NTSC_FSC;
-        standard = 0;
-    } else if (sc_freq_mode < 2.5) {
-        config.sc_freq_hz = PAL_FSC;
-        standard = 1;
-    } else if (sc_freq_mode < 3.5) {
-        config.sc_freq_hz = PAL_M_FSC;
-        standard = 2;
-    } else {
-        config.sc_freq_hz = sc_freq_custom_mhz * 1.0e6;
-        standard = 3;
-    }
+    compute_subcarrier_freq(
+        sc_freq_mode, sc_freq_custom_mhz, core_refresh_hz,
+        config.sc_freq_hz, standard);
 
-    // Pixel clock derivation
-    float pixel_clock_hz;
-    if (pixel_clock_mode < 0.5) {
-        // Fixed
-        pixel_clock_hz = pixel_clock_mhz * 1.0e6;
-    } else {
-        // Multiple of subcarrier
-        float multiplier = pixel_clock_mhz;
-        pixel_clock_hz = config.sc_freq_hz * multiplier;
-    }
+    float pixel_clock_hz = compute_pixel_clock(
+        pixel_clock_mode, pixel_clock_mhz,
+        config.sc_freq_hz);
 
-    // Horizontal frequency derivation
-    if (h_freq_mode < 0.5) {
-        // Standard
-        if (standard == 0) {
-            config.h_freq_hz = NTSC_H_FREQ;
-        } else if (standard == 1) {
-            config.h_freq_hz = PAL_H_FREQ;
-        } else if (standard == 2) {
-            config.h_freq_hz = PAL_M_H_FREQ;
-        } else {
-            // Guess from core refresh rate
-            if (core_refresh_hz > 55.0)
-                config.h_freq_hz = NTSC_H_FREQ;
-            else
-                config.h_freq_hz = PAL_H_FREQ;
-        }
-    } else if (h_freq_mode < 1.5) {
-        // From pixel clock
-        float divisor = h_freq_custom_khz;
-        config.h_freq_hz = pixel_clock_hz / divisor;
-    } else {
-        // Custom
-        config.h_freq_hz = h_freq_custom_khz * 1.0e3;
-    }
+    compute_h_freq(
+        h_freq_mode, standard, h_freq_custom_khz, pixel_clock_hz,
+        core_refresh_hz, config.h_freq_hz);
 
-    // Derive number of lines per field
-    if (v_freq_mode < 2.5 || v_freq_mode > 3.5) {
-        config.v_lines_per_field = round(2.0 * config.h_freq_hz / core_refresh_hz) / 2.0;
-    } else {
-        // Divisor is the same as number of lines per field
-        config.v_lines_per_field = custom_v_freq;
-    }
+    // === Vertical line and scan mode derivation ===
+    config.v_lines_per_field = compute_v_lines_per_field(
+        v_freq_mode, config.h_freq_hz,
+        core_refresh_hz, custom_v_freq);
 
-    // Detect interlacing early: original height significantly larger than lines per field
-    // Interlaced: original_size.y ≈ 2 × v_lines_per_field (e.g., 480 vs 262.5)
-    // Progressive: original_size.y ≈ v_lines_per_field
-    float interlace_ratio = original_size.y / config.v_lines_per_field;
-    bool is_interlaced = (interlace_ratio > 1.5);
+    bool is_interlaced, is_ntsc, is_pal;
+    detect_scan_mode(
+        original_size.y, config.v_lines_per_field, core_refresh_hz,
+        is_interlaced, is_ntsc, is_pal);
     config.is_interlaced = is_interlaced ? 1.0 : 0.0;
-
-    // Detect NTSC vs PAL based on vertical frequency
-    // NTSC: ~59.94-60 Hz, PAL: ~50 Hz
-    bool is_ntsc = (core_refresh_hz > 55.0 && config.v_lines_per_field < 350.0);
-    bool is_pal = (!is_ntsc && config.v_lines_per_field < 350.0);
 
     // Calculate lines per frame
     config.v_lines_per_frame = config.v_lines_per_field * 2.0 + 2.0;
 
-    // For interlaced content, add one extra line to even fields (field 0, 2, 4, ...)
-    // This simulates the extra scanline in the second field of interlaced video
+    // For interlaced content, add one extra line to account for field differences
     if (is_interlaced) {
-        float field_parity = mod(config.field, 2.0);
-        if (field_parity < 0.5) {
-            // Even field: add one line
-            config.v_lines_per_field += 1.0;
-        }
+        config.v_lines_per_field += 0.5;
     }
 
-    // Vertical field frequency derivation
-    float v_freq;
-    if (v_freq_mode < 0.5) {
-        v_freq = config.h_freq_hz / config.v_lines_per_field;
-    } else if (v_freq_mode < 1.5) {
-        v_freq = NTSC_V_FREQ;
-    } else if (v_freq_mode < 2.5) {
-        v_freq = PAL_V_FREQ;
-    } else if (v_freq_mode < 3.5) {
-        float divisor = custom_v_freq;
-        v_freq = config.h_freq_hz / divisor;
-    } else {
-        v_freq = custom_v_freq;
-    }
+    // === Timing derivation ===
+    float v_freq = compute_v_freq(
+        v_freq_mode, config.h_freq_hz,
+        config.v_lines_per_field, custom_v_freq);
 
-    // Calculate pixel time and total horizontal pixels
-    float total_cycles = pixel_clock_hz / config.h_freq_hz;
-    h_blank_fuzz /= 100.0;  // Convert percentage to fraction
-    float clock_factor = round(total_cycles * h_blank_fuzz / original_size.x);
-    float total_pixels = total_cycles / clock_factor;
+    float total_pixels;
+    compute_h_timing(
+        pixel_clock_hz, config.h_freq_hz, h_blank_fuzz,
+        original_size.x, total_pixels, config.pixel_time);
 
-    config.pixel_time = 1.0 / (config.h_freq_hz * total_pixels);
+    // === Field phase computation ===
+    config.field_phase = compute_field_phase(
+        config.field, config.h_freq_hz,
+        config.v_lines_per_field, v_freq,
+        config.sc_freq_hz, is_ntsc, is_interlaced,
+        config.pixel_time, original_size.x,
+        shorten_odd_field_time);
 
-    // Field phase with intelligent odd-field timing adjustment
-    float field_time = 1.0 / v_freq;
-    config.field_phase = field_time * config.field * 2.0 * PI * config.sc_freq_hz;
-    
-    // Apply odd-field timing adjustment based on standard and scan type
-    float odd_field_adjust = 0.0;
-    if (shorten_odd_field_time > 0.5) {
-        float odd_time_adjust = original_size.x / 256.0 * config.pixel_time;
-        
-        if (is_ntsc) {
-            // NTSC: Apply shortening only for progressive scan
-            if (!is_interlaced) {
-                odd_field_adjust = -odd_time_adjust;
-            }
-            // Interlaced NTSC: bypass (no adjustment)
-        } else {
-            // PAL: Different behavior based on scan type
-            if (is_interlaced) {
-                // Interlaced PAL: lengthen odd field (positive adjustment)
-                odd_field_adjust = odd_time_adjust;
-            }
-            // Progressive PAL: bypass (no adjustment)
-        }
-    }
-    
-    config.field_phase += ceil(config.field / 2.0) * odd_field_adjust * 2.0 * PI * config.sc_freq_hz;
-    config.field_phase = mod(config.field_phase, 2.0 * PI) - PI;
-
-    // Scale factors for output size
-    float h_scale1 = floor(frame_size.x / total_pixels);
-    float v_scale1 = floor(frame_size.y / config.v_lines_per_field);
-
-    float h_scale2 = floor(output_size.x / (total_pixels * h_scale1));
-    float v_scale2 = floor(output_size.y / (config.v_lines_per_field * v_scale1));
-
-    float h_scale = max(h_scale1 * h_scale2, 1.0);
-    float v_scale = max(v_scale1 * v_scale2, 1.0);
+    // === Scale factor derivation ===
+    float h_scale, v_scale;
+    compute_scale_factors(
+        frame_size.x, frame_size.y, output_size.x, output_size.y,
+        total_pixels, config.v_lines_per_field, h_scale, v_scale);
 
     // Per-output-pixel time (cycles-per-pixel scaling)
     config.pixel_time_px = config.pixel_time / h_scale;
@@ -280,60 +524,6 @@ TimebaseConfig compute_timebase(
     config.pixels_per_line = v_scale;
 
     return config;
-}
-
-// Estimate Blackman-Harris 4-term lowpass filter response at given frequency
-// Used for VSB sideband gain estimation in chroma demodulation
-// Returns approximate magnitude response (0.0 = stopband, 1.0 = passband)
-float blackman_harris_lpf_response(float freq_mhz, float cutoff_mhz)
-{
-    // Normalized frequency relative to cutoff
-    float f_norm = freq_mhz / cutoff_mhz;
-    
-    if (f_norm <= 0.9) {
-        // Passband: flat response within 90% of cutoff
-        return 1.0;
-    } else if (f_norm >= 1.2) {
-        // Stopband: ~92 dB rejection ≈ 0 beyond 120% of cutoff
-        return 0.0;
-    } else {
-        // Transition band: smooth cosine taper (approximates BH4 rolloff)
-        // Maps [0.9, 1.2] → [0, π] for smooth transition
-        float t = (f_norm - 0.9) / 0.3;
-        return 0.5 * (1.0 + cos(PI * t));
-    }
-}
-
-// Compute VSB chroma gain factors for arbitrary subcarrier and IQ cutoff
-// Returns vec2(i_gain, q_gain) accounting for sideband attenuation
-// Inputs:
-//   sc_freq_hz      - Subcarrier frequency in Hz
-//   iq_cutoff_mhz   - IQ lowpass cutoff frequency in MHz
-//   i_bw_mhz        - I channel bandwidth (single-sided) in MHz
-//   q_bw_mhz        - Q channel bandwidth (single-sided) in MHz
-vec2 compute_vsb_chroma_gain(float sc_freq_hz, float iq_cutoff_mhz, 
-                             float i_bw_mhz, float q_bw_mhz)
-{
-    float f_sc_mhz = sc_freq_hz * 1.0e-6;
-    
-    // I channel sideband edges
-    float i_lower = f_sc_mhz - i_bw_mhz;
-    float i_upper = f_sc_mhz + i_bw_mhz;
-    float i_lower_gain = blackman_harris_lpf_response(i_lower, iq_cutoff_mhz);
-    float i_upper_gain = blackman_harris_lpf_response(i_upper, iq_cutoff_mhz);
-    
-    // Q channel sideband edges
-    float q_lower = f_sc_mhz - q_bw_mhz;
-    float q_upper = f_sc_mhz + q_bw_mhz;
-    float q_lower_gain = blackman_harris_lpf_response(q_lower, iq_cutoff_mhz);
-    float q_upper_gain = blackman_harris_lpf_response(q_upper, iq_cutoff_mhz);
-    
-    // Average both sidebands (DSB→VSB conversion factor)
-    vec2 gains;
-    gains.x = 0.5 * (i_lower_gain + i_upper_gain);  // I channel
-    gains.y = 0.5 * (q_lower_gain + q_upper_gain);  // Q channel
-    
-    return max(gains, vec2(0.1));  // Prevent divide-by-zero
 }
 
 // Compute Gaussian low-pass sigma (in texels) from timebase and cutoff spec.

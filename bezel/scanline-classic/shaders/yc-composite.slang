@@ -94,14 +94,14 @@ layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out float sigma_bp;
 layout(location = 2) out float sigma_lp;
 layout(location = 3) out float sigma_notch;
-layout(location = 4) out TimebaseConfig tb;
+layout(location = 4) out CarrierPhaseConfig carrier;
 
 void main()
 {
     gl_Position = global.MVP * Position;
     vTexCoord = TexCoord;
 
-    tb = compute_timebase(
+    TimebaseConfig tb = compute_timebase(
         config.FrameCount,
         vTexCoord,
         config.OriginalSize.xy,
@@ -142,6 +142,7 @@ void main()
 
     // Luma lowpass sigma
     sigma_lp = sigma_tb(tb, max(LUMA_LOWPASS_CUTOFF, 1e-6), LUMA_LOWPASS_ATTEN);
+    carrier = extract_carrier_phase(tb);
 }
 
 #pragma stage fragment
@@ -149,7 +150,7 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in float sigma_bp;
 layout(location = 2) in float sigma_lp;
 layout(location = 3) in float sigma_notch;
-layout(location = 4) in TimebaseConfig tb;
+layout(location = 4) in CarrierPhaseConfig carrier;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -193,7 +194,7 @@ void main()
     float sum_lp = 0.0;         // luma lowpass weight sum
 
     // Subcarrier cycles per pixel for modulation (cycles/pixel)
-    float f_sc_px = tb.sc_freq_hz * tb.pixel_time_px;
+    float f_sc_px = carrier.sc_freq_hz * carrier.pixel_time_px;
 
     // Center weights (include fractional horizontal offset Ax)
     float g_bp0 = gaussian(Ax, sigma_bp);

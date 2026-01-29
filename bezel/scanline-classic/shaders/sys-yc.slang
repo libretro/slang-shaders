@@ -86,29 +86,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #define ENCODER_SETUP global.ENCODER_SETUP
 
-// Convert RGB to selected luma-chroma space.
-// For YDbDr: RGB -> YUV -> scale (U,V) to (Db,Dr).
-vec3 rgb_to_luma_chroma(vec3 rgb, float model)
-{
-    if (model < 0.5) { // YIQ
-        return RGB_TO_YIQ * rgb;
-    } else if (model < 1.5) { // YPbPr
-        return RGB_TO_YPbPr * rgb;
-    } else if (model < 2.5) { // YUV
-        return RGB_TO_YUV * rgb;
-    } else if (model < 3.5) {                                             // YDbDr via YUV scale
-        // Db = (1.333 / 0.436) * U ; Dr = (-1.333 / 0.615) * V
-        const float K_DB_FROM_U = 1.333 / 0.436;  // ≈ 3.056880734
-        const float K_DR_FROM_V = -1.333 / 0.615; // ≈ -2.168292683
-
-        vec3 yuv = RGB_TO_YUV * rgb;
-
-        return vec3(yuv.r, K_DB_FROM_U * yuv.g, K_DR_FROM_V * yuv.b);
-    } else { // YCbCr
-        return RGB_TO_YCbCr * rgb;
-    }
-}
-
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;

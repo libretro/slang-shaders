@@ -33,7 +33,8 @@ scale4 = 1.0
 shader5 = ..\..\..\shaders\composite-mod.slang
 filter_linear5 = false
 scale_type5 = source
-scale5 = 1.0
+scale_x5 = 2.0
+scale_y5 = 1.0
 
 shader6 = ..\..\..\shaders\composite-iq.slang
 filter_linear6 = false
@@ -58,8 +59,7 @@ scale9 = 1.0
 shader10 = ..\..\..\shaders\composite-prefilter.slang
 filter_linear10 = false
 scale_type10 = source
-scale_x10 = 2.0
-scale_y10 = 1.0
+scale10 = 1.0
 
 shader11 = ..\..\..\shaders\composite-demod.slang
 filter_linear11 = false
@@ -114,7 +114,6 @@ H_FREQ = 858.0
 YC_MODEL = 0.0
 DECODER_SETUP = 0.0
 COLORIMETRY_PRESET = 2.0
-DECODER_TYPE = 0.0
 BORDER = ..\..\..\share\bezel-trinitron.jpg
 MASK_TYPE = 0.0
 MASK_DIFFUSION = 2.0

@@ -1,3 +1,17 @@
+Version 7.0
+
+* 3DO presets
+
+* PSX presets
+
+* HDTV preset type introduced
+
+* Digital pipeline introduced
+
+* Changes some parameter definitions
+
+* Use floats in frame shader for better compatibility
+
 Version 6.2.1
 
 * Tweak generic timing to be more stable by using a division-based H-Freq

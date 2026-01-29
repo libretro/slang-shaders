@@ -207,7 +207,7 @@ void main()
 
     int n_pairs = int(floor(max_n * 0.5));
 
-    for (int n = 1; n <= 45; ++n) {
+    for (int n = 1; n <= 44; ++n) {
         if (n > n_pairs)
             break;
 
@@ -217,7 +217,7 @@ void main()
         vec2 tex_r = Tex + nf * dx;
         vec2 tex_l = Tex - nf * dx;
 
-        float coeff_mag = 0.0;
+        float env_max = 0.0;
         float coeff_r_i = 0.0;
         float coeff_l_i = 0.0;
         float coeff_r_q = 0.0;
@@ -225,19 +225,23 @@ void main()
 
         // Apply lowpass filter coefficients
         if (n <= max_i) {
-            coeff_r_i = sinc_lowpass_hamming(nf - Ax, fc_i_norm, taps_i);
-            coeff_l_i = sinc_lowpass_hamming(-nf - Ax, fc_i_norm, taps_i);
-            coeff_mag = max(coeff_mag, abs(coeff_r_i) + abs(coeff_l_i));
+            float w_r_i;
+            float w_l_i;
+            coeff_r_i = sinc_lowpass_hamming(nf - Ax, fc_i_norm, taps_i, w_r_i);
+            coeff_l_i = sinc_lowpass_hamming(-nf - Ax, fc_i_norm, taps_i, w_l_i);
+            env_max = max(env_max, max(w_r_i, w_l_i));
         }
 
         // Q channel (may use fewer/more taps); skip when beyond taps_q
         if (n <= max_q) {
-            coeff_r_q = sinc_lowpass_hamming(nf - Ax, fc_q_norm, taps_q);
-            coeff_l_q = sinc_lowpass_hamming(-nf - Ax, fc_q_norm, taps_q);
-            coeff_mag = max(coeff_mag, abs(coeff_r_q) + abs(coeff_l_q));
+            float w_r_q;
+            float w_l_q;
+            coeff_r_q = sinc_lowpass_hamming(nf - Ax, fc_q_norm, taps_q, w_r_q);
+            coeff_l_q = sinc_lowpass_hamming(-nf - Ax, fc_q_norm, taps_q, w_l_q);
+            env_max = max(env_max, max(w_r_q, w_l_q));
         }
 
-        if (coeff_mag < FILTER_THRESHOLD)
+        if (env_max < FILTER_THRESHOLD)
             break;
 
         vec2 iq_r = texture(Source, tex_r).rg;

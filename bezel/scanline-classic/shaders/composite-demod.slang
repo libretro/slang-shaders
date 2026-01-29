@@ -93,7 +93,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float USER_COLOR;       // Color (%)
     float USER_TINT;        // Tint (degrees)
     float PAL_DECODER_MODE; // PAL decoder mode (0=simple, 1=delay-line, 2=adaptive)
-    float DECODER_TYPE; // Decoder type (0=YIQ, 1=YPbPr, 2=PAL)
+    float DECODER_TYPE; // Decoder type
     float DECODER_SETUP;
     float USER_MONOCHROME; // Monochrome mode (off, B&W, sepia)
     float COMB_ADJUST_X;
@@ -122,15 +122,15 @@ layout(location = 1) out vec2 sigma;
 layout(location = 2) out float c_gain;
 layout(location = 3) out float c_phase;
 layout(location = 4) out mat3 toRGB;
-layout(location = 7) out TimebaseConfig tb;
+layout(location = 7) out CarrierPhaseConfig carrier;
 
 void main()
 {
     gl_Position = global.MVP * Position;
     vTexCoord = TexCoord;
 
-    // Precompute timebase config for fragment stage
-    tb = compute_timebase(
+    // Precompute timebase config for carrier phase extraction
+    TimebaseConfig tb = compute_timebase(
         config.FrameCount,
         vTexCoord,
         config.OriginalSize.xy,
@@ -148,6 +148,9 @@ void main()
         H_BLANK_FUZZ,
         SHORTEN_ODD_FIELD_TIME);
 
+    // Extract carrier phase configuration
+    carrier = extract_carrier_phase(tb);
+
     // Precompute per-component sigmas for fragment stage
     sigma.x = sigma_tb(tb, DISPLAY_BANDWIDTH_Y, DISPLAY_CUTOFF_ATTEN_Y);
     sigma.y = sigma_tb(tb, DISPLAY_BANDWIDTH_C, DISPLAY_CUTOFF_ATTEN_C);
@@ -156,18 +159,7 @@ void main()
     c_gain = 2.0 * USER_COLOR / 100.0;
     c_phase = PI * USER_TINT / 180.0;
 
-    // Select appropriate color space conversion matrix
-    // DECODER_TYPE: 0.0=YIQ, 1.0=YPbPr, 2.0=PAL
-    // YIQ: NTSC standard with 33° I axis, 123° Q axis (relative to burst phase)
-    // YUV: PAL standard with U at 0°, V at 90°
-    // YPbPr: Component video standard
-    if (DECODER_TYPE < 0.5) {
-        toRGB = YIQ_TO_RGB;  // YIQ mode
-    } else if (DECODER_TYPE < 1.5) {
-        toRGB = YPbPr_TO_RGB;  // YPbPr mode
-    } else {
-        toRGB = YUV_TO_RGB;  // PAL mode
-    }
+    toRGB = YPbPr_TO_RGB;
 }
 
 #pragma stage fragment
@@ -177,7 +169,7 @@ layout(location = 1) in vec2 sigma;
 layout(location = 2) in float c_gain;
 layout(location = 3) in float c_phase;
 layout(location = 4) in mat3 toRGB;
-layout(location = 7) in TimebaseConfig tb;
+layout(location = 7) in CarrierPhaseConfig carrier;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 // Compute correlation coefficient between two samples
@@ -198,7 +190,7 @@ void main()
     // Optimized symmetric lobed approach with early exit
     // Horizontal coordinate handling: nearest pixel center (no Y shift)
     vec2 UV = vTexCoord * config.OutputSize.xy;
-    float line = floor(UV.y) / tb.pixels_per_line;
+    float line = floor(UV.y) / carrier.pixels_per_line;
     float baseIndex = floor(UV.x); // nearest pixel index
     float baseCenter = baseIndex + 0.5;  // pixel center coordinate
     float Ax = UV.x - baseCenter;        // offset in [-0.5, 0.5]
@@ -210,13 +202,13 @@ void main()
     vec3 wsum = vec3(0.0);
     
     // Process center sample
-    float t0 = line / tb.h_freq_hz + baseCenter * tb.pixel_time_px;
+    float t0 = line / carrier.h_freq_hz + baseCenter * carrier.pixel_time_px;
 
     // R is Y, G is C
     vec3 pixel0 = texture(Source, Tex).rgb;
-    float phase_inc_px = 2.0 * PI * tb.sc_freq_hz * tb.pixel_time_px;
-    float phase0_full = compute_carrier_phase(t0, tb.sc_freq_hz, tb.field_phase) + c_phase;
-    float phase_prev_center = compute_carrier_phase(t0 - (1.0 / tb.h_freq_hz), tb.sc_freq_hz, tb.field_phase);
+    float phase_inc_px = 2.0 * PI * carrier.sc_freq_hz * carrier.pixel_time_px;
+    float phase0_full = compute_carrier_phase(t0, carrier.sc_freq_hz, carrier.field_phase) + c_phase;
+    float phase_prev_center = compute_carrier_phase(t0 - (1.0 / carrier.h_freq_hz), carrier.sc_freq_hz, carrier.field_phase);
     phase0_full = normalize_phase(phase0_full);
     phase_prev_center = normalize_phase(phase_prev_center);
     vec2 carrier0;
@@ -229,7 +221,7 @@ void main()
     carrier0 = sincos_phase_raw(vec2(phase0_full));
 
     // PAL V polarity correction: delay line subtraction produces alternating sign
-    float pal_v_sign = 1.0 - 2.0 * floor(mod(line, 2.0)) * step(1.5, DECODER_TYPE);
+    float pal_v_sign = 1.0 - 2.0 * floor(mod(line, 2.0)) * step(0.5, DECODER_TYPE);
 
     // Delay-line control flags and offsets
     bool use_delay_line = PAL_DECODER_MODE > 0.5;
@@ -237,9 +229,9 @@ void main()
     float system_phase_shift = 0.0;
 
     // Compute phase offset correction for delay-line (constant per system)
-    if (DECODER_TYPE > 1.5 && use_delay_line) {
+    if (DECODER_TYPE > 0.5 && use_delay_line) {
         // Calculate intrinsic system phase shift per line (independent of user hue)
-        float cycles_per_line = tb.sc_freq_hz / tb.h_freq_hz;
+            float cycles_per_line = carrier.sc_freq_hz / carrier.h_freq_hz;
         float frac_cycles = fract(cycles_per_line);
         system_phase_shift = 2.0 * PI * frac_cycles;
         if (system_phase_shift > PI) {
@@ -273,7 +265,7 @@ void main()
     float CORRELATION_MAX = CORRELATION + 0.05;
     
     // PAL decoder mode selection (phase-corrected delay-line, simple, or adaptive)
-    if (DECODER_TYPE > 1.5) {
+    if (DECODER_TYPE > 0.5) {
         bool effective_delay_line = use_delay_line;
 
         // ADAPTIVE: blend delay-line with correlation based on phase error magnitude
@@ -289,7 +281,7 @@ void main()
             // Blend factor: 0 = correlation decides, 1 = force delay-line
             float phase_blend = smoothstep(PHASE_ERROR_MIN, PHASE_ERROR_MAX, phase_error_mag);
 
-            vec2 dy = vec2(-dx_phase_offset_px * config.OutputSize.z, -tb.pixels_per_line * config.OutputSize.w);
+            vec2 dy = vec2(-dx_phase_offset_px * config.OutputSize.z, -carrier.pixels_per_line * config.OutputSize.w);
             vec3 pal_delay = texture(Source, Tex + dy).rgb;
             
             float correlation = compute_point_correlation(chroma0, pal_delay.g);
@@ -308,7 +300,7 @@ void main()
             demod0.gb = mix(simple_uv, delay_uv, delay_weight);
         } else if (use_delay_line) {
             // DELAY: Phase-corrected PAL delay-line demodulation
-            vec2 dxy = vec2(-dx_phase_offset_px * config.OutputSize.z, -tb.pixels_per_line * config.OutputSize.w);
+            vec2 dxy = vec2(-dx_phase_offset_px * config.OutputSize.z, -carrier.pixels_per_line * config.OutputSize.w);
             vec3 pal_delay = texture(Source, Tex + dxy).rgb;
 
             demod0.g = (chroma0 + pal_delay.g) * carrier0.x;
@@ -356,7 +348,7 @@ void main()
             float chromaR = pixelR.g;
             vec3 demodR;
 
-            if (DECODER_TYPE > 1.5) {
+            if (DECODER_TYPE > 0.5) {
                 bool effective_delay_line = use_delay_line;
 
                 // ADAPTIVE: blend delay-line with correlation based on phase error magnitude
@@ -371,7 +363,7 @@ void main()
                     
                     float phase_blend = smoothstep(PHASE_ERROR_MIN, PHASE_ERROR_MAX, phase_error_mag);
 
-                    vec2 dxy = vec2((nf - dx_phase_offset_px) * dx.x, -tb.pixels_per_line * config.OutputSize.w);
+                    vec2 dxy = vec2((nf - dx_phase_offset_px) * dx.x, -carrier.pixels_per_line * config.OutputSize.w);
                     vec3 pal_delay = texture(Source, Tex + dxy).rgb;
 
                     float correlation = compute_point_correlation(chromaR, pal_delay.g);
@@ -391,7 +383,7 @@ void main()
                     demodR = vec3(compositeR, mixed_uv.x, mixed_uv.y);
                 } else if (use_delay_line) {
                     // DELAY: Phase-corrected PAL delay-line
-                    vec2 dxy = vec2((nf - dx_phase_offset_px) * dx.x, -tb.pixels_per_line * config.OutputSize.w);
+                    vec2 dxy = vec2((nf - dx_phase_offset_px) * dx.x, -carrier.pixels_per_line * config.OutputSize.w);
                     vec3 pal_delay = texture(Source, Tex + dxy).rgb;
 
                     demodR = vec3(
@@ -422,7 +414,7 @@ void main()
             float chromaL = pixelL.g;
             vec3 demodL;
 
-            if (DECODER_TYPE > 1.5) {
+            if (DECODER_TYPE > 0.5) {
                 bool effective_delay_line = use_delay_line;
 
                 // ADAPTIVE: blend delay-line with correlation based on phase error magnitude
@@ -437,7 +429,7 @@ void main()
                     
                     float phase_blend = smoothstep(PHASE_ERROR_MIN, PHASE_ERROR_MAX, phase_error_mag);
 
-                    vec2 dxy = vec2((-nf - dx_phase_offset_px) * dx.x, -tb.pixels_per_line * config.OutputSize.w);
+                    vec2 dxy = vec2((-nf - dx_phase_offset_px) * dx.x, -carrier.pixels_per_line * config.OutputSize.w);
                     vec3 pal_delay = texture(Source, Tex + dxy).rgb;
 
                     float correlation = compute_point_correlation(chromaL, pal_delay.g);
@@ -457,7 +449,7 @@ void main()
                     demodL = vec3(compositeL, mixed_uv.x, mixed_uv.y);
                 } else if (use_delay_line) {
                     // DELAY: Phase-corrected PAL delay-line
-                    vec2 dxy = vec2((-nf - dx_phase_offset_px) * dx.x, -tb.pixels_per_line * config.OutputSize.w);
+                    vec2 dxy = vec2((-nf - dx_phase_offset_px) * dx.x, -carrier.pixels_per_line * config.OutputSize.w);
                     vec3 pal_delay = texture(Source, Tex + dxy).rgb;
 
                     demodL = vec3(
@@ -526,27 +518,14 @@ void main()
             // Sepia tone - apply warm tint in YIQ space
             vec3 yiq = color;
 
-            // Convert current color space to YIQ if needed
-            if (DECODER_TYPE > 0.5) {
-                if (DECODER_TYPE < 1.5) {
-                    yiq = RGB_TO_YIQ * YPbPr_TO_RGB * color;
-                } else {
-                    yiq = RGB_TO_YIQ * YUV_TO_RGB * color;
-                }
-            }
+            yiq = RGB_TO_YIQ * YPbPr_TO_RGB * color;
 
             // Apply sepia toning in YIQ
             yiq.g = 0.1;  // Orange-cyan (I channel)
             yiq.b = 0.0;  // Green-magenta (Q channel)
 
             // Convert back to current color space
-            if (DECODER_TYPE < 0.5) {
-                color = yiq;
-            } else if (DECODER_TYPE < 1.5) {
-                color = RGB_TO_YPbPr * YIQ_TO_RGB * yiq;
-            } else {
-                color = RGB_TO_YUV * YIQ_TO_RGB * yiq;
-            }
+            color = RGB_TO_YPbPr * YIQ_TO_RGB * yiq;
         }
     }
 

@@ -79,7 +79,7 @@
           U′_sample = 2 · chroma · carrier.x
           V′_sample = 2 · chroma · carrier.y
       5) Accumulate symmetric Gaussian lobes horizontally with σY/σC.
-        Early exit once both weights fall below THRESHOLD.
+        Early exit once both weights fall below FILTER_THRESHOLD.
 
     Output mapping
     --------------
@@ -97,7 +97,7 @@
         • a single “sincos” pair (sincos_phase) per sample
       This avoids large-argument trig loss and removes repeated mod() calls.
     - Gaussian accumulation does up to 32 taps per side with early exit. σY/σC
-      and THRESHOLD control cost/quality.
+      and FILTER_THRESHOLD control cost/quality.
 
     Parameters (UI)
     ---------------
@@ -133,7 +133,7 @@
           matching composite.slang’s behavior.
         • Sampling uses OutputSize to locate the current pixel, then converts to Source space.
     - Threshold:
-        • THRESHOLD = 1/510 controls early exit on both Y/C lobes.
+        • FILTER_THRESHOLD = 1/510 controls early exit on both Y/C lobes.
     - Odd field adjust:
         • odd_time_adjust = (OriginalSize.x / 256) · pixel_time; scaled to approximate
           half-line shortening for interlaced fields across common widths.
@@ -219,6 +219,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float BW_MODE;
     float ENCODER_SETUP;
     float DECODER_SETUP;
+    float PAL;
+    float DECODER_TYPE;
 } global;
 
 #define BYPASS_SVIDEO global.BYPASS_SVIDEO
@@ -228,6 +230,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #define ENCODER_SETUP global.ENCODER_SETUP
 #define DECODER_SETUP global.DECODER_SETUP
+#define PAL global.PAL
+#define DECODER_TYPE global.DECODER_TYPE
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -236,7 +240,7 @@ layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec3 sigma;
 layout(location = 2) out float c_gain;
 layout(location = 3) out float c_phase;
-layout(location = 4) out TimebaseConfig tb;
+layout(location = 4) out CarrierPhaseConfig carrier;
 
 void main()
 {
@@ -244,7 +248,7 @@ void main()
     vTexCoord = TexCoord;
 
     // Precompute timebase config for fragment stage
-    tb = compute_timebase(
+    TimebaseConfig tb = compute_timebase(
         config.FrameCount,
         vTexCoord,
         config.OriginalSize.xy,
@@ -270,6 +274,7 @@ void main()
     // Precompute user color gain/phase
     c_gain = 2.0 * USER_COLOR / 100.0;
     c_phase = PI * USER_TINT / 180.0;
+    carrier = extract_carrier_phase(tb);
 }
 
 #pragma stage fragment
@@ -277,7 +282,7 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec3 sigma;
 layout(location = 2) in float c_gain;
 layout(location = 3) in float c_phase;
-layout(location = 4) in TimebaseConfig tb;
+layout(location = 4) in CarrierPhaseConfig carrier;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -287,8 +292,6 @@ void main()
         FragColor = vec4(texture(Source, vTexCoord).rgb, 1.0);
         return;
     }
-
-    const float THRESHOLD = 1.0 / 255.0;
 
     // Horizontal coordinate handling using nearest pixel center (keep Y center)
     vec2 UV = vTexCoord * config.OutputSize.xy;
@@ -304,17 +307,21 @@ void main()
     vec3 wsum  = vec3(0.0);
 
     // Center sample
-    float line = floor(UV.y) / tb.pixels_per_line;
-    float t0 = line / tb.h_freq_hz + baseCenter * tb.pixel_time_px;
+    float line = floor(UV.y) / carrier.pixels_per_line;
+    float t0 = line / carrier.h_freq_hz + baseCenter * carrier.pixel_time_px;
+
+    // PAL V-axis alternation: simply invert V on odd lines
+    float pal_v_sign = 1.0 - 2.0 * floor(mod(line, 2.0)) * PAL;
+    float pal_v_sign_decoder = 1.0 - 2.0 * floor(mod(line, 2.0)) * DECODER_TYPE;
 
     vec3 pixel0 = texture(Source, Tex).rgb;
-    float phase_inc_px = 2.0 * PI * tb.sc_freq_hz * tb.pixel_time_px;
-    float phase0 = compute_carrier_phase(t0, tb.sc_freq_hz, tb.field_phase);
+    float phase_inc_px = 2.0 * PI * carrier.sc_freq_hz * carrier.pixel_time_px;
+    float phase0 = compute_carrier_phase(t0, carrier.sc_freq_hz, carrier.field_phase);
     float phase0_user = normalize_phase(phase0 + c_phase);
     phase0 = normalize_phase(phase0);
     vec2 carrier0 = sincos_phase_raw(phase0);
     vec2 carrier0_user = sincos_phase_raw(phase0_user);
-    float chroma0 = pixel0.g * carrier0.x + pixel0.b * carrier0.y;
+    float chroma0 = pixel0.g * carrier0.x + pal_v_sign * pixel0.b * carrier0.y;
 
     float y_gain = 1.0;
     float y_offset = 0.0;
@@ -331,7 +338,7 @@ void main()
     vec3 yc0;
     yc0.r = y_out;
     yc0.g = chroma0 * 2.0 * carrier0_user.x;
-    yc0.b = chroma0 * 2.0 * carrier0_user.y;
+    yc0.b = chroma0 * 2.0 * carrier0_user.y * pal_v_sign_decoder;
 
     vec3 color;
 
@@ -353,7 +360,7 @@ void main()
             float wy_l = gaussian(nf + Ax, sigma.x);
             float wc_r = gaussian(nf - Ax, sigma.y);
             float wc_l = gaussian(nf + Ax, sigma.y);
-            if (wy_r < THRESHOLD && wy_l < THRESHOLD && wc_r < THRESHOLD && wc_l < THRESHOLD)
+            if (wy_r < FILTER_THRESHOLD && wy_l < FILTER_THRESHOLD && wc_r < FILTER_THRESHOLD && wc_l < FILTER_THRESHOLD)
                 break;
 
             vec3 pixelR = texture(Source, Tex + nf * dx).rgb;
@@ -362,11 +369,11 @@ void main()
             float phaseR_user = normalize_phase(phase0_user + phase_inc_px * nf);
             vec2 carrierR = sincos_phase_raw(phaseR);
             vec2 carrierR_user = sincos_phase_raw(phaseR_user);
-            float chromaR = pixelR.g * carrierR.x + pixelR.b * carrierR.y;
+            float chromaR = pixelR.g * carrierR.x + pal_v_sign * pixelR.b * carrierR.y;
             vec3 ycR;
             ycR.r = y_gain * (pixelR.r + y_offset);
             ycR.g = chromaR * 2.0 * carrierR_user.x;
-            ycR.b = chromaR * 2.0 * carrierR_user.y;
+            ycR.b = chromaR * 2.0 * carrierR_user.y * pal_v_sign_decoder;
 
             vec3 pixelL = texture(Source, Tex - nf * dx).rgb;
             // Compute exact phase at left tap position to avoid drift
@@ -374,11 +381,11 @@ void main()
             float phaseL_user = normalize_phase(phase0_user - phase_inc_px * nf);
             vec2 carrierL = sincos_phase_raw(phaseL);
             vec2 carrierL_user = sincos_phase_raw(phaseL_user);
-            float chromaL = pixelL.g * carrierL.x + pixelL.b * carrierL.y;
+            float chromaL = pixelL.g * carrierL.x + pal_v_sign * pixelL.b * carrierL.y;
             vec3 ycL;
             ycL.r = y_gain * (pixelL.r + y_offset);
             ycL.g = chromaL * 2.0 * carrierL_user.x;
-            ycL.b = chromaL * 2.0 * carrierL_user.y;
+            ycL.b = chromaL * 2.0 * carrierL_user.y * pal_v_sign_decoder;
 
             accum.x += wy_r * ycR.x + wy_l * ycL.x;
             accum.y += wc_r * ycR.y + wc_l * ycL.y;
