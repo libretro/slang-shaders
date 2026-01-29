@@ -12,7 +12,7 @@
 #pragma parameter NOISE_MODE "Noise mode (fast, advanced)" 1.0 0.0 1.0 1.0
 #pragma parameter NOISE_AWGN_DB "AWGN level (dB)" -35.0 -96.0 48.0 1.0
 #pragma parameter NOISE_PHASE_JITTER_DEG "Phase jitter (° RMS)" 0.10 0.0 5.0 0.01
-#pragma parameter NOISE_GHOST1_DB "Ghost1 level (dB)" -40.0 -80.0 0.0 1.0
-#pragma parameter NOISE_GHOST1_PIX "Ghost1 delay (px)" 12.0 0.0 120.0 1.0
+#pragma parameter NOISE_GHOST1_DB "Ghost level (dB)" -40.0 -80.0 0.0 1.0
+#pragma parameter NOISE_GHOST1_PIX "Ghost delay (px)" 12.0 0.0 120.0 1.0
 #pragma parameter NOISE_IMPULSE_RATE "Impulse rate (ppm)" 5.0 0.0 200.0 1.0
 #pragma parameter NOISE_IMPULSE_DB "Impulse level (dB)" -10.0 -40.0 0.0 1.0

@@ -100,14 +100,14 @@ layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out float sigma_bp;
 layout(location = 2) out float sigma_notch;
-layout(location = 3) out TimebaseConfig tb;
+layout(location = 3) out CarrierPhaseConfig carrier;
 
 void main()
 {
     gl_Position = global.MVP * Position;
     vTexCoord = TexCoord;
 
-    tb = compute_timebase(
+    TimebaseConfig tb = compute_timebase(
         config.FrameCount,
         vTexCoord,
         config.OriginalSize.xy,
@@ -135,13 +135,14 @@ void main()
 
     sigma_bp = sigma_tb(tb, max(BANDPASS_WIDTH, 1e-6), bandpass_edge_atten_db);
     sigma_notch = sigma_tb(tb, NOTCH_WIDTH, NOTCH_ATTEN_DB);
+    carrier = extract_carrier_phase(tb);
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in float sigma_bp;
 layout(location = 2) in float sigma_notch;
-layout(location = 3) in TimebaseConfig tb;
+layout(location = 3) in CarrierPhaseConfig carrier;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -162,7 +163,7 @@ void main()
 
     // Input composite baseband from previous stage
     vec2 UV = vTexCoord * config.OutputSize.xy;
-    float line = floor(UV.y) / tb.pixels_per_line;
+    float line = floor(UV.y) / carrier.pixels_per_line;
     float baseIndex = floor(UV.x);
     float baseCenter = baseIndex + 0.5;
     float Ax = UV.x - baseCenter;
@@ -188,7 +189,7 @@ void main()
         float sum_notch = 0.0;
 
         // Subcarrier cycles per pixel for modulation (cycles/pixel)
-        float f_sc_px = tb.sc_freq_hz * tb.pixel_time_px;
+        float f_sc_px = carrier.sc_freq_hz * carrier.pixel_time_px;
 
         // Center weights (include fractional horizontal offset Ax)
         float g_bp0 = gaussian(Ax, sigma_bp);
@@ -249,7 +250,7 @@ void main()
 
     if (COLOR_FILTER_MODE >= 1.0) {
         // Calculate intrinsic system phase shift per line (independent of user hue)
-        float cycles_per_line = tb.sc_freq_hz / tb.h_freq_hz;
+        float cycles_per_line = carrier.sc_freq_hz / carrier.h_freq_hz;
         float frac_cycles = fract(cycles_per_line);
         float system_phase_shift = 2.0 * PI * frac_cycles;
         if (system_phase_shift > PI) {
@@ -257,7 +258,7 @@ void main()
         }
 
         // Correct for system phase shift to achieve ideal 180° alignment
-        float sc_phase_inc_per_px = 2.0 * PI * tb.sc_freq_hz * tb.pixel_time_px;
+        float sc_phase_inc_per_px = 2.0 * PI * carrier.sc_freq_hz * carrier.pixel_time_px;
         float target_phase = PI;
         float phase_correction_needed = target_phase - system_phase_shift;
 
@@ -268,7 +269,7 @@ void main()
         float period_px = 2.0 * PI / sc_phase_inc_per_px;
         dx_phase_offset_px -= round(dx_phase_offset_px / period_px) * period_px;
 
-        vec2 dxy = vec2(-dx_phase_offset_px * config.OutputSize.z, -tb.pixels_per_line * config.OutputSize.w);
+        vec2 dxy = vec2(-dx_phase_offset_px * config.OutputSize.z, -carrier.pixels_per_line * config.OutputSize.w);
 
         // Sample phase-aligned taps
         float comb_taps_composite = texture(Source, Tex + dxy).r;
@@ -285,11 +286,9 @@ void main()
 
                 // Smoothly mix using +/-0.05 transition around adapt thresholds
                 float luma_w = smoothstep(COMB_FILTER_LUMA_ADAPT - 0.05, COMB_FILTER_LUMA_ADAPT + 0.05, composite_corr);
-                float chroma_w = smoothstep(COMB_FILTER_CHROMA_ADAPT - 0.05, COMB_FILTER_CHROMA_ADAPT + 0.05, composite_corr);
 
                 color_comb.r = mix(y_notch, y1, luma_w);
-                color_comb.g = mix(c_notch, c1, chroma_w);
-                color_comb.g = mix(c_notch, c1, chroma_w);
+                color_comb.g = c1;  // Always use comb chroma
             } else {
                 // Fixed-weight simple comb filter output
                 color_comb = vec2(y1, c1);
