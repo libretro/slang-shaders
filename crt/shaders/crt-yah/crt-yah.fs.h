@@ -231,7 +231,7 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple
 
     // when automatic down-scaled
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
-    {
+    { 
         // apply half texel x-offset (to sample between two pixel anlong scanlines)
         tex_coord += vec2o(-0.5, 0.0);
     }
@@ -242,18 +242,20 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple
         tex_coord += vec2o(0.0, 0.5) / multiple * (INPUT_SCREEN_MULTIPLE - 1.0);
     }
 
-    float scanlines_offset = PARAM_SCANLINES_OFFSET > 0.0
-        // fixed offset
-        ? PARAM_SCANLINES_OFFSET
+    // offset scaled by multiple
+    float scanlines_offset = PARAM_SCANLINES_OFFSET / INPUT_SCREEN_MULTIPLE;
+    if (scanlines_offset < 0.0)
+    {
         // jitter offset each 2nd frame with 30/60Hz
-        : mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 2) > 0.0
+        scanlines_offset = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 2) > 0.0
             ? 0.0
-            : abs(PARAM_SCANLINES_OFFSET);
+            : abs(scanlines_offset);
+    }
 
     // when automatic down-scaled
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
     {
-        float slope = 1.0 - 1.0 / INPUT_SCREEN_MULTIPLE;
+        float slope = 1.0 - (1.0 / INPUT_SCREEN_MULTIPLE);
 
         // apply manual half texel y-offset by exponential amout of multiple
         tex_coord += vec2o(0.0, 0.5) * normalized_sigmoid(scanlines_offset / 2.0, -slope) * 2.0;
