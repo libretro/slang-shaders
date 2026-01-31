@@ -28,21 +28,6 @@
 #pragma parameter hcrt_colour_system                 "    Colour System: r709 | PAL | NTSC-U | NTSC-J"              2.0      0.0   3.0      1.0
 #pragma parameter hcrt_phosphor_set                  "    Phosphors: NONE | P22-J | P22-80 | P22-90 | RPTV | 1953"  0.0      0.0   5.0      1.0
 #pragma parameter hcrt_space6                        " "                                                            0.0      0.0   0.0001   0.0001
-
-#pragma parameter hcrt_image_controls                "IMAGE ADJUSTMENT SETTINGS:"                                   0.0      0.0   0.0001   0.0001
-#pragma parameter hcrt_support3                      "    Default white points for the different colour systems:"   0.0      0.0   0.0001   0.0001
-#pragma parameter hcrt_support4                      "    709: D65, PAL: D65, NTSC-U: D65, NTSC-J: D93"         	0.0      0.0   0.0001   0.0001
-#pragma parameter hcrt_space7                        " "                                                            0.0      0.0   0.0001   0.0001
-#pragma parameter hcrt_white_temperature_D65         "    D65 White Temperature (Kelvin)"                    		6504.0   0.0   18500.0  100.0
-#pragma parameter hcrt_white_temperature_D93         "    D93 White Temperature (Kelvin)"                    		9305.0   0.0   18500.0  100.0
-#pragma parameter hcrt_brightness                    "    Brightness"                                               0.0     -1.0   1.0      0.01
-#pragma parameter hcrt_contrast                      "    Contrast"                                                 0.0     -1.0   1.0      0.01
-#pragma parameter hcrt_saturation                    "    Saturation"                                               0.0     -1.0   1.0      0.01
-#pragma parameter hcrt_gamma_in                      "    Gamma"                                                    2.22     1.0   5.0      0.01
-#pragma parameter hcrt_gamma_cutoff                  "    Inverse Gamma Cutoff (x1000)"                             1.0      0.0   100.0    1.0
-#pragma parameter hcrt_bloom_strength                "    Bloom Strength"                                           0.0      0.0   1.0      0.01
-#pragma parameter hcrt_space8                        " "                                                            0.0      0.0   0.0001   0.0001
-
 #pragma parameter hcrt_developer_settings0           "    VERTICAL SETTINGS:"                                       0.0      0.0   0.0001   0.0001
 #pragma parameter hcrt_v_size                        "        Vertical Size"                                        1.00     0.8   1.2      0.01
 #pragma parameter hcrt_v_cent                        "        Vertical Center"                                      0.00  -200.0 200.0      1.0
@@ -71,4 +56,18 @@
 #pragma parameter hcrt_green_beam_attack             "        Green Beam Attack"                                    0.50     0.0   2.0      0.01
 #pragma parameter hcrt_blue_beam_sharpness           "        Blue Beam Sharpness"                                  1.75     0.0   5.0      0.05
 #pragma parameter hcrt_blue_beam_attack              "        Blue Beam Attack"                                     0.50     0.0   2.0      0.01
+
+#pragma parameter hcrt_image_controls                "IMAGE ADJUSTMENT SETTINGS:"                                   0.0      0.0   0.0001   0.0001
+#pragma parameter hcrt_support3                      "    Default white points for the different colour systems:"   0.0      0.0   0.0001   0.0001
+#pragma parameter hcrt_support4                      "    709: D65, PAL: D65, NTSC-U: D65, NTSC-J: D93"         	0.0      0.0   0.0001   0.0001
+#pragma parameter hcrt_space7                        " "                                                            0.0      0.0   0.0001   0.0001
+#pragma parameter hcrt_white_temperature_D65         "    D65 White Temperature (Kelvin)"                    		6504.0   0.0   18500.0  100.0
+#pragma parameter hcrt_white_temperature_D93         "    D93 White Temperature (Kelvin)"                    		9305.0   0.0   18500.0  100.0
+#pragma parameter hcrt_brightness                    "    Brightness"                                               0.0     -1.0   1.0      0.01
+#pragma parameter hcrt_contrast                      "    Contrast"                                                 0.0     -1.0   1.0      0.01
+#pragma parameter hcrt_saturation                    "    Saturation"                                               0.0     -1.0   1.0      0.01
+#pragma parameter hcrt_gamma_in                      "    Gamma"                                                    2.22     1.0   5.0      0.01
+#pragma parameter hcrt_gamma_cutoff                  "    Inverse Gamma Cutoff (x1000)"                             1.0      0.0   100.0    1.0
+#pragma parameter hcrt_bloom_strength                "    Bloom Strength"                                           0.0      0.0   1.0      0.01
+#pragma parameter hcrt_space8                        " "                                                            0.0      0.0   0.0001   0.0001
 

@@ -81,6 +81,24 @@ const mat3 kXYZ_to_2020 = mat3(
     0.017640f, -0.042771f,  0.942103f
 );
 
+const mat3 k2020_to_sRGB = mat3(
+    1.660491f, -0.587641f, -0.072850f,
+   -0.124550f,  1.132900f, -0.008349f,
+   -0.018151f, -0.100579f,  1.118730f
+);
+
+const mat3 k2020_to_P3 = mat3(
+    1.343578f, -0.282180f, -0.061399f,
+   -0.065297f,  1.075788f, -0.010490f,
+    0.002822f, -0.019598f,  1.016777f
+);
+
+const mat3 k2020_to_Adobe = mat3(
+    1.151978f, -0.097503f, -0.054475f,
+   -0.124550f,  1.132900f, -0.008349f,
+   -0.022530f, -0.049807f,  1.072337f
+);
+
 const mat3 kStandardsColourGamut[kColourSystems] = { k709_to_XYZ, kPAL_to_XYZ, kNTSC_to_XYZ, kNTSC_to_XYZ };
 const mat3 kPhosphorColourGamut[kPhosphorSets] = { kNTSCJ_P22_to_XYZ, kP2280_to_XYZ, kP2290_to_XYZ, kRPTV00_to_XYZ, k1953_to_XYZ };
 
@@ -234,11 +252,33 @@ vec3 ColourGrade(const vec3 colour)
    
    const vec3 xyz             = linear * source_to_XYZ;
 
-   const vec3 pipeline_colour = BrightnessContrastSaturation(xyz); 
+   const vec3 graded_colour   = BrightnessContrastSaturation(xyz); 
 
-   const vec3 boosted_colour  = GamutBoost(pipeline_colour);
+   const vec3 boosted_colour  = GamutBoost(graded_colour);
 
-   return boosted_colour;
+   // Initialize with default (Rec.2020)
+   vec3 pipeline_colour = boosted_colour;
+
+   uint space = uint(HCRT_OUTPUT_COLOUR_SPACE);
+   
+   if (space == 0 || space == 1) // Rec.709 / sRGB
+   {
+       pipeline_colour = boosted_colour * k2020_to_sRGB;
+   }
+   else if (space == 2) // DCI-P3
+   {
+      pipeline_colour = boosted_colour * k2020_to_P3;
+   }
+   else if (space == 3) // AdobeRGB
+   {
+      pipeline_colour = boosted_colour * k2020_to_Adobe;
+   }
+   // space == 4 (Rec.2020) -> Identity (Pass-through)
+
+   // Clamp to prevent negative values from breaking the CRT mask
+   pipeline_colour = max(pipeline_colour, vec3(0.0f));
+
+   return pipeline_colour;
 }
 
 #else // !SONY_MEGATRON_VERSION_2
