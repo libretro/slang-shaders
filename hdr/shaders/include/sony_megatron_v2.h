@@ -532,25 +532,48 @@ void main()
       scanline_colour += scanline_channel_2 * kColourMask[channel_2];
    }
 
-   vec3 transformed_colour;
+   vec3 linear_target;
+   uint output_space = uint(HCRT_OUTPUT_COLOUR_SPACE);
 
    if(HCRT_HDR >= 1.0f)
    {
-      const vec3 rec2020  = scanline_colour * GamutMatrix(0, uint(HCRT_EXPAND_GAMUT));
-      transformed_colour  = rec2020 * (HCRT_PAPER_WHITE_NITS / kMaxNitsFor2084);
-   }
-   else if(HCRT_OUTPUT_COLOUR_SPACE == 2.0f)
-   {
-      transformed_colour = (scanline_colour * k709_to_XYZ) * kXYZ_to_DCIP3; 
+      if(output_space == 2) // DCI-P3
+      {
+         linear_target = scanline_colour * k2020_to_P3;
+      }
+      else if(output_space == 3) // AdobeRGB
+      {
+         linear_target = scanline_colour * k2020_to_Adobe;
+      }
+      else // Rec.2020 (Default for 709/sRGB/2020 settings in HDR)
+      {
+         linear_target = scanline_colour;
+      }
+
+      linear_target = linear_target * (HCRT_PAPER_WHITE_NITS / kMaxNitsFor2084);
+      FragColor = vec4(LinearToST2084(linear_target), 1.0f);
    }
    else
    {
-      transformed_colour = scanline_colour;
+      if(output_space == 0) // Rec.709
+      {
+         linear_target = scanline_colour * k2020_to_sRGB; 
+         FragColor = vec4(LinearTo709(linear_target), 1.0f);
+      }
+      else if(output_space == 1) // sRGB
+      {
+         linear_target = scanline_colour * k2020_to_sRGB;
+         FragColor = vec4(LinearTosRGB(linear_target), 1.0f);
+      }
+      else if(output_space == 2) // DCI-P3
+      {
+         linear_target = scanline_colour * k2020_to_P3;
+         FragColor = vec4(LinearToDCIP3(linear_target), 1.0f);
+      }
+      else // AdobeRGB
+      {
+         linear_target = scanline_colour * k2020_to_Adobe;
+         FragColor = vec4(pow(linear_target, vec3(1.0f / HCRT_ADOBE_GAMMA_OUT)), 1.0f);
+      }
    }
-
-   vec3 gamma_corrected; 
-   
-   GammaCorrect(transformed_colour, gamma_corrected);
-
-   FragColor = vec4(gamma_corrected, 1.0f);
 }

@@ -58,11 +58,11 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	uint FrameCount;
 	float EnableHDR;
 	float PaperWhiteNits;
-	float ExpandGamut;
 	
 	float hcrt_r709_gamma_out;
 	float hcrt_srgb_gamma_out;
 	float hcrt_p3_gamma_out;
+   float hcrt_adobe_gamma_out;
 	float hcrt_r709_gamma_cutoff;
 	float hcrt_srgb_gamma_cutoff;
 	
@@ -77,10 +77,10 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define HCRT_HDR                             global.EnableHDR
 #define HCRT_OUTPUT_COLOUR_SPACE             params.hcrt_colour_space
 #define HCRT_PAPER_WHITE_NITS                params.hcrt_paper_white_nits
-#define HCRT_EXPAND_GAMUT                    params.hcrt_expand_gamut
 #define HCRT_R709_GAMMA_OUT                  global.hcrt_r709_gamma_out
 #define HCRT_SRGB_GAMMA_OUT                  global.hcrt_srgb_gamma_out
 #define HCRT_P3_GAMMA_OUT                    global.hcrt_p3_gamma_out
+#define HCRT_ADOBE_GAMMA_OUT                 global.hcrt_adobe_gamma_out
 #define HCRT_R709_GAMMA_CUTOFF               global.hcrt_r709_gamma_cutoff
 #define HCRT_SRGB_GAMMA_CUTOFF               global.hcrt_srgb_gamma_cutoff
 #define HCRT_BLOOM_STRENGTH                  params.hcrt_bloom_strength
