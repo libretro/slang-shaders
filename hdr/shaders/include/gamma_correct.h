@@ -12,6 +12,25 @@ const mat3 kXYZ_to_DCIP3 = mat3 (
    -0.8294889696f,  1.7626640603f,  0.0236246858f,
     0.0358458302f, -0.0761723893f,  0.9568845240f);
 
+const mat3 k2020_to_sRGB = mat3(
+    1.660491f, -0.587641f, -0.072850f,
+   -0.124550f,  1.132900f, -0.008349f,
+   -0.018151f, -0.100579f,  1.118730f
+);
+
+const mat3 k2020_to_P3 = mat3(
+    1.343578f, -0.282180f, -0.061399f,
+   -0.065297f,  1.075788f, -0.010490f,
+    0.002822f, -0.019598f,  1.016777f
+);
+
+const mat3 k2020_to_Adobe = mat3(
+    1.151978f, -0.097503f, -0.054475f,
+   -0.124550f,  1.132900f, -0.008349f,
+   -0.022530f, -0.049807f,  1.072337f
+);
+
+
 float LinearTosRGB_1(const float channel)
 {
 	return (channel > (HCRT_SRGB_GAMMA_CUTOFF * (1.0f / 1000.0f))) ? (1.055f * pow(channel, 1.0f / HCRT_SRGB_GAMMA_OUT)) - 0.055f : channel * 12.92f; 
@@ -24,7 +43,7 @@ vec3 LinearTosRGB(const vec3 colour)
 
 float LinearTo709_1(const float channel)
 {
-	return (channel >= (HCRT_R709_GAMMA_CUTOFF * (1.0f / 1000.0f))) ? pow(channel * 1.099f, 1.0f / HCRT_R709_GAMMA_OUT) - 0.099f : channel * 4.5f;
+    return (channel >= (HCRT_R709_GAMMA_CUTOFF * (1.0f / 1000.0f))) ? (1.099f * pow(channel, 1.0f / HCRT_R709_GAMMA_OUT)) - 0.099f : channel * 4.5f;
 }
 
 vec3 LinearTo709(const vec3 colour)

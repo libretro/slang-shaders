@@ -18,7 +18,8 @@ layout(push_constant) uniform Push
    float hcrt_saturation;
    float hcrt_gamma_in;
    float hcrt_gamma_cutoff;
-   float hcrt_colour_accurate;
+   float hcrt_expand_gamut;
+   float hcrt_colour_boost_factor;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -44,6 +45,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define HCRT_SATURATION                     params.hcrt_saturation
 #define HCRT_GAMMA_IN                       params.hcrt_gamma_in
 #define HCRT_GAMMA_CUTOFF                   params.hcrt_gamma_cutoff
-#define HCRT_COLOUR_ACCURATE                params.hcrt_colour_accurate
+#define HCRT_COLOUR_BOOST_FACTOR            params.hcrt_colour_boost_factor
 
 #include "include/sdr_pass_v2.h"
