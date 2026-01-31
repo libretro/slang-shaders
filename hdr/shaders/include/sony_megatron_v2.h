@@ -542,15 +542,15 @@ void main()
    }
    else
    {
-      if(output_space == 0) // Rec.709
+      if(output_space == 0 || output_space == 1) // Rec.709
       {
          FragColor = vec4(LinearTo709(scanline_colour), 1.0f);
       }
-      else if(output_space == 1) // sRGB
+      else if(output_space == 2) // sRGB
       {
          FragColor = vec4(LinearTosRGB(scanline_colour), 1.0f);  
       }
-      else if(output_space == 2) // DCI-P3
+      else if(output_space == 3) // DCI-P3
       {
          FragColor = vec4(LinearToDCIP3(scanline_colour), 1.0f);
       }

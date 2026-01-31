@@ -61,6 +61,8 @@ vec3 LinearToDCIP3(const vec3 colour)
 	return vec3(LinearToDCIP3_1(colour.r), LinearToDCIP3_1(colour.g), LinearToDCIP3_1(colour.b));
 }
 
+#ifndef SONY_MEGATRON_VERSION_2
+
 void GammaCorrect(const vec3 scanline_colour, inout vec3 gamma_corrected)
 {
    if(HCRT_HDR < 1.0f)
@@ -83,3 +85,5 @@ void GammaCorrect(const vec3 scanline_colour, inout vec3 gamma_corrected)
       gamma_corrected = LinearToST2084(scanline_colour);
    }
 }
+
+#endif // !SONY_MEGATRON_VERSION_2

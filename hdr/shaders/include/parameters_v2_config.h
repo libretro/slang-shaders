@@ -4,7 +4,7 @@
 #pragma parameter hcrt_user_settings                 "YOUR DISPLAY'S SETTINGS:"                                     0.0      0.0   0.0001   0.0001
 #pragma parameter hcrt_lcd_resolution                "    Display's Resolution: 1080p | 4K | 8K"                    1.0      0.0   2.0      1.0
 #pragma parameter hcrt_lcd_subpixel                  "    Display's Subpixel Layout: RGB | RWBG (OLED) | BGR"       0.0      0.0   2.0      1.0
-#pragma parameter hcrt_colour_space                  "    Display's Colour Space: r709 | sRGB | DCI-P3 | Adobe"     1.0      0.0   3.0      1.0
+#pragma parameter hcrt_colour_space                  "    Colour Space: r2020 | r709 | sRGB | DCI-P3 | Adobe"       0.0      0.0   4.0      1.0
 #pragma parameter hcrt_colour_boost_factor           "    Colour Boost"                                             1.0      0.0   5.0      0.01
 #pragma parameter hcrt_space2                        " "                                                            0.0      0.0   0.0001   0.0001
 
