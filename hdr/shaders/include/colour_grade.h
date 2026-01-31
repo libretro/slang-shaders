@@ -261,19 +261,19 @@ vec3 ColourGrade(const vec3 colour)
 
    uint space = uint(HCRT_OUTPUT_COLOUR_SPACE);
    
-   if (space == 0 || space == 1) // Rec.709 / sRGB
+   if (space == 1 || space == 2) // Rec.709 / sRGB
    {
        pipeline_colour = boosted_colour * k2020_to_sRGB;
    }
-   else if (space == 2) // DCI-P3
+   else if (space == 3) // DCI-P3
    {
       pipeline_colour = boosted_colour * k2020_to_P3;
    }
-   else if (space == 3) // AdobeRGB
+   else if (space == 4) // AdobeRGB
    {
       pipeline_colour = boosted_colour * k2020_to_Adobe;
    }
-   // space == 4 (Rec.2020) -> Identity (Pass-through)
+   // space == 0 (Rec.2020) -> Identity (Pass-through)
 
    // Clamp to prevent negative values from breaking the CRT mask
    pipeline_colour = max(pipeline_colour, vec3(0.0f));
