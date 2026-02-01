@@ -20,7 +20,7 @@
 #pragma parameter hcrt_crt_physicals                 "CRT SETTINGS:"                                                0.0      0.0   0.0001   0.0001
 #pragma parameter hcrt_crt_screen_type               "    Screen Type: APERTURE GRILLE | SHADOW MASK | SLOT MASK"   0.0      0.0   2.0      1.0
 #pragma parameter hcrt_crt_resolution                "    Resolution: 300TVL | 600TVL | 800TVL | 1000TVL"           1.0      0.0   3.0      1.0
-#pragma parameter hcrt_colour_system                 "    Colour System: r709 | PAL | NTSC-U | NTSC-J"              2.0      0.0   3.0      1.0
+#pragma parameter hcrt_colour_system                 "    Colour System: r709 | PAL | NTSC-U | NTSC-J"              0.0      0.0   3.0      1.0
 #pragma parameter hcrt_phosphor_set                  "    Phosphors: NONE | P22-J | P22-80 | P22-90 | RPTV | 1953"  0.0      0.0   5.0      1.0
 #pragma parameter hcrt_space5                        " "                                                            0.0      0.0   0.0001   0.0001
 #pragma parameter hcrt_developer_settings0           "    VERTICAL SETTINGS:"                                       0.0      0.0   0.0001   0.0001

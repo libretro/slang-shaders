@@ -63,7 +63,7 @@ float ScanlineColour(const uint channel,
    float horiz_interp               = Bezier(narrowed_source_pixel_offset, BeamControlPoints(beam_attack, hdr_channel_0 > hdr_channel_1));  
    float hdr_channel                = mix(hdr_channel_0, hdr_channel_1, horiz_interp);
 
-   float physics_signal             = pow(max(hdr_channel, 0.0), 1.0 / 2.2);
+   float physics_signal             = hdr_channel;
 
    float signal_strength            = clamp(physics_signal, 0.0, 2.5); 
 

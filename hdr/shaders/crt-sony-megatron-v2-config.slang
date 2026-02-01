@@ -58,6 +58,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	uint FrameCount;
 	float EnableHDR;
 	float PaperWhiteNits;
+	float MaxNits;
 	
 	float hcrt_r709_gamma_out;
 	float hcrt_srgb_gamma_out;
@@ -76,6 +77,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #define HCRT_HDR                             global.EnableHDR
 #define HCRT_OUTPUT_COLOUR_SPACE             params.hcrt_colour_space
+#define HCRT_MAX_NITS                        params.hcrt_max_nits
 #define HCRT_PAPER_WHITE_NITS                params.hcrt_paper_white_nits
 #define HCRT_R709_GAMMA_OUT                  global.hcrt_r709_gamma_out
 #define HCRT_SRGB_GAMMA_OUT                  global.hcrt_srgb_gamma_out

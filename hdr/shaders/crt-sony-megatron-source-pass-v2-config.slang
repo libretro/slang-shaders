@@ -18,7 +18,6 @@ layout(push_constant) uniform Push
    float hcrt_saturation;
    float hcrt_gamma_in;
    float hcrt_gamma_cutoff;
-   float hcrt_expand_gamut;
    float hcrt_colour_boost_factor;
 } params;
 
