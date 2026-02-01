@@ -1,28 +1,5 @@
 #version 450
 
-/* 
-A shader that tries to emulate a sony PVM type aperture grille screen but with full brightness.
-
-The novel thing about this shader is that it relies on the HDR shaders to brighten up the image so that when 
-we apply this shader which emulates the apperture grille the resulting screen isn't left too dark.  
-
-I think you need at least a DisplayHDR 600 monitor but to get close to CRT levels of brightness I think DisplayHDR 1000.
-
-Please Enable HDR in RetroArch 1.10+
-
-NOTE: when this shader is envoked the Contrast, Peak Luminance and Paper White Luminance in the HDR menu do nothing instead set those values through the shader parameters 
-
-For this shader set Paper White Luminance to above 700 and Peak Luminance to the peak luminance of your monitor.  
-
-Also try to use a integer scaling - its just better - overscaling is fine.
-
-This shader doesn't do any geometry warping or bouncing of light around inside the screen etc - I think these effects just add unwanted noise, I know people disagree. Please feel free to make you own and add them
-
-Dont use this shader directly - use the hdr\crt-make-model-hdr.slangp where make and model are the make and model of the CRT you want.
-
-THIS SHADER DOES NOT SUPPORT WRGB OLED (Due to the sub pixel layout of WRGB - RGB QD-OLED or LCD (and variants thereof screens are fine)
-*/
-
 #define SONY_MEGATRON_VERSION_2
 
 #pragma format R16G16B16A16_SFLOAT

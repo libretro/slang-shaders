@@ -12,25 +12,6 @@ const mat3 kXYZ_to_DCIP3 = mat3 (
    -0.8294889696f,  1.7626640603f,  0.0236246858f,
     0.0358458302f, -0.0761723893f,  0.9568845240f);
 
-const mat3 k2020_to_sRGB = mat3(
-    1.660491f, -0.587641f, -0.072850f,
-   -0.124550f,  1.132900f, -0.008349f,
-   -0.018151f, -0.100579f,  1.118730f
-);
-
-const mat3 k2020_to_P3 = mat3(
-    1.343578f, -0.282180f, -0.061399f,
-   -0.065297f,  1.075788f, -0.010490f,
-    0.002822f, -0.019598f,  1.016777f
-);
-
-const mat3 k2020_to_Adobe = mat3(
-    1.151978f, -0.097503f, -0.054475f,
-   -0.124550f,  1.132900f, -0.008349f,
-   -0.022530f, -0.049807f,  1.072337f
-);
-
-
 float LinearTosRGB_1(const float channel)
 {
 	return (channel > (HCRT_SRGB_GAMMA_CUTOFF * (1.0f / 1000.0f))) ? (1.055f * pow(channel, 1.0f / HCRT_SRGB_GAMMA_OUT)) - 0.055f : channel * 12.92f; 
@@ -51,17 +32,27 @@ vec3 LinearTo709(const vec3 colour)
 	return vec3(LinearTo709_1(colour.r), LinearTo709_1(colour.g), LinearTo709_1(colour.b));
 }
 
-float LinearToDCIP3_1(const float channel)
-{
-	return pow(channel, 1.0f / HCRT_P3_GAMMA_OUT);
-}
-
 vec3 LinearToDCIP3(const vec3 colour)
 {
-	return vec3(LinearToDCIP3_1(colour.r), LinearToDCIP3_1(colour.g), LinearToDCIP3_1(colour.b));
+   return pow(colour, vec3(1.0f / HCRT_P3_GAMMA_OUT));
 }
 
-#ifndef SONY_MEGATRON_VERSION_2
+#ifdef SONY_MEGATRON_VERSION_2
+
+vec3 LinearToAdobe(const vec3 colour)
+{
+	return pow(colour, vec3(1.0f / HCRT_ADOBE_GAMMA_OUT));
+}
+
+vec3 LinearToSignal(vec3 linear_colour)
+{
+   vec3 input_to_gamma = linear_colour;
+    
+    // Always Encode to Gamma 2.4
+    return pow(max(input_to_gamma, 0.0f), vec3(1.0f / 2.4f));
+}
+
+#else // !SONY_MEGATRON_VERSION_2
 
 void GammaCorrect(const vec3 scanline_colour, inout vec3 gamma_corrected)
 {

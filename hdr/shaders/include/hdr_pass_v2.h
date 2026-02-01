@@ -17,7 +17,7 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #include "inverse_tonemap.h"
-#include "hdr10.h"
+#include "gamma_correct.h"
 
 void main()
 {
@@ -28,5 +28,7 @@ void main()
       hdr_colour = InverseTonemap(hdr_colour, HCRT_MAX_NITS, HCRT_PAPER_WHITE_NITS);
    }
 
-   FragColor = vec4(hdr_colour, 1.0);
+   const vec3 signal_colour = LinearToSignal(hdr_colour);
+
+   FragColor = vec4(signal_colour, 1.0);
 }

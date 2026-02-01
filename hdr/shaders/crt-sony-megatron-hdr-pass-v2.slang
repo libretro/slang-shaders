@@ -31,10 +31,17 @@ layout(push_constant) uniform Push
 {
    // User Settings
    float hcrt_hdr;
-   float hcrt_new;
    float hcrt_max_nits;
    float hcrt_paper_white_nits;
    float hcrt_expand_gamut;
+   float hcrt_colour_space;
+	
+   float hcrt_r709_gamma_out;
+   float hcrt_srgb_gamma_out;
+   float hcrt_p3_gamma_out;
+   float hcrt_adobe_gamma_out;
+   float hcrt_r709_gamma_cutoff;
+   float hcrt_srgb_gamma_cutoff;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -56,5 +63,13 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define HCRT_MAX_NITS                       global.MaxNits
 #define HCRT_PAPER_WHITE_NITS               global.PaperWhiteNits
 #define HCRT_EXPAND_GAMUT                   global.ExpandGamut
+#define HCRT_OUTPUT_COLOUR_SPACE            params.hcrt_colour_space
+
+#define HCRT_R709_GAMMA_OUT                 params.hcrt_r709_gamma_out
+#define HCRT_SRGB_GAMMA_OUT                 params.hcrt_srgb_gamma_out
+#define HCRT_P3_GAMMA_OUT                   params.hcrt_p3_gamma_out
+#define HCRT_ADOBE_GAMMA_OUT                params.hcrt_adobe_gamma_out
+#define HCRT_R709_GAMMA_CUTOFF              params.hcrt_r709_gamma_cutoff
+#define HCRT_SRGB_GAMMA_CUTOFF              params.hcrt_srgb_gamma_cutoff
 
 #include "include/hdr_pass_v2.h"

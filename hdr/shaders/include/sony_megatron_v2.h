@@ -532,31 +532,32 @@ void main()
       scanline_colour += scanline_channel_2 * kColourMask[channel_2];
    }
 
-   vec3 linear_target;
-   uint output_space = uint(HCRT_OUTPUT_COLOUR_SPACE);
+   vec3 linear_colour = pow(max(scanline_colour, 0.0f), vec3(2.4f));
 
-   if(HCRT_HDR >= 1.0f)
+   if (HCRT_HDR > 0.5f)
    {
-      linear_target = scanline_colour * (HCRT_PAPER_WHITE_NITS / kMaxNitsFor2084);
-      FragColor = vec4(LinearToST2084(linear_target), 1.0f);
+      vec3 pq_input = linear_colour * (HCRT_PAPER_WHITE_NITS / kMaxNitsFor2084);
+      FragColor = vec4(LinearToST2084(pq_input), 1.0f);
    }
    else
    {
-      if(output_space == 0 || output_space == 1) // Rec.709
+      uint output_space = uint(HCRT_OUTPUT_COLOUR_SPACE);
+      
+      if (output_space == 0 || output_space == 1) // Rec.709
       {
-         FragColor = vec4(LinearTo709(scanline_colour), 1.0f);
+         FragColor = vec4(LinearTo709(linear_colour), 1.0f);
       }
-      else if(output_space == 2) // sRGB
+      else if (output_space == 2) // sRGB
       {
-         FragColor = vec4(LinearTosRGB(scanline_colour), 1.0f);  
+         FragColor = vec4(LinearTosRGB(linear_colour), 1.0f);  
       }
-      else if(output_space == 3) // DCI-P3
+      else if (output_space == 3) // DCI-P3
       {
-         FragColor = vec4(LinearToDCIP3(scanline_colour), 1.0f);
+         FragColor = vec4(LinearToDCIP3(linear_colour), 1.0f);
       }
       else // AdobeRGB
       {
-         FragColor = vec4(pow(scanline_colour, vec3(1.0f / HCRT_ADOBE_GAMMA_OUT)), 1.0f);
+         FragColor = vec4(LinearToAdobe(linear_colour), 1.0f);
       }
    }
 }
