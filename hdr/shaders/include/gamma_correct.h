@@ -47,12 +47,6 @@ vec3 LinearToAdobe(const vec3 colour)
 vec3 LinearToSignal(vec3 linear_colour)
 {
    vec3 input_to_gamma = linear_colour;
-
-   if (HCRT_HDR >= 1.0f)
-   {
-      // HDR: Normalize PaperWhite to 1.0 (Screen Max)
-      input_to_gamma = linear_colour * (HCRT_PAPER_WHITE_NITS / HCRT_MAX_NITS); 
-   }
     
     // Always Encode to Gamma 2.4
     return pow(max(input_to_gamma, 0.0f), vec3(1.0f / 2.4f));

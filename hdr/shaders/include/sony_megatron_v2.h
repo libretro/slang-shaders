@@ -536,13 +536,11 @@ void main()
 
    if (HCRT_HDR > 0.5f)
    {
-      // HDR: Scale to nits -> PQ. Map 1.0 (screen max) to actual max nits
-      vec3 pq_input = linear_colour * (HCRT_MAX_NITS / kMaxNitsFor2084);
+      vec3 pq_input = linear_colour * (HCRT_PAPER_WHITE_NITS / kMaxNitsFor2084);
       FragColor = vec4(LinearToST2084(pq_input), 1.0f);
    }
    else
    {
-      // SDR: Encode to specific monitor output
       uint output_space = uint(HCRT_OUTPUT_COLOUR_SPACE);
       
       if (output_space == 0 || output_space == 1) // Rec.709
