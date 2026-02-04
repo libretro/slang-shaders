@@ -9,3 +9,6 @@ shader1 = shaders/CreativeForce/crt-CreativeForce-SharpSmooth.slang
 filter_linear1 = false
 scale_type1    = viewport
 wrap_mode1     = clamp_to_border
+# Override AR strength for this preset only
+parameters = AR_STRENGTH
+AR_STRENGTH = 0.60
