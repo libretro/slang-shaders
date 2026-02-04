@@ -11,4 +11,4 @@ scale_type1    = viewport
 wrap_mode1     = clamp_to_border
 # Override AR strength for this preset only
 parameters = AR_STRENGTH
-AR_STRENGTH = 0.61
+AR_STRENGTH = 0.33
