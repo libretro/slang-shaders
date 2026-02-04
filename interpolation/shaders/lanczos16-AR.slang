@@ -29,7 +29,7 @@ This program is free software; you can redistribute it and/or
    the ~1-pixel up/left shift some drivers/backends exhibited.
 */
 
-#pragma parameter AR_STRENGTH "Anti-ringing Strength" 0.61 0.0 1.0 0.01
+#pragma parameter AR_STRENGTH "Anti-ringing Strength" 0.60 0.0 1.0 0.01
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;   // xy = size, zw = 1/size
