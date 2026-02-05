@@ -31,7 +31,7 @@
 float get_brightness_compensation(float color_luma)
 {
     float mask_blend = 1.0 - (1.0 - PARAM_MASK_BLEND) * (1.0 - PARAM_MASK_BLEND);
-    
+
     return PARAM_COLOR_COMPENSATION > 0.0
         ? mix(
             INPUT_BRIGHTNESS_COMPENSATION,
@@ -181,7 +181,7 @@ vec3 get_half_beam_color(sampler2D source, vec2 tex_coord, vec2 delta_x, vec2 de
     // get color from spline
     vec3 color = mat4x3(x, y, z, w) * beam_filter;
 
-    // map filter range [-1.0, 1.0] to anti-ringing factor [0.5, 0.0] 
+    // map filter range [-1.0, 1.0] to anti-ringing factor [0.5, 0.0]
     float anti_ringing_auto = 1.0 - smoothstep(1.5, 2.0, PARAM_BEAM_FILTER + 1.0);
     float anti_ringing_manual = PARAM_ANTI_RINGING;
 
@@ -231,7 +231,7 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple
 
     // when automatic down-scaled
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
-    { 
+    {
         // apply half texel x-offset (to sample between two pixel anlong scanlines)
         tex_coord += vec2o(-0.5, 0.0);
     }
@@ -339,6 +339,13 @@ vec3 get_mask(vec2 tex_coord)
         subpixel_type == 1 ? subpixel_type + 1 :
         subpixel_type;
 
+    // when automatic down-scaled
+    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
+    {
+        // stabelize mask position due to half texel x-offset compensated in vertex-shader
+        pix_coord.x -= subpixel_size;
+    }
+
     vec3 mask = get_subpixel_color(
         pix_coord,
         subpixel_size,
@@ -407,6 +414,13 @@ vec3 apply_color_overflow(vec3 color)
 
 vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord)
 {
+    // when automatic down-scaled
+    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
+    {
+        // stabilize halation position due to half texel x-offset compensated in vertex-shader
+        tex_coord -= vec2o(0.5, 0.0) / global.OriginalSize.xy;
+    }
+
     vec3 halation = INPUT(texture(halation_source, tex_coord).rgb);
 
     // add the difference between color and halation
