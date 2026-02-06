@@ -25,6 +25,14 @@
 #include "common/math-helper.h"
 #include "common/screen-helper.h"
 
+// orientation-aware vec2 constructor
+vec2 vec2o(float x, float y)
+{
+    return INPUT_SCREEN_ORIENTATION == 0.0
+        ? vec2(x, y)
+        : vec2(y, x);
+}
+
 vec2 get_mask_profile()
 {
     float pixel_size = global.SourceSize.x < global.SourceSize.y 

@@ -69,7 +69,9 @@ layout(location = 6) out vec4 BeamProfile;
 layout(location = 7) out mat4x4 BeamFilter;
 
 // required by crt-yah.vs.h
+#define INPUT_SCREEN_ORIENTATION ScreenOrientation
 #define INPUT_SCREEN_MULTIPLE ScreenMultiple
+#define INPUT_SCREEN_MULTIPLE_AUTO ScreenMultipleAuto
 #define INPUT_MASK_PROFILE MaskProfile
 
 #include "crt-yah.vs.h"
@@ -86,6 +88,13 @@ void main()
     BeamProfile = get_beam_profile();
     BeamFilter = get_beam_filter();
     BrightnessCompensation = get_brightness_compensation();
+
+    // when automatic down-scaled
+    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
+    {
+        // compensate coordinate shift due half texel x-offset applyed in fragment shader
+        TexCoord += vec2o(0.5, 0.0) / global.OriginalSize.xy;
+    }
 }
 
 #pragma stage fragment
