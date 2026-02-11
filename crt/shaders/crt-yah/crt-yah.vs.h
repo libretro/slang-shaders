@@ -43,27 +43,29 @@ vec2 get_mask_profile()
     float subpixel_count = 3;
     
     // down-scale with integer increments
-    float subpixel_downscale = floor(abs(PARAM_MASK_SIZE)) + 1.0;
+    float subpixel_downscale = floor(abs(PARAM_MASK_SCALE)) + 1.0;
     // up-scale with factional increments, considering auto screen-scale
-    float subpixel_upscale = (PARAM_MASK_SIZE * INPUT_SCREEN_MULTIPLE_AUTO) + 1.0;
+    float subpixel_upscale = (PARAM_MASK_SCALE * INPUT_SCREEN_MULTIPLE_AUTO) + 1.0;
 
     float subpixel_size = pixel_size / subpixel_count;
     // auto scale, considering applied screen-scale
     subpixel_size = floor(subpixel_size * INPUT_SCREEN_MULTIPLE);
     // manual scale
-    subpixel_size = PARAM_MASK_SIZE < 0.0
+    subpixel_size = PARAM_MASK_SCALE < 0.0
         ? ceil(subpixel_size / subpixel_downscale)
         : floor(subpixel_size * subpixel_upscale);
     // limit
     subpixel_size = max(1.0, subpixel_size);
     
+    // for sub-pixel size > 2
     float subpixel_smoothness =
-        // aperture-grille for size > 2
+        // aperture-grille
         PARAM_MASK_TYPE == 1 ? clamp((subpixel_size - 2.0) * 0.75, 0.0, 1.0) :
-        // slot-mask for size > 2
+        // slot-mask
         PARAM_MASK_TYPE == 2 ? clamp((subpixel_size - 2.0) * 0.75, 0.0, 1.0) :
-        // shadow-mask for size > 2
+        // shadow-mask
         PARAM_MASK_TYPE == 3 ? clamp((subpixel_size - 2.0) * 0.25, 0.0, 1.0) : 0.0;
+    subpixel_smoothness *= PARAM_MASK_SUBPIXEL_SHAPE;
 
     return vec2(subpixel_size, subpixel_smoothness);
 }
@@ -88,6 +90,7 @@ float get_brightness_compensation()
     float mask_blend = 1.0 - (1.0 - PARAM_MASK_BLEND) * (1.0 - PARAM_MASK_BLEND);
 
     float mask_size = INPUT_MASK_PROFILE.x;
+    float mask_smoothness = INPUT_MASK_PROFILE.y;
 
     // mask sub-pixel
     float subpixel_offset =
@@ -105,27 +108,41 @@ float get_brightness_compensation()
     // mask type
     float type_offset =
         // aperture-grille
-        PARAM_MASK_TYPE == 1 ? 0.0 :
+        PARAM_MASK_TYPE == 1 ? mix(0.2, 0.05, mask_blend) :
         // slot-mask
-        PARAM_MASK_TYPE == 2 ? mix(1.0, 0.25, mask_blend) :
+        PARAM_MASK_TYPE == 2 ? mix(0.8, 0.2, mask_blend) :
         // shadow-mask
-        PARAM_MASK_TYPE == 3 ? 0.0 : 0.0;
+        PARAM_MASK_TYPE == 3 ? mix(0.2, 0.05, mask_blend) : 0.0;
 
-    // mask size
+    // for mask size > 2
     float size_offset = 
-        // aperture-grille for size > 2
-        PARAM_MASK_TYPE == 1 && mask_size > 2.0 ? mix(1.2, 0.3, mask_blend) :
-        // slot-mask for size > 2
-        PARAM_MASK_TYPE == 2 && mask_size > 2.0 ? mix(1.6, 0.4, mask_blend) :
-        // shadow-mask for size > 2
-        PARAM_MASK_TYPE == 3 && mask_size > 2.0 ? mix(2.0, 0.5, mask_blend) : 0.0;
+        // aperture-grille
+        PARAM_MASK_TYPE == 1 && mask_size > 2.0 ? mix(-0.4, -0.1, mask_blend) :
+        // slot-mask
+        PARAM_MASK_TYPE == 2 && mask_size > 2.0 ? mix(-0.4, -0.1, mask_blend) :
+        // shadow-mask
+        PARAM_MASK_TYPE == 3 && mask_size > 2.0 ? mix(0.4, 0.1, mask_blend) : 0.0;
+
+    // mask smoothness
+    float smoothness_offset = mask_smoothness;
+    smoothness_offset *=
+        // aperture-grille
+        PARAM_MASK_TYPE == 1 ? mix(1.6, 0.4, mask_blend) :
+        // slot-mask
+        PARAM_MASK_TYPE == 2 ? mix(1.6, 0.4, mask_blend) :
+        // shadow-mask
+        PARAM_MASK_TYPE == 3 ? mix(2.4, 0.6, mask_blend) : 1.0;
+
+    // mask bleed
+    float bleed_offset = PARAM_MASK_COLOR_BLEED * mix(-0.5, -0.25, mask_blend);
 
     // mask compensation
-    brightness_compensation -= 0.25 * mask_intensity;
-    brightness_compensation += 2.25 * (1.0 - mask_blend) * mask_intensity;
+    brightness_compensation += 1.5 * (1.0 - mask_blend) * mask_intensity;
     brightness_compensation += subpixel_offset * mask_intensity;
     brightness_compensation += type_offset * mask_intensity;
     brightness_compensation += size_offset * mask_intensity;
+    brightness_compensation += smoothness_offset * mask_intensity;
+    brightness_compensation += bleed_offset * mask_intensity;
 
     return brightness_compensation;
 }

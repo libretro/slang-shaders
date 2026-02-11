@@ -41,9 +41,10 @@ layout (push_constant) uniform Push
     float SCANLINES_COLOR_BURN;
     float MASK_INTENSITY;
     float MASK_BLEND;
-    float MASK_SIZE;
+    float MASK_SCALE;
     float MASK_TYPE;
     float MASK_SUBPIXEL;
+    float MASK_SUBPIXEL_SHAPE;
     float MASK_COLOR_BLEED;
     float HALATION_INTENSITY;
     float HALATION_DIFFUSION;
