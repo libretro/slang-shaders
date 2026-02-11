@@ -39,18 +39,23 @@ vec2 get_mask_profile()
         ? global.FinalViewportSize.x / global.SourceSize.x
         : global.FinalViewportSize.y / global.SourceSize.y;
 
-    float subpixel_count = PARAM_MASK_TYPE == 3
-        // shadow-mask
-        ? 3.0
-        // aperture-grille, slot-mask
-        : 4.0;
+    // constant sub-pixel count for constant sub-pixel size
+    float subpixel_count = 3;
+    
+    // down-scale with integer increments
+    float subpixel_downscale = floor(abs(PARAM_MASK_SIZE)) + 1.0;
+    // up-scale with factional increments, considering auto screen-scale
+    float subpixel_upscale = (PARAM_MASK_SIZE * INPUT_SCREEN_MULTIPLE_AUTO) + 1.0;
 
-    // auto
-    float subpixel_size = pixel_size / subpixel_count * INPUT_SCREEN_MULTIPLE;
-    // manual correction
-    subpixel_size += PARAM_MASK_SIZE;
+    float subpixel_size = pixel_size / subpixel_count;
+    // auto scale, considering applied screen-scale
+    subpixel_size = floor(subpixel_size * INPUT_SCREEN_MULTIPLE);
+    // manual scale
+    subpixel_size = PARAM_MASK_SIZE < 0.0
+        ? ceil(subpixel_size / subpixel_downscale)
+        : floor(subpixel_size * subpixel_upscale);
     // limit
-    subpixel_size = floor(max(1.0, subpixel_size));
+    subpixel_size = max(1.0, subpixel_size);
     
     float subpixel_smoothness =
         // aperture-grille for size > 2

@@ -31,7 +31,7 @@
 #pragma parameter MASK_TYPE "   Mask > Type²  (1-Aperture, 2-Slot, 3-Shadow)" 1.0 1.0 3.0 1.0
 #pragma parameter MASK_SUBPIXEL "   Mask > Sub-Pixel²  (1-BY, 2,3-MG/x, 4,5-RGB/x)" 4.0 1.0 5.0 1.0
 #pragma parameter MASK_COLOR_BLEED "   Mask > Color Bleed¹  (0-None .. 1-Full)" 0.25 0.0 1.0 0.25
-#pragma parameter MASK_SIZE "   Mask > Size  (-Down / 0-Auto / +Up)" 0.0 -2.0 2.0 1.0
+#pragma parameter MASK_SIZE "   Mask > Scale  (-1 Down / 0-Auto / +½ Up)" 0.0 -2.0 2.0 0.5
 
 // CRT parameters
 #pragma parameter CRT_CURVATURE_AMOUNT "·  CRT > Curvature¹  (0-None .. 1-Full)" 0.0 0.0 1.0 0.05
