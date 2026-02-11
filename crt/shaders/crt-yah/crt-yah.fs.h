@@ -198,7 +198,19 @@ vec3 get_half_beam_color(sampler2D source, vec2 tex_coord, vec2 delta_x, vec2 de
 
 vec3 get_raw_color(sampler2D source, vec2 tex_coord)
 {
-    return INPUT(texture(source, tex_coord).rgb);
+    vec3 color = texture(source, tex_coord).rgb;
+
+    // when automatic down-scaled
+    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
+    {
+        // apply full texel x-offset (to sample a neighbor pixel)
+        tex_coord += vec2o(-1.0, 0.0) / global.OriginalSize.xy;
+    
+        color += texture(source, tex_coord).rgb;
+        color *= 0.5;
+    }
+
+    return INPUT(color);
 }
 
 vec2 get_scanlines_pixel_coordinate(vec2 tex_coord, vec2 tex_size)
