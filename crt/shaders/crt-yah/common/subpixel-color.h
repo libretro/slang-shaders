@@ -343,24 +343,30 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
     // Slot-mask
     else if (mask_type == 2)
     {
-        // correct shape for size 1
-        float height = size == 1
-            ? 4.0
-            : 3.0;
+        float height =
+            // correct shape for size 1
+            size == 1 ? 4.0 :
+            3.0;
 
         float offset =
             // correct shape for size 1
-            size == 1 ? 0.5 :
+            size == 1 ? 1.0 / 2.0 :
             // correct shape for size 2
-            size == 2 ? 0.25 :
+            size == 2 ? 1.0 / 4.0 :
             // default
-            0.125;
+            1.0 / 6.0;
+
+        float shift =
+            // correct shape for size 3
+            size == 3 ? 1.0 / 6.0 :
+            // default
+            0.0;
 
         // white, black
         // magenta, green
         if (subpixel_type == 1 || subpixel_type == 2)
         {
-            pixCoord += shift_y_every_x(pixCoord, 1.5, 2.0);
+            pixCoord += shift_y_every_x(pixCoord, 1.5 + shift, 2.0);
             pixCoord.y *= 1.0 + EPSILON; // avoid color artifacts due to half pixel shift
             pixCoord.y += offset;
 
@@ -370,7 +376,7 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
         // red, green, blue
         else if (subpixel_type == 3 || subpixel_type == 4)
         {
-            pixCoord += shift_y_every_x(pixCoord, 1.5, 3.0);
+            pixCoord += shift_y_every_x(pixCoord, 1.5 + shift, 3.0);
             pixCoord.y *= 1.0 + EPSILON; // avoid color artifacts due to half pixel shift
             pixCoord.y += offset;
 
@@ -379,7 +385,7 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
         // red, green, blue, black
         else if (subpixel_type == 5)
         {
-            pixCoord += shift_y_every_x(pixCoord, 1.5, 4.0);
+            pixCoord += shift_y_every_x(pixCoord, 1.5 + shift, 4.0);
             pixCoord.y *= 1.0 + EPSILON; // avoid color artifacts due to half pixel shift
             pixCoord.y += offset;
 
