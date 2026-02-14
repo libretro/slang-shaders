@@ -39,9 +39,11 @@ vec2 get_mask_profile()
         ? global.FinalViewportSize.x / global.SourceSize.x
         : global.FinalViewportSize.y / global.SourceSize.y;
 
-    // constant sub-pixel count for constant sub-pixel size
-    float subpixel_count = 3;
-    
+    // smaller sub-pixel count for low resolution 
+    float subpixel_count = min(global.SourceSize.x, global.SourceSize.y) < 180.0
+        ? 3.0
+        : 4.0;
+
     // down-scale with integer increments
     float subpixel_downscale = floor(abs(PARAM_MASK_SCALE)) + 1.0;
     // up-scale with factional increments, considering auto screen-scale

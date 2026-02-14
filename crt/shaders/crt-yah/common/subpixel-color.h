@@ -346,6 +346,7 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
         float height =
             // correct shape for size 1
             size == 1 ? 4.0 :
+            // default
             3.0;
 
         float offset =
