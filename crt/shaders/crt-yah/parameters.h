@@ -31,8 +31,9 @@
 #pragma parameter MASK_BLEND "   Mask > Blend²  (0-Multiplicative .. 1-Additive)" 0.25 0.0 1.0 0.05
 #pragma parameter MASK_TYPE "   Mask > Type²  (1-Aperture, 2-Slot, 3-Shadow)" 1.0 1.0 3.0 1.0
 #pragma parameter MASK_SUBPIXEL "   Mask > Sub-Pixel²  (1-BY, 2,3-MG/x, 4,5-RGB/x)" 4.0 1.0 5.0 1.0
-#pragma parameter MASK_COLOR_BLEED "   Mask > Color Bleed¹  (0-None .. 1-Full)" 0.25 0.0 1.0 0.25
-#pragma parameter MASK_SIZE "   Mask > Size  (-Down / 0-Auto / +Up)" 0.0 -2.0 2.0 1.0
+#pragma parameter MASK_SUBPIXEL_SHAPE "   Mask > Sub-Pixel Shape²  (0-Sharp .. 1-Smooth)  [4K]" 1.0 0.0 1.0 0.25
+#pragma parameter MASK_COLOR_BLEED "   Mask > Color Bleed¹²  (0-None .. 1-Full)" 0.25 0.0 1.0 0.25
+#pragma parameter MASK_SCALE "   Mask > Scale  (-1 Down / 0-Auto / +½ Up)" 0.0 -2.0 2.0 0.5
 
 // Converge parameters
 #pragma parameter DECONVERGE_LINEAR "·  Deconverge > Linear Amount¹  (0-None .. -/+ 1-Full)" 0.25 -2.0 2.0 0.05
@@ -96,9 +97,10 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 #define PARAM_COLOR_BLACK_LIGHT param.COLOR_BLACK_LIGHT
 #define PARAM_MASK_INTENSITY mix_master(param.MASK_INTENSITY, 0.0, 0.0, 1.0)
 #define PARAM_MASK_BLEND param.MASK_BLEND
-#define PARAM_MASK_SIZE param.MASK_SIZE
+#define PARAM_MASK_SCALE param.MASK_SCALE
 #define PARAM_MASK_TYPE param.MASK_TYPE
 #define PARAM_MASK_SUBPIXEL param.MASK_SUBPIXEL
+#define PARAM_MASK_SUBPIXEL_SHAPE param.MASK_SUBPIXEL_SHAPE
 #define PARAM_MASK_COLOR_BLEED mix_master(param.MASK_COLOR_BLEED, 0.0, 0.0, 1.0)
 #define PARAM_SCANLINES_STRENGTH mix_master(param.SCANLINES_STRENGTH, 0.0, 0.0, 1.0)
 #define PARAM_SCANLINES_OFFSET mix_master(param.SCANLINES_OFFSET, 0.0, -2.0, 2.0)
