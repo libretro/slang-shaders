@@ -36,7 +36,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
-    vec4 FrameSize;
+    vec4 FrameHSize;
     uint FrameCount;
     float OriginalFPS;
     float V_FREQ_MODE;
@@ -104,7 +104,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
-        config.FrameSize.xy,
+        config.FrameHSize.x,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -139,7 +139,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 void main()
 {
     vec2 UV = vTexCoord * config.OutputSize.xy;
-    float line = floor(UV.y) / tb.pixels_per_line;
+    float line = floor(UV.y);
     float baseIndex = floor(UV.x);
     float baseCenter = baseIndex + 0.5;
     vec2 Tex = vec2(

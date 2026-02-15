@@ -59,7 +59,7 @@ layout(push_constant) uniform Push
     // Timing and source geometry (added for sharpness bandpass)
     vec4 OriginalSize;    // .xy size, .zw inv size
     vec4 OutputSize;
-    vec4 FrameSize;
+    vec4 FrameHSize;
     uint FrameCount;
     float OriginalFPS;    // Vertical frequency (Hz)
     float V_FREQ_MODE;
@@ -234,7 +234,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
-        config.FrameSize.xy,
+        config.FrameHSize.x,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -282,7 +282,7 @@ void main()
 
         // Horizontal lattice setup
         vec2 UV = vTexCoord * config.OutputSize.xy;
-        float line = floor(UV.y) / tb.pixels_per_line;
+        float line = floor(UV.y);
         float baseIndex = floor(UV.x);
         float baseCenter = baseIndex + 0.5;
         float Ax = UV.x - baseCenter; // [-0.5,0.5]

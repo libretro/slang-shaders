@@ -187,8 +187,8 @@ void main()
 {
     // Simple bypass
     if (CURVE_BYPASS > 0.5) {
-        vec3 color = texture(Source, vTexCoord).rgb;
-        FragColor = vec4(color, 1.0);
+        vec4 src = texture(Source, vTexCoord);
+        FragColor = vec4(src.rgb, src.a);
         return;
     }
 
@@ -234,15 +234,19 @@ void main()
 
     // Bicubic/Lanczos3/Nearest resample from input texture
     vec3 color;
+    float alpha;
     if (CURVE_FILTER < 0.5) {
-        color = texture(Source, tex).rgb;
+        vec4 src = texture(Source, tex);
+        color = src.rgb;
+        alpha = src.a;
     } else {
         color = sample_bicubic(Source, tex, 1.0 / config.SourceSize.xy, B, C);
+        alpha = texture(Source, tex).a;
     }
 
     if (CURVE_DEBUG_OUT_OF_RANGE > 0.5) {
         color = zebra(color, 0.0, 1.0, vTexCoord, config.OutputSize.xy, config.FrameCount, 1.0);
     }
 
-    FragColor = vec4(color, 1.0);
+    FragColor = vec4(max(color, 0.0), alpha);
 }

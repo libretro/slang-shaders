@@ -17,10 +17,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
-// Digital colorbCr Upsampling stage
+// Digital RGB/YCbCr Upsampling stage
 // ----------------------------
-// Input: colorbCr video
-// Output: Upsampled colorbCr video
+// Input: RGB/YCbCr video
+// Output: Upsampled RGB/YCbCr video
 //
 // Performs upsampling with Kaiser-windowed sinc interpolation.
 // Provides ~62 dB stopband rejection with ≤0.5 dB passband ripple.

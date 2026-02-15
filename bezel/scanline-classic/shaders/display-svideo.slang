@@ -46,7 +46,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
-    vec4 FrameSize;
+    vec4 FrameHSize;
     uint FrameCount;
     float OriginalFPS;
     float V_FREQ_MODE;
@@ -124,7 +124,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
-        config.FrameSize.xy,
+        config.FrameHSize.x,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -175,7 +175,7 @@ void main()
     vec2 dx = vec2(config.OutputSize.z, 0.0);
 
     // Carrier phase for center sample
-    float line = floor(UV.y) / carrier.pixels_per_line;
+    float line = floor(UV.y);
     float t0 = line / carrier.h_freq_hz + baseCenter * carrier.pixel_time_px;
     float phase_inc_px = 2.0 * PI * carrier.sc_freq_hz * carrier.pixel_time_px;
 

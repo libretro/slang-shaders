@@ -41,7 +41,6 @@ struct TimebaseConfig {
     float v_lines_per_field;
     float v_lines_per_frame;
     float is_interlaced;
-    float pixels_per_line;
 };
 
 // Phase normalization helper. Keeps phase bounded in [-PI, PI].
@@ -268,19 +267,16 @@ void compute_h_timing(
 
 // Compute output scaling factors for both horizontal and vertical dimensions
 void compute_scale_factors(
-    float frame_width, float frame_height,
+    float frame_width,
     float output_width, float output_height,
     float total_pixels, float v_lines_per_field,
-    out float h_scale, out float v_scale)
+    out float h_scale)
 {
     float h_scale1 = floor(frame_width / total_pixels);
-    float v_scale1 = floor(frame_height / v_lines_per_field);
 
     float h_scale2 = floor(output_width / (total_pixels * h_scale1));
-    float v_scale2 = floor(output_height / (v_lines_per_field * v_scale1));
 
     h_scale = max(h_scale1 * h_scale2, 1.0);
-    v_scale = max(v_scale1 * v_scale2, 1.0);
 }
 
 // Compute field phase with intelligent odd-field timing adjustment
@@ -331,13 +327,12 @@ struct FrameGeometry {
 };
 
 // Carrier phase and modulation (for composite/S-Video modulators and demodulators)
-// Contains: h_freq_hz, sc_freq_hz, pixel_time_px, field_phase, pixels_per_line, field
+// Contains: h_freq_hz, sc_freq_hz, pixel_time_px, field_phase, field
 struct CarrierPhaseConfig {
     float h_freq_hz;
     float sc_freq_hz;
     float pixel_time_px;
     float field_phase;
-    float pixels_per_line;
     float field;
 };
 
@@ -360,7 +355,6 @@ CarrierPhaseConfig extract_carrier_phase(TimebaseConfig tb) {
         tb.sc_freq_hz,
         tb.pixel_time_px,
         tb.field_phase,
-        tb.pixels_per_line,
         tb.field);
 }
 
@@ -440,7 +434,7 @@ TimebaseConfig compute_timebase(
     vec2 tex_coord,
     vec2 original_size,
     vec2 output_size,
-    vec2 frame_size,
+    float frame_width,
     float core_refresh_hz,
     float sc_freq_mode,
     float sc_freq_custom_mhz,
@@ -510,18 +504,16 @@ TimebaseConfig compute_timebase(
         shorten_odd_field_time);
 
     // === Scale factor derivation ===
-    float h_scale, v_scale;
+    float h_scale;
     compute_scale_factors(
-        frame_size.x, frame_size.y, output_size.x, output_size.y,
-        total_pixels, config.v_lines_per_field, h_scale, v_scale);
+        frame_width, output_size.x, output_size.y,
+        total_pixels, config.v_lines_per_field, h_scale);
 
     // Per-output-pixel time (cycles-per-pixel scaling)
     config.pixel_time_px = config.pixel_time / h_scale;
 
     // Total horizontal pixels (active + blanking)
     config.h_pixels = total_pixels;
-
-    config.pixels_per_line = v_scale;
 
     return config;
 }

@@ -46,7 +46,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
-    vec4 FrameSize;
+    vec4 FrameHSize;
     float OriginalFPS;
     uint FrameCount;
     float DIGITAL_COMPOSITE_MOD_BYPASS;
@@ -91,7 +91,6 @@ layout(location = 1) out float base_cycles;
 layout(location = 2) out float cycles_per_pixel;
 layout(location = 3) out float cycles_per_line;
 layout(location = 4) out float field_phase_offset;
-layout(location = 5) out float pixels_per_line;
 
 void main()
 {
@@ -103,7 +102,7 @@ void main()
         TexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
-        config.FrameSize.xy,
+        config.FrameHSize.x,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -129,7 +128,6 @@ void main()
     cycles_per_line = tb.sc_freq_hz / tb.h_freq_hz;
 
     field_phase_offset = tb.field_phase;
-    pixels_per_line = tb.pixels_per_line;
 }
 
 #pragma stage fragment
@@ -139,7 +137,6 @@ layout(location = 1) in float base_cycles;
 layout(location = 2) in float cycles_per_pixel;
 layout(location = 3) in float cycles_per_line;
 layout(location = 4) in float field_phase_offset;
-layout(location = 5) in float pixels_per_line;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -153,7 +150,7 @@ void main()
     // Pixel and line positions
     vec2 UV = vTexCoord * config.OutputSize.xy;
     float pixel_x = floor(UV.x) + 0.5;  // Use pixel center for phase alignment with decoder
-    float line = floor(UV.y) / pixels_per_line;
+    float line = floor(UV.y);
 
     // Sample input YCbCr using scaled pixel coordinate
     vec3 ycbcr = texture(Source, vTexCoord).rgb;
