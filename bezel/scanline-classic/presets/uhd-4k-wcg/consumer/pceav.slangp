@@ -11,18 +11,19 @@
 # to YPbPr LUT is not applied here.  Use an emulator that outputs the
 # correct colors for composite video.
 
-shaders = 14
+shaders = 16
 
 shader0 = ..\..\..\shaders\menus\menu-composite-direct-wcg.slang
 filter_linear0 = false
 scale_type0 = source
 scale0 = 1.0
 
-shader1 = ..\..\..\shaders\frame.slang
+shader1 = ..\..\..\shaders\frameh.slang
 filter_linear1 = false
-scale_type1 = absolute
+scale_type_x1 = absolute
+scale_type_y1 = source
 scale_x1 = 858.0
-scale_y1 = 572.0
+scale_y1 = 1.0
 
 shader2 = ..\..\..\shaders\sys-component.slang
 filter_linear2 = false
@@ -60,30 +61,42 @@ filter_linear8 = false
 scale_type8 = source
 scale8 = 1.0
 
-shader9 = ..\..\..\shaders\beam-mask.slang
+shader9 = ..\..\..\shaders\framev.slang
 filter_linear9 = false
-scale_type9 = viewport
-scale9 = 1.0
+scale_type_x9 = source
+scale_type_y9 = absolute
+scale_x9 = 1.0
+scale_y9 = 572.0
 
-shader10 = ..\..\..\shaders\phosphor-trichrome.slang
+shader10 = ..\..\..\shaders\beam.slang
 filter_linear10 = false
-scale_type10 = source
+scale_type10 = viewport
 scale10 = 1.0
 
-shader11 = ..\..\..\shaders\curve.slang
+shader11 = ..\..\..\shaders\mask.slang
 filter_linear11 = false
 scale_type11 = source
 scale11 = 1.0
 
-shader12 = ..\..\..\shaders\color-wcg.slang
+shader12 = ..\..\..\shaders\phosphor-trichrome.slang
 filter_linear12 = false
 scale_type12 = source
 scale12 = 1.0
 
-shader13 = ..\..\..\shaders\bezel-wcg.slang
-filter_linear13 = true
-scale_type13 = viewport
+shader13 = ..\..\..\shaders\curve.slang
+filter_linear13 = false
+scale_type13 = source
 scale13 = 1.0
+
+shader14 = ..\..\..\shaders\color-wcg.slang
+filter_linear14 = false
+scale_type14 = source
+scale14 = 1.0
+
+shader15 = ..\..\..\shaders\bezel-wcg.slang
+filter_linear15 = true
+scale_type15 = viewport
+scale15 = 1.0
 
 textures = BORDER
 

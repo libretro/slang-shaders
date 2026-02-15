@@ -168,7 +168,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
-    vec4 FrameSize;
+    vec4 FrameHSize;
     uint FrameCount;
     float OriginalFPS;
     float V_FREQ_MODE;
@@ -253,7 +253,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
-        config.FrameSize.xy,
+        config.FrameHSize.x,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -307,7 +307,7 @@ void main()
     vec3 wsum  = vec3(0.0);
 
     // Center sample
-    float line = floor(UV.y) / carrier.pixels_per_line;
+    float line = floor(UV.y);
     float t0 = line / carrier.h_freq_hz + baseCenter * carrier.pixel_time_px;
 
     // PAL V-axis alternation: simply invert V on odd lines

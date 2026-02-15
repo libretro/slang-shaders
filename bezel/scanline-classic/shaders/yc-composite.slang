@@ -39,7 +39,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
-    vec4 FrameSize;
+    vec4 FrameHSize;
     uint FrameCount;
     float OriginalFPS;
     float BYPASS_YC_FILTER;
@@ -106,7 +106,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
-        config.FrameSize.xy,
+        config.FrameHSize.x,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,

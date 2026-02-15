@@ -145,6 +145,15 @@ vec3 xyY_to_XYZ(const vec3 xyY)
     return vec3(Y * x / y, Y, Y * z / y);
 }
 
+vec3 YrYgYb_to_XYZ(const vec3 YrYgYb, const Colorimetry colorimetry)
+{
+    vec3 red_XYZ = xyY_to_XYZ(vec3(colorimetry.red_xy.x, colorimetry.red_xy.y, YrYgYb.r));
+    vec3 green_XYZ = xyY_to_XYZ(vec3(colorimetry.green_xy.x, colorimetry.green_xy.y, YrYgYb.g));
+    vec3 blue_XYZ = xyY_to_XYZ(vec3(colorimetry.blue_xy.x, colorimetry.blue_xy.y, YrYgYb.b));
+
+    return red_XYZ + green_XYZ + blue_XYZ;
+}
+
 vec3 XYZ_to_CIE_LUV(vec3 XYZ) {
     const float Yn = 1.0;
     const float Un = (4.0 * 0.95047) / (0.95047 + 15.0 * Yn + 3.0 * 1.08883);
@@ -284,4 +293,45 @@ vec3 decode_luma_chroma_to_rgb(vec3 yc, float model) {
     } else {
         return YCbCr_TO_RGB * yc;
     }
+}
+
+// SMPTE 2084 PQ (Perceptual Quantizer) encoding
+// Encodes linear RGB [0, 1] to PQ display values [0, 1]
+// Input is assumed to be linear light relative to 100 nits reference peak
+vec3 pq(vec3 linear)
+{
+    const float m1 = 0.1593017578125;      // 2610 / (4 * 4096)
+    const float m2 = 78.84375;              // 2523 * 4096 / 32
+    const float c1 = 0.8359375;             // 3424 / 4096
+    const float c2 = 18.8515625;            // 2413 * 4096 / 32
+    const float c3 = 18.6875;               // 2392 * 4096 / 32
+
+    // Normalize input for PQ (assume 100 nits reference)
+    // PQ standard uses 10000 nits peak, map [0,1] at 100 nits to [0,1] at 10000 nits
+    vec3 L = linear * 0.01;                // Scale from 100 nits reference to PQ range (100/10000)
+    L = max(L, vec3(0.0));
+
+    // Apply PQ curve per-channel
+    vec3 L_p = pow(L, vec3(m1));
+    vec3 pq_result = pow((c1 + c2 * L_p) / (1.0 + c3 * L_p), vec3(m2));
+
+    return pq_result;
+}
+
+// Inverse SMPTE 2084 PQ decoding
+// Decodes PQ display values [0, 1] to linear RGB [0, 1]
+vec3 pq_inverse(vec3 pq_val)
+{
+    const float m1 = 0.1593017578125;      // 2610 / (4 * 4096)
+    const float m2 = 78.84375;              // 2523 * 4096 / 32
+    const float c1 = 0.8359375;             // 3424 / 4096
+    const float c2 = 18.8515625;            // 2413 * 4096 / 32
+    const float c3 = 18.6875;               // 2392 * 4096 / 32
+
+    // Inverse PQ curve per-channel
+    vec3 L_p = pow(pq_val, vec3(1.0 / m2));
+    vec3 L = pow((L_p - c1) / max((c2 - c3 * L_p), 1e-6), vec3(1.0 / m1));
+
+    // Convert back to linear RGB [0, 1] where 1.0 = 100 nits reference
+    return L * 100.0;                      // Scale from PQ range to 100 nits reference (10000/100)
 }

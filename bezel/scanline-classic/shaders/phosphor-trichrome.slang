@@ -17,8 +17,8 @@
 //
 // Trichrome phosphor simulation
 // ------------------------------------------------
-// Input: Linear RGB signal
-// Output: Linear RGB signal
+// Input: Linear YrYgYb signal
+// Output: Linear YrYgYb signal
 
 #include "common.inc"
 
@@ -99,11 +99,13 @@ void main()
 {
     vec2 Tex = vTexCoord;
 
-    vec3 color = texture(Source, Tex).rgb;
+    vec4 src = texture(Source, Tex);
+    vec3 color = src.rgb;
+    float alpha = src.a;
 
     // Early exit for full bypass
     if (PHOSPHOR_BYPASS >= 1.0) {
-        FragColor = vec4(color, 1.0);
+        FragColor = vec4(color, alpha);
         return;
     }
 
@@ -134,5 +136,5 @@ void main()
     color1 = phosphor_inv_pow3(color1, gamma_frame, n);
     color = max(color, color1);  // More stable 'saturation' method
 
-    FragColor = vec4(color, 1.0);
+    FragColor = vec4(color, alpha);
 }

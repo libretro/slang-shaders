@@ -39,7 +39,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
-    vec4 FrameSize;
+    vec4 FrameHSize;
     uint FrameCount;
     float OriginalFPS;
     float BYPASS_PREFILTER;
@@ -112,7 +112,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
-        config.FrameSize.xy,
+        config.FrameHSize.x,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -163,7 +163,7 @@ void main()
 
     // Input composite baseband from previous stage
     vec2 UV = vTexCoord * config.OutputSize.xy;
-    float line = floor(UV.y) / carrier.pixels_per_line;
+    float line = floor(UV.y);
     float baseIndex = floor(UV.x);
     float baseCenter = baseIndex + 0.5;
     float Ax = UV.x - baseCenter;
@@ -269,7 +269,7 @@ void main()
         float period_px = 2.0 * PI / sc_phase_inc_per_px;
         dx_phase_offset_px -= round(dx_phase_offset_px / period_px) * period_px;
 
-        vec2 dxy = vec2(-dx_phase_offset_px * config.OutputSize.z, -carrier.pixels_per_line * config.OutputSize.w);
+        vec2 dxy = vec2(-dx_phase_offset_px * config.OutputSize.z, -config.OutputSize.w);
 
         // Sample phase-aligned taps
         float comb_taps_composite = texture(Source, Tex + dxy).r;

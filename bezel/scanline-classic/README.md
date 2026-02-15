@@ -1,6 +1,6 @@
 # Scanline Classic
 
-Copyright (c)  2025  W. M. Martinez.
+Copyright (c)  2025-2026  W. M. Martinez.
 
 Copying and distribution of this file, with or without modification,
 are permitted in any medium without royalty provided the copyright
@@ -13,9 +13,9 @@ https://github.com/anikom15/scanline-classic
 A general purpose RetroArch shader with an emphasis on realism while
 maintaining a high degree of flexibility and aesthetic quality. 
 
-Version 7.0
+Version 8.0
 
-README Edition 8
+README Edition 9
 
 ## Quick start
 
@@ -94,9 +94,9 @@ After building, the shaders can be found in the `out` directory.
 
 For details about all the parameters available in the shader, see `doc/PARAMETERS.md`
 
-### SDR and WCG Shaders
+### SDR, WCG, and HDR Shaders
 
-**SDR (Standard Dynamic Range) shaders** (e.g., `*-sdr.slang`) are designed for typical displays with standard color gamuts and brightness. **WCG (Wide Color Gamut) shaders** (e.g., `*-wcg.slang`) are optimized for displays that support a wider color space and higher dynamic range, providing richer and more accurate color reproduction. Use the WCG variants if your display supports wide color gamuts (such as DCI-P3 or BT.2020), otherwise use the SDR versions for best compatibility.
+**SDR (Standard Dynamic Range) shaders** (e.g., `*-sdr.slang`) are designed for typical displays with standard color gamuts and brightness. **WCG (Wide Color Gamut) shaders** (e.g., `*-wcg.slang`) are optimized for displays that support a wider color space and higher dynamic range, providing richer and more accurate color reproduction. **HDR (High Dynamic Range) shaders** (e.g., `*-hdr.slang`) target HDR-capable displays and are currently in beta; expect occasional changes and verify results on your own display. Use the WCG or HDR variants if your display supports BT.2020, otherwise use the SDR versions for best compatibility.
 
 ## Bugs
 
