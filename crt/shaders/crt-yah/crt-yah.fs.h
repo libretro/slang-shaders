@@ -22,6 +22,9 @@
     THE SOFTWARE.
 */
 
+// used in common/screen-helper.h
+#define RESOLUTION_AUTO_SCALE PARAM_SCREEN_RESOLUTION_SCALE < 0.5
+
 #include "common/color-helper.h"
 #include "common/frame-helper.h"
 #include "common/interpolation-helper.h"

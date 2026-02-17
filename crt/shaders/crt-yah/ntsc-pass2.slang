@@ -26,6 +26,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     vec4 OutputSize;
     vec4 FinalViewportSize;
     float GLOBAL_MASTER;
+    float SCREEN_RESOLUTION_SCALE;
     float SCREEN_ORIENTATION;
     float SCREEN_SCALE;
 } global;
@@ -45,6 +46,10 @@ layout(location = 1) in vec2 Coord;
 layout(location = 0) out vec2 TexCoord;
 layout(location = 1) out vec2 ScanTexelSize;
 
+// used in common/screen-helper.h
+#define PIXEL_SIZE_LIMIT 0.0
+#define RESOLUTION_AUTO_SCALE PARAM_SCREEN_RESOLUTION_SCALE < 0.5
+
 #include "common/screen-helper.h"
 
 void main()
@@ -53,7 +58,7 @@ void main()
     TexCoord = Coord;
 
     float screen_orientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
-    float screen_scale = 1.0 / get_multiple(global.OriginalSize.xy, screen_orientation, -(PARAM_SCREEN_SCALE + PARAM_NTSC_SCALE));
+    float screen_scale = 1.0 / get_screen_multiple(global.OriginalSize.xy, screen_orientation, -(PARAM_SCREEN_SCALE + PARAM_NTSC_SCALE));
 
     ScanTexelSize = int(screen_orientation) == 0
         ? vec2(global.SourceSize.z / screen_scale, 0.0)

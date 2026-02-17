@@ -16,6 +16,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     uint FrameCount;
     uint FrameTimeDelta;
     float GLOBAL_MASTER;
+    float SCREEN_RESOLUTION_SCALE;
     float SCREEN_ORIENTATION;
     float SCREEN_SCALE;
     float SCREEN_FREQUENCY;
@@ -83,8 +84,8 @@ void main()
     TexCoord = Coord;
 
     ScreenOrientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
-    ScreenMultiple = get_multiple(global.OriginalSize.xy, ScreenOrientation, -PARAM_SCREEN_SCALE);
-    ScreenMultipleAuto = get_multiple(global.OriginalSize.xy, ScreenOrientation, 0);
+    ScreenMultiple = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -PARAM_SCREEN_SCALE);
+    ScreenMultipleAuto = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, 0.0);
     MaskProfile = get_mask_profile();
     BeamProfile = get_beam_profile();
     BeamFilter = get_beam_filter();

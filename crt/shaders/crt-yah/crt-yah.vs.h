@@ -22,6 +22,9 @@
     THE SOFTWARE.
 */
 
+// used in common/screen-helper.h
+#define RESOLUTION_AUTO_SCALE PARAM_SCREEN_RESOLUTION_SCALE < 0.5
+
 #include "common/math-helper.h"
 #include "common/screen-helper.h"
 
@@ -50,13 +53,17 @@ vec2 get_mask_profile()
     float subpixel_upscale = (PARAM_MASK_SCALE * INPUT_SCREEN_MULTIPLE_AUTO) + 1.0;
 
     float subpixel_size = pixel_size / subpixel_count;
-    // auto scale, considering applied screen-scale
+
+    // auto scale (consider applied screen-multiple)
     subpixel_size = floor(subpixel_size * INPUT_SCREEN_MULTIPLE);
+    // limit after auto scale
+    subpixel_size = max(1.0, subpixel_size);
+
     // manual scale
     subpixel_size = PARAM_MASK_SCALE < 0.0
         ? ceil(subpixel_size / subpixel_downscale)
         : floor(subpixel_size * subpixel_upscale);
-    // limit
+    // limit after manual scale
     subpixel_size = max(1.0, subpixel_size);
     
     // for sub-pixel size > 2
