@@ -63,25 +63,26 @@ vec3 pass1(sampler2D source, vec2 texCoord, vec2 pixCoord, int phase, float phas
     vec3 rgb = texture(source, texCoord).rgb;
     vec3 yiq = rgb_to_yiq(rgb);
 
-    if (phase == 2)
-    {
-        vec3 yiq0 = pass1(yiq, pixCoord, phase, phaseShift, mix3x3, frameCount);
-        vec3 yiq1 = pass1(yiq, pixCoord, phase, phaseShift, mix3x3, 0);
+    uint frame0 = 0; // static
+    uint frame1 = jitter > 0.0
+        ? frameCount
+        : 1; // static
+    vec3 yiq0 = pass1(yiq, pixCoord, phase, phaseShift, mix3x3, frame0);
+    vec3 yiq1 = pass1(yiq, pixCoord, phase, phaseShift, mix3x3, frame1);
         
+    if (jitter > 0.0)
+    {
         yiq = mix(
-            yiq1,
-            yiq0,
+            yiq0, // static
+            yiq1, // jitter
             jitter);
     }
     else
     {
-        vec3 yiq0 = pass1(yiq, pixCoord, phase, phaseShift, mix3x3, frameCount);
-        vec3 yiq1 = pass1(yiq, pixCoord, phase, phaseShift, mix3x3, frameCount + 1);
-        
         yiq = mix(
-            (yiq0 + yiq1) * 0.5, // field-merge when no jitter
-            yiq0,
-            jitter);
+            yiq0, // static
+            (yiq0 + yiq1) * 0.5, // merge
+            abs(jitter));
     }
 
     return yiq;

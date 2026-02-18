@@ -53,7 +53,7 @@
 #pragma parameter NTSC_QUALITY "   NTSC > Chroma Phase  (1-Auto, 2-Two, 3-Three)" 2.0 1.0 3.0 1.0
 #pragma parameter NTSC_SHIFT "   NTSC > Chroma Shift  (-left .. +right)" 0.0 -1.0 1.0 0.1
 #pragma parameter NTSC_SCALE "   NTSC > Scale⁵  (-Down / 0-Auto / +Up)" 0.0 -0.5 0.5 0.05
-#pragma parameter NTSC_JITTER "   NTSC > Jitter⁴  (0-None .. 1-Full)" 1.0 0.0 2.0 0.1
+#pragma parameter NTSC_JITTER "   NTSC > Offset⁴  (-Merge / 0-Static / +Jitter)" 1.0 -1.0 2.0 0.1
 
 // CRT parameters
 #pragma parameter CRT_CURVATURE_AMOUNT "·  CRT > Curvature¹  (0-None .. 1-Full)" 0.0 0.0 1.0 0.05
