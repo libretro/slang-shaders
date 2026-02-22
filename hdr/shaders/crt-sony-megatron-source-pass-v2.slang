@@ -28,12 +28,12 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float EnableHDR;
+	uint HDRMode;
 } global;
 
 #include "include/parameters_v2.h"
 
-#define HCRT_HDR                            global.EnableHDR
+#define HCRT_HDR                            global.HDRMode
 #define HCRT_OUTPUT_COLOUR_SPACE            params.hcrt_colour_space
 #define HCRT_CRT_COLOUR_SYSTEM              params.hcrt_colour_system
 #define HCRT_CRT_PHOSPHOR_SET               params.hcrt_phosphor_set

@@ -534,7 +534,7 @@ void main()
 
    vec3 linear_colour = pow(max(scanline_colour, 0.0f), vec3(2.4f));
 
-   if (HCRT_HDR > 0.5f)
+   if (HCRT_HDR > 0u)
    {
       vec3 pq_input = linear_colour * (HCRT_PAPER_WHITE_NITS / kMaxNitsFor2084);
       FragColor = vec4(LinearToST2084(pq_input), 1.0f);

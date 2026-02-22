@@ -9,7 +9,6 @@ layout(push_constant) uniform Push
    // User Settings
    float hcrt_max_nits;
    float hcrt_paper_white_nits;
-   float hcrt_expand_gamut;
    float hcrt_colour_space;
 	
    float hcrt_r709_gamma_out;
@@ -27,15 +26,14 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-   float EnableHDR;
+   uint HDRMode;
 } global;
 
 #include "include/parameters_v2_config.h"
 
-#define HCRT_HDR                            global.EnableHDR
+#define HCRT_HDR                            global.HDRMode
 #define HCRT_MAX_NITS                       params.hcrt_max_nits
 #define HCRT_PAPER_WHITE_NITS               params.hcrt_paper_white_nits
-#define HCRT_EXPAND_GAMUT                   params.hcrt_expand_gamut
 #define HCRT_OUTPUT_COLOUR_SPACE            params.hcrt_colour_space
 
 #define HCRT_R709_GAMMA_OUT                 params.hcrt_r709_gamma_out

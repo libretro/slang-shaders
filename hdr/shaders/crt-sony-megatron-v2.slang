@@ -56,9 +56,10 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	vec4 OriginalSize;
 	vec4 OutputSize;
 	uint FrameCount;
-	float EnableHDR;
+	uint HDRMode;
 	float PaperWhiteNits;
-	
+	float MaxNits;
+
 	float hcrt_r709_gamma_out;
 	float hcrt_srgb_gamma_out;
 	float hcrt_p3_gamma_out;
@@ -74,7 +75,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #include "include/parameters_v2.h"
 
-#define HCRT_HDR                             global.EnableHDR
+#define HCRT_HDR                             global.HDRMode
 #define HCRT_OUTPUT_COLOUR_SPACE             params.hcrt_colour_space
 #define HCRT_PAPER_WHITE_NITS                global.PaperWhiteNits
 #define HCRT_MAX_NITS                        global.MaxNits

@@ -14,20 +14,13 @@ Originally part of the crt\crt-sony-pvm-4k-hdr.slangp but can be used for any sh
 
 #include "include\hdr10.h"
 
-layout(push_constant) uniform Push
-{
-   float ColourSpace;
-} params;
-
 layout(std140, set = 0, binding = 0) uniform UBO
 {
 	mat4 MVP;
-	float EnableHDR;
+	uint HDRMode;
 	float PaperWhiteNits;
-	float ExpandGamut;
+	uint ExpandGamut;
 } global;
-
-#pragma parameter ColourSpace       "Colour Space: r709 | DCI-P3 | NTSC | PAL| Adobe"    1.0      0.0   4.0   1.0
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -49,13 +42,27 @@ void main()
 {
    vec4 hdr_linear = texture(Source, vTexCoord);
 
-   if(global.EnableHDR >= 1.0f)
+   if(global.HDRMode >= 1u)
    {
-      FragColor = vec4(Hdr10(hdr_linear.rgb, global.PaperWhiteNits, global.ColourSpace, global.ExpandGamut), hdr_linear.a); 
+      /* Gamut conversion — matches RetroArch menu "Colour Boost" setting:
+       * 0=Accurate (709->2020), 1=Expanded, 2=Wide (P3->2020), 3=Super (2020 passthrough) */
+      vec3 rec2020;
+      if(global.ExpandGamut == 0u)
+         rec2020 = hdr_linear.rgb * k709_to_2020;
+      else if(global.ExpandGamut == 1u)
+         rec2020 = hdr_linear.rgb * kExpanded709_to_2020;
+      else if(global.ExpandGamut == 2u)
+         rec2020 = hdr_linear.rgb * kP3_to_2020;
+      else
+         rec2020 = hdr_linear.rgb;
+      rec2020 = max(rec2020, vec3(0.0));
+
+      vec3 pq = LinearToST2084(rec2020 * (global.PaperWhiteNits / kMaxNitsFor2084));
+      FragColor = vec4(pq, hdr_linear.a);
    }
    else
    {
-      FragColor = hdr_linear; 
+      FragColor = hdr_linear;
    }
 }
 

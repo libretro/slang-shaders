@@ -17,18 +17,16 @@ Originally part of the crt\crt-sony-pvm-4k-hdr.slangp but can be used for any sh
 layout(push_constant) uniform Push
 {
    float PaperWhiteNits;
-   float ColourSpace;
    float ExpandGamut;
 } params;
 
 #pragma parameter PaperWhiteNits    "Paper White Luminance"                                     200.0    0.0   10000.0  10.0
-#pragma parameter ColourSpace       "Colour Space: r709 | sRGB | DCI-P3 | NTSC | PAL | Adobe"   1.0      0.0   5.0      1.0
-#pragma parameter ExpandGamut       "Colour Boost"                                              1.0      0.0   1.0      1.0
+#pragma parameter ExpandGamut       "Colour Boost: Accurate | Expanded | Wide | Super"          0.0      0.0   3.0      1.0
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
 	mat4 MVP;
-   float EnableHDR;
+   uint HDRMode;
 } global;
 
 #pragma stage vertex
@@ -50,14 +48,29 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 void main()
 {
    vec4 hdr_linear = texture(Source, vTexCoord);
-   
-   if(global.EnableHDR >= 1.0f)
+
+   if(global.HDRMode >= 1u)
    {
-      FragColor = vec4(Hdr10(hdr_linear.rgb, params.PaperWhiteNits, params.ColourSpace, params.ExpandGamut), hdr_linear.a); 
+      /* Gamut conversion — matches RetroArch menu "Colour Boost" setting:
+       * 0=Accurate (709->2020), 1=Expanded, 2=Wide (P3->2020), 3=Super (2020 passthrough) */
+      uint gamut = uint(params.ExpandGamut);
+      vec3 rec2020;
+      if(gamut == 0u)
+         rec2020 = hdr_linear.rgb * k709_to_2020;
+      else if(gamut == 1u)
+         rec2020 = hdr_linear.rgb * kExpanded709_to_2020;
+      else if(gamut == 2u)
+         rec2020 = hdr_linear.rgb * kP3_to_2020;
+      else
+         rec2020 = hdr_linear.rgb;
+      rec2020 = max(rec2020, vec3(0.0));
+
+      vec3 pq = LinearToST2084(rec2020 * (params.PaperWhiteNits / kMaxNitsFor2084));
+      FragColor = vec4(pq, hdr_linear.a);
    }
    else
    {
-      FragColor = hdr_linear; 
+      FragColor = hdr_linear;
    }
 }
 
