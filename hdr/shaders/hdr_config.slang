@@ -88,6 +88,18 @@ void main()
       /* sRGB -> scRGB: linearize with display gamma, scale by MaxNits/80.
        * scRGB 1.0 = 80 nits; MaxNits maps SDR white to display peak. */
       vec3 linear = pow(abs(source.rgb), vec3(params.DisplayGamma));
+
+      /* Colour boost in scRGB: always convert back to Rec.709 via k2020_to_sRGB,
+       * with the forward matrix controlling saturation boost.
+       * 0=Accurate (just k2020_to_sRGB), 1=Expanded, 2=Wide, 3=Super (passthrough) */
+      uint gamut = uint(params.ExpandGamut);
+      if(gamut == 0u)
+         linear = linear * k2020_to_sRGB;
+      else if(gamut == 1u)
+         linear = (linear * kExpanded709_to_2020) * k2020_to_sRGB;
+      else if(gamut == 2u)
+         linear = (linear * kP3_to_2020) * k2020_to_sRGB;
+
       linear *= params.MaxNits / 80.0;
       FragColor = vec4(linear, source.a);
    }
