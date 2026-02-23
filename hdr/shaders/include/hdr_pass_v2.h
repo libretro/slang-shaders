@@ -23,7 +23,7 @@ void main()
 {
    vec3 hdr_colour = COMPAT_TEXTURE(Source, vTexCoord).rgb;
 
-   if(HCRT_HDR >= 1u)
+   if(HCRT_HDR == 1u)
    {
       hdr_colour = InverseTonemap(hdr_colour, HCRT_MAX_NITS, HCRT_PAPER_WHITE_NITS);
    }

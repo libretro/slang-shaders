@@ -80,39 +80,43 @@ void main()
    }
    else if(global.HDRMode == 2u)
    {
-      /* sRGB -> scRGB: linearize with display gamma, scale by MaxNits/80.
-       * scRGB 1.0 = 80 nits; MaxNits maps SDR white to display peak. */
+      /* sRGB -> scRGB: linearize, convert to target colour space with ExpandGamut,
+       * then k2020_to_sRGB creates the boost by "interpreting" as Rec.2020. */
       vec3 linear = pow(abs(source.rgb), vec3(params.DisplayGamma));
 
-      /* Colour boost in scRGB: always convert back to Rec.709 via k2020_to_sRGB,
-       * with the forward matrix controlling saturation boost.
-       * 0=Accurate (just k2020_to_sRGB), 1=Expanded, 2=Wide, 3=Super (passthrough) */
+      /* Convert Rec.709 to target colour space, then apply k2020_to_sRGB for boost. */
+      vec3 target;
       if(global.ExpandGamut == 0u)
-         linear = linear * k2020_to_sRGB;
+         target = linear * k709_to_2020;
       else if(global.ExpandGamut == 1u)
-         linear = (linear * kExpanded709_to_2020) * k2020_to_sRGB;
+         target = linear * k709_to_Expanded709;
       else if(global.ExpandGamut == 2u)
-         linear = (linear * kP3_to_2020) * k2020_to_sRGB;
+         target = linear * k709_to_P3;
+      else
+         target = linear;
+      target = max(target, vec3(0.0));
+
+      linear = target * k2020_to_sRGB;
 
       linear *= global.MaxNits / 80.0;
       FragColor = vec4(linear, source.a);
    }
    else if(global.HDRMode >= 1u)
    {
-      /* HDR10: linearize, inverse tonemap, gamut convert, PQ encode.
-       * Matches RetroArch's internal Vulkan HDR pipeline (To2020 + HDR10). */
+      /* HDR10: linearize, inverse tonemap, convert to target colour space, PQ encode.
+       * The PQ encoder treats data as Rec.2020 — gamut mismatch creates the boost. */
       vec3 sdr = pow(abs(source.rgb), vec3(params.DisplayGamma));
       vec3 hdr = InverseTonemap(sdr, global.MaxNits, global.PaperWhiteNits);
 
-      /* Gamut conversion — matches RetroArch menu "Colour Boost" setting:
-       * 0=Accurate (709->2020), 1=Expanded, 2=Wide (P3->2020), 3=Super (2020 passthrough) */
+      /* Convert Rec.709 to target colour space for ExpandGamut colour boost:
+       * 0=Accurate (709->2020, no boost), 1=Expanded, 2=Wide (709->P3), 3=Super (passthrough) */
       vec3 rec2020;
       if(global.ExpandGamut == 0u)
          rec2020 = hdr * k709_to_2020;
       else if(global.ExpandGamut == 1u)
-         rec2020 = hdr * kExpanded709_to_2020;
+         rec2020 = hdr * k709_to_Expanded709;
       else if(global.ExpandGamut == 2u)
-         rec2020 = hdr * kP3_to_2020;
+         rec2020 = hdr * k709_to_P3;
       else
          rec2020 = hdr;
       rec2020 = max(rec2020, vec3(0.0));

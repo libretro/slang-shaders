@@ -29,12 +29,24 @@ const mat3 k709_to_2020 = mat3 (
    0.0690970f, 0.9195400f, 0.0113612f,
    0.0163916f, 0.0880132f, 0.8955950f);
 
+/* Rec.709 to DCI-P3 (= k709_to_2020 * k2020_to_P3) */
+const mat3 k709_to_P3 = mat3 (
+    0.8215873f,  0.1763479f,  0.0020641f,
+    0.0328261f,  0.9695096f, -0.0023367f,
+    0.0188038f,  0.0725063f,  0.9086907f);
+
 /* START Converted from (Copyright (c) Microsoft Corporation - Licensed under the MIT License.)  https://github.com/microsoft/Xbox-ATG-Samples/tree/master/Kits/ATGTK/HDR */
 const mat3 kExpanded709_to_2020 = mat3 (
     0.6274040f,  0.3292820f, 0.0433136f,
     0.0457456f,  0.941777f,  0.0124772f,
    -0.00121055f, 0.0176041f, 0.983607f);
 /* END Converted from (Copyright (c) Microsoft Corporation - Licensed under the MIT License.)  https://github.com/microsoft/Xbox-ATG-Samples/tree/master/Kits/ATGTK/HDR */
+
+/* Rec.709 to Expanded Rec.709 (= k709_to_2020 * k2020_to_Expanded709) */
+const mat3 k709_to_Expanded709 = mat3 (
+    1.0000025f, -0.0000016f, -0.0000001f,
+    0.0399515f,  0.9624604f, -0.0024178f,
+    0.0228872f,  0.0684669f,  0.9086437f);
 
 #ifdef SONY_MEGATRON_VERSION_2
 

@@ -534,7 +534,19 @@ void main()
 
    vec3 linear_colour = pow(max(scanline_colour, 0.0f), vec3(2.4f));
 
-   if (HCRT_HDR > 0u)
+   if (HCRT_HDR == 2u)
+   {
+      /* scRGB: linear Rec.709, 1.0 = 80 nits.
+       * Always apply k2020_to_sRGB to match HDR10 visual behaviour:
+       *   r2020 (0): data IS Rec.2020 — accurate conversion to Rec.709
+       *   r709/sRGB (1/2): data is Rec.709 "interpreted" as 2020 — maximum boost
+       *   DCI-P3 (3): data is P3 "interpreted" as 2020 — moderate boost
+       *   Adobe (4): data is Adobe "interpreted" as 2020 — some boost */
+      linear_colour = linear_colour * k2020_to_sRGB;
+
+      FragColor = vec4(linear_colour * (HCRT_MAX_NITS / 80.0), 1.0f);
+   }
+   else if (HCRT_HDR == 1u)
    {
       vec3 pq_input = linear_colour * (HCRT_PAPER_WHITE_NITS / kMaxNitsFor2084);
       FragColor = vec4(LinearToST2084(pq_input), 1.0f);

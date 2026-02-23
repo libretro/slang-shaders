@@ -2,7 +2,7 @@
 
 #define SONY_MEGATRON_VERSION_2
 
-#pragma format A2B10G10R10_UNORM_PACK32
+#pragma format R16G16B16A16_SFLOAT
 
 layout(push_constant) uniform Push
 {
