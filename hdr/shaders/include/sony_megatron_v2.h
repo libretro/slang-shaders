@@ -518,12 +518,14 @@ void main()
     * so the scanline result (luminance * sdr_channel) is already linear. */
    vec3 linear_colour = max(scanline_colour, 0.0f);
 
-   /* Build mask vector from colour_mask bitfield */
+   /* Build mask vector from colour_mask bitfield.
+    * Uses comparisons instead of dynamic vec3[idx] writes to avoid
+    * SPIRV-Cross generating HLSL array l-values that fxc rejects. */
    vec3 mask = vec3(0.0f);
-   const uint channel_count = colour_mask & 3;
-   if (channel_count > 0u) mask[(colour_mask >> kFirstChannelShift)  & 3] = 1.0f;
-   if (channel_count > 1u) mask[(colour_mask >> kSecondChannelShift) & 3] = 1.0f;
-   if (channel_count > 2u) mask[(colour_mask >> kThirdChannelShift)  & 3] = 1.0f;
+   const uint channel_count = colour_mask & 3u;
+   if (channel_count > 0u) { uint idx = (colour_mask >> kFirstChannelShift)  & 3u; mask += vec3(float(idx == 0u), float(idx == 1u), float(idx == 2u)); }
+   if (channel_count > 1u) { uint idx = (colour_mask >> kSecondChannelShift) & 3u; mask += vec3(float(idx == 0u), float(idx == 1u), float(idx == 2u)); }
+   if (channel_count > 2u) { uint idx = (colour_mask >> kThirdChannelShift)  & 3u; mask += vec3(float(idx == 0u), float(idx == 1u), float(idx == 2u)); }
 
    if (HCRT_HDR > 0u)
    {
