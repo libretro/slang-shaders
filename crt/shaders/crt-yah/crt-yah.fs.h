@@ -22,6 +22,10 @@
     THE SOFTWARE.
 */
 
+// used in common/screen-helper.h
+#define RESOLUTION_AUTO_SCALE PARAM_SCREEN_RESOLUTION_SCALE < 0.5
+
+#include "common/constants.h"
 #include "common/color-helper.h"
 #include "common/frame-helper.h"
 #include "common/interpolation-helper.h"
@@ -31,7 +35,7 @@
 float get_brightness_compensation(float color_luma)
 {
     float mask_blend = 1.0 - (1.0 - PARAM_MASK_BLEND) * (1.0 - PARAM_MASK_BLEND);
-    
+
     return PARAM_COLOR_COMPENSATION > 0.0
         ? mix(
             INPUT_BRIGHTNESS_COMPENSATION,
@@ -181,7 +185,7 @@ vec3 get_half_beam_color(sampler2D source, vec2 tex_coord, vec2 delta_x, vec2 de
     // get color from spline
     vec3 color = mat4x3(x, y, z, w) * beam_filter;
 
-    // map filter range [-1.0, 1.0] to anti-ringing factor [0.5, 0.0] 
+    // map filter range [-1.0, 1.0] to anti-ringing factor [0.5, 0.0]
     float anti_ringing_auto = 1.0 - smoothstep(1.5, 2.0, PARAM_BEAM_FILTER + 1.0);
     float anti_ringing_manual = PARAM_ANTI_RINGING;
 
@@ -198,7 +202,19 @@ vec3 get_half_beam_color(sampler2D source, vec2 tex_coord, vec2 delta_x, vec2 de
 
 vec3 get_raw_color(sampler2D source, vec2 tex_coord)
 {
-    return INPUT(texture(source, tex_coord).rgb);
+    vec3 color = texture(source, tex_coord).rgb;
+
+    // when automatic down-scaled
+    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
+    {
+        // apply full texel x-offset (to sample a neighbor pixel)
+        tex_coord += vec2o(-1.0, 0.0) / global.OriginalSize.xy;
+    
+        color += texture(source, tex_coord).rgb;
+        color *= 0.5;
+    }
+
+    return INPUT(color);
 }
 
 vec2 get_scanlines_pixel_coordinate(vec2 tex_coord, vec2 tex_size)
@@ -242,18 +258,20 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple
         tex_coord += vec2o(0.0, 0.5) / multiple * (INPUT_SCREEN_MULTIPLE - 1.0);
     }
 
-    float scanlines_offset = PARAM_SCANLINES_OFFSET > 0.0
-        // fixed offset
-        ? PARAM_SCANLINES_OFFSET
+    // offset scaled by multiple
+    float scanlines_offset = PARAM_SCANLINES_OFFSET / INPUT_SCREEN_MULTIPLE;
+    if (scanlines_offset < 0.0)
+    {
         // jitter offset each 2nd frame with 30/60Hz
-        : mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 2) > 0.0
+        scanlines_offset = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 2) > 0.0
             ? 0.0
-            : abs(PARAM_SCANLINES_OFFSET);
+            : abs(scanlines_offset);
+    }
 
     // when automatic down-scaled
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
     {
-        float slope = 1.0 - 1.0 / INPUT_SCREEN_MULTIPLE;
+        float slope = 1.0 - (1.0 / INPUT_SCREEN_MULTIPLE);
 
         // apply manual half texel y-offset by exponential amout of multiple
         tex_coord += vec2o(0.0, 0.5) * normalized_sigmoid(scanlines_offset / 2.0, -slope) * 2.0;
@@ -337,6 +355,13 @@ vec3 get_mask(vec2 tex_coord)
         subpixel_type == 1 ? subpixel_type + 1 :
         subpixel_type;
 
+    // when automatic down-scaled
+    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
+    {
+        // stabelize mask position due to half texel x-offset compensated in vertex-shader
+        pix_coord.x -= subpixel_size;
+    }
+
     vec3 mask = get_subpixel_color(
         pix_coord,
         subpixel_size,
@@ -405,6 +430,13 @@ vec3 apply_color_overflow(vec3 color)
 
 vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord)
 {
+    // when automatic down-scaled
+    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
+    {
+        // stabilize halation position due to half texel x-offset compensated in vertex-shader
+        tex_coord -= vec2o(0.5, 0.0) / global.OriginalSize.xy;
+    }
+
     vec3 halation = INPUT(texture(halation_source, tex_coord).rgb);
 
     // add the difference between color and halation

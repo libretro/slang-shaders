@@ -89,6 +89,22 @@ mat3 SMPTE_C_TO_XYZ = mat3(
     0.3653, 0.7011, 0.1119,
     0.1912, 0.0866, 0.9584);
 
+mat3 BT2020_TO_XYZ = mat3(
+    0.6370, 0.2627, 0.0000,
+    0.1446, 0.6780, 0.0281,
+    0.1689, 0.0593, 1.0610);
+
+// Bradford chromatic adaptation matrices (XYZ ↔ LMS)
+mat3 XYZ_TO_LMS = mat3(
+     0.8951, -0.7502,  0.0389,
+     0.2664,  1.7135, -0.0685,
+    -0.1614,  0.0367,  1.0296);
+
+mat3 LMS_TO_XYZ = mat3(
+    0.9869929, 0.4323053, -0.0085287,
+    -0.1470543, 0.5183603, 0.0400428,
+    0.1599627, 0.0492912, 0.9684867);
+
 mat3 RGB_TO_YIQ = mat3(
     0.299,  0.5959,  0.2115,
     0.587, -0.2746, -0.5227,
@@ -99,16 +115,6 @@ mat3 YIQ_TO_RGB = mat3(
     0.956,  -0.272,   -1.106,
     0.621,  -0.647,    1.703);
 
-mat3 RGB_TO_YUV = mat3(
-    0.299, -0.14713, 0.615,
-    0.587, -0.28886, -0.51499,
-    0.114,  0.436,   -0.10001);
-
-mat3 YUV_TO_RGB = mat3(
-    1.0,      1.0,      1.0,
-    0.0,     -0.39465,  2.03211,
-    1.13983, -0.58060,  0.0);
-
 mat3 RGB_TO_YPbPr = mat3(
     0.299, -0.168736,  0.5,
     0.587, -0.331264, -0.418688,
@@ -118,6 +124,9 @@ mat3 YPbPr_TO_RGB = mat3(
     1.0,    1.0,      1.0,
     0.0,   -0.344136, 1.772,
     1.402, -0.714136, 0.0);
+
+#define RGB_TO_YUV RGB_TO_YPbPr
+#define YUV_TO_RGB YPbPr_TO_RGB
 
 mat3 RGB_TO_YCbCr = mat3(
     0.2126, -0.1146,  0.5,
@@ -150,6 +159,15 @@ vec3 xyY_to_XYZ(const vec3 xyY)
     float z = 1.0 - x - y;
 
     return vec3(Y * x / y, Y, Y * z / y);
+}
+
+vec3 YrYgYb_to_XYZ(const vec3 YrYgYb, const Colorimetry colorimetry)
+{
+    vec3 red_XYZ = xyY_to_XYZ(vec3(colorimetry.red_xy.x, colorimetry.red_xy.y, YrYgYb.r));
+    vec3 green_XYZ = xyY_to_XYZ(vec3(colorimetry.green_xy.x, colorimetry.green_xy.y, YrYgYb.g));
+    vec3 blue_XYZ = xyY_to_XYZ(vec3(colorimetry.blue_xy.x, colorimetry.blue_xy.y, YrYgYb.b));
+
+    return red_XYZ + green_XYZ + blue_XYZ;
 }
 
 vec3 XYZ_to_CIE_LUV(vec3 XYZ) {
@@ -215,22 +233,13 @@ mat3 get_RGB_to_XYZ(const vec3 red_XYZ, const vec3 green_XYZ, const vec3 blue_XY
 // Linear variant of the Bradford chromatic adaptation transform
 mat3 bradford_linear(vec3 wref_XYZ, vec3 wout_XYZ)
 {
-    const mat3 M = mat3(
-         0.8951, -0.7502,  0.0389,
-         0.2664,  1.7135, -0.0685,
-        -0.1614,  0.0367,  1.0296);
-    const mat3 M_inv = mat3(
-        0.9869929, 0.4323053, -0.0085287,
-        -0.1470543, 0.5183603, 0.0400428,
-        0.1599627, 0.0492912, 0.9684867);
-
-    vec3 wref_RGB = M * wref_XYZ;
-    vec3 wout_RGB = M * wout_XYZ;
+    vec3 wref_RGB = XYZ_TO_LMS * wref_XYZ;
+    vec3 wout_RGB = XYZ_TO_LMS * wout_XYZ;
     mat3 M_adt = mat3(
         wout_RGB.r / wref_RGB.r, 0.0, 0.0,
         0.0, wout_RGB.g / wref_RGB.g, 0.0,
         0.0, 0.0, wout_RGB.b / wref_RGB.b);
-    return M_inv * M_adt * M;
+    return LMS_TO_XYZ * M_adt * XYZ_TO_LMS;
 }
 
 // Chromatic adaptation transform from Zhai et al. 2018
@@ -257,4 +266,79 @@ mat3 zhai2018_cat16(vec3 ref_XYZ, vec3 tgt_XYZ, float d)
         0.0, 0.0, d * tgt_cone.z / src_cone.z + 1.0 - d);
 
     return cat16_M_inv * D * cat16_M;
+}
+
+// Convert RGB to selected luma-chroma space.
+// For YDbDr: RGB -> YUV -> scale (U,V) to (Db,Dr).
+vec3 rgb_to_luma_chroma(vec3 rgb, float model)
+{
+    if (model < 0.5) { // YPbPr
+        return RGB_TO_YPbPr * rgb;
+    } else if (model < 1.5) { // YDbDr via YUV scale
+        // Db = (1.333 / 0.436) * U ; Dr = (-1.333 / 0.615) * V
+        const float K_DB_FROM_U = 1.333 / 0.436;  // ≈ 3.056880734
+        const float K_DR_FROM_V = -1.333 / 0.615; // ≈ -2.168292683
+
+        vec3 yuv = RGB_TO_YUV * rgb;
+
+        return vec3(yuv.r, K_DB_FROM_U * yuv.g, K_DR_FROM_V * yuv.b);
+    } else { // YCbCr
+        return RGB_TO_YCbCr * rgb;
+    }
+}
+
+// Helper: decode from selected luma-chroma model to RGB
+vec3 decode_luma_chroma_to_rgb(vec3 yc, float model) {
+    if (model < 0.5) {
+        return YPbPr_TO_RGB * yc;
+    } else if (model < 1.5) {
+        // YDbDr -> YUV -> RGB
+        const float U_FROM_DB = 0.436 / 1.333;
+        const float V_FROM_DR = -0.615 / 1.333;
+        vec3 yuv = vec3(yc.r, yc.g * U_FROM_DB, yc.b * V_FROM_DR);
+        return YUV_TO_RGB * yuv;
+    } else {
+        return YCbCr_TO_RGB * yc;
+    }
+}
+
+// SMPTE 2084 PQ (Perceptual Quantizer) encoding
+// Encodes linear RGB [0, 1] to PQ display values [0, 1]
+// Input is assumed to be linear light relative to 100 nits reference peak
+vec3 pq(vec3 linear)
+{
+    const float m1 = 0.1593017578125;      // 2610 / (4 * 4096)
+    const float m2 = 78.84375;              // 2523 * 4096 / 32
+    const float c1 = 0.8359375;             // 3424 / 4096
+    const float c2 = 18.8515625;            // 2413 * 4096 / 32
+    const float c3 = 18.6875;               // 2392 * 4096 / 32
+
+    // Normalize input for PQ (assume 100 nits reference)
+    // PQ standard uses 10000 nits peak, map [0,1] at 100 nits to [0,1] at 10000 nits
+    vec3 L = linear * 0.01;                // Scale from 100 nits reference to PQ range (100/10000)
+    L = max(L, vec3(0.0));
+
+    // Apply PQ curve per-channel
+    vec3 L_p = pow(L, vec3(m1));
+    vec3 pq_result = pow((c1 + c2 * L_p) / (1.0 + c3 * L_p), vec3(m2));
+
+    return pq_result;
+}
+
+// Inverse SMPTE 2084 PQ decoding
+// Decodes PQ display values [0, 1] to linear RGB [0, 1]
+vec3 pq_inverse(vec3 pq_val)
+{
+    const float m1 = 0.1593017578125;      // 2610 / (4 * 4096)
+    const float m2 = 78.84375;              // 2523 * 4096 / 32
+    const float c1 = 0.8359375;             // 3424 / 4096
+    const float c2 = 18.8515625;            // 2413 * 4096 / 32
+    const float c3 = 18.6875;               // 2392 * 4096 / 32
+
+    // Inverse PQ curve per-channel
+    vec3 L_p = pow(pq_val, vec3(1.0 / m2));
+    vec3 L = pow((L_p - c1) / max((c2 - c3 * L_p), 1e-6), vec3(1.0 / m1));
+
+    // Convert back to linear RGB [0, 1] where 1.0 = 100 nits reference
+    return L * 100.0;                      // Scale from PQ range to 100 nits reference (10000/100)
 }

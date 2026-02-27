@@ -30,7 +30,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
-    vec4 FrameSize;
+    vec4 FrameHSize;
     uint FrameCount;
     // Timing parameters for timebase computation
     float V_FREQ_MODE;
@@ -112,7 +112,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
-        config.FrameSize.xy,
+        config.FrameHSize.x,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -136,25 +136,6 @@ layout(location = 0) out vec4 FragColor;
 layout(location = 1) in vec3 sigma;
 layout(location = 2) in TimebaseConfig tb;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-
-// Helper: decode from selected luma-chroma model to RGB
-vec3 decode_luma_chroma_to_rgb(vec3 yc, float model) {
-    if (model < 0.5) {
-        return YIQ_TO_RGB * yc;
-    } else if (model < 1.5) {
-        return YPbPr_TO_RGB * yc;
-    } else if (model < 2.5) {
-        return YUV_TO_RGB * yc;
-    } else if (model < 3.5) {
-        // YDbDr -> YUV -> RGB
-        const float U_FROM_DB = 0.436 / 1.333;
-        const float V_FROM_DR = -0.615 / 1.333;
-        vec3 yuv = vec3(yc.r, yc.g * U_FROM_DB, yc.b * V_FROM_DR);
-        return YUV_TO_RGB * yuv;
-    } else {
-        return YCbCr_TO_RGB * yc;
-    }
-}
 
 void main()
 {

@@ -1,8 +1,6 @@
-#ifndef MATH_HELPER
+#ifndef MATH_HELPER_DEFINED
 
-#define MATH_HELPER
-
-#define EPSILON 1e-6
+#define MATH_HELPER_DEFINED
 
 // Returns a semi-random value based on the given seed.
 // @seed: the seed value
@@ -28,4 +26,4 @@ float normalized_sigmoid(float value, float slope)
     return (value - value * slope) / (slope - abs(value) * 2.0 * slope + 1.0);
 }
 
-#endif // MATH_HELPER
+#endif // MATH_HELPER_DEFINED

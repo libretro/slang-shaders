@@ -1,6 +1,6 @@
-#ifndef COLORSPACE_SRGB_DEFINDED
+#ifndef COLORSPACE_SRGB_DEFINED
 
-#define COLORSPACE_SRGB_DEFINDED
+#define COLORSPACE_SRGB_DEFINED
 
 // XYZ to RGB for sRGB working space (D65 white point reference)
 // http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
@@ -98,4 +98,4 @@ vec3 encode_gamma(vec3 color)
     return linear_to_srgb(color, 2.4);
 }
 
-#endif // COLORSPACE_SRGB_DEFINDED
+#endif // COLORSPACE_SRGB_DEFINED

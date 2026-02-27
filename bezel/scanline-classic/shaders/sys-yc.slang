@@ -36,7 +36,7 @@ layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
-    vec4 FrameSize;
+    vec4 FrameHSize;
     uint FrameCount;
     float OriginalFPS;
     float V_FREQ_MODE;
@@ -86,29 +86,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #define ENCODER_SETUP global.ENCODER_SETUP
 
-// Convert RGB to selected luma-chroma space.
-// For YDbDr: RGB -> YUV -> scale (U,V) to (Db,Dr).
-vec3 rgb_to_luma_chroma(vec3 rgb, float model)
-{
-    if (model < 0.5) { // YIQ
-        return RGB_TO_YIQ * rgb;
-    } else if (model < 1.5) { // YPbPr
-        return RGB_TO_YPbPr * rgb;
-    } else if (model < 2.5) { // YUV
-        return RGB_TO_YUV * rgb;
-    } else if (model < 3.5) {                                             // YDbDr via YUV scale
-        // Db = (1.333 / 0.436) * U ; Dr = (-1.333 / 0.615) * V
-        const float K_DB_FROM_U = 1.333 / 0.436;  // ≈ 3.056880734
-        const float K_DR_FROM_V = -1.333 / 0.615; // ≈ -2.168292683
-
-        vec3 yuv = RGB_TO_YUV * rgb;
-
-        return vec3(yuv.r, K_DB_FROM_U * yuv.g, K_DR_FROM_V * yuv.b);
-    } else { // YCbCr
-        return RGB_TO_YCbCr * rgb;
-    }
-}
-
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
@@ -127,7 +104,7 @@ void main()
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
-        config.FrameSize.xy,
+        config.FrameHSize.x,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -162,7 +139,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 void main()
 {
     vec2 UV = vTexCoord * config.OutputSize.xy;
-    float line = floor(UV.y) / tb.pixels_per_line;
+    float line = floor(UV.y);
     float baseIndex = floor(UV.x);
     float baseCenter = baseIndex + 0.5;
     vec2 Tex = vec2(

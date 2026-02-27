@@ -1,6 +1,6 @@
-#ifndef COLORSPACE_YIQ_DEFINDED
+#ifndef COLORSPACE_YIQ_DEFINED
 
-#define COLORSPACE_YIQ_DEFINDED
+#define COLORSPACE_YIQ_DEFINED
 
 vec3 rgb_to_yiq(vec3 rgb)
 {
@@ -22,4 +22,4 @@ vec3 yiq_to_rgb(vec3 yiq)
     return yiq * matrix;
 }
 
-#endif // COLORSPACE_YIQ_DEFINDED
+#endif // COLORSPACE_YIQ_DEFINED

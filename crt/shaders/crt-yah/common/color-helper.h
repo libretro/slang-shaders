@@ -1,11 +1,9 @@
-#ifndef COLOR_HELPER
+#ifndef COLOR_HELPER_DEFINED
 
-#define COLOR_HELPER
+#define COLOR_HELPER_DEFINED
 
+#include "constants.h"
 #include "colorspace-srgb.h"
-
-#define EPSILON 1e-6
-#define PI 3.1415926
 
 // Returns the maximum value of the given color.
 // @color - the color.
@@ -94,4 +92,4 @@ vec3 apply_temperature(vec3 color, float white_point_relative)
         abs(white_point_relative));
 }
 
-#endif // COLOR_HELPER
+#endif // COLOR_HELPER_DEFINED

@@ -28,6 +28,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     uint FrameCount;
     uint FrameTimeDelta;
     float GLOBAL_MASTER;
+    float SCREEN_RESOLUTION_SCALE;
     float SCREEN_ORIENTATION;
     float SCREEN_SCALE;
     float SCREEN_FREQUENCY;
@@ -51,6 +52,11 @@ layout(location = 0) out vec2 TexCoord;
 layout(location = 1) out vec2 PixCoord;
 layout(location = 2) out float Fringing;
 layout(location = 3) out float Artifacting;
+layout(location = 4) out float Phase;
+
+// used in common/screen-helper.h
+#define PIXEL_SIZE_LIMIT 0.0
+#define RESOLUTION_AUTO_SCALE PARAM_SCREEN_RESOLUTION_SCALE < 0.5
 
 #include "common/screen-helper.h"
 
@@ -59,7 +65,7 @@ void main()
 	gl_Position = global.MVP * Position;
 
     float screen_orientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
-    float screen_scale = 1.0 / get_multiple(global.OriginalSize.xy, screen_orientation, -(PARAM_SCREEN_SCALE + PARAM_NTSC_SCALE));
+    float screen_scale = 1.0 / get_screen_multiple(global.OriginalSize.xy, screen_orientation, -(PARAM_SCREEN_SCALE + PARAM_NTSC_SCALE));
 
     TexCoord = Coord;
     PixCoord = TexCoord * global.OutputSize.xy;
@@ -72,12 +78,22 @@ void main()
     PixCoord.x *= max(screen_scale, 1.0);
     PixCoord.y /= Prescale;
 
-    // Quallity:
+    // Profile:
     // 1 - Separate Y/C
     // 2 - Composite
     // 3 - Radio Frequency
     Fringing = (PARAM_NTSC_PROFILE - 1.0);
     Artifacting = (PARAM_NTSC_PROFILE - 1.0) * 0.5 * (max(screen_scale, 1.0) + 1.0);
+
+    // Quallity:
+    // 1 - Auto
+    // 2 - Two Phase
+    // 3 - Three Phase
+    Phase = PARAM_NTSC_QUALITY < 1.5
+        // auto
+        ? min(global.OriginalSize.x, global.OriginalSize.y) * screen_scale > 240.0 ? 2.0 : 3.0
+        // manual
+        : PARAM_NTSC_QUALITY;
 }
 
 #pragma stage fragment
@@ -85,6 +101,7 @@ layout(location = 0) in vec2 TexCoord;
 layout(location = 1) in vec2 PixCoord;
 layout(location = 2) in float Fringing;
 layout(location = 3) in float Artifacting;
+layout(location = 4) in float Phase;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -112,7 +129,7 @@ void main()
     // used for chroma phase offset with 30/60Hz
     uint frame_count = GetUniformFrameCount(PARAM_SCREEN_FREQUENCY);
 
-    vec3 yiq = pass1(Source, TexCoord, PixCoord, int(PARAM_NTSC_QUALITY), PARAM_NTSC_SHIFT, PARAM_NTSC_JITTER, MIX, frame_count);
+    vec3 yiq = pass1(Source, TexCoord, PixCoord, int(Phase), PARAM_NTSC_SHIFT, PARAM_NTSC_JITTER, MIX, frame_count);
 
     FragColor = vec4(yiq, 1.0);
 }

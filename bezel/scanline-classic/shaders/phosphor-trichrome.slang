@@ -17,8 +17,8 @@
 //
 // Trichrome phosphor simulation
 // ------------------------------------------------
-// Input: Linear RGB signal
-// Output: Linear RGB signal
+// Input: Linear YrYgYb signal
+// Output: Linear YrYgYb signal
 
 #include "common.inc"
 
@@ -32,6 +32,8 @@
 layout(push_constant) uniform Push
 {
     float OriginalFPS;
+    uint CurrentSubFrame;
+    uint TotalSubFrames;
     float PHOSPHOR_BYPASS;
     float PHOSPHOR_MANTISSA_R;
     float PHOSPHOR_MANTISSA_G;
@@ -45,6 +47,10 @@ layout(push_constant) uniform Push
 } config;
 
 #define PHOSPHOR_BYPASS config.PHOSPHOR_BYPASS
+
+// Subframe support
+#define CURRENT_SUBFRAME config.CurrentSubFrame
+#define TOTAL_SUBFRAMES config.TotalSubFrames
 
 #define PHOSPHOR_MANTISSA_R config.PHOSPHOR_MANTISSA_R
 #define PHOSPHOR_MANTISSA_G config.PHOSPHOR_MANTISSA_G
@@ -93,11 +99,13 @@ void main()
 {
     vec2 Tex = vTexCoord;
 
-    vec3 color = texture(Source, Tex).rgb;
+    vec4 src = texture(Source, Tex);
+    vec3 color = src.rgb;
+    float alpha = src.a;
 
     // Early exit for full bypass
     if (PHOSPHOR_BYPASS >= 1.0) {
-        FragColor = vec4(color, 1.0);
+        FragColor = vec4(color, alpha);
         return;
     }
 
@@ -112,7 +120,10 @@ void main()
 
     vec3 gamma_c = (pow(vec3(10.0), 1.0 / n) - 1.0) / tau;
 
-    vec3 gamma_frame = gamma_c / 60.0;
+    // Use per-subframe time step for smoother decay
+    float fps = max(config.OriginalFPS, 1.0);
+    float subframes = max(float(TOTAL_SUBFRAMES), 1.0);
+    vec3 gamma_frame = gamma_c / (fps * subframes);
 
     // Point-sample normalization so that the average of the first two point samples is 0.5.
     // A_point = 1 / (1 + (1 + r)^(-n)), with r = gamma_frame and per-channel n.
@@ -125,5 +136,5 @@ void main()
     color1 = phosphor_inv_pow3(color1, gamma_frame, n);
     color = max(color, color1);  // More stable 'saturation' method
 
-    FragColor = vec4(color, 1.0);
+    FragColor = vec4(color, alpha);
 }

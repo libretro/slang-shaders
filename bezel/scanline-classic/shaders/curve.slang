@@ -22,8 +22,8 @@
 
 #include "common.inc"
 #include "geometry.inc"
-#include "filter.h"
 #include "modulation.inc"
+#include "texture.inc"
 #include "tools/zebra.inc"
 
 #include "menus/parameters/user-common.inc"
@@ -102,67 +102,6 @@ vec2 barrel_theta(vec2 uv, const float theta_h, const float theta_v)
     return out_uv;
 }
 
-// Bicubic texture sampling (4x4 Mitchell-Netravali)
-// Rewritten to match scanline-advanced.slang's approach
-vec3 sample_bicubic(sampler2D source, vec2 uv, vec2 stepxy, float B, float C)
-{
-    vec2 texSize = vec2(textureSize(source, 0));
-
-    // Calculate fractional position within pixel grid
-    vec2 pos = uv + stepxy / 2.0;
-    vec2 f = fract(pos / stepxy);
-
-    // Calculate bicubic filter coefficients
-    vec4 xtaps = bicubic4(1.0 - f.x, B, C);
-    vec4 ytaps = bicubic4(1.0 - f.y, B, C);
-
-    // Normalize taps to ensure they sum to 1.0 (preserve brightness)
-    xtaps /= xtaps.r + xtaps.g + xtaps.b + xtaps.a;
-    ytaps /= ytaps.r + ytaps.g + ytaps.b + ytaps.a;
-
-    // Calculate starting position for 4x4 kernel (centered on pixel)
-    vec2 xystart = (-1.5 - f) * stepxy + pos;
-
-    // Precompute 4 horizontal sample positions
-    vec4 xpos = vec4(xystart.x,
-                     xystart.x + stepxy.x,
-                     xystart.x + stepxy.x * 2.0,
-                     xystart.x + stepxy.x * 3.0);
-
-    // Apply 4x4 bicubic filter
-    vec3 col = vec3(0.0);
-
-    // Row 0 (topmost)
-    float y0 = xystart.y;
-    col += (texture(source, vec2(xpos.r, y0)).rgb * xtaps.r +
-            texture(source, vec2(xpos.g, y0)).rgb * xtaps.g +
-            texture(source, vec2(xpos.b, y0)).rgb * xtaps.b +
-            texture(source, vec2(xpos.a, y0)).rgb * xtaps.a) * ytaps.r;
-
-    // Row 1
-    float y1 = xystart.y + stepxy.y;
-    col += (texture(source, vec2(xpos.r, y1)).rgb * xtaps.r +
-            texture(source, vec2(xpos.g, y1)).rgb * xtaps.g +
-            texture(source, vec2(xpos.b, y1)).rgb * xtaps.b +
-            texture(source, vec2(xpos.a, y1)).rgb * xtaps.a) * ytaps.g;
-
-    // Row 2
-    float y2 = xystart.y + stepxy.y * 2.0;
-    col += (texture(source, vec2(xpos.r, y2)).rgb * xtaps.r +
-            texture(source, vec2(xpos.g, y2)).rgb * xtaps.g +
-            texture(source, vec2(xpos.b, y2)).rgb * xtaps.b +
-            texture(source, vec2(xpos.a, y2)).rgb * xtaps.a) * ytaps.b;
-
-    // Row 3 (bottommost)
-    float y3 = xystart.y + stepxy.y * 3.0;
-    col += (texture(source, vec2(xpos.r, y3)).rgb * xtaps.r +
-            texture(source, vec2(xpos.g, y3)).rgb * xtaps.g +
-            texture(source, vec2(xpos.b, y3)).rgb * xtaps.b +
-            texture(source, vec2(xpos.a, y3)).rgb * xtaps.a) * ytaps.a;
-
-    return col;
-}
-
 // ---- Vertex Shader ----
 
 #pragma stage vertex
@@ -187,8 +126,7 @@ void main()
 {
     // Simple bypass
     if (CURVE_BYPASS > 0.5) {
-        vec3 color = texture(Source, vTexCoord).rgb;
-        FragColor = vec4(color, 1.0);
+        FragColor = vec4(texture(Source, vTexCoord).rgb, texture(Source, clamp01(vTexCoord)).a);
         return;
     }
 
@@ -234,6 +172,7 @@ void main()
 
     // Bicubic/Lanczos3/Nearest resample from input texture
     vec3 color;
+    float alpha = texture(Source, clamp01(tex)).a;
     if (CURVE_FILTER < 0.5) {
         color = texture(Source, tex).rgb;
     } else {
@@ -241,8 +180,8 @@ void main()
     }
 
     if (CURVE_DEBUG_OUT_OF_RANGE > 0.5) {
-        color = zebra(color, 0.0, 1.0, vTexCoord, config.OutputSize.xy, config.FrameCount, 1.0);
+        color = zebra(color, 0.0, 10000.0, vTexCoord, config.OutputSize.xy, config.FrameCount, 1.0);
     }
 
-    FragColor = vec4(color, 1.0);
+    FragColor = vec4(max(color, 0.0), alpha);
 }

@@ -1,8 +1,8 @@
-#ifndef INTERPOLATION_HELPER
+#ifndef INTERPOLATION_HELPER_DEFINED
 
-#define INTERPOLATION_HELPER
+#define INTERPOLATION_HELPER_DEFINED
 
-#define EPSILON 1e-6
+#include "constants.h"
 
 // Gets the texture coordinates for sharp bi-linear filtering, when the texture is filtered bi-linear.
 // @tex_coord: the original texture coordinate
@@ -19,9 +19,9 @@ vec2 sharp_bilinear(vec2 tex_coord, vec2 source_size, vec2 output_size)
     vec2 center_distance = fract(texel) - 0.5;
     vec2 fraction = (center_distance - clamp(center_distance, -region_range, region_range)) * scale + 0.5;
 
-    vec2 sharp_texel = floor(texel) + fraction;
+    vec2 sharp_texel = floor(texel + EPSILON) + fraction;
 
     return sharp_texel / source_size;
 }
 
-#endif // INTERPOLATION_HELPER
+#endif // INTERPOLATION_HELPER_DEFINED

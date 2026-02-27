@@ -16,6 +16,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     uint FrameCount;
     uint FrameTimeDelta;
     float GLOBAL_MASTER;
+    float SCREEN_RESOLUTION_SCALE;
     float SCREEN_ORIENTATION;
     float SCREEN_SCALE;
     float SCREEN_FREQUENCY;
@@ -41,9 +42,10 @@ layout (push_constant) uniform Push
     float SCANLINES_COLOR_BURN;
     float MASK_INTENSITY;
     float MASK_BLEND;
-    float MASK_SIZE;
+    float MASK_SCALE;
     float MASK_TYPE;
     float MASK_SUBPIXEL;
+    float MASK_SUBPIXEL_SHAPE;
     float MASK_COLOR_BLEED;
     float HALATION_INTENSITY;
     float HALATION_DIFFUSION;
@@ -69,7 +71,9 @@ layout(location = 6) out vec4 BeamProfile;
 layout(location = 7) out mat4x4 BeamFilter;
 
 // required by crt-yah.vs.h
+#define INPUT_SCREEN_ORIENTATION ScreenOrientation
 #define INPUT_SCREEN_MULTIPLE ScreenMultiple
+#define INPUT_SCREEN_MULTIPLE_AUTO ScreenMultipleAuto
 #define INPUT_MASK_PROFILE MaskProfile
 
 #include "crt-yah.vs.h"
@@ -80,12 +84,19 @@ void main()
     TexCoord = Coord;
 
     ScreenOrientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
-    ScreenMultiple = get_multiple(global.OriginalSize.xy, ScreenOrientation, -PARAM_SCREEN_SCALE);
-    ScreenMultipleAuto = get_multiple(global.OriginalSize.xy, ScreenOrientation, 0);
+    ScreenMultiple = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -PARAM_SCREEN_SCALE);
+    ScreenMultipleAuto = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, 0.0);
     MaskProfile = get_mask_profile();
     BeamProfile = get_beam_profile();
     BeamFilter = get_beam_filter();
     BrightnessCompensation = get_brightness_compensation();
+
+    // when automatic down-scaled
+    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
+    {
+        // compensate coordinate shift due half texel x-offset applyed in fragment shader
+        TexCoord += vec2o(0.5, 0.0) / global.OriginalSize.xy;
+    }
 }
 
 #pragma stage fragment

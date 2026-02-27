@@ -11,6 +11,7 @@
 #pragma parameter hcrt_support6                      "sRGB gamma cutoff is 0.0031308 x 1000 = ~31"       			0.0      0.0   0.0001   0.0001
 #pragma parameter hcrt_support7                      "Rec. 601/709 inverse gamma cutoff is 0.081 x 1000 = 81"       0.0      0.0   0.0001   0.0001
 #pragma parameter hcrt_space3                        " "                                                            0.0      0.0   0.0001   0.0001
+
 #pragma parameter hcrt_user_settings                 "YOUR DISPLAY'S SETTINGS:"                                     0.0      0.0   0.0001   0.0001
 #pragma parameter hcrt_hdr                           "    SDR | HDR"                                                1.0      0.0   1.0      1.0
 #pragma parameter hcrt_space4                        " "                                                            0.0      0.0   0.0001   0.0001
@@ -28,6 +29,7 @@
 #pragma parameter hcrt_lcd_resolution                "    Display's Resolution: 1080p | 4K | 8K"                    1.0      0.0   2.0      1.0
 #pragma parameter hcrt_lcd_subpixel                  "    Display's Subpixel Layout: RGB | RWBG (OLED) | BGR"       0.0      0.0   2.0      1.0
 #pragma parameter hcrt_colour_accurate               "    Mask Accurate/Colour Accurate"                            1.0      0.0   1.0      1.0
+
 #pragma parameter hcrt_space7                        " "                                                            0.0      0.0   0.0001   0.0001
 #pragma parameter hcrt_developer_settings            "CRT SETTINGS:"                                                0.0      0.0   0.0001   0.0001
 #pragma parameter hcrt_crt_screen_type               "    Screen Type: APERTURE GRILLE | SHADOW MASK | SLOT MASK"   0.0      0.0   2.0      1.0
@@ -43,6 +45,7 @@
 #pragma parameter hcrt_gamma_cutoff                  "    Inverse Gamma Cutoff (x1000)"                             1.0      0.0   100.0    1.0
 #pragma parameter hcrt_pin_phase                     "    Pin Phase"                                                0.00    -0.2   0.2      0.01
 #pragma parameter hcrt_pin_amp                       "    Pin Amp"                                                  0.00    -0.2   0.2      0.01
+
 #pragma parameter hcrt_space8                        " "                                                            0.0      0.0   0.0001   0.0001
 #pragma parameter hcrt_developer_settings0           "    VERTICAL SETTINGS:"                                       0.0      0.0   0.0001   0.0001
 #pragma parameter hcrt_v_size                        "        Vertical Size"                                        1.00     0.8   1.2      0.01

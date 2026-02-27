@@ -24,7 +24,7 @@ vec3 LinearTosRGB(const vec3 colour)
 
 float LinearTo709_1(const float channel)
 {
-	return (channel >= (HCRT_R709_GAMMA_CUTOFF * (1.0f / 1000.0f))) ? pow(channel * 1.099f, 1.0f / HCRT_R709_GAMMA_OUT) - 0.099f : channel * 4.5f;
+    return (channel >= (HCRT_R709_GAMMA_CUTOFF * (1.0f / 1000.0f))) ? (1.099f * pow(channel, 1.0f / HCRT_R709_GAMMA_OUT)) - 0.099f : channel * 4.5f;
 }
 
 vec3 LinearTo709(const vec3 colour)
@@ -32,15 +32,25 @@ vec3 LinearTo709(const vec3 colour)
 	return vec3(LinearTo709_1(colour.r), LinearTo709_1(colour.g), LinearTo709_1(colour.b));
 }
 
-float LinearToDCIP3_1(const float channel)
-{
-	return pow(channel, 1.0f / HCRT_P3_GAMMA_OUT);
-}
-
 vec3 LinearToDCIP3(const vec3 colour)
 {
-	return vec3(LinearToDCIP3_1(colour.r), LinearToDCIP3_1(colour.g), LinearToDCIP3_1(colour.b));
+   return pow(colour, vec3(1.0f / HCRT_P3_GAMMA_OUT));
 }
+
+#ifdef SONY_MEGATRON_VERSION_2
+
+vec3 LinearToAdobe(const vec3 colour)
+{
+	return pow(colour, vec3(1.0f / HCRT_ADOBE_GAMMA_OUT));
+}
+
+vec3 LinearToSignal(vec3 linear_colour)
+{
+    // Always Encode to Gamma 2.4
+    return pow(max(linear_colour, 0.0f), vec3(1.0f / 2.4f));
+}
+
+#else // !SONY_MEGATRON_VERSION_2
 
 void GammaCorrect(const vec3 scanline_colour, inout vec3 gamma_corrected)
 {
@@ -64,3 +74,5 @@ void GammaCorrect(const vec3 scanline_colour, inout vec3 gamma_corrected)
       gamma_corrected = LinearToST2084(scanline_colour);
    }
 }
+
+#endif // !SONY_MEGATRON_VERSION_2

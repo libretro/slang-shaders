@@ -207,16 +207,35 @@ vec2 pincushion_theta(vec2 uv, const float theta_h, const float theta_v)
 }
 
 // Parameterized pincushion non-linear (magnetic) using anisotropic angles (radians)
+// Blends between safe linear-style function near origin and non-linear function away from it
 vec2 pincushion_nl_theta(vec2 uv, const float theta_h, const float theta_v)
 {
-    if (theta_h < EPS && theta_v < EPS) return uv;
+    if (theta_h < EPS && theta_v < EPS)
+        return uv;
     float safe_theta_h = max(theta_h, 0.001);
     float safe_theta_v = max(theta_v, 0.001);
+    
     vec2 t = uv * vec2(safe_theta_h, safe_theta_v);
     float x = t.x;
     float y = t.y;
-    float dx = atan(asin(x) * cos(asin(y)));
-    float dy = atan(asin(y) * cos(asin(x)));
+    
+    // Smoothly blend from safe linear function near origin to non-linear function away from it
+    // This avoids discontinuity at y≈0 and x≈0
+    float blend_x = smoothstep(0.05, 0.3, abs(x));
+    float blend_y = smoothstep(0.05, 0.3, abs(y));
+    
+    // Safe linear-style approximation near origin (avoids asin domain issues)
+    float dx_safe = atan(x * cos(y));
+    float dy_safe = atan(y * cos(x));
+    
+    // Original non-linear (magnetic) function away from origin
+    float dx_nl = atan(asin(clamp(x, -1.0, 1.0)) * cos(asin(clamp(y, -1.0, 1.0))));
+    float dy_nl = atan(asin(clamp(y, -1.0, 1.0)) * cos(asin(clamp(x, -1.0, 1.0))));
+    
+    // Blend smoothly
+    float dx = mix(dx_safe, dx_nl, blend_x);
+    float dy = mix(dy_safe, dy_nl, blend_y);
+    
     vec2 out_uv = vec2(dx / safe_theta_h, dy / safe_theta_v);
     return out_uv;
 }
@@ -604,7 +623,7 @@ layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out float maskAR;
-layout(location = 2) out TimebaseConfig tb;
+layout(location = 2) out FrameGeometry geom;
 
 void main()
 {
@@ -617,12 +636,9 @@ void main()
         : (ASPECT < 2.5) ? (5.0 / 4.0)
         : (16.0 / 10.0);
 
-    tb = compute_timebase(
+    geom = compute_frame_geometry(
         config.FrameCount,
-        vTexCoord,
         config.OriginalSize.xy,
-        config.OutputSize.xy,
-        config.FrameSize.xy,
         config.OriginalFPS,
         SC_FREQ_MODE,
         SC_FREQ,
@@ -632,22 +648,21 @@ void main()
         H_FREQ,
         V_FREQ_MODE,
         V_FREQ,
-        H_BLANK_FUZZ,
-        SHORTEN_ODD_FIELD_TIME);
+        H_BLANK_FUZZ);
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in float maskAR;
-layout(location = 2) in TimebaseConfig tb;
+layout(location = 2) in FrameGeometry geom;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 1) uniform sampler2D Source;
 
 void main()
 {
-    // Horizontal timing from timebase
-    float total_h_pixels = tb.h_pixels;
-    float total_v_lines = tb.is_interlaced < 0.5 ? tb.v_lines_per_field : tb.v_lines_per_frame;
+    // Horizontal timing from frame geometry
+    float total_h_pixels = geom.h_pixels;
+    float total_v_lines = geom.is_interlaced < 0.5 ? geom.v_lines_per_field : geom.v_lines_per_frame;
 
     // Aspect ratios for full video
     float original_dar = config.OriginalAspect;

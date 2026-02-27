@@ -1,10 +1,9 @@
-#ifndef SUBPIXEL_COLOR_DEFINDED
+#ifndef SUBPIXEL_COLOR_DEFINED
 
-#define SUBPIXEL_COLOR_DEFINDED
+#define SUBPIXEL_COLOR_DEFINED
 
+#include "constants.h"
 #include "geometry-helper.h"
-
-#define EPSILON 1e-6
 
 const vec3 White = vec3(1.0, 1.0, 1.0);
 const vec3 Black = vec3(0.0, 0.0, 0.0);
@@ -22,7 +21,7 @@ const vec3 Cyan = vec3(0.0, 1.0, 1.0);
 vec2 shift_x_every_y(vec2 pixCoord, float amount, float size)
 {
     return vec2(
-        mix(0.0, amount, floor(mod(pixCoord.y / size, 2.0))),
+        mix(0.0, amount, floor(mod(pixCoord.y / size, 2.0) + EPSILON)),
         0.0);
 }
 
@@ -34,7 +33,7 @@ vec2 shift_y_every_x(vec2 pixCoord, float amount, float size)
 {
     return vec2(
         0.0,
-        mix(0.0, amount, floor(mod(pixCoord.x / size, 2.0))));
+        mix(0.0, amount, floor(mod(pixCoord.x / size, 2.0) + EPSILON)));
 }
 
 // Returns an offset to shift the given pixel coordinate by x-amount for each x-block.
@@ -44,13 +43,13 @@ vec2 shift_y_every_x(vec2 pixCoord, float amount, float size)
 vec2 shift_x_each_x(vec2 pixCoord, float amount, float size)
 {
     return vec2(
-        mix(0.0, amount, floor(pixCoord.x / size)),
+        mix(0.0, amount, floor((pixCoord.x / size) + EPSILON)),
         0.0);
 }
 
 int get_index(float pixCoord, int count)
 {
-    return int(floor(mod(pixCoord, count)));
+    return int(floor(mod(pixCoord, count) + EPSILON));
 }
 
 vec3 get_subpixel_color(vec2 pixCoord, vec3 c1, vec3 c2)
@@ -128,7 +127,7 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
         || mask_type == 2)
     {
         // change gap (black) between color-blocks (e.g. RGB) to "half" a sub-pixel
-        float gap = floor(0.5 * size) / size;
+        float gap = floor((0.5 * size) + EPSILON) / size;
 
         // green, magenta, black
         if (subpixel_type == 3)
@@ -296,7 +295,7 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
         || mask_type == 2)
     {
         // change gap (black) between color-blocks (e.g. RGB) to "half" a sub-pixel
-        float gap = floor(0.5 * size) / size;
+        float gap = floor((0.5 * size) + EPSILON) / size;
 
         // green, magenta, black
         if (subpixel_type == 3)
@@ -343,24 +342,31 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
     // Slot-mask
     else if (mask_type == 2)
     {
-        // correct shape for size 1
-        float height = size == 1
-            ? 4.0
-            : 3.0;
+        float height =
+            // correct shape for size 1
+            size == 1 ? 4.0 :
+            // default
+            3.0;
 
         float offset =
             // correct shape for size 1
-            size == 1 ? 0.5 :
+            size == 1 ? 1.0 / 2.0 :
             // correct shape for size 2
-            size == 2 ? 0.25 :
+            size == 2 ? 1.0 / 4.0 :
             // default
-            0.125;
+            1.0 / 6.0;
+
+        float shift =
+            // correct shape for size 3
+            size == 3 ? 1.0 / 6.0 :
+            // default
+            0.0;
 
         // white, black
         // magenta, green
         if (subpixel_type == 1 || subpixel_type == 2)
         {
-            pixCoord += shift_y_every_x(pixCoord, 1.5, 2.0);
+            pixCoord += shift_y_every_x(pixCoord, 1.5 + shift, 2.0);
             pixCoord.y *= 1.0 + EPSILON; // avoid color artifacts due to half pixel shift
             pixCoord.y += offset;
 
@@ -370,7 +376,7 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
         // red, green, blue
         else if (subpixel_type == 3 || subpixel_type == 4)
         {
-            pixCoord += shift_y_every_x(pixCoord, 1.5, 3.0);
+            pixCoord += shift_y_every_x(pixCoord, 1.5 + shift, 3.0);
             pixCoord.y *= 1.0 + EPSILON; // avoid color artifacts due to half pixel shift
             pixCoord.y += offset;
 
@@ -379,7 +385,7 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
         // red, green, blue, black
         else if (subpixel_type == 5)
         {
-            pixCoord += shift_y_every_x(pixCoord, 1.5, 4.0);
+            pixCoord += shift_y_every_x(pixCoord, 1.5 + shift, 4.0);
             pixCoord.y *= 1.0 + EPSILON; // avoid color artifacts due to half pixel shift
             pixCoord.y += offset;
 
@@ -434,4 +440,4 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
     return color;
 }
 
-#endif // SUBPIXEL_COLOR_DEFINDED
+#endif // SUBPIXEL_COLOR_DEFINED

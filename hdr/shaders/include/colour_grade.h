@@ -25,6 +25,12 @@ const mat3 kNTSC_to_XYZ = mat3(
    0.212376f, 0.701060f, 0.086564f,
    0.018739f, 0.111934f, 0.958385f);
 
+const mat3 kAdobeRGB_to_XYZ = mat3(
+   0.576669f, 0.297345f, 0.027031f,
+   0.185558f, 0.627364f, 0.070689f,
+   0.188229f, 0.075291f, 0.991338f
+);
+
 // Phosphor Sets - These override the colour standards above when used
 
 // NTSC-J P22
@@ -68,6 +74,30 @@ const mat3 kXYZ_to_DCIP3 = mat3 (
     2.4934969119f, -0.9313836179f, -0.4027107845f,
    -0.8294889696f,  1.7626640603f,  0.0236246858f,
     0.0358458302f, -0.0761723893f,  0.9568845240f);   
+
+const mat3 kXYZ_to_2020 = mat3(
+   1.716651f, -0.355671f, -0.253366f,
+   -0.666684f, 1.616481f,  0.015769f,
+    0.017640f, -0.042771f,  0.942103f
+);
+
+const mat3 k2020_to_sRGB = mat3(
+    1.660491f, -0.587641f, -0.072850f,
+   -0.124550f,  1.132900f, -0.008349f,
+   -0.018151f, -0.100579f,  1.118730f
+);
+
+const mat3 k2020_to_P3 = mat3(
+    1.343578f, -0.282180f, -0.061399f,
+   -0.065297f,  1.075788f, -0.010490f,
+    0.002822f, -0.019598f,  1.016777f
+);
+
+const mat3 k2020_to_Adobe = mat3(
+    1.151978f, -0.097503f, -0.054475f,
+   -0.124550f,  1.132900f, -0.008349f,
+   -0.022530f, -0.049807f,  1.072337f
+);
 
 const mat3 kStandardsColourGamut[kColourSystems] = { k709_to_XYZ, kPAL_to_XYZ, kNTSC_to_XYZ, kNTSC_to_XYZ };
 const mat3 kPhosphorColourGamut[kPhosphorSets] = { kNTSCJ_P22_to_XYZ, kP2280_to_XYZ, kP2290_to_XYZ, kRPTV00_to_XYZ, k1953_to_XYZ };
@@ -170,6 +200,68 @@ float Contrast(const float luminance)
    }
 }
 
+#ifdef SONY_MEGATRON_VERSION_2
+
+vec3 Saturation(const vec3 colour)
+{
+   // Rec.709 Luma Coefficients
+   const vec3 kRec709Luma = vec3(0.2126f, 0.7152f, 0.0722f);
+
+   const float luma           = dot(colour, kRec709Luma);
+   const float saturation     = 0.5f + HCRT_SATURATION * 0.5f;
+
+   return mix(vec3(luma), colour, vec3(saturation) * 2.0f);
+}
+
+vec3 BrightnessContrastSaturation(const vec3 xyz)
+{
+   const vec3 Yxy             = XYZtoYxy(xyz);
+
+   const float Y_gamma        = clamp(pow(Yxy.x, 1.0f / 2.4f), 0.0f, 1.0f);
+   const float Y_brightness   = Brightness(Y_gamma);
+   const float Y_contrast     = Contrast(Y_brightness);
+
+   const vec3 contrast_linear = vec3(pow(Y_contrast, 2.4f), Yxy.y, Yxy.z);
+   const vec3 xyz_graded      = YxytoXYZ(contrast_linear);
+   const vec3 rec709_linear   = xyz_graded * kXYZ_to_709;
+   const vec3 saturated       = Saturation(rec709_linear);
+
+   return saturated;
+}
+
+vec3 GamutBoost(vec3 colour_709)
+{
+   const vec3 luma_weights = vec3(0.2126f, 0.7152f, 0.0722f);
+   float luma = dot(colour_709, luma_weights);
+
+   return mix(vec3(luma), colour_709, HCRT_COLOUR_BOOST_FACTOR);
+}
+
+vec3 ColourGrade(const vec3 colour)
+{
+   const uint colour_system   = uint(HCRT_CRT_COLOUR_SYSTEM);
+   const uint phosphor_set    = uint(HCRT_CRT_PHOSPHOR_SET);
+   
+   const float temperature[kColourSystems] = { HCRT_WHITE_TEMPERATURE_D65, HCRT_WHITE_TEMPERATURE_D65, HCRT_WHITE_TEMPERATURE_D65, HCRT_WHITE_TEMPERATURE_D93 };
+
+   const vec3 white_point     = WhiteBalance(temperature[colour_system], colour);
+
+   const vec3 linear          = pow(white_point, vec3(HCRT_GAMMA_IN)); 
+
+   const mat3 source_to_XYZ   = (phosphor_set > 0) ? kPhosphorColourGamut[phosphor_set - 1] : kStandardsColourGamut[colour_system];
+   
+   const vec3 xyz             = linear * source_to_XYZ;
+
+   const vec3 graded_colour   = BrightnessContrastSaturation(xyz); 
+
+   const vec3 boosted_colour  = GamutBoost(graded_colour);
+
+   // Output is now linear Rec.709 — ExpandGamut boost is applied in the HDR pass
+   return max(boosted_colour, vec3(0.0f));
+}
+
+#else // !SONY_MEGATRON_VERSION_2
+
 vec3 Saturation(const vec3 colour)
 {
    const float luma           = dot(colour, vec3(0.2125, 0.7154, 0.0721));
@@ -212,3 +304,5 @@ vec3 ColourGrade(const vec3 colour)
 
    return graded;
 }
+
+#endif // SONY_MEGATRON_VERSION_2

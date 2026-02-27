@@ -10,9 +10,10 @@
 #pragma parameter GLOW_HEADER " —— Output: Glow —— " 0.0 0.0 0.0 0.0
 
 #pragma parameter GLOW_WEIGHT "Glow weight" 1.0 0.0 1.0 0.01
+#pragma parameter USE_MIPMAPPING "Use mipmapping for glow (non-D3D only)" 0.0 0.0 1.0 1.0
+#pragma parameter GLOW_QUALITY_PRESET "Glow quality preset (auto, low, medium, high)" 0.0 0.0 3.0 1.0
 #pragma parameter GLOW_TEMPERATURE "Glow color temperature" 0.20 -0.5 0.5 0.01
-#pragma parameter GLOW_RADIUS "Glow radius" 0.06 0.0 0.1 0.01
-#pragma parameter GLOW_DIFFUSION "Glow diffusion" 3.0 1.0 10.0 1.0
-#pragma parameter GLOW_COMPRESSION "Glow compression" 0.5 0.0 1.0 0.01
-#pragma parameter GLOW_FALLOFF "Glow radial falloff" 1.0 0.5 10.0 0.1
-#pragma parameter GLOW_VERTICAL_BIAS "Glow vertical bias" 2.0 1.0 5.0 0.1
+#pragma parameter GLOW_DIFFUSION "Glow diffusion (low, medium, high)" 2.0 0.0 2.0 1.0
+#pragma parameter GLOW_RADIUS_PERCENT "Glow radius" 6.0 0.5 20.0 0.5
+#pragma parameter GLOW_COMPRESSION "Glow saturation" 0.5 0.0 1.0 0.01
+#pragma parameter GLOW_FALLOFF "Glow falloff" 1.0 0.5 10.0 0.1

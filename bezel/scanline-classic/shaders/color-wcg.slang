@@ -21,7 +21,7 @@
 // Output: BT.2020 signal
 
 #pragma name Color
-#pragma format A2B10G10R10_UNORM_PACK32
+#pragma format R16G16B16A16_SFLOAT
 
 #define WIDE_COLOR
 #define XYZ_TO_COLOR_SPACE XYZ_TO_BT2020

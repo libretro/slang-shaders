@@ -1,19 +1,21 @@
 // Global parameters
-#pragma parameter GLOBAL_MASTER "·  Global > ¹Master  (0-None .. 1-Full / 2-More)" 1.0 0.0 2.0 0.05
+#pragma parameter GLOBAL_MASTER "· ¹Global > Master  (0-None .. 1-Full / 2-More)" 1.0 0.0 2.0 0.05
 
 // Screen parameters
 #pragma parameter SCREEN_ORIENTATION "·  Screen > Orientation  (0-Auto, 1-Horizontal, 2-Vertical)" 0.0 0.0 2.0 1.0
-#pragma parameter SCREEN_SCALE "   Screen > Scale  (-Down / 0-Auto / +Up)" 0.0 -2.0 2.0 0.05
-#pragma parameter SCREEN_FREQUENCY "   Screen > ⁴Frequence  (30Hz, 60Hz)" 60.0 30.0 60.0 30.0
+#pragma parameter SCREEN_RESOLUTION_SCALE "  ⁵Screen > Resolution  (0-Auto, 1-Native)" 0.0 0.0 1.0 1.0
+#pragma parameter SCREEN_SCALE "   Screen > Scale⁵  (-Down / 0-Auto / +Up)" 0.0 -2.0 2.0 0.05
+#pragma parameter SCREEN_FREQUENCY "  ⁴Screen > Frequence  (30Hz, 60Hz)" 60.0 30.0 60.0 30.0
 
 // Color parameters
+#pragma parameter COLOR_PROFILE "·  Color > Profile¹  (-NTSC .. +Trinitron)" 0.0 -1.0 1.0 0.1
 #pragma parameter COLOR_TEMPERATUE "   Color > Temperature¹  (-Colder .. +Warmer)" 0.0 -1.0 1.0 0.1
 #pragma parameter COLOR_SATURATION "   Color > Saturation¹  (0-Low .. 2-High)" 1.1 0.0 2.0 0.05
 #pragma parameter COLOR_CONTRAST "   Color > Contrast¹  (-Lower .. +Higher)" 0.1 -1.0 1.0 0.05
-#pragma parameter COLOR_BRIGHTNESS "   Color > Brightnes¹  (-Darken .. +Lighten)" 0.3 -1.0 2.0 0.05
+#pragma parameter COLOR_BRIGHTNESS "   Color > Brightnes¹  (-Darken .. +Lighten)" 0.30 -1.0 2.0 0.05
 #pragma parameter COLOR_OVERFLOW "   Color > Brightnes Overflow¹  (0-None .. 1-Full / 2-More)" 1.0 0.0 2.0 0.25
-#pragma parameter COLOR_COMPENSATION "   Color > ²Brightnes Compensation  (0-Off, 1-On)" 1.0 0.0 1.0 1.0
-#pragma parameter COLOR_BLACK_LIGHT "   Color > ³Black Lightening (0-None .. 1-Full / 2-More)" 0.5 0.0 2.0 0.1
+#pragma parameter COLOR_COMPENSATION "  ²Color > Brightnes Compensation  (0-Off, 1-On)" 1.0 0.0 1.0 1.0
+#pragma parameter COLOR_BLACK_LIGHT "  ³Color > Black Lightening (0-None .. 1-Full / 2-More)" 0.5 0.0 2.0 0.1
 
 // Scanline/beam parameters
 #pragma parameter SCANLINES_STRENGTH "·  Scanlines > Strength¹²³  (0-None .. 1-Full)" 0.5 0.0 1.0 0.05
@@ -30,8 +32,9 @@
 #pragma parameter MASK_BLEND "   Mask > Blend²  (0-Multiplicative .. 1-Additive)" 0.25 0.0 1.0 0.05
 #pragma parameter MASK_TYPE "   Mask > Type²  (1-Aperture, 2-Slot, 3-Shadow)" 1.0 1.0 3.0 1.0
 #pragma parameter MASK_SUBPIXEL "   Mask > Sub-Pixel²  (1-BY, 2,3-MG/x, 4,5-RGB/x)" 4.0 1.0 5.0 1.0
-#pragma parameter MASK_COLOR_BLEED "   Mask > Color Bleed¹  (0-None .. 1-Full)" 0.25 0.0 1.0 0.25
-#pragma parameter MASK_SIZE "   Mask > Size  (-Down / 0-Auto / +Up)" 0.0 -2.0 2.0 1.0
+#pragma parameter MASK_SUBPIXEL_SHAPE "   Mask > Sub-Pixel Shape²  (0-Sharp .. 1-Smooth)  [4K]" 1.0 0.0 1.0 0.25
+#pragma parameter MASK_COLOR_BLEED "   Mask > Color Bleed¹²  (0-None .. 1-Full)" 0.25 0.0 1.0 0.25
+#pragma parameter MASK_SCALE "   Mask > Scale⁵  (-1 Down / 0-Auto / +½ Up)" 0.0 -2.0 2.0 0.5
 
 // CRT parameters
 #pragma parameter CRT_CURVATURE_AMOUNT "·  CRT > Curvature¹  (0-None .. 1-Full)" 0.0 0.0 1.0 0.05
@@ -40,12 +43,14 @@
 #pragma parameter CRT_CORNER_RAIDUS "   CRT > Corner Radius¹  (0-None .. 25%)" 0.0 0.0 0.25 0.01
 #pragma parameter CRT_CORNER_SMOOTHNESS "   CRT > Corner Smoothness  (0-None .. 1-Full)" 0.0 0.0 1.0 0.05
 
-#pragma parameter INFO1 "¹ Reduces marked effects" 0.0 0.0 0.0 0.0
-#pragma parameter INFO2 "² Compensates brightness changes of marked effects" 0.0 0.0 0.0 0.0
-#pragma parameter INFO3 "³ Increases the black level of marked effects" 0.0 0.0 0.0 0.0
-#pragma parameter INFO4 "⁴ Affects frequency of marked effects" 0.0 0.0 0.0 0.0
+#pragma parameter INFO1 " ¹ Reduces marked effects" 0.0 0.0 0.0 0.0
+#pragma parameter INFO2 " ² Compensates brightness changes of marked effects" 0.0 0.0 0.0 0.0
+#pragma parameter INFO3 " ³ Increases black level of marked effects" 0.0 0.0 0.0 0.0
+#pragma parameter INFO4 " ⁴ Affects frequency of marked effects" 0.0 0.0 0.0 0.0
+#pragma parameter INFO5 " ⁵ Affects scaling of marked effects" 0.0 0.0 0.0 0.0
 
 #define PARAM_GLOBAL_MASTER global.GLOBAL_MASTER
+#define PARAM_SCREEN_RESOLUTION_SCALE global.SCREEN_RESOLUTION_SCALE
 #define PARAM_SCREEN_ORIENTATION global.SCREEN_ORIENTATION
 #define PARAM_SCREEN_SCALE global.SCREEN_SCALE
 #define PARAM_SCREEN_FREQUENCY global.SCREEN_FREQUENCY
@@ -76,9 +81,10 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 #define PARAM_COLOR_BLACK_LIGHT param.COLOR_BLACK_LIGHT
 #define PARAM_MASK_INTENSITY mix_master(param.MASK_INTENSITY, 0.0, 0.0, 1.0)
 #define PARAM_MASK_BLEND param.MASK_BLEND
-#define PARAM_MASK_SIZE param.MASK_SIZE
+#define PARAM_MASK_SCALE param.MASK_SCALE
 #define PARAM_MASK_TYPE param.MASK_TYPE
 #define PARAM_MASK_SUBPIXEL param.MASK_SUBPIXEL
+#define PARAM_MASK_SUBPIXEL_SHAPE param.MASK_SUBPIXEL_SHAPE
 #define PARAM_MASK_COLOR_BLEED mix_master(param.MASK_COLOR_BLEED, 0.0, 0.0, 1.0)
 #define PARAM_SCANLINES_STRENGTH mix_master(param.SCANLINES_STRENGTH, 0.0, 0.0, 1.0)
 #define PARAM_SCANLINES_OFFSET mix_master(param.SCANLINES_OFFSET, 0.0, -2.0, 2.0)

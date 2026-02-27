@@ -1,6 +1,6 @@
-#ifndef GEOMETRY_HELPER
+#ifndef GEOMETRY_HELPER_DEFINED
 
-#define GEOMETRY_HELPER
+#define GEOMETRY_HELPER_DEFINED
 
 // Returns a value determining whether the given point is inside an axis-align box
 //   of the given size and corner radius.
@@ -41,4 +41,4 @@ float smooth_round_box(vec2 coord, vec2 bounds, vec2 scale, float radius, float 
     return clamp(smoothstep(1.0, 0.0, box), 0.0, 1.0);
 }
 
-#endif // GEOMETRY_HELPER
+#endif // GEOMETRY_HELPER_DEFINED
