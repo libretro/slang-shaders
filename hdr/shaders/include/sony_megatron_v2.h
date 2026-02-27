@@ -30,7 +30,6 @@ void main()
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D SourceSDR;
-layout(set = 0, binding = 3) uniform sampler2D SourceHDR;
 
 
 #define kChannelMask          3
@@ -224,8 +223,34 @@ const uint kApertureGrille8K300TVL[13][3] = {
     { kBlack, kBlack, kBlack }
 };
 
+#include "inverse_tonemap.h"
 #include "scanline_generation.h"
 #include "gamma_correct.h"
+
+/* Convert Rec.709 linear to Rec.2020 linear via Colour Space setting.
+ * The mismatch between the conversion matrix and the final k2020_to_sRGB
+ * in the output stage creates the colour boost effect. */
+vec3 To2020(const vec3 linear_709)
+{
+   uint space = uint(HCRT_OUTPUT_COLOUR_SPACE);
+
+   if(space == 4u)        // r2020 → passthrough (max boost)
+   {
+      return max(linear_709, vec3(0.0f));
+   }
+   else if(space == 3u)   // DCI-P3 → wide boost
+   {
+      return max(linear_709 * kP3_to_2020, vec3(0.0f));
+   }
+   else if(space == 2u)   // Adobe → moderate boost
+   {
+      return max(linear_709 * kAdobe_to_2020, vec3(0.0f));
+   }
+   else                   // r709 (0), sRGB (1) → no boost
+   {
+      return max(linear_709 * k709_to_2020, vec3(0.0f));
+   }
+}
 
 #define k1080p     0
 #define k4K        1
@@ -473,95 +498,70 @@ void main()
    const vec3 scanline_max             = vec3(HCRT_RED_SCANLINE_MAX, HCRT_GREEN_SCANLINE_MAX, HCRT_BLUE_SCANLINE_MAX);
    const vec3 scanline_attack          = vec3(HCRT_RED_SCANLINE_ATTACK, HCRT_GREEN_SCANLINE_ATTACK, HCRT_BLUE_SCANLINE_ATTACK);
 
-   const uint channel_count            = colour_mask & 3;
+   /* Scanline generation in Rec.709 space.
+    * Working in Rec.709 preserves chromaticity: a pure Rec.709 primary
+    * (e.g. green = 0,1,0) only has one non-zero channel, so per-channel
+    * beam width differences cannot cause chromaticity shift.
+    * Conversion to Rec.2020 and HDR brightness boost happen afterward. */
+   vec3 scanline_colour = GenerateScanline(tex_coord,
+                                           source_size.xy,
+                                           scanline_size,
+                                           horizontal_convergence,
+                                           vertical_convergence,
+                                           beam_sharpness,
+                                           beam_attack,
+                                           scanline_min,
+                                           scanline_max,
+                                           scanline_attack);
 
-   // DEBUG: bypass scanline generation, sample source HDR texture directly
-   // vec3 scanline_colour = COMPAT_TEXTURE(SourceHDR, tex_coord).rgb;
+   /* SourceSDR is already linear Rec.709 (linearised by ColourGrade in pass 0),
+    * so the scanline result (luminance * sdr_channel) is already linear. */
+   vec3 linear_colour = max(scanline_colour, 0.0f);
 
-   // vec3 linear_colour = pow(max(scanline_colour, 0.0f), vec3(2.4f));
+   /* Build mask vector from colour_mask bitfield */
+   vec3 mask = vec3(0.0f);
+   const uint channel_count = colour_mask & 3;
+   if (channel_count > 0u) mask[(colour_mask >> kFirstChannelShift)  & 3] = 1.0f;
+   if (channel_count > 1u) mask[(colour_mask >> kSecondChannelShift) & 3] = 1.0f;
+   if (channel_count > 2u) mask[(colour_mask >> kThirdChannelShift)  & 3] = 1.0f;
 
-   vec3 scanline_colour = vec3(0.0f);
-
-   if(channel_count > 0)
+   if (HCRT_HDR > 0u)
    {
-      const uint channel_0       = (colour_mask >> kFirstChannelShift) & 3;
+      /* HDR path: convert to Rec.2020, then apply mask in the OUTPUT space.
+       * HDR10 output is BT.2020 → mask in Rec.2020.
+       * scRGB output is Rec.709 → mask in Rec.709 (after 2020→709 conversion). */
+      linear_colour = To2020(linear_colour);
 
-      float scanline_channel_0   = GenerateScanline(channel_0,
-                                                    tex_coord,
-                                                    source_size.xy,
-                                                    scanline_size,
-                                                    horizontal_convergence[channel_0],
-                                                    vertical_convergence[channel_0],
-                                                    beam_sharpness[channel_0],
-                                                    beam_attack[channel_0],
-                                                    scanline_min[channel_0],
-                                                    scanline_max[channel_0],
-                                                    scanline_attack[channel_0]);
+      if (HCRT_HDR == 1u)
+      {
+         /* HDR10: InverseTonemap, mask in Rec.2020, PQ encode */
+         linear_colour = InverseTonemap(linear_colour, HCRT_MAX_NITS, HCRT_PAPER_WHITE_NITS);
+         linear_colour *= mask;
 
-      scanline_colour =  scanline_channel_0 * kColourMask[channel_0];
-   }
+         vec3 pq_input = linear_colour * (HCRT_PAPER_WHITE_NITS / kMaxNitsFor2084);
+         FragColor = vec4(LinearToST2084(pq_input), 1.0f);
+      }
+      else /* HCRT_HDR == 2u, scRGB */
+      {
+         /* scRGB: convert Rec.2020 → Rec.709 BEFORE mask, then mask in Rec.709.
+          * Each mask channel gates one LCD subpixel which is a Rec.709 primary.
+          * Colour boost is baked in via the Colour Space setting in To2020():
+          *   r709/sRGB (0/1):   proper 709→2020→709 round-trip — no boost
+          *   Adobe (2):         moderate boost
+          *   DCI-P3 (3):        wide boost
+          *   r2020 (4):         passthrough — maximum boost */
+         linear_colour = linear_colour * k2020_to_sRGB;
+         linear_colour *= mask;
 
-   if(channel_count > 1)
-   {
-      const uint channel_1       = (colour_mask >> kSecondChannelShift) & 3;
-
-      float scanline_channel_1   = GenerateScanline(channel_1,
-                                                    tex_coord,
-                                                    source_size.xy,
-                                                    scanline_size,
-                                                    horizontal_convergence[channel_1],
-                                                    vertical_convergence[channel_1],
-                                                    beam_sharpness[channel_1],
-                                                    beam_attack[channel_1],
-                                                    scanline_min[channel_1],
-                                                    scanline_max[channel_1],
-                                                    scanline_attack[channel_1]);
-
-
-      scanline_colour += scanline_channel_1 * kColourMask[channel_1];
-   }
-
-   if(channel_count > 2)
-   {
-      const uint channel_2       = (colour_mask >> kThirdChannelShift) & 3;
-
-      float scanline_channel_2   = GenerateScanline(channel_2,
-													tex_coord,
-													source_size.xy,
-													scanline_size,
-													horizontal_convergence[channel_2],
-													vertical_convergence[channel_2],
-													beam_sharpness[channel_2],
-													beam_attack[channel_2],
-													scanline_min[channel_2],
-													scanline_max[channel_2],
-													scanline_attack[channel_2]);
-
-      scanline_colour += scanline_channel_2 * kColourMask[channel_2];
-   }
-
-   vec3 linear_colour = pow(max(scanline_colour, 0.0f), vec3(2.4f));
-
-   if (HCRT_HDR == 2u)
-   {
-      /* scRGB: data is Rec.2020 (from To2020 in HDR pass).
-       * Convert to Rec.709 for scRGB output (1.0 = 80 nits).
-       * Colour boost is baked in via the Colour Space setting:
-       *   r709/sRGB (0/1):   proper 709→2020→709 round-trip — no boost
-       *   Adobe (2):         moderate boost
-       *   DCI-P3 (3):        wide boost
-       *   r2020 (4):         passthrough — maximum boost */
-      linear_colour = linear_colour * k2020_to_sRGB;
-
-      FragColor = vec4(linear_colour * (HCRT_MAX_NITS / 80.0), 1.0f);
-   }
-   else if (HCRT_HDR == 1u)
-   {
-      vec3 pq_input = linear_colour * (HCRT_PAPER_WHITE_NITS / kMaxNitsFor2084);
-      FragColor = vec4(LinearToST2084(pq_input), 1.0f);
+         FragColor = vec4(linear_colour * (HCRT_MAX_NITS / 80.0f), 1.0f);
+      }
    }
    else
    {
+      /* SDR path: apply mask in Rec.709 space (no Rec.2020 conversion needed),
+       * then gamma-encode for the selected output colour space. */
+      linear_colour *= mask;
+
       uint output_space = uint(HCRT_OUTPUT_COLOUR_SPACE);
 
       if (output_space == 0u) // r709

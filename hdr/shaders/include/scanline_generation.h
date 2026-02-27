@@ -31,98 +31,104 @@ vec4 BeamControlPoints(const float beam_attack, const bool falloff)
 
 #ifdef SONY_MEGATRON_VERSION_2
 
-float ScanlineColour(const uint channel, 
-                  const vec2 tex_coord,
-                  const vec2 source_size, 
-                  const float scanline_size, 
-                  const float source_tex_coord_x, 
-                  const float narrowed_source_pixel_offset, 
-                  const float vertical_convergence, 
-                  const float beam_attack, 
-                  const float scanline_min, 
-                  const float scanline_max, 
-                  const float scanline_attack, 
-                  const float vertical_bias) 
+/* Per-channel scanline generation in Rec.709 space.
+ * Uses SourceSDR (Rec.709) for both beam width and output value.
+ * This ensures chromaticity is preserved: a pure Rec.709 primary only has
+ * one non-zero channel, so different beam widths cannot shift chromaticity.
+ * The conversion to Rec.2020 and HDR brightness boost happen afterward. */
+vec3 ScanlineColour(const vec2 tex_coord,
+                    const vec2 source_size,
+                    const float scanline_size,
+                    const vec3 source_tex_coord_x,
+                    const vec3 narrowed_source_pixel_offset,
+                    const vec3 vertical_convergence,
+                    const vec3 beam_attack,
+                    const vec3 scanline_min,
+                    const vec3 scanline_max,
+                    const vec3 scanline_attack,
+                    const float vertical_bias)
 {
-   float current_source_position_y  = ((tex_coord.y * source_size.y) - vertical_convergence);
+   vec3 result = vec3(0.0f);
 
-   float center_line                = floor(current_source_position_y) + 0.5 + vertical_bias;
-   
-   float distance_to_line           = current_source_position_y - center_line;
-   
-   if (abs(distance_to_line) > 1.5) return 0.0;
-
-   float source_tex_coord_y         = center_line / source_size.y; 
-
-   vec2 tex_coord_0                 = vec2(source_tex_coord_x, source_tex_coord_y);
-   vec2 tex_coord_1                 = vec2(source_tex_coord_x + (1.0 / source_size.x), source_tex_coord_y);
-
-   float hdr_channel_0              = COMPAT_TEXTURE(SourceHDR, tex_coord_0)[channel];
-   float hdr_channel_1              = COMPAT_TEXTURE(SourceHDR, tex_coord_1)[channel];
-
-   float horiz_interp               = Bezier(narrowed_source_pixel_offset, BeamControlPoints(beam_attack, hdr_channel_0 > hdr_channel_1));  
-   float hdr_channel                = mix(hdr_channel_0, hdr_channel_1, horiz_interp);
-
-   float physics_signal             = hdr_channel;
-
-   float signal_strength            = clamp(physics_signal, 0.0, 2.5); 
-
-   float beam_width_adjustment      = (kBeamWidth / scanline_size);
-   float raw_distance               = abs(distance_to_line) - beam_width_adjustment;
-   float distance_adjusted          = max(0.0, raw_distance);
-
-   float effective_distance         = distance_adjusted * 2.0;
-
-   float beam_width                 = mix(scanline_min, scanline_max, min(signal_strength, 1.0));
-
-   if (signal_strength > 1.0)
+   for (int ch = 0; ch < 3; ch++)
    {
-      beam_width += (signal_strength - 1.0f) * HCRT_BLOOM_STRENGTH; 
+      float current_source_position_y  = ((tex_coord.y * source_size.y) - vertical_convergence[ch]);
+      float center_line                = floor(current_source_position_y) + 0.5 + vertical_bias;
+      float distance_to_line           = current_source_position_y - center_line;
+
+      if (abs(distance_to_line) > 1.5) continue;
+
+      float source_tex_coord_y         = center_line / source_size.y;
+
+      vec2 tc0                         = vec2(source_tex_coord_x[ch], source_tex_coord_y);
+      vec2 tc1                         = vec2(source_tex_coord_x[ch] + (1.0 / source_size.x), source_tex_coord_y);
+
+      float sdr_channel_0              = COMPAT_TEXTURE(SourceSDR, tc0)[ch];
+      float sdr_channel_1              = COMPAT_TEXTURE(SourceSDR, tc1)[ch];
+
+      float horiz_interp               = Bezier(narrowed_source_pixel_offset[ch], BeamControlPoints(beam_attack[ch], sdr_channel_0 > sdr_channel_1));
+      float sdr_channel                = mix(sdr_channel_0, sdr_channel_1, horiz_interp);
+
+      float signal_strength            = clamp(sdr_channel, 0.0f, 1.0f);
+
+      float beam_width_adjustment      = (kBeamWidth / scanline_size);
+      float raw_distance               = abs(distance_to_line) - beam_width_adjustment;
+      float distance_adjusted          = max(0.0f, raw_distance);
+      float effective_distance         = distance_adjusted * 2.0f;
+
+      float beam_width                 = mix(scanline_min[ch], scanline_max[ch], signal_strength);
+
+      float channel_scanline_distance  = clamp(effective_distance / beam_width, 0.0f, 1.0f);
+
+      vec4 channel_control_points      = vec4(1.0f, 1.0f, signal_strength * scanline_attack[ch], 0.0f);
+      float luminance                  = Bezier(channel_scanline_distance, channel_control_points);
+
+      result[ch] = luminance * sdr_channel;
    }
 
-   float channel_scanline_distance  = clamp(effective_distance / beam_width, 0.0f, 1.0f);
-
-   vec4 channel_control_points      = vec4(1.0f, 1.0f, min(signal_strength, 1.0f) * scanline_attack, 0.0f);
-   float luminance                  = Bezier(channel_scanline_distance, channel_control_points);
-
-   return luminance * hdr_channel;
+   return result;
 }
 
-float GenerateScanline( const uint channel, 
-                        const vec2 tex_coord,
-                        const vec2 source_size, 
-                        const float scanline_size, 
-                        const float horizontal_convergence, 
-                        const float vertical_convergence, 
-                        const float beam_sharpness, 
-                        const float beam_attack, 
-                        const float scanline_min, 
-                        const float scanline_max, 
-                        const float scanline_attack)
+vec3 GenerateScanline(const vec2 tex_coord,
+                      const vec2 source_size,
+                      const float scanline_size,
+                      const vec3 horizontal_convergence,
+                      const vec3 vertical_convergence,
+                      const vec3 beam_sharpness,
+                      const vec3 beam_attack,
+                      const vec3 scanline_min,
+                      const vec3 scanline_max,
+                      const vec3 scanline_attack)
 {
-   float current_source_position_x      = (tex_coord.x * source_size.x) - horizontal_convergence;
-   float current_source_center_x        = floor(current_source_position_x) + 0.5; 
-   float source_tex_coord_x             = current_source_center_x / source_size.x; 
-   float source_pixel_offset            = fract(current_source_position_x);
-   float narrowed_source_pixel_offset   = clamp(((source_pixel_offset - 0.5) * beam_sharpness) + 0.5, 0.0, 1.0);
+   vec3 source_tex_coord_x;
+   vec3 narrowed_source_pixel_offset;
 
-   float total_light = ScanlineColour( channel, tex_coord, source_size, scanline_size, source_tex_coord_x, 
-                                       narrowed_source_pixel_offset, vertical_convergence, beam_attack, 
-                                       scanline_min, scanline_max, scanline_attack, 
-                                       0.0); 
+   for (int ch = 0; ch < 3; ch++)
+   {
+      float current_source_position_x      = (tex_coord.x * source_size.x) - horizontal_convergence[ch];
+      float current_source_center_x        = floor(current_source_position_x) + 0.5;
+      source_tex_coord_x[ch]               = current_source_center_x / source_size.x;
+      float source_pixel_offset            = fract(current_source_position_x);
+      narrowed_source_pixel_offset[ch]     = clamp(((source_pixel_offset - 0.5) * beam_sharpness[ch]) + 0.5, 0.0, 1.0);
+   }
 
-   total_light += ScanlineColour( channel, tex_coord, source_size, scanline_size, source_tex_coord_x, 
-                                 narrowed_source_pixel_offset, vertical_convergence, beam_attack, 
-                                 scanline_min, scanline_max, scanline_attack, 
+   vec3 total_light = ScanlineColour(tex_coord, source_size, scanline_size, source_tex_coord_x,
+                                     narrowed_source_pixel_offset, vertical_convergence, beam_attack,
+                                     scanline_min, scanline_max, scanline_attack,
+                                     0.0);
+
+   total_light += ScanlineColour(tex_coord, source_size, scanline_size, source_tex_coord_x,
+                                 narrowed_source_pixel_offset, vertical_convergence, beam_attack,
+                                 scanline_min, scanline_max, scanline_attack,
                                  1.0);
 
-   total_light += ScanlineColour( channel, tex_coord, source_size, scanline_size, source_tex_coord_x, 
-                                 narrowed_source_pixel_offset, vertical_convergence, beam_attack, 
-                                 scanline_min, scanline_max, scanline_attack, 
+   total_light += ScanlineColour(tex_coord, source_size, scanline_size, source_tex_coord_x,
+                                 narrowed_source_pixel_offset, vertical_convergence, beam_attack,
+                                 scanline_min, scanline_max, scanline_attack,
                                  -1.0);
 
    return total_light;
-} 
+}
 
 #else // !SONY_MEGATRON_VERSION_2
 
