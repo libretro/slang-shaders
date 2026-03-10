@@ -25,6 +25,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 layout (push_constant) uniform Push
 {
     float COLOR_BRIGHTNESS;
+    float COLOR_BRIGHTNESS_FLICKER;
     float COLOR_COMPENSATION;
     float COLOR_SATURATION;
     float COLOR_OVERFLOW;

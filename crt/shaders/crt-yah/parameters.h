@@ -13,6 +13,7 @@
 #pragma parameter COLOR_SATURATION "   Color > Saturation¹  (0-Low .. 2-High)" 1.1 0.0 2.0 0.05
 #pragma parameter COLOR_CONTRAST "   Color > Contrast¹  (-Lower .. +Higher)" 0.1 -1.0 1.0 0.05
 #pragma parameter COLOR_BRIGHTNESS "   Color > Brightnes¹  (-Darken .. +Lighten)" 0.30 -1.0 2.0 0.05
+#pragma parameter COLOR_BRIGHTNESS_FLICKER "   Color > Brightnes Flicker¹⁴  (-Darken .. +Lighten)" -0.25 -2.0 2.0 0.05
 #pragma parameter COLOR_OVERFLOW "   Color > Brightnes Overflow¹  (0-None .. 1-Full / 2-More)" 1.0 0.0 2.0 0.25
 #pragma parameter COLOR_COMPENSATION "  ²Color > Brightnes Compensation  (0-Off, 1-On)" 1.0 0.0 1.0 1.0
 #pragma parameter COLOR_BLACK_LIGHT "  ³Color > Black Lightening (0-None .. 1-Full / 2-More)" 0.5 0.0 2.0 0.1
@@ -94,6 +95,7 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 #define PARAM_COLOR_COMPENSATION param.COLOR_COMPENSATION
 #define PARAM_COLOR_BRIGHTNESS mix_master(param.COLOR_BRIGHTNESS, 0.0, -1.0, 2.0)
 #define PARAM_COLOR_OVERFLOW mix_master(param.COLOR_OVERFLOW, 0.0, 0.0, 2.0)
+#define PARAM_COLOR_BRIGHTNESS_FLICKER mix_master(param.COLOR_BRIGHTNESS_FLICKER, 0.0, -2.0, 2.0)
 #define PARAM_COLOR_CONTRAST mix_master(param.COLOR_CONTRAST, 0.0, -1.0, 1.0)
 #define PARAM_COLOR_SATURATION mix_master(param.COLOR_SATURATION, 1.0, 0.0, 2.0)
 #define PARAM_COLOR_TEMPERATUE mix_master(param.COLOR_TEMPERATUE * -1.0, 0.0, -1.0, 1.0)

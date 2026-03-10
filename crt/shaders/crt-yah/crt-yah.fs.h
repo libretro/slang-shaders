@@ -44,6 +44,25 @@ float get_brightness_compensation(float color_luma)
         : 0.0;
 }
 
+float apply_brightness_flicker(float brightness, float color_luma)
+{
+    float scanlines_strength = 1.0 + INPUT_BEAM_PROFILE.w;
+
+    // flicker based on color luma and scanlines strength, to avoid too much flicker on dark scenes or with weak scanlines
+    float flicker_factor = 1.0 + (color_luma * scanlines_strength * abs(PARAM_COLOR_BRIGHTNESS_FLICKER * 2.0));
+
+    flicker_factor = PARAM_COLOR_BRIGHTNESS_FLICKER > 0.0
+        // lighten 
+        ? flicker_factor
+        // darken
+        : 1.0 / flicker_factor;
+    
+    // flicker each 2nd frame with 30/60Hz
+    return mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 2) > 0.0
+        ? brightness * flicker_factor
+        : brightness;
+}
+
 vec3 INPUT(vec3 color)
 {
     color = decode_gamma(color);
@@ -55,7 +74,7 @@ vec3 INPUT(vec3 color)
 vec3 OUTPUT(vec3 color, float color_luma)
 {
     color = apply_contrast(color, PARAM_COLOR_CONTRAST);
-    color = apply_brightness(color, PARAM_COLOR_BRIGHTNESS + get_brightness_compensation(color_luma));
+    color = apply_brightness(color, apply_brightness_flicker(PARAM_COLOR_BRIGHTNESS + get_brightness_compensation(color_luma), color_luma));
     color = apply_saturation(color, PARAM_COLOR_SATURATION);
     color = apply_temperature(color, PARAM_COLOR_TEMPERATUE);
     color = encode_gamma(color);
