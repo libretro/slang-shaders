@@ -16,7 +16,7 @@ const vec3 Cyan = vec3(0.0, 1.0, 1.0);
 
 // Returns an offset to shift the given pixel coordinate by x-amount for every second y-block.
 // @pixCoord - the pixel coordinate
-// @amount - the amount to shift the x-coordinate 
+// @amount - the amount to shift the x-coordinate
 // @size - the size of a y-block
 vec2 shift_x_every_y(vec2 pixCoord, float amount, float size)
 {
@@ -27,7 +27,7 @@ vec2 shift_x_every_y(vec2 pixCoord, float amount, float size)
 
 // Returns an offset to shift the given pixel coordinate by y-amount for every second x-block.
 // @pixCoord - the pixel coordinate
-// @amount - the amount to shift the y-coordinate 
+// @amount - the amount to shift the y-coordinate
 // @size - the size of a x-block
 vec2 shift_y_every_x(vec2 pixCoord, float amount, float size)
 {
@@ -38,7 +38,7 @@ vec2 shift_y_every_x(vec2 pixCoord, float amount, float size)
 
 // Returns an offset to shift the given pixel coordinate by x-amount for each x-block.
 // @pixCoord - the pixel coordinate
-// @amount - the amount to shift the x-coordinate 
+// @amount - the amount to shift the x-coordinate
 // @size - the size of a x-block
 vec2 shift_x_each_x(vec2 pixCoord, float amount, float size)
 {
@@ -71,23 +71,23 @@ vec3 get_subpixel_color(vec2 pixCoord, vec3 c1, vec3 c2, vec3 c3, vec3 c4)
 }
 
 // Gets the sub-pixel color of a mask with full saturation.
-//    to apply a mask intensity add (1.0 - intensity) to the mask color.
+//   to apply a mask intensity add (1.0 - intensity) to the mask color.
 // @pixCoord - the pixel coordinate
-//    which is usually the texture coordinate multiplied by the output size.
+//   which is usually the texture coordinate multiplied by the output size.
 // @size - the mask size
 // @mask_type - the mask type [1, 3]
-//    1: Aperture-grille
-//    2: Slot-mask
-//    3: Shadow-mask
+//   1: Aperture-grille
+//   2: Slot-mask
+//   3: Shadow-mask
 // @subpixel_type - the subpixel type [1, 5]
-//    1: white, black
-//    2: green, magenta
-//    3: green, magenta, black
-//    4: red, green, blue
-//    5: red, green, blue, black
+//   1: white, black
+//   2: green, magenta
+//   3: green, magenta, black
+//   4: red, green, blue
+//   5: red, green, blue, black
 // @color_swap - whether the sub-pixel colors shall be swapped
-//    0: red/green/blue, green/magenta
-//    1: blue/green/red, blue/yellow
+//   0: red/green/blue, green/magenta
+//   1: blue/green/red, blue/yellow
 vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_type, bool color_swap)
 {
     vec3 color = White;
@@ -234,23 +234,23 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
 }
 
 // Gets the sub-pixel color of a mask with full saturation.
-//    to apply a mask intensity add (1.0 - intensity) to the mask color.
+//   to apply a mask intensity add (1.0 - intensity) to the mask color.
 // @pixCoord - the pixel coordinate
-//    which is usually the texture coordinate multiplied by the output size.
+//   which is usually the texture coordinate multiplied by the output size.
 // @size - the mask size
 // @mask_type - the mask type [1, 3]
-//    1: Aperture-grille
-//    2: Slot-mask
-//    3: Shadow-mask
+//   1: Aperture-grille
+//   2: Slot-mask
+//   3: Shadow-mask
 // @subpixel_type - the subpixel type [1, 5]
-//    1: white, black
-//    2: green, magenta
-//    3: green, magenta, black
-//    4: red, green, blue
-//    5: red, green, blue, black
+//   1: white, black
+//   2: green, magenta
+//   3: green, magenta, black
+//   4: red, green, blue
+//   5: red, green, blue, black
 // @color_swap - whether the sub-pixel colors shall be swapped
-//    0: red/green/blue, green/magenta
-//    1: blue/green/red, blue/yellow
+//   0: red/green/blue, green/magenta
+//   1: blue/green/red, blue/yellow
 // @radius - the corner radius of the sub-pixel
 // @smoothness - the smoothness of the sub-pixel
 vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_type, bool color_swap, float radius, float smoothness)
@@ -261,7 +261,7 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
     {
         return color;
     }
-    
+
     pixCoord /= size;
 
     vec2 bounds = vec2(1.0, 1.0);

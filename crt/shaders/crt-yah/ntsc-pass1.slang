@@ -85,7 +85,7 @@ void main()
     Fringing = (PARAM_NTSC_PROFILE - 1.0);
     Artifacting = (PARAM_NTSC_PROFILE - 1.0) * 0.5 * (max(screen_scale, 1.0) + 1.0);
 
-    // Quallity:
+    // Quality:
     // 1 - Auto
     // 2 - Two Phase
     // 3 - Three Phase

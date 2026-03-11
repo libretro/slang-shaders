@@ -17,9 +17,9 @@
     #define PIXEL_SIZE_LIMIT 3.0
 #endif
 
-#ifndef OFFSET_PRECISTION
-    // The precistion of the multiple offset.
-    #define OFFSET_PRECISTION 0.05
+#ifndef OFFSET_PRECISION
+    // The precision of the multiple offset.
+    #define OFFSET_PRECISION 0.05
 #endif
 
 #ifndef RESOLUTION_AUTO_SCALE
@@ -189,10 +189,10 @@ float offset_multiple(float multiple, float target_size, float multiple_offset)
     multiple_index += multiple_base;
     multiple_index += multiple_offset;
 
-    for (multiple_index; multiple_index < multiple_count; multiple_index += OFFSET_PRECISTION)
+    for (multiple_index; multiple_index < multiple_count; multiple_index += OFFSET_PRECISION)
     {
         multiple = get_multiple_factor(multiple_index);
-        
+
         // break at a multiple which results in a pixel size larger/equal the given limit
         if ((target_size * multiple) >= PIXEL_SIZE_LIMIT)
         {

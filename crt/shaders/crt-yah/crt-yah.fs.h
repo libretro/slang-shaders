@@ -52,11 +52,11 @@ float apply_brightness_flicker(float brightness, float color_luma)
     float flicker_factor = 1.0 + (color_luma * scanlines_strength * abs(PARAM_COLOR_BRIGHTNESS_FLICKER * 2.0));
 
     flicker_factor = PARAM_COLOR_BRIGHTNESS_FLICKER > 0.0
-        // lighten 
+        // lighten
         ? flicker_factor
         // darken
         : 1.0 / flicker_factor;
-    
+
     // flicker each 2nd frame with 30/60Hz
     return mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 2) > 0.0
         ? brightness * flicker_factor
@@ -228,7 +228,7 @@ vec3 get_raw_color(sampler2D source, vec2 tex_coord)
     {
         // apply full texel x-offset (to sample a neighbor pixel)
         tex_coord += vec2o(-1.0, 0.0) / global.OriginalSize.xy;
-    
+
         color += texture(source, tex_coord).rgb;
         color *= 0.5;
     }
@@ -254,7 +254,7 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple
     // when manual down-scaled
     if (INPUT_SCREEN_MULTIPLE > 1.0)
     {
-        // apply half texel offset scaled by absolut amount of multiple
+        // apply half texel offset scaled by absolute amount of multiple
         tex_coord += vec2o(-0.5, 0.5) / multiple;
     }
     // when manual up-scaled
@@ -267,7 +267,7 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple
     // when automatic down-scaled
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
     {
-        // apply half texel x-offset (to sample between two pixel anlong scanlines)
+        // apply half texel x-offset (to sample between two pixel along scanlines)
         tex_coord += vec2o(-0.5, 0.0);
     }
     // when not automatic but manual down-scaled
@@ -292,7 +292,7 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple
     {
         float slope = 1.0 - (1.0 / INPUT_SCREEN_MULTIPLE);
 
-        // apply manual half texel y-offset by exponential amout of multiple
+        // apply manual half texel y-offset by exponential amount of multiple
         tex_coord += vec2o(0.0, 0.5) * normalized_sigmoid(scanlines_offset / 2.0, -slope) * 2.0;
     }
     // when not automatic down-scaled
@@ -377,7 +377,7 @@ vec3 get_mask(vec2 tex_coord)
     // when automatic down-scaled
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
     {
-        // stabelize mask position due to half texel x-offset compensated in vertex-shader
+        // stabilize mask position due to half texel x-offset compensated in vertex-shader
         pix_coord.x -= subpixel_size;
     }
 
@@ -412,7 +412,7 @@ vec3 apply_mask(vec3 color, float color_luma, vec2 tex_coord)
         mask + color_luma * 0.5,
         PARAM_MASK_BLEND);
 
-    // increase mask brightnes based on half intensity
+    // increase mask brightness based on half intensity
     vec3 mask_add = mask;
     mask_add += (1.0 - PARAM_MASK_INTENSITY) * 0.5;
     mask_add = clamp(mask_add, 0.0, 1.0);

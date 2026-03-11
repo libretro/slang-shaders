@@ -138,11 +138,11 @@ vec3 fetch_offset(sampler2D source, vec2 texCoord, vec2 scanTexelSize, float off
 }
 
 // Applies the second NTSC adaptive pass and returns a RGB color.
-//    This pass require a textute which has been down-scaled by 4 along the scan-direction.
+//    This pass require a texture which has been down-scaled by 4 along the scan-direction.
 // @source: the texture sampler
 // @texCoord: the original texture coordinate
 // @scanTexelSize: the texel size in scan-direction
-//    To simulate a differnt resolutuion than the original texture size, divide the texel size along the scan-direction.
+//    To simulate a different resolution than the original texture size, divide the texel size along the scan-direction.
 //    The component in the none-scan-direction has to be 0.0.
 // @phase: the phase modulation in rangle of [2,3]
 vec3 pass2(sampler2D source, vec2 texCoord, vec2 scanTexelSize, int phase)

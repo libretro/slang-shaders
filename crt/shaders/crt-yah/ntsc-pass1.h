@@ -18,7 +18,7 @@ vec3 pass1(vec3 yiq, vec2 pixCoord, int phase, float phase_shift, mat3 mix3x3, u
     float chroma_shift = phase == 2
         ? phase_shift + 1.0
         : (phase_shift * 1.5) + 1.5;
-    
+
     float chroma_phase
         = chroma_amplitude * (mod(pixCoord.y, phase) + mod(frameCount, 2.0))
         * chroma_shift
@@ -35,15 +35,15 @@ vec3 pass1(vec3 yiq, vec2 pixCoord, int phase, float phase_shift, mat3 mix3x3, u
 }
 
 // Applies the first NTSC adaptive pass and returns a YIQ color.
-//    This pass require a textute which has been up-scaled by 4 along the scan-direction.
+//    This pass require a texture which has been up-scaled by 4 along the scan-direction.
 // @source: the texture sampler
 // @texCoord: the original texture coordinate
 // @pixCoord: the modified pixel coordinate
-//    If the texture has been unifomly up-scaled by 4, the pixel coordinat along the none-scan-direction has to be devided by 4. 
-//    To simulate a differnt resolutuion than the original texture size, multiply the pixel coordinate along the scan-direction.
+//    If the texture has been uniformly up-scaled by 4, the pixel coordinate along the none-scan-direction has to be divided by 4.
+//    To simulate a different resolution than the original texture size, multiply the pixel coordinate along the scan-direction.
 //    To change the scan-direction, swap the x- and y-axis of the pixel coordinate.
 // @phase: the chroma phase in rangle of [2,3]
-// @phaseShift: the choma phase shift
+// @phaseShift: the chroma phase shift
 // @jitter: whether and how much jitter is applied
 //    For 2-phase jitter is reduced by frame-count.
 //    For 3-phase jitter is reduced by field-merge.
@@ -68,7 +68,7 @@ vec3 pass1(sampler2D source, vec2 texCoord, vec2 pixCoord, int phase, float phas
         : 1; // static
     vec3 yiq0 = pass1(yiq, pixCoord, phase, phaseShift, mix3x3, frame0);
     vec3 yiq1 = pass1(yiq, pixCoord, phase, phaseShift, mix3x3, frame1);
-        
+
     if (jitter > 0.0)
     {
         yiq = mix(

@@ -90,7 +90,7 @@ void main()
 
     // scale tabs
     float tabs = Tabs * Multiple * 2.0;
-    
+
     vec3 color = get_blur_color(Source, TexCoord, diffusion, tabs);
 
     FragColor = vec4(color, 1.0);

@@ -65,7 +65,7 @@ void main()
         ? vec2(global.SourceSize.z / screen_scale, 0.0)
         : vec2(0.0, global.SourceSize.w / screen_scale);
 
-    // Quallity:
+    // Quality:
     // 1 - Auto
     // 2 - Two Phase
     // 3 - Three Phase

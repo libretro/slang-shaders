@@ -36,8 +36,8 @@ layout(location = 0) out vec2 TexCoord;
 
 void main()
 {
-   gl_Position = global.MVP * Position;
-   TexCoord = Coord;
+    gl_Position = global.MVP * Position;
+    TexCoord = Coord;
 }
 
 #pragma stage fragment

@@ -28,7 +28,7 @@ textures = "SamplerLutNtsc;SamplerLutTrinitron;"
 SamplerLutNtsc = lut/ntsc-lut.png
 SamplerLutNtsc_linear = true
 SamplerLutTrinitron = lut/trinitron-lut.png
-SamplerLutTrinitron_linear = true 
+SamplerLutTrinitron_linear = true
 
 shader5 = "blur-horizontal.slang"
 filter_linear5 = true // required: sample lut-output linear

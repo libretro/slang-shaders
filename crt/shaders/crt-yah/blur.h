@@ -3,7 +3,7 @@
     Modified by Jezze
 */
 
-// Returns offsets alternating between positive an negative depending whether the given index is even or odd. 
+// Returns offsets alternating between positive an negative depending whether the given index is even or odd.
 //   @index - The index to get the offset for.
 float get_offset(float index)
 {
@@ -21,7 +21,7 @@ float get_offset(float index)
 // Requires:
 //   #define INPUT(vec3) vec3 - To transform the input color.
 //   #define OUTPUT(vec3) vec3 - To transform the output color.
-//   #define OFFSET(vec2, float) vec2 - To transform the textture coordinate by the given offset.
+//   #define OFFSET(vec2, float) vec2 - To transform the texture coordinate by the given offset.
 vec3 get_blur_color(sampler2D source, vec2 tex_coord, float diffusion, float tabs)
 {
     vec3 color = vec3(0.0);
