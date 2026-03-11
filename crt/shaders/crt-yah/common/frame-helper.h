@@ -13,7 +13,7 @@
 #endif
 
 #ifndef FRAME_TIME_DELTA
-    // The frame time delta (in microseconds).    
+    // The frame time delta (in microseconds).
     #ifdef _HAS_FRAMETIME_UNIFORMS
         #define FRAME_TIME_DELTA global.FrameTimeDelta
     #else

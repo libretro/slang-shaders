@@ -95,7 +95,7 @@ void main()
     // when automatic down-scaled
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
     {
-        // compensate coordinate shift due half texel x-offset applyed in fragment shader
+        // compensate coordinate shift due half texel x-offset applied in fragment shader
         TexCoord += vec2o(0.5, 0.0) / global.OriginalSize.xy;
     }
 }
@@ -131,16 +131,16 @@ void main()
 {
     vec2 tex_coord = TexCoord;
     vec2 tex_coord_curved = apply_cubic_lens_distortion(tex_coord);
-    vec2 tex_coord_curved_sharpend = apply_sharp_bilinear_filtering(tex_coord_curved);
+    vec2 tex_coord_curved_sharpened = apply_sharp_bilinear_filtering(tex_coord_curved);
 
-    vec3 raw_color = get_raw_color(TextureSource, tex_coord_curved_sharpend);
+    vec3 raw_color = get_raw_color(TextureSource, tex_coord_curved_sharpened);
     vec3 scanlines_color = get_scanlines_color(TextureSource, tex_coord_curved);
 
     vec3 color = blend_colors(raw_color, scanlines_color);
     float color_luma = get_luminance(color);
 
-    color = apply_noise(color, color_luma, tex_coord); // use un-curved coordinates to avoid Moire-artefacts
-    color = apply_mask(color, color_luma, tex_coord);  // use un-curved coordinates to avoid Moire-artefacts
+    color = apply_noise(color, color_luma, tex_coord); // use un-curved coordinates to avoid Moire-artifacts
+    color = apply_mask(color, color_luma, tex_coord);  // use un-curved coordinates to avoid Moire-artifacts
     color = apply_color_overflow(color);
     color = apply_halation(color, HalationSource, tex_coord_curved);
 

@@ -21,7 +21,7 @@ float max_color(vec3 color)
 vec3 apply_contrast(vec3 color, float contrast)
 {
     float linear = clamp(max_color(color), 0.0, 1.0);
-    
+
     float nonlinear = linear;
 
     // move range [0, 1] to [-1, 1]
@@ -31,7 +31,7 @@ vec3 apply_contrast(vec3 color, float contrast)
     nonlinear = sin(nonlinear * PI * 0.5);
 
     // move range [-1, 1] to [0, 1]
-    nonlinear = (nonlinear + 1.0) * 0.5;   
+    nonlinear = (nonlinear + 1.0) * 0.5;
 
     float scale = mix(linear, nonlinear, contrast);
 
@@ -50,7 +50,7 @@ vec3 apply_brightness(vec3 color, float brightness)
 
 // Applies a minimum value to the given color.
 // @color - the color.
-// @floot - the minimum value.
+// @floor - the minimum value.
 vec3 apply_floor(vec3 color, float floor)
 {
     float luminance = get_luminance(color);

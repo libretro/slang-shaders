@@ -38,11 +38,11 @@ vec2 vec2o(float x, float y)
 
 vec2 get_mask_profile()
 {
-    float pixel_size = global.SourceSize.x < global.SourceSize.y 
+    float pixel_size = global.SourceSize.x < global.SourceSize.y
         ? global.FinalViewportSize.x / global.SourceSize.x
         : global.FinalViewportSize.y / global.SourceSize.y;
 
-    // smaller sub-pixel count for low resolution 
+    // smaller sub-pixel count for low resolution
     float subpixel_count = min(global.SourceSize.x, global.SourceSize.y) < 180.0
         ? 3.0
         : 4.0;
@@ -65,7 +65,7 @@ vec2 get_mask_profile()
         : floor(subpixel_size * subpixel_upscale);
     // limit after manual scale
     subpixel_size = max(1.0, subpixel_size);
-    
+
     // for sub-pixel size > 2
     float subpixel_smoothness =
         // aperture-grille
@@ -89,7 +89,7 @@ float get_brightness_compensation()
     brightness_compensation +=
         scanlines_strength
         * mix(
-            // smarp shape
+            // sharp shape
             0.375,
             // smooth shape
             0.875,
@@ -124,7 +124,7 @@ float get_brightness_compensation()
         PARAM_MASK_TYPE == 3 ? mix(0.2, 0.05, mask_blend) : 0.0;
 
     // for mask size > 2
-    float size_offset = 
+    float size_offset =
         // aperture-grille
         PARAM_MASK_TYPE == 1 && mask_size > 2.0 ? mix(-0.4, -0.1, mask_blend) :
         // slot-mask
@@ -156,7 +156,7 @@ float get_brightness_compensation()
     return brightness_compensation;
 }
 
-// Mitchell-Netravali survay of bi-cubic filters
+// Mitchell-Netravali survey of bi-cubic filters
 //   For upscaling, it is recommended to use values that satisfy the equation b + 2c = 1.
 //
 // Common values for:     b       c
@@ -167,7 +167,7 @@ float get_brightness_compensation()
 //   Sharp Bicubic        0       1
 //   Box                 -1       0
 //
-//   [Bluring] b                       [Aliasing]
+//  [Blurring] b                       [Aliasing]
 //
 //         1.0 ■ (B-Spline)· · · · ·
 //             │▪                  ·
@@ -246,7 +246,7 @@ vec4 get_beam_profile()
     float beam_max_width = 1.0;
     float beam_slope = 2.0;
 
-    float param_beam_shape_inverted = 1.0 - PARAM_BEAM_SHAPE; 
+    float param_beam_shape_inverted = 1.0 - PARAM_BEAM_SHAPE;
 
     // increase beam slope
     beam_slope +=
@@ -280,7 +280,7 @@ vec4 get_beam_profile()
         // half
         / 2.0;
 
-    // change stenghth slope to level out at higher values
+    // change strength slope to level out at higher values
     float scanlines_strength = normalized_sigmoid(PARAM_SCANLINES_STRENGTH, 0.5);
 
     // change strength range to [0.25, 1.5]
