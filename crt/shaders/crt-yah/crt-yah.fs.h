@@ -44,12 +44,12 @@ float get_brightness_compensation(float color_luma)
         : 0.0;
 }
 
-float apply_brightness_flicker(float brightness, float color_luma)
+float apply_brightness_flicker(float brightness, float raw_color_luma)
 {
     float scanlines_strength = 1.0 + INPUT_BEAM_PROFILE.w;
 
     // flicker based on color luma and scanlines strength, to avoid too much flicker on dark scenes or with weak scanlines
-    float flicker_factor = 1.0 + (color_luma * scanlines_strength * abs(PARAM_COLOR_BRIGHTNESS_FLICKER * 2.0));
+    float flicker_factor = 1.0 + ((raw_color_luma * raw_color_luma) * 1.5 * scanlines_strength * abs(PARAM_COLOR_BRIGHTNESS_FLICKER));
 
     flicker_factor = PARAM_COLOR_BRIGHTNESS_FLICKER > 0.0
         // lighten
@@ -71,10 +71,10 @@ vec3 INPUT(vec3 color)
     return color;
 }
 
-vec3 OUTPUT(vec3 color, float color_luma)
+vec3 OUTPUT(vec3 color, float raw_color_luma, float color_luma)
 {
     color = apply_contrast(color, PARAM_COLOR_CONTRAST);
-    color = apply_brightness(color, apply_brightness_flicker(PARAM_COLOR_BRIGHTNESS + get_brightness_compensation(color_luma), color_luma));
+    color = apply_brightness(color, apply_brightness_flicker(PARAM_COLOR_BRIGHTNESS + get_brightness_compensation(color_luma), raw_color_luma));
     color = apply_saturation(color, PARAM_COLOR_SATURATION);
     color = apply_temperature(color, PARAM_COLOR_TEMPERATUE);
     color = encode_gamma(color);
@@ -236,6 +236,18 @@ vec3 get_raw_color(sampler2D source, vec2 tex_coord)
     return INPUT(color);
 }
 
+float get_raw_color_luminance(sampler2D source, vec2 tex_coord)
+{
+    vec2 half_texel = vec2o(0.0, 0.5) / global.OriginalSize.xy;
+
+    // apply half texel y-offset (to sample between two pixel between scanlines) and average
+    vec3 raw_color
+        = get_raw_color(source, tex_coord + half_texel)
+        + get_raw_color(source, tex_coord - half_texel);
+
+    return get_luminance(raw_color * 0.5);
+}
+
 vec2 get_scanlines_pixel_coordinate(vec2 tex_coord, vec2 tex_size)
 {
     // texture to pixel coordinates
@@ -247,7 +259,7 @@ vec2 get_scanlines_pixel_coordinate(vec2 tex_coord, vec2 tex_size)
     return pix_coord;
 }
 
-vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple)
+vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple, float raw_color_luma)
 {
     vec2 tex_coord = floor(pix_coord);
 
@@ -281,11 +293,23 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple
     float scanlines_offset = PARAM_SCANLINES_OFFSET / INPUT_SCREEN_MULTIPLE;
     if (scanlines_offset < 0.0)
     {
-        // jitter offset each 2nd frame with 30/60Hz
-        scanlines_offset = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 2) > 0.0
-            ? 0.0
-            : abs(scanlines_offset);
+        // jitter offset each 3rd frame with 30/60Hz
+        float scalines_mod = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 3);
+
+        scanlines_offset =
+            // 3rd frame upwards
+            scalines_mod > 1.0 ? abs(scanlines_offset) :
+            // 2nd frame downwards
+            scalines_mod > 0.0 ? -abs(scanlines_offset) :
+            // 1st frame no offset
+            0.0;
+
+        // scale offset by color luma to avoid too much offset on dark scenes
+        scanlines_offset *= (raw_color_luma * raw_color_luma) * 1.5;
     }
+
+    // fade out for low scanlines strength
+    scanlines_offset *= normalized_sigmoid(PARAM_SCANLINES_STRENGTH, -0.5);
 
     // when automatic down-scaled
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
@@ -308,7 +332,7 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple
     return tex_coord;
 }
 
-vec3 get_scanlines_color(sampler2D source, vec2 tex_coord)
+vec3 get_scanlines_color(sampler2D source, vec2 tex_coord, float raw_color_luma)
 {
     vec2 multiple = vec2o(1.0, INPUT_SCREEN_MULTIPLE);
 
@@ -317,7 +341,7 @@ vec3 get_scanlines_color(sampler2D source, vec2 tex_coord)
 
     vec2 pix_coord = vec2(0.0);
     pix_coord = get_scanlines_pixel_coordinate(tex_coord, tex_size);
-    tex_coord = get_scanlines_texel_coordinate(pix_coord, tex_size, multiple);
+    tex_coord = get_scanlines_texel_coordinate(pix_coord, tex_size, multiple, raw_color_luma);
 
     vec2 tex_delta = vec2(1.0) / tex_size;
     vec2 tex_delta_x = vec2ox(tex_delta, 0.0);

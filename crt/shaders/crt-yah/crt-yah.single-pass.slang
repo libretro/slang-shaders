@@ -127,10 +127,12 @@ void main()
     vec2 tex_coord_curved = apply_cubic_lens_distortion(tex_coord);
     vec2 tex_coord_curved_sharpened = apply_sharp_bilinear_filtering(tex_coord_curved);
 
-    vec3 raw_color = get_raw_color(Source, tex_coord_curved_sharpened);
-    vec3 scanlines_color = get_scanlines_color(Source, tex_coord_curved);
+    float raw_color_luma = get_raw_color_luminance(TextureSource, tex_coord_curved);
 
-    vec3 color = blend_colors(raw_color, scanlines_color);
+    vec3 raw_color_sharpened = get_raw_color(TextureSource, tex_coord_curved_sharpened);
+    vec3 scanlines_color = get_scanlines_color(TextureSource, tex_coord_curved, raw_color_luma);
+
+    vec3 color = blend_colors(raw_color_sharpened, scanlines_color);
     float color_luma = get_luminance(color);
 
     color = apply_noise(color, color_luma, tex_coord); // use un-curved coordinates to avoid Moire-artifacts
@@ -140,5 +142,5 @@ void main()
     color *= get_vignette_factor(tex_coord_curved);
     color *= get_round_corner_factor(tex_coord_curved);
 
-    FragColor = vec4(OUTPUT(color, color_luma), 1.0);
+    FragColor = vec4(OUTPUT(color, raw_color_luma, color_luma), 1.0);
 }
