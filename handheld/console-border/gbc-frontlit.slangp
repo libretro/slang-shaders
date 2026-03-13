@@ -1,0 +1,31 @@
+shaders = "4"
+
+shader0 = "../../motionblur/shaders/feedback.slang"
+filter_linear0 = false
+
+shader1 = shader-files/lcd-cgwg/lcd-grid.slang
+#shader1 = "../shaders/authentic_gbc/authentic_gbc_single_pass.slang
+filter_linear1 = false
+scale_type1 = viewport
+
+shader2 = "../shaders/frontlit-reflective.slang"
+filter_linear2 = true
+scale_type2 = viewport
+float_framebuffer2 = true
+
+shader3 = "shader-files/gb-pass-5.slang
+
+parameters = "PT_SHADOW_OFFSET_X;PT_SHADOW_OFFSET_Y;preset"
+PT_SHADOW_OFFSET_X = 1.0
+PT_SHADOW_OFFSET_Y = 1.0
+ambient_bright = 0.15
+point_bright = 0.6
+schmutz = 0.5
+focus = 0.7
+
+
+textures = "dirt;BORDER"
+BORDER = resources/color-border-square-4x.png
+dirt = resources/dirty-glass.png
+dirt_linear = true
+dirt_wrap_mode = repeat

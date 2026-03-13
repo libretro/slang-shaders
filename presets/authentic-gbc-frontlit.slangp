@@ -1,0 +1,28 @@
+shaders = "4"
+
+shader0 = "../motionblur/shaders/feedback.slang"
+filter_linear0 = false
+
+#shader1 = "../shaders/lcd-cgwg/lcd-grid-v2.slang
+shader1 = "../handheld/shaders/authentic_gbc/authentic_gbc_single_pass.slang
+filter_linear1 = false
+scale_type1 = viewport
+
+shader2 = "../handheld/shaders/pixel_transparency.slang"
+filter_linear2 = true
+scale_type2 = viewport
+
+shader3 = "../handheld/shaders/frontlit-reflective.slang"
+filter_linear3 = true
+scale_type3 = viewport
+float_framebuffer3 = true
+
+parameters = "PT_SHADOW_OFFSET_X;PT_SHADOW_OFFSET_Y;preset"
+PT_SHADOW_OFFSET_X = 1.0
+PT_SHADOW_OFFSET_Y = 1.0
+
+
+textures = "dirt"
+dirt = ../handheld/console-border/resources/dirty-glass.png
+dirt_linear = true
+dirt_wrap_mode = repeat
