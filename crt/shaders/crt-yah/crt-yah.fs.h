@@ -46,16 +46,15 @@ float get_brightness_compensation(float color_luma)
 
 float apply_brightness_flicker(float brightness, float raw_color_luma)
 {
-    float scanlines_strength = 1.0 + INPUT_BEAM_PROFILE.w;
+    // flicker based on color luma to avoid too much flicker in dark areas
+    float flicker_factor = (raw_color_luma * raw_color_luma) * 4.0;
 
-    // flicker based on color luma and scanlines strength, to avoid too much flicker on dark scenes or with weak scanlines
-    float flicker_factor = 1.0 + ((raw_color_luma * raw_color_luma) * 1.5 * scanlines_strength * abs(PARAM_COLOR_BRIGHTNESS_FLICKER));
-
+    // switch between lightening and darkening flicker
     flicker_factor = PARAM_COLOR_BRIGHTNESS_FLICKER > 0.0
         // lighten
-        ? flicker_factor
+        ? 1.0 + flicker_factor * abs(PARAM_COLOR_BRIGHTNESS_FLICKER)
         // darken
-        : 1.0 / flicker_factor;
+        : 1.0 / (1.0 + flicker_factor * abs(PARAM_COLOR_BRIGHTNESS_FLICKER));
 
     // flicker each 2nd frame with 30/60Hz
     return mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 2) > 0.0
@@ -238,12 +237,12 @@ vec3 get_raw_color(sampler2D source, vec2 tex_coord)
 
 float get_raw_color_luminance(sampler2D source, vec2 tex_coord)
 {
-    vec2 half_texel = vec2o(0.0, 0.5) / global.OriginalSize.xy;
+    vec2 quater_texel = vec2o(0.0, 0.25) / global.OriginalSize.xy;
 
-    // apply half texel y-offset (to sample between two pixel between scanlines) and average
-    vec3 raw_color
-        = get_raw_color(source, tex_coord + half_texel)
-        + get_raw_color(source, tex_coord - half_texel);
+    // apply quater texel y-offset and average
+    vec3 raw_color = vec3(0.0)
+        + get_raw_color(source, tex_coord + quater_texel)
+        + get_raw_color(source, tex_coord - quater_texel);
 
     return get_luminance(raw_color * 0.5);
 }
@@ -294,18 +293,18 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple
     if (scanlines_offset < 0.0)
     {
         // jitter offset each 3rd frame with 30/60Hz
-        float scalines_mod = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 3);
+        float scanlines_mod = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 3);
 
         scanlines_offset =
             // 3rd frame upwards
-            scalines_mod > 1.0 ? abs(scanlines_offset) :
+            scanlines_mod > 1.0 ? abs(scanlines_offset) :
             // 2nd frame downwards
-            scalines_mod > 0.0 ? -abs(scanlines_offset) :
+            scanlines_mod > 0.0 ? -abs(scanlines_offset) :
             // 1st frame no offset
             0.0;
 
-        // scale offset by color luma to avoid too much offset on dark scenes
-        scanlines_offset *= (raw_color_luma * raw_color_luma) * 1.5;
+        // scale offset by color luma to avoid too much offset in dark areas
+        scanlines_offset *= (raw_color_luma * raw_color_luma) * 2.0;
     }
 
     // fade out for low scanlines strength
