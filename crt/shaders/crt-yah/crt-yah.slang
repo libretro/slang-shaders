@@ -149,5 +149,5 @@ void main()
     color *= get_vignette_factor(tex_coord_curved);
     color *= get_round_corner_factor(tex_coord_curved);
 
-    FragColor = vec4(OUTPUT(color, raw_color_luma, color_luma), 1.0);
+    FragColor = vec4(OUTPUT(color, color_luma), 1.0);
 }

@@ -44,24 +44,6 @@ float get_brightness_compensation(float color_luma)
         : 0.0;
 }
 
-float apply_brightness_flicker(float brightness, float raw_color_luma)
-{
-    // flicker based on color luma to avoid too much flicker in dark areas
-    float flicker_factor = (raw_color_luma * raw_color_luma) * 4.0;
-
-    // switch between lightening and darkening flicker
-    flicker_factor = PARAM_COLOR_BRIGHTNESS_FLICKER > 0.0
-        // lighten
-        ? 1.0 + flicker_factor * abs(PARAM_COLOR_BRIGHTNESS_FLICKER)
-        // darken
-        : 1.0 / (1.0 + flicker_factor * abs(PARAM_COLOR_BRIGHTNESS_FLICKER));
-
-    // flicker each 2nd frame with 30/60Hz
-    return mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 2) > 0.0
-        ? brightness * flicker_factor
-        : brightness;
-}
-
 vec3 INPUT(vec3 color)
 {
     color = decode_gamma(color);
@@ -70,10 +52,10 @@ vec3 INPUT(vec3 color)
     return color;
 }
 
-vec3 OUTPUT(vec3 color, float raw_color_luma, float color_luma)
+vec3 OUTPUT(vec3 color, float color_luma)
 {
     color = apply_contrast(color, PARAM_COLOR_CONTRAST);
-    color = apply_brightness(color, apply_brightness_flicker(PARAM_COLOR_BRIGHTNESS + get_brightness_compensation(color_luma), raw_color_luma));
+    color = apply_brightness(color, PARAM_COLOR_BRIGHTNESS + get_brightness_compensation(color_luma));
     color = apply_saturation(color, PARAM_COLOR_SATURATION);
     color = apply_temperature(color, PARAM_COLOR_TEMPERATUE);
     color = encode_gamma(color);
@@ -235,18 +217,6 @@ vec3 get_raw_color(sampler2D source, vec2 tex_coord)
     return INPUT(color);
 }
 
-float get_raw_color_luminance(sampler2D source, vec2 tex_coord)
-{
-    vec2 quater_texel = vec2o(0.0, 0.25) / global.OriginalSize.xy;
-
-    // apply quater texel y-offset and average
-    vec3 raw_color = vec3(0.0)
-        + get_raw_color(source, tex_coord + quater_texel)
-        + get_raw_color(source, tex_coord - quater_texel);
-
-    return get_luminance(raw_color * 0.5);
-}
-
 vec2 get_scanlines_pixel_coordinate(vec2 tex_coord, vec2 tex_size)
 {
     // texture to pixel coordinates
@@ -258,7 +228,7 @@ vec2 get_scanlines_pixel_coordinate(vec2 tex_coord, vec2 tex_size)
     return pix_coord;
 }
 
-vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple, float raw_color_luma)
+vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple)
 {
     vec2 tex_coord = floor(pix_coord);
 
@@ -288,50 +258,13 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple
         tex_coord += vec2o(0.0, 0.5) / multiple * (INPUT_SCREEN_MULTIPLE - 1.0);
     }
 
-    // offset scaled by multiple
-    float scanlines_offset = PARAM_SCANLINES_OFFSET / INPUT_SCREEN_MULTIPLE;
-    if (scanlines_offset < 0.0)
-    {
-        // jitter offset each 3rd frame with 30/60Hz
-        float scanlines_mod = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 3);
-
-        scanlines_offset =
-            // 3rd frame upwards
-            scanlines_mod > 1.0 ? abs(scanlines_offset) :
-            // 2nd frame downwards
-            scanlines_mod > 0.0 ? -abs(scanlines_offset) :
-            // 1st frame no offset
-            0.0;
-
-        // scale offset by color luma to avoid too much offset in dark areas
-        scanlines_offset *= (raw_color_luma * raw_color_luma) * 2.0;
-    }
-
-    // fade out for low scanlines strength
-    scanlines_offset *= normalized_sigmoid(PARAM_SCANLINES_STRENGTH, -0.5);
-
-    // when automatic down-scaled
-    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
-    {
-        float slope = 1.0 - (1.0 / INPUT_SCREEN_MULTIPLE);
-
-        // apply manual half texel y-offset by exponential amount of multiple
-        tex_coord += vec2o(0.0, 0.5) * normalized_sigmoid(scanlines_offset / 2.0, -slope) * 2.0;
-    }
-    // when not automatic down-scaled
-    else
-    {
-        // apply manual half texel y-offset
-        tex_coord += vec2o(0.0, 0.5) * scanlines_offset;
-    }
-
     // pixel to texture coordinates
     tex_coord /= tex_size;
 
     return tex_coord;
 }
 
-vec3 get_scanlines_color(sampler2D source, vec2 tex_coord, float raw_color_luma)
+vec3 get_scanlines_color(sampler2D source, vec2 tex_coord)
 {
     vec2 multiple = vec2o(1.0, INPUT_SCREEN_MULTIPLE);
 
@@ -340,7 +273,7 @@ vec3 get_scanlines_color(sampler2D source, vec2 tex_coord, float raw_color_luma)
 
     vec2 pix_coord = vec2(0.0);
     pix_coord = get_scanlines_pixel_coordinate(tex_coord, tex_size);
-    tex_coord = get_scanlines_texel_coordinate(pix_coord, tex_size, multiple, raw_color_luma);
+    tex_coord = get_scanlines_texel_coordinate(pix_coord, tex_size, multiple);
 
     vec2 tex_delta = vec2(1.0) / tex_size;
     vec2 tex_delta_x = vec2ox(tex_delta, 0.0);
@@ -458,16 +391,7 @@ vec3 apply_mask(vec3 color, float color_luma, vec2 tex_coord)
 
 vec3 apply_color_overflow(vec3 color)
 {
-    vec3 color_overflow = color * color * PARAM_COLOR_OVERFLOW;
-
-    color.r += LumaR * LumaG * color_overflow.g;
-    color.r += LumaR * LumaB * color_overflow.b;
-    color.g += LumaG * LumaR * color_overflow.r;
-    color.g += LumaG * LumaB * color_overflow.b;
-    color.b += LumaB * LumaR * color_overflow.r;
-    color.b += LumaB * LumaG * color_overflow.g;
-
-    return color;
+    return apply_color_overflow(color, PARAM_COLOR_OVERFLOW);
 }
 
 vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord)

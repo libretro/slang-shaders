@@ -48,6 +48,23 @@ vec3 apply_brightness(vec3 color, float brightness)
     return color * (1.0 + brightness);
 }
 
+// Applies the color overflow to the given color.
+// @color - the color.
+// @overflow - the amount of overflow to apply.
+vec3 apply_color_overflow(vec3 color, float overflow)
+{
+    vec3 color_overflow = color * color * overflow;
+
+    color.r += LumaR * LumaG * color_overflow.g;
+    color.r += LumaR * LumaB * color_overflow.b;
+    color.g += LumaG * LumaR * color_overflow.r;
+    color.g += LumaG * LumaB * color_overflow.b;
+    color.b += LumaB * LumaR * color_overflow.r;
+    color.b += LumaB * LumaG * color_overflow.g;
+
+    return color;
+}
+
 // Applies a minimum value to the given color.
 // @color - the color.
 // @floor - the minimum value.
