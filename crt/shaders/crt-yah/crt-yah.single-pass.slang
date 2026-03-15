@@ -61,7 +61,7 @@ layout (push_constant) uniform Push
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 Coord;
 layout(location = 0) out vec2 TexCoord;
-layout(location = 1) out float ScreenOrientation;
+layout(location = 1) out int ScreenOrientation;
 layout(location = 2) out float ScreenMultiple;
 layout(location = 3) out float ScreenMultipleAuto;
 layout(location = 4) out float BrightnessCompensation;
@@ -82,7 +82,7 @@ void main()
     gl_Position = global.MVP * Position;
     TexCoord = Coord;
 
-    ScreenOrientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
+    ScreenOrientation = get_orientation(global.OutputSize.xy, int(PARAM_SCREEN_ORIENTATION));
     ScreenMultiple = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -PARAM_SCREEN_SCALE);
     ScreenMultipleAuto = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, 0.0);
     MaskProfile = get_mask_profile();
@@ -100,7 +100,7 @@ void main()
 
 #pragma stage fragment
 layout(location = 0) in vec2 TexCoord;
-layout(location = 1) in float ScreenOrientation;
+layout(location = 1) flat in int ScreenOrientation;
 layout(location = 2) in float ScreenMultiple;
 layout(location = 3) in float ScreenMultipleAuto;
 layout(location = 4) in float BrightnessCompensation;

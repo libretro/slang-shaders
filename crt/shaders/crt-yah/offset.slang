@@ -34,7 +34,7 @@ layout(push_constant) uniform Push
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 Coord;
-layout(location = 1) out float ScreenOrientation;
+layout(location = 1) out int ScreenOrientation;
 layout(location = 2) out float ScreenMultiple;
 layout(location = 0) out vec2 TexCoord;
 
@@ -47,7 +47,7 @@ void main()
 {
     gl_Position = global.MVP * Position;
 
-    ScreenOrientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
+    ScreenOrientation = get_orientation(global.OutputSize.xy, int(PARAM_SCREEN_ORIENTATION));
     ScreenMultiple = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -PARAM_SCREEN_SCALE);
 
     TexCoord = Coord;
@@ -55,7 +55,7 @@ void main()
 
 #pragma stage fragment
 layout(location = 0) in vec2 TexCoord;
-layout(location = 1) in float ScreenOrientation;
+layout(location = 1) flat in int ScreenOrientation;
 layout(location = 2) in float ScreenMultiple;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
@@ -73,7 +73,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 vec2 vec2o(float x, float y)
 {
-    return INPUT_SCREEN_ORIENTATION == 0.0
+    return INPUT_SCREEN_ORIENTATION == 0
         ? vec2(x, y)
         : vec2(y, x);
 }

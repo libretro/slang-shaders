@@ -1,11 +1,5 @@
 #version 450
 
-/*
-    NTSC-Adaptive pass 1 by Hunter K.
-    Based on NTSC shader by The Maister
-    Modified by Jezze
-*/
-
 // Required shader pass settings:
 //    filter_linear0 = false
 //    float_framebuffer0 = true
@@ -16,134 +10,12 @@
 
 #pragma name NtscHPass1
 
-layout(std140, set = 0, binding = 0) uniform UBO
-{
-    mat4 MVP;
-    vec4 OriginalSize;
-    vec4 SourceSize;
-    vec4 OutputSize;
-    vec4 InputSize;
-    vec4 FinalViewportSize;
-    uint FrameCount;
-    uint FrameTimeDelta;
-    float GLOBAL_MASTER;
-    float SCREEN_RESOLUTION_SCALE;
-    float SCREEN_ORIENTATION;
-    float SCREEN_SCALE;
-    float SCREEN_FREQUENCY;
-} global;
-
-layout (push_constant) uniform Push
-{
-    float NTSC_PROFILE;
-    float NTSC_QUALITY;
-    float NTSC_SCALE;
-    float NTSC_SHIFT;
-    float NTSC_JITTER;
-} param;
+#include "ntsc-pass1.layout.h"
 
 #include "parameters.h"
 
-#pragma stage vertex
-layout(location = 0) in vec4 Position;
-layout(location = 1) in vec2 Coord;
-layout(location = 0) out vec2 TexCoord;
-layout(location = 1) out vec2 PixCoord;
-layout(location = 2) out float Fringing;
-layout(location = 3) out float Artifacting;
-layout(location = 4) out float Phase;
+const int ScreenOrientation = 0;
 
-// used in common/screen-helper.h
-#define PIXEL_SIZE_LIMIT 0.0
-#define RESOLUTION_AUTO_SCALE PARAM_SCREEN_RESOLUTION_SCALE < 0.5
+#include "ntsc-pass1.stage-v.h"
 
-#include "common/screen-helper.h"
-
-void main()
-{
-    gl_Position = global.MVP * Position;
-
-    float screen_orientation = 0.0;
-    float screen_scale = 1.0 / get_screen_multiple(global.OriginalSize.xy, screen_orientation, -(PARAM_SCREEN_SCALE + PARAM_NTSC_SCALE));
-
-    TexCoord = Coord;
-    PixCoord = TexCoord * global.OutputSize.xy;
-    PixCoord = screen_scale < 1.0
-        ? PixCoord * screen_scale
-        : PixCoord;
-    PixCoord = int(screen_orientation) == 0
-        ? PixCoord.xy
-        : PixCoord.yx;
-    PixCoord.x *= max(screen_scale, 1.0);
-
-    // Profile:
-    // 1 - Separate Y/C
-    // 2 - Composite
-    // 3 - Radio Frequency
-    Fringing = (PARAM_NTSC_PROFILE - 1.0);
-    Artifacting = (PARAM_NTSC_PROFILE - 1.0) * 0.5 * (max(screen_scale, 1.0) + 1.0);
-
-    // Quality:
-    // 1 - Auto
-    // 2 - Two Phase
-    // 3 - Three Phase
-    Phase = PARAM_NTSC_QUALITY < 1.5
-        // auto
-        ? min(global.OriginalSize.x, global.OriginalSize.y) * screen_scale > 240.0 ? 2.0 : 3.0
-        // manual
-        : PARAM_NTSC_QUALITY;
-}
-
-#pragma stage fragment
-layout(location = 0) in vec2 TexCoord;
-layout(location = 1) in vec2 PixCoord;
-layout(location = 2) in float Fringing;
-layout(location = 3) in float Artifacting;
-layout(location = 4) in float Phase;
-layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Source;
-
-const float Brightness = 1.0;
-const float Saturation = 1.0;
-
-#define MIX mat3(                       \
-    Brightness, Fringing, Fringing,     \
-    Artifacting, 2.0 * Saturation, 0.0, \
-    Artifacting, 0.0, 2.0 * Saturation)
-
-#include "common/frame-helper.h"
-#include "common/screen-helper.h"
-
-#include "ntsc-pass1.h"
-
-void main()
-{
-    if (DEBUG && TexCoord.x < 0.5)
-    {
-        FragColor = texture(Source, TexCoord);
-
-        return;
-    }
-
-    if (PARAM_NTSC_PROFILE == 0.0)
-    {
-        FragColor = texture(Source, TexCoord);
-
-        return;
-    }
-
-    // return if vertical orientation
-    if (get_orientation(global.SourceSize.xy, PARAM_SCREEN_ORIENTATION) > 0.5)
-    {
-        FragColor = texture(Source, TexCoord);
-
-        return;
-    }
-
-    // used for chroma phase offset with 30/60Hz
-    uint frame_count = GetUniformFrameCount(PARAM_SCREEN_FREQUENCY);
-
-    vec3 yiq = pass1(Source, TexCoord, PixCoord, int(Phase), PARAM_NTSC_SHIFT, PARAM_NTSC_JITTER, MIX, frame_count);
-
-    FragColor = vec4(yiq, 1.0);
-}
+#include "ntsc-pass1.stage-f.h"
