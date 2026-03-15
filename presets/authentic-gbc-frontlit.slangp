@@ -3,8 +3,8 @@ shaders = "4"
 shader0 = "../motionblur/shaders/feedback.slang"
 filter_linear0 = false
 
-#shader1 = "../shaders/lcd-cgwg/lcd-grid-v2.slang
-shader1 = "../handheld/shaders/authentic_gbc/authentic_gbc_single_pass.slang
+#shader1 = "../shaders/lcd-cgwg/lcd-grid-v2.slang"
+shader1 = "../handheld/shaders/authentic_gbc/authentic_gbc_single_pass.slang"
 filter_linear1 = false
 scale_type1 = viewport
 
@@ -17,9 +17,13 @@ filter_linear3 = true
 scale_type3 = viewport
 float_framebuffer3 = true
 
-parameters = "PT_SHADOW_OFFSET_X;PT_SHADOW_OFFSET_Y;preset"
 PT_SHADOW_OFFSET_X = 1.0
 PT_SHADOW_OFFSET_Y = 1.0
+PT_PALETTE = 1.0
+PT_POLARIZER = 0.0
+PT_HIGHLIGHTS = 0.0
+PT_GLARE_ENABLE = 0.0
+PT_RAINBOW_ENABLE = 0.0
 
 
 textures = "dirt"
