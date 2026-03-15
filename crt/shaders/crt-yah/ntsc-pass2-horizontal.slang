@@ -12,11 +12,11 @@
 //    scale_type_x1 = source
 //    scale_type_y1 = source
 //    scale_x1 = 0.25
-//    scale_y1 = 0.25
+//    scale_y1 = 1.0
 
 const float Prescale = 0.25;
 
-#pragma name NtscPass2
+#pragma name NtscHPass2
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -58,7 +58,7 @@ void main()
     gl_Position = global.MVP * Position;
     TexCoord = Coord;
 
-    float screen_orientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
+    float screen_orientation = 0.0;
     float screen_scale = 1.0 / get_screen_multiple(global.OriginalSize.xy, screen_orientation, -(PARAM_SCREEN_SCALE + PARAM_NTSC_SCALE));
 
     ScanTexelSize = int(screen_orientation) == 0
@@ -84,11 +84,21 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source; // output frame of the 1st NTSC pass
 layout(set = 0, binding = 3) uniform sampler2D OriginalHistory1; // input frame of the 1st NTSC pass
 
+#include "common/screen-helper.h"
+
 #include "ntsc-pass2.h"
 
 void main()
 {
     if (PARAM_NTSC_PROFILE == 0.0)
+    {
+        FragColor = texture(Source, TexCoord);
+
+        return;
+    }
+
+    // return if vertical orientation
+    if (get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION) > 0.5)
     {
         FragColor = texture(Source, TexCoord);
 

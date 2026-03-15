@@ -12,11 +12,9 @@
 //    scale_type_x0 = source
 //    scale_type_y0 = source
 //    scale_x0 = 4.0
-//    scale_y0 = 4.0
+//    scale_y0 = 1.0
 
-const float Prescale = 4.0;
-
-#pragma name NtscPass1
+#pragma name NtscHPass1
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -24,6 +22,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     vec4 OriginalSize;
     vec4 SourceSize;
     vec4 OutputSize;
+    vec4 InputSize;
     vec4 FinalViewportSize;
     uint FrameCount;
     uint FrameTimeDelta;
@@ -62,9 +61,9 @@ layout(location = 4) out float Phase;
 
 void main()
 {
-	gl_Position = global.MVP * Position;
+    gl_Position = global.MVP * Position;
 
-    float screen_orientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
+    float screen_orientation = 0.0;
     float screen_scale = 1.0 / get_screen_multiple(global.OriginalSize.xy, screen_orientation, -(PARAM_SCREEN_SCALE + PARAM_NTSC_SCALE));
 
     TexCoord = Coord;
@@ -76,7 +75,6 @@ void main()
         ? PixCoord.xy
         : PixCoord.yx;
     PixCoord.x *= max(screen_scale, 1.0);
-    PixCoord.y /= Prescale;
 
     // Profile:
     // 1 - Separate Y/C
@@ -114,12 +112,28 @@ const float Saturation = 1.0;
     Artifacting, 0.0, 2.0 * Saturation)
 
 #include "common/frame-helper.h"
+#include "common/screen-helper.h"
 
 #include "ntsc-pass1.h"
 
 void main()
 {
+    if (DEBUG && TexCoord.x < 0.5)
+    {
+        FragColor = texture(Source, TexCoord);
+
+        return;
+    }
+
     if (PARAM_NTSC_PROFILE == 0.0)
+    {
+        FragColor = texture(Source, TexCoord);
+
+        return;
+    }
+
+    // return if vertical orientation
+    if (get_orientation(global.SourceSize.xy, PARAM_SCREEN_ORIENTATION) > 0.5)
     {
         FragColor = texture(Source, TexCoord);
 

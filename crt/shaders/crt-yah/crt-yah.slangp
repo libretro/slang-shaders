@@ -1,43 +1,59 @@
-shaders = 9
+shaders = 11
 
-shader0 = "ntsc-pass1.slang"
+shader0 = "ntsc-pass1-horizontal.slang"
 filter_linear0 = false // required: sample source nearest neighbor (avoids blurriness)
 float_framebuffer0 = true
 scale_type_x0 = source
 scale_type_y0 = source
-scale_x0 = 4.0 // up-scale in both dimension to be independent of the orientation
-scale_y0 = 4.0
+scale_x0 = 4.0 // up-scale in horizontal direction
+scale_y0 = 1.0
 
-shader1 = "ntsc-pass2.slang"
+shader1 = "ntsc-pass2-horizontal.slang"
 filter_linear1 = true // required: sample ntsc-1-output linear (compensates artifacts)
 float_framebuffer1 = false
 scale_type_x1 = source
 scale_type_y1 = source
-scale_x1 = 0.25 // down-scale in both dimension to be independent of the orientation
-scale_y1 = 0.25
+scale_x1 = 0.25 // down-scale in horizontal direction
+scale_y1 = 1.0
 
-shader2 = "offset.slang"
-filter_linear2 = true // required: sample ntsc-2-output linear (factional offset)
+shader2 = "ntsc-pass1-vertical.slang"
+filter_linear2 = false // required: sample source nearest neighbor (avoids blurriness)
+float_framebuffer2 = true
+scale_type_x2 = source
+scale_type_y2 = source
+scale_x2 = 1.0
+scale_y2 = 4.0 // up-scale in vertical direction
 
-shader3 = "deconverge.slang"
-filter_linear3 = true // required: sample offset-output linear (factional de-converge)
+shader3 = "ntsc-pass2-vertical.slang"
+filter_linear3 = true // required: sample ntsc-1-output linear (compensates artifacts)
+float_framebuffer3 = false
+scale_type_x3 = source
+scale_type_y3 = source
+scale_x3 = 1.0
+scale_y3 = 0.25 // down-scale in vertical direction
 
-shader4 = "phosphor.slang"
-filter_linear4 = true
+shader4 = "offset.slang"
+filter_linear4 = true // required: sample ntsc-2-output linear (factional offset)
 
-shader5 = "lut.slang"
-filter_linear5 = true
+shader5 = "deconverge.slang"
+filter_linear5 = true // required: sample offset-output linear (factional de-converge)
+
+shader6 = "phosphor.slang"
+filter_linear6 = true
+
+shader7 = "lut.slang"
+filter_linear7 = true
 textures = "SamplerLutNtsc;SamplerLutTrinitron;"
 SamplerLutNtsc = lut/ntsc-lut.png
 SamplerLutNtsc_linear = true
 SamplerLutTrinitron = lut/trinitron-lut.png
 SamplerLutTrinitron_linear = true
 
-shader6 = "blur-horizontal.slang"
-filter_linear6 = true // required: sample lut-output linear
+shader8 = "blur-horizontal.slang"
+filter_linear8 = true // required: sample lut-output linear
 
-shader7 = "blur-vertical.slang"
-filter_linear7 = true
+shader9 = "blur-vertical.slang"
+filter_linear9 = true
 
-shader8 = "crt-yah.slang"
-filter_linear8 = true // required: sample blur-output linear
+shader10 = "crt-yah.slang"
+filter_linear10 = true // required: sample blur-output linear
