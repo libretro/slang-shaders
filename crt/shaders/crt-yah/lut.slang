@@ -60,7 +60,7 @@ vec3 apply_lut(vec3 color, sampler2D lut_sampler)
 
 void main()
 {
-    // return is effect is disabled
+    // return if effect is disabled
     if (PARAM_COLOR_PROFILE == 0.0)
     {
         FragColor = texture(Source, TexCoord);

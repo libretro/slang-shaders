@@ -22,7 +22,7 @@ const float Saturation = 1.0;
 
 void main()
 {
-    // return is effect is disabled
+    // return if effect is disabled
     if (PARAM_NTSC_PROFILE == 0.0)
     {
         FragColor = texture(Source, TexCoord);

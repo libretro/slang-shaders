@@ -12,7 +12,7 @@ layout(set = 0, binding = 3) uniform sampler2D OriginalHistory1; // input frame 
 
 void main()
 {
-    // return is effect is disabled
+    // return if effect is disabled
     if (PARAM_NTSC_PROFILE == 0.0)
     {
         FragColor = texture(Source, TexCoord);
