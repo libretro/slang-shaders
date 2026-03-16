@@ -43,7 +43,7 @@ void main()
 {
     gl_Position = global.MVP * Position;
 
-    float screen_orientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
+    int screen_orientation = get_orientation(global.OutputSize.xy, int(PARAM_SCREEN_ORIENTATION));
     float screen_scale = get_screen_multiple(global.OriginalSize.xy, screen_orientation, -PARAM_SCREEN_SCALE);
 
     // limit deconverge to range of [-1.0, 1.0]
@@ -107,6 +107,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
+    // return if effect is disabled
     if (PARAM_DECONVERGE_LINEAR == 0.0
         && PARAM_DECONVERGE_RADIAL == 0.0)
     {

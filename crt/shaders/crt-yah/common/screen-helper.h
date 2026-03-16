@@ -50,9 +50,9 @@ bool is_portrait(vec2 size)
 //   1 - vertical
 // @size: the size to test
 //   e.g. global.OutputSize
-float get_orientation(vec2 size)
+int get_orientation(vec2 size)
 {
-    return float(is_portrait(size));
+    return int(is_portrait(size));
 }
 
 // Returns the orientation based on the largest dimension of the given size.
@@ -64,10 +64,10 @@ float get_orientation(vec2 size)
 //   0 - auto
 //   1 - horizontal
 //   2 - vertical
-float get_orientation(vec2 size, float orientation)
+int get_orientation(vec2 size, int orientation)
 {
-    return orientation > 0.0
-        ? orientation - 1.0
+    return orientation > 0
+        ? orientation - 1
         : get_orientation(size);
 }
 
@@ -77,9 +77,9 @@ float get_orientation(vec2 size, float orientation)
 // @orientation: the orientation of the dominant dimension
 //   0 - horizontal
 //   1 - vertical
-float get_ratio(vec2 size, float orientation)
+float get_ratio(vec2 size, int orientation)
 {
-    return orientation > 0.0
+    return orientation > 0
         ? size.x / size.y
         : size.y / size.x;
 }
@@ -98,9 +98,9 @@ float get_ratio(vec2 size)
 // @orientation: the orientation of the dominant dimension
 //   0 - horizontal
 //   1 - vertical
-float get_base_size(vec2 size, float orientation)
+float get_base_size(vec2 size, int orientation)
 {
-    return orientation > 0.0
+    return orientation > 0
         ? size.x
         : size.y;
 }
@@ -120,18 +120,18 @@ float get_base_size(vec2 size)
 // @orientation: the orientation
 //   0 - horizontal
 //   1 - vertical
-float get_multiple(vec2 size, float orientation)
+float get_multiple(vec2 size, int orientation)
 {
     float ratio = get_ratio(size, orientation);
 
     float portrait = float(is_portrait(size));
 
     float base_size = BASE_SIZE;
-    base_size = orientation > 0.0
+    base_size = orientation > 0
         ? mix(base_size * ratio, base_size, portrait)
         : mix(base_size, base_size * ratio, portrait);
 
-    return orientation > 0.0
+    return orientation > 0
         ? size.x / base_size
         : size.y / base_size;
 }
@@ -214,11 +214,11 @@ float offset_multiple(float multiple, float target_size, float multiple_offset)
 //   = 0.0 - the multiple will be rounded to the next integer greater equal to 1.
 //   > 0.0 - in addition the multiple will be incremented by the offset.
 //   < 0.0 - in addition the multiple will be decremented by the offset.
-float get_auto_multiple(vec2 source_size, float source_orientation, float multiple_offset)
+float get_auto_multiple(vec2 source_size, int source_orientation, float multiple_offset)
 {
     float multiple = get_multiple(source_size, source_orientation);
 
-    float target_size = source_orientation > 0.0
+    float target_size = source_orientation > 0
         ? OUTPUT_SIZE.x / source_size.x
         : OUTPUT_SIZE.y / source_size.y;
 
@@ -236,18 +236,18 @@ float get_auto_multiple(vec2 source_size, float source_orientation, float multip
 //   = 0.0 - the multiple will be rounded to the next integer greater equal to 1.
 //   > 0.0 - in addition the multiple will be incremented by the offset.
 //   < 0.0 - in addition the multiple will be decremented by the offset.
-float get_fixed_multiple(vec2 source_size, float source_orientation, float multiple_offset)
+float get_fixed_multiple(vec2 source_size, int source_orientation, float multiple_offset)
 {
     float multiple = 1.0;
 
-    float target_size = source_orientation > 0.0
+    float target_size = source_orientation > 0
         ? OUTPUT_SIZE.x / source_size.x
         : OUTPUT_SIZE.y / source_size.y;
 
     return offset_multiple(multiple, target_size, multiple_offset);
 }
 
-float get_screen_multiple(vec2 source_size, float source_orientation, float multiple_offset)
+float get_screen_multiple(vec2 source_size, int source_orientation, float multiple_offset)
 {
     return RESOLUTION_AUTO_SCALE
         ? get_auto_multiple(source_size, source_orientation, multiple_offset)

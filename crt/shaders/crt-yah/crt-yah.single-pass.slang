@@ -61,7 +61,7 @@ layout (push_constant) uniform Push
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 Coord;
 layout(location = 0) out vec2 TexCoord;
-layout(location = 1) out float ScreenOrientation;
+layout(location = 1) out int ScreenOrientation;
 layout(location = 2) out float ScreenMultiple;
 layout(location = 3) out float ScreenMultipleAuto;
 layout(location = 4) out float BrightnessCompensation;
@@ -82,7 +82,7 @@ void main()
     gl_Position = global.MVP * Position;
     TexCoord = Coord;
 
-    ScreenOrientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
+    ScreenOrientation = get_orientation(global.OutputSize.xy, int(PARAM_SCREEN_ORIENTATION));
     ScreenMultiple = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -PARAM_SCREEN_SCALE);
     ScreenMultipleAuto = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, 0.0);
     MaskProfile = get_mask_profile();
@@ -100,7 +100,7 @@ void main()
 
 #pragma stage fragment
 layout(location = 0) in vec2 TexCoord;
-layout(location = 1) in float ScreenOrientation;
+layout(location = 1) flat in int ScreenOrientation;
 layout(location = 2) in float ScreenMultiple;
 layout(location = 3) in float ScreenMultipleAuto;
 layout(location = 4) in float BrightnessCompensation;
@@ -127,10 +127,8 @@ void main()
     vec2 tex_coord_curved = apply_cubic_lens_distortion(tex_coord);
     vec2 tex_coord_curved_sharpened = apply_sharp_bilinear_filtering(tex_coord_curved);
 
-    float raw_color_luma = get_raw_color_luminance(TextureSource, tex_coord_curved);
-
-    vec3 raw_color_sharpened = get_raw_color(TextureSource, tex_coord_curved_sharpened);
-    vec3 scanlines_color = get_scanlines_color(TextureSource, tex_coord_curved, raw_color_luma);
+    vec3 raw_color_sharpened = get_raw_color(Source, tex_coord_curved_sharpened);
+    vec3 scanlines_color = get_scanlines_color(Source, tex_coord_curved);
 
     vec3 color = blend_colors(raw_color_sharpened, scanlines_color);
     float color_luma = get_luminance(color);
@@ -142,5 +140,5 @@ void main()
     color *= get_vignette_factor(tex_coord_curved);
     color *= get_round_corner_factor(tex_coord_curved);
 
-    FragColor = vec4(OUTPUT(color, raw_color_luma, color_luma), 1.0);
+    FragColor = vec4(OUTPUT(color, color_luma), 1.0);
 }
