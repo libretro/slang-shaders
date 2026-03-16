@@ -5,7 +5,7 @@
 #pragma parameter SCREEN_ORIENTATION "·  Screen > Orientation  (0-Auto, 1-Horizontal, 2-Vertical)" 0.0 0.0 2.0 1.0
 #pragma parameter SCREEN_RESOLUTION_SCALE "  ⁵Screen > Resolution  (0-Auto, 1-Native)" 0.0 0.0 1.0 1.0
 #pragma parameter SCREEN_SCALE "   Screen > Scale⁵  (-Down / 0-Auto / +Up)" 0.0 -2.0 2.0 0.05
-#pragma parameter SCREEN_FREQUENCY "  ⁴Screen > Frequency  (30Hz, 60Hz)" 60.0 30.0 60.0 30.0
+#pragma parameter SCREEN_FREQUENCY "  ⁴Screen > Frequency  (30Hz .. 60Hz)" 60.0 30.0 60.0 10.0
 
 // Color parameters
 #pragma parameter COLOR_PROFILE "·  Color > Profile¹  (-NTSC .. +Trinitron)" 0.0 -1.0 1.0 0.1
@@ -13,7 +13,7 @@
 #pragma parameter COLOR_SATURATION "   Color > Saturation¹  (0-Low .. 2-High)" 1.1 0.0 2.0 0.05
 #pragma parameter COLOR_CONTRAST "   Color > Contrast¹  (-Lower .. +Higher)" 0.1 -1.0 1.0 0.05
 #pragma parameter COLOR_BRIGHTNESS "   Color > Brightness¹  (-Darken .. +Lighten)" 0.30 -1.0 2.0 0.05
-#pragma parameter COLOR_BRIGHTNESS_FLICKER "   Color > Brightness Flicker¹⁴  (0-None .. 1-Full)" 0.25 0.0 1.0 0.05
+#pragma parameter COLOR_BRIGHTNESS_FLICKER "   Color > Brightness Flicker¹⁴  (0-None .. 1-Full)" 0.2 0.0 1.0 0.05
 #pragma parameter COLOR_OVERFLOW "   Color > Brightness Overflow¹  (0-None .. 1-Full / 2-More)" 1.0 0.0 2.0 0.25
 #pragma parameter COLOR_COMPENSATION "  ²Color > Brightness Compensation  (0-Off, 1-On)" 1.0 0.0 1.0 1.0
 #pragma parameter COLOR_BLACK_LIGHT "  ³Color > Black Lightening (0-None .. 1-Full / 2-More)" 0.5 0.0 2.0 0.1
@@ -26,7 +26,7 @@
 #pragma parameter BEAM_FILTER "   Scanlines > Beam Filter  (-Blocky .. +Blurry)" -0.25 -1.0 1.0 0.05
 #pragma parameter ANTI_RINGING "   Scanlines > Anti-Ringing  (0-None .. 1-Full)" 1.0 0.0 1.0 0.1
 #pragma parameter SCANLINES_COLOR_BURN "   Scanlines > Color Burn¹  (0-None .. 1-Full)" 1.0 0.0 1.0 0.25
-#pragma parameter SCANLINES_OFFSET "   Scanlines > Offset⁴  (-with .. +without Jitter)" -0.25 -1.0 1.0 0.05
+#pragma parameter SCANLINES_OFFSET "   Scanlines > Offset⁴  (-with .. +without Jitter)" -0.1 -1.0 1.0 0.05
 
 // Mask parameters
 #pragma parameter MASK_INTENSITY "·  Mask > Intensity¹²³  (0-None .. 1-Full)" 0.5 0.0 1.0 0.05
@@ -54,7 +54,7 @@
 #pragma parameter NTSC_QUALITY "   NTSC > Chroma Phase  (1-Auto, 2-Two, 3-Three)" 2.0 1.0 3.0 1.0
 #pragma parameter NTSC_SHIFT "   NTSC > Chroma Shift  (-left .. +right)" 0.0 -1.0 1.0 0.1
 #pragma parameter NTSC_SCALE "   NTSC > Scale⁵  (-Down / 0-Auto / +Up)" 0.0 -0.5 0.5 0.05
-#pragma parameter NTSC_JITTER "   NTSC > Offset⁴  (-Merge / 0-Static / +Jitter)" 1.0 -1.0 2.0 0.1
+#pragma parameter NTSC_JITTER "   NTSC > Offset⁴  (-Merge / 0-Static / +Jitter)" 1.0 -1.0 1.0 0.1
 
 // CRT parameters
 #pragma parameter CRT_CURVATURE_AMOUNT "·  CRT > Curvature¹  (0-None .. 1-Full)" 0.0 0.0 1.0 0.05

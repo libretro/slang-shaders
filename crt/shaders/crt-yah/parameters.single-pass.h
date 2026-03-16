@@ -5,7 +5,6 @@
 #pragma parameter SCREEN_ORIENTATION "·  Screen > Orientation  (0-Auto, 1-Horizontal, 2-Vertical)" 0.0 0.0 2.0 1.0
 #pragma parameter SCREEN_RESOLUTION_SCALE "  ⁵Screen > Resolution  (0-Auto, 1-Native)" 0.0 0.0 1.0 1.0
 #pragma parameter SCREEN_SCALE "   Screen > Scale⁵  (-Down / 0-Auto / +Up)" 0.0 -2.0 2.0 0.05
-#pragma parameter SCREEN_FREQUENCY "  ⁴Screen > frequency  (30Hz, 60Hz)" 60.0 30.0 60.0 30.0
 
 // Color parameters
 #pragma parameter COLOR_PROFILE "·  Color > Profile¹  (-NTSC .. +Trinitron)" 0.0 -1.0 1.0 0.1
@@ -52,7 +51,6 @@
 #define PARAM_SCREEN_RESOLUTION_SCALE global.SCREEN_RESOLUTION_SCALE
 #define PARAM_SCREEN_ORIENTATION global.SCREEN_ORIENTATION
 #define PARAM_SCREEN_SCALE global.SCREEN_SCALE
-#define PARAM_SCREEN_FREQUENCY global.SCREEN_FREQUENCY
 
 float mix_master(float value, float off_value, float min_value, float max_value)
 {
