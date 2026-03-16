@@ -141,7 +141,7 @@ float get_brightness_offset(vec3 color)
         // 1st frame no offset
         0.0;
 
-    // less intence flicker for lower values
+    // less flicker for lower values
     brightness_offset *= normalized_sigmoid(PARAM_COLOR_BRIGHTNESS_FLICKER * 0.5, 0.5);
 
     return brightness_offset;
@@ -149,6 +149,7 @@ float get_brightness_offset(vec3 color)
 
 void main()
 {
+    // return is effect is disabled
     if (PARAM_COLOR_BRIGHTNESS_FLICKER == 0.0
         && PARAM_SCANLINES_OFFSET == 0.0)
     {

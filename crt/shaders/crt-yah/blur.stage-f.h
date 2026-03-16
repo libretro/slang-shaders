@@ -16,13 +16,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
-    if (DEBUG && TexCoord.x < 0.5)
-    {
-        FragColor = texture(Source, TexCoord);
-
-        return;
-    }
-
+    // return is effect is disabled
     if (PARAM_HALATION_INTENSITY == 0.0)
     {
         FragColor = texture(Source, TexCoord);

@@ -127,10 +127,8 @@ void main()
     vec2 tex_coord_curved = apply_cubic_lens_distortion(tex_coord);
     vec2 tex_coord_curved_sharpened = apply_sharp_bilinear_filtering(tex_coord_curved);
 
-    float raw_color_luma = get_raw_color_luminance(TextureSource, tex_coord_curved);
-
     vec3 raw_color_sharpened = get_raw_color(Source, tex_coord_curved_sharpened);
-    vec3 scanlines_color = get_scanlines_color(Source, tex_coord_curved, raw_color_luma);
+    vec3 scanlines_color = get_scanlines_color(Source, tex_coord_curved);
 
     vec3 color = blend_colors(raw_color_sharpened, scanlines_color);
     float color_luma = get_luminance(color);

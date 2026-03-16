@@ -107,6 +107,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
+    // return is effect is disabled
     if (PARAM_DECONVERGE_LINEAR == 0.0
         && PARAM_DECONVERGE_RADIAL == 0.0)
     {
