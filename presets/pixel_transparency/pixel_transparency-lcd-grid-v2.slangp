@@ -5,7 +5,7 @@ filter_linear0 = false
 scale_type0 = viewport
 scale0 = 1.0
 
-shader1 = ../../handheld/shaders/pixel_transparency.slang
+shader1 = ../../handheld/shaders/pixel_transparency/pixel_transparency.slang
 filter_linear1 = false
 scale_type1 = viewport
 
@@ -24,9 +24,6 @@ blacklevel = "0.000000"
 ambient = "0.000000"
 BGR = "0.000000"
 
-// Match v1.1 appearance
 PT_PALETTE = "1.0"
 PT_POLARIZER = "0.0"
 PT_HIGHLIGHTS = "0.0"
-PT_GLARE_ENABLE = "0.0"
-PT_RAINBOW_ENABLE = "0.0"

@@ -1,5 +1,9 @@
 shaders = 1
 
-shader0 = shaders/pixel_transparency.slang
+shader0 = shaders/pixel_transparency/pixel_transparency.slang
 filter_linear0 = false
 scale_type0 = viewport
+
+PT_PALETTE = "1.0"
+PT_POLARIZER = "0.0"
+PT_HIGHLIGHTS = "0.0"

@@ -8,7 +8,7 @@ shader1 = "../handheld/shaders/authentic_gbc/authentic_gbc_single_pass.slang"
 filter_linear1 = false
 scale_type1 = viewport
 
-shader2 = "../handheld/shaders/pixel_transparency.slang"
+shader2 = "../handheld/shaders/pixel_transparency/pixel_transparency.slang"
 filter_linear2 = true
 scale_type2 = viewport
 
@@ -19,11 +19,6 @@ float_framebuffer3 = true
 
 PT_SHADOW_OFFSET_X = 1.0
 PT_SHADOW_OFFSET_Y = 1.0
-PT_PALETTE = 1.0
-PT_POLARIZER = 0.0
-PT_HIGHLIGHTS = 0.0
-PT_GLARE_ENABLE = 0.0
-PT_RAINBOW_ENABLE = 0.0
 
 
 textures = "dirt"

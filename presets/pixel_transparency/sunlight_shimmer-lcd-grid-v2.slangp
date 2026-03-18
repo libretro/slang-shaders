@@ -5,7 +5,7 @@ filter_linear0 = false
 scale_type0 = viewport
 scale0 = 1.0
 
-shader1 = ../../handheld/shaders/pixel_transparency.slang
+shader1 = ../../handheld/shaders/pixel_transparency/sunlight_shimmer.slang
 filter_linear1 = false
 scale_type1 = viewport
 
