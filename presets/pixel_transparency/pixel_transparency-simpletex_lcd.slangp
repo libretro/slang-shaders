@@ -8,7 +8,7 @@ float_framebuffer0 = false
 srgb_framebuffer0 = false
 scale_type0 = viewport
 
-shader1 = ../../handheld/shaders/pixel_transparency.slang
+shader1 = ../../handheld/shaders/pixel_transparency/pixel_transparency.slang
 filter_linear1 = false
 scale_type1 = viewport
 
@@ -23,9 +23,6 @@ DARKEN_GRID = "0.0"
 DARKEN_COLOUR = "0.05"
 BACKGROUND_INTENSITY = "0.0"
 
-// Match v1.1 appearance
 PT_PALETTE = "1.0"
 PT_POLARIZER = "0.0"
 PT_HIGHLIGHTS = "0.0"
-PT_GLARE_ENABLE = "0.0"
-PT_RAINBOW_ENABLE = "0.0"

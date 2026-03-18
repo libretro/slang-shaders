@@ -1,5 +1,3 @@
-#version 450
-
 /*
   ____  _          _
  |  _ \(_)_  _____| |
@@ -10,146 +8,19 @@
    | || '__/ _` | '_ \/ __| '_ \ / _` | '__/ _ \ '_ \ / __| | | |
    | || | | (_| | | | \__ \ |_) | (_| | | |  __/ | | | (__| |_| |
    |_||_|  \__,_|_| |_|___/ .__/ \__,_|_|  \___|_| |_|\___|\__, |
-                          |_|     SUNLIGHT SHIMMER EDITION  |___/
-    v2.0 by mattakins
+                          |_|                BASE #INCLUDE  |___/
+    v2.1 by mattakins
     Copyright (C) 2025 Matt Akins.
 
-    Grid shaders look great on Game Boy Color games - except for one glaring issue.
+    Expects before #include:
 
-    With no backlight, the original devices didn't render white pixels. Light pixels
-    appeared as transparent areas where the backing material of the screen showed through.
-    Many games relied on this effect for transparent backgrounds that now render on modern
-    displays as eye-searing white pixels. No more! Pixel Transparency simulates this unique effect.
+    - #define PT_SHIMMER (sunlight_shimmer.slang only — enables light_pos varying)
+    - push_constant 'param' with shared members
+    - UBO 'global' with shared members
 
-    SUNLIGHT SHIMMER EDITION: Light and shadows move with your device!
-    Tilt your device and shadows shift with it. Glare sweeps across your screen. And just like the
-    Game Boy Color in sunlight, you see a brilliant rainbow shimmer in the background.
-
-    Just append to your favorite LCD shader as the last pass to reduce eye strain and maximize nostalgia.
+    Fragment main() is left OPEN — the including file must close it.
 
 */
-
-#pragma parameter PT_ENABLE 			"=== Pixel Transparency v2.0 - SUNLIGHT SHIMMER === (OFF/ON)" 1.0 0.0 1.0 1.0
-#pragma parameter PT_HIDE_CONTENT 		" *  Append to any LCD shader as last pass. Try with GBC & GBA." 0.0 0.0 2.0 1.0
-#pragma parameter NOTE2 				" *  Turn ON Core > Color Correction & Interframe Blending" 0.0 0.0 1.0 1.0
-
-#pragma parameter SECTION1 				"== COLOR ==" 0.0 0.0 1.0 1.0
-#pragma parameter PT_PALETTE 			"--- 1. Backing tint (0=OFF, 1/2=Warm, 3/4=Neutral)" 3.0 0.0 4.0 1.0
-#pragma parameter PT_PALETTE_INTENSITY 	"      ↳ Intensity" 1.0 0.0 2.0 0.05
-#pragma parameter PT_BACKING_BRIGHTNESS "      ↳ Brightness" 0.48 0.20 0.65 0.01
-
-#pragma parameter PT_POLARIZER 			"--- 2. Front polarizer tint (OFF/ON)" 1.0 0.0 1.0 1.0
-#pragma parameter PT_POLARIZER_TINT 	"      ↳ Intensity" 1.0 0.0 1.0 0.05
-
-#pragma parameter PT_SATURATION 		"--- 3. Color saturation" 1.0 0.5 1.5 0.05
-
-#pragma parameter PT_HIGHLIGHTS 		"--- 4. Pixel brightness (0=OFF, -Dim / +Bright)" 0.05 -1.0 1.0 0.01
-
-#pragma parameter SECTION2 				"== TRANSPARENCY ==" 0.0 0.0 1.0 1.0
-#pragma parameter PT_PIXEL_MODE 		"--- 5. Transparent pixels (0=White only, 1=Bright, 2=All)" 1.0 0.0 2.0 1.0
-#pragma parameter PT_BASE_ALPHA 		"      ↳ Transparency amount" 0.20 0.0 1.0 0.01
-
-#pragma parameter PT_THRESHOLD 			"--- 6. White pixel detection threshold" 0.90 0.0 1.0 0.01
-
-#pragma parameter PT_WHITE_BOOST 		"--- 7. Boost white pixel transparency (OFF/ON)" 0.0 0.0 1.0 1.0
-#pragma parameter PT_WHITE_TRANSPARENCY "      ↳ Boost amount" 0.50 0.0 1.0 0.01
-
-#pragma parameter PT_BRIGHTNESS_MODE 	"--- 8. Brightness mode (0=Simple, 1=Natural)" 1.0 0.0 1.0 1.0
-
-#pragma parameter PT_BRIGHTNESS_GRID 	"--- 9. Gridline intensity (0=Less, 1=More)" 0.0 0.0 1.0 0.05
-
-#pragma parameter SECTION3 				"== SUNLIGHT ==" 0.0 0.0 1.0 1.0
-#pragma parameter PT_GLARE_ENABLE 		"--- 10. Glare (OFF/ON)" 1.0 0.0 1.0 1.0
-#pragma parameter PT_GLARE_INTENSITY 	"      ↳ Strength" 0.15 0.0 1.0 0.05
-#pragma parameter PT_GLARE_SIZE			"      ↳ Spread" 0.25 0.05 1.0 0.05
-
-#pragma parameter PT_RAINBOW_ENABLE 	"--- 11. Rainbow shimmer (OFF/ON)" 1.0 0.0 1.0 1.0
-#pragma parameter PT_RAINBOW_INTENSITY 	"      ↳ Intensity" 0.25 0.0 1.0 0.05
-#pragma parameter PT_FILM_TUNING 		"      ↳ Color shift" 1.0 0.5 2.0 0.05
-#pragma parameter PT_LIGHT_SPREAD 		"      ↳ Band density" 1.8 0.5 4.0 0.1
-
-#pragma parameter PT_FILM_NOISE 		"       Film splotchiness" 0.5 0.0 1.0 0.05
-#pragma parameter PT_FILM_SCALE 		"          ↳ Splotch size" 0.6 0.1 3.0 0.05
-
-#pragma parameter PT_LIGHT_HEIGHT 		"       Light source distance (0=Flat, 1=Far)" 0.0 0.0 1.0 0.05
-#pragma parameter PT_LIGHT_RANGE 		"          ↳ Tilt range" 0.6 0.0 2.0 0.05
-#pragma parameter PT_LIGHT_X 			"          ↳ X" 0.5 -1.0 2.0 0.01
-#pragma parameter PT_LIGHT_Y 			"          ↳ Y" 0.5 -1.0 2.0 0.01
-
-#pragma parameter PT_SHADOW_ENABLE 		"== 12. SHADOWS == (OFF/ON)" 1.0 0.0 1.0 1.0
-#pragma parameter PT_SHADOW_MOTION 		"       Shadow motion (OFF/ON) " 1.0 0.0 1.0 1.0
-#pragma parameter PT_SHADOW_MAX_OFFSET	"          ↳ Max offset" 2.50 0.0 30.0 0.5
-#pragma parameter PT_SHADOW_MOTION_X 	"          ↳ Neutral X" 0.0 -30.0 30.0 0.5
-#pragma parameter PT_SHADOW_MOTION_Y 	"          ↳ Neutral Y" 2.0 -30.0 30.0 0.5
-
-#pragma parameter PT_SHADOW_OFFSET_X 	"      ↳ X offset" 3.0 -30.0 30.0 0.5
-#pragma parameter PT_SHADOW_OFFSET_Y 	"      ↳ Y offset" 3.0 -30.0 30.0 0.5
-
-#pragma parameter PT_SHADOW_OPACITY 	"      ↳ Opacity" 0.50 0.0 1.0 0.01
-#pragma parameter PT_SHADOW_BLUR 		"      ↳ Blur amount" 1.0 0.0 5.0 0.1
-
-#pragma parameter PT_ACCEL_ENABLE 		"== 13. MOTION == (OFF/ON)" 1.0 0.0 1.0 1.0
-#pragma parameter NOTE3 				" *  Motion enabled on latest RetroArch nightly build." 0.0 0.0 1.0 1.0
-#pragma parameter PT_ACCEL_RELATIVE 	"      ↳ Tilt neutral (0=Device flat, 1=From hold)" 0.0 0.0 1.0 1.0
-#pragma parameter PT_ACCEL_SENSITIVITY 	"      ↳ Tilt sensitivity" 1.0 0.1 5.0 0.05
-
-layout(push_constant) uniform Push {
-    vec4 SourceSize;
-    vec4 OutputSize;
-    // Vertex-stage parameters
-    float PT_ACCEL_ENABLE;
-    float PT_ACCEL_RELATIVE;
-    float PT_ACCEL_SENSITIVITY;
-    float PT_SHADOW_MOTION;
-    float PT_SHADOW_MAX_OFFSET;
-    float PT_SHADOW_MOTION_X;
-    float PT_SHADOW_MOTION_Y;
-    float PT_SHADOW_OFFSET_X;
-    float PT_SHADOW_OFFSET_Y;
-    // Both vertex and fragment stages
-    float PT_RAINBOW_ENABLE;
-    float PT_GLARE_ENABLE;
-    float PT_LIGHT_RANGE;
-    float PT_LIGHT_X;
-    float PT_LIGHT_Y;
-} param;
-
-layout(std140, set = 0, binding = 0) uniform UBO {
-    mat4 MVP;
-    #ifdef _HAS_SENSOR_UNIFORMS
-    vec3 Gyroscope;
-    vec3 Accelerometer;
-    vec3 AccelerometerRest;
-    #endif
-    // Fragment-stage parameters
-    float PT_ENABLE;
-    float PT_HIDE_CONTENT;
-    float PT_PALETTE;
-    float PT_PALETTE_INTENSITY;
-    float PT_BACKING_BRIGHTNESS;
-    float PT_POLARIZER;
-    float PT_POLARIZER_TINT;
-    float PT_SATURATION;
-    float PT_HIGHLIGHTS;
-    float PT_PIXEL_MODE;
-    float PT_BASE_ALPHA;
-    float PT_THRESHOLD;
-    float PT_WHITE_BOOST;
-    float PT_WHITE_TRANSPARENCY;
-    float PT_BRIGHTNESS_MODE;
-    float PT_BRIGHTNESS_GRID;
-    float PT_GLARE_INTENSITY;
-    float PT_GLARE_SIZE;
-    float PT_RAINBOW_INTENSITY;
-    float PT_FILM_TUNING;
-    float PT_FILM_NOISE;
-    float PT_FILM_SCALE;
-    float PT_LIGHT_HEIGHT;
-    float PT_LIGHT_SPREAD;
-    float PT_SHADOW_ENABLE;
-    float PT_SHADOW_OPACITY;
-    float PT_SHADOW_BLUR;
-} global;
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -158,7 +29,9 @@ layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec2 texel;
 layout(location = 2) out float shadow_scale_factor;
 layout(location = 3) out vec2 shadow_offset_raw;
+#ifdef PT_SHIMMER
 layout(location = 4) out vec2 light_pos;
+#endif
 
 // Extract tilt as a normalized 2D vector.
 // Returns values in -1 to 1 range. Returns vec2(0.0) if input is near-zero.
@@ -201,6 +74,7 @@ void main() {
     }
     #endif
 
+    #ifdef PT_SHIMMER
     // Light position: X/Y sets the fixed light position, motion adds tilt offset
     if (param.PT_RAINBOW_ENABLE > 0.5 || param.PT_GLARE_ENABLE > 0.5) {
         light_pos = vec2(param.PT_LIGHT_X, param.PT_LIGHT_Y);
@@ -210,6 +84,7 @@ void main() {
     } else {
         light_pos = vec2(0.5, 0.5);
     }
+    #endif
 
     // Shadow offset — motion centers on motion neutral X/Y, static uses offset X/Y
     if (param.PT_SHADOW_MOTION > 0.5 && param.PT_ACCEL_ENABLE > 0.5 && has_sensors) {
@@ -225,7 +100,9 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec2 texel;
 layout(location = 2) in float shadow_scale_factor;
 layout(location = 3) in vec2 shadow_offset_raw;
+#ifdef PT_SHIMMER
 layout(location = 4) in vec2 light_pos;
+#endif
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D Original;
@@ -244,7 +121,7 @@ float getGameBoyRGBSum(vec3 color) {
 }
 
 float getBrightness(vec3 color) {
-    if (global.PT_BRIGHTNESS_MODE < 0.5) {
+    if (param.PT_BRIGHTNESS_MODE < 0.5) {
         return getGameBoyRGBSum(color);
     } else {
         return getPerceptualBrightness(color);
@@ -276,6 +153,7 @@ float paperNoise(vec2 uv, float scale) {
     return n;
 }
 
+#ifdef PT_SHIMMER
 // Smooth interpolated noise — neighboring pixels blend smoothly between
 // hash values at grid corners. Produces broad, gradual spatial variation
 // matching real QWP film manufacturing thickness gradients.
@@ -304,7 +182,7 @@ float filmNoise(vec2 uv, float scale) {
     }
     return n;
 }
-
+#endif
 
 vec3 generateProceduralBackground(vec2 uv) {
     vec3 baseColor = vec3(global.PT_BACKING_BRIGHTNESS);
@@ -315,7 +193,7 @@ vec3 generateProceduralBackground(vec2 uv) {
     return baseColor + vec3(grainOffset);
 }
 
-
+#ifdef PT_SHIMMER
 // GBC Quarter-Wave Plate (QWP) chromatic dispersion model.
 // Computes the spectral reflectance tint caused by the rear circular polarizer's
 // QWP film. The film provides exact lambda/4 phase shift at its design wavelength
@@ -358,6 +236,7 @@ vec3 qwpSpectralTint(float gamma_eff) {
 
     return tint;
 }
+#endif
 
 void main() {
     vec4 lcd_color = texture(Source, vTexCoord);
@@ -365,7 +244,7 @@ void main() {
 
     vec4 output_color = lcd_color;
 
-    if (global.PT_ENABLE < 0.5) {
+    if (param.PT_ENABLE < 0.5) {
         FragColor = output_color;
         return;
     }
@@ -383,49 +262,67 @@ void main() {
         lcd_color.rgb *= max(1.0 + global.PT_HIGHLIGHTS * luma, 0.0);
     }
 
-    bool current_is_white = isWhitePixel(original_pixel, global.PT_THRESHOLD);
+    bool current_is_white = isWhitePixel(original_pixel, param.PT_THRESHOLD);
 
     vec4 background = vec4(generateProceduralBackground(vTexCoord), 1.0);
 
     // Drop shadows (suppressed in debug mode 2)
-    if (global.PT_SHADOW_ENABLE > 0.5 && global.PT_HIDE_CONTENT < 1.5) {
+    if (param.PT_SHADOW_ENABLE > 0.5 && global.PT_HIDE_CONTENT < 1.5) {
         vec2 shadow_offset = -shadow_offset_raw * shadow_scale_factor * texel;
 
-        float shadow_strength;
+        vec3 center_source = texture(Original, vTexCoord + shadow_offset).rgb;
+        float shadow_strength = 0.0;
 
-        if (global.PT_SHADOW_BLUR > 0.1) {
-            vec2 blur_dist = global.PT_SHADOW_BLUR * shadow_scale_factor * texel;
+        if (param.PT_SHADOW_BLUR > 0.1) {
+            vec2 blur_dist = param.PT_SHADOW_BLUR * shadow_scale_factor * texel;
             float blurred_shadow = 0.0;
 
-            // 3x3 grid with Gaussian weights: center=4, edge=2, corner=1 (total=16)
-            vec2 sample_offsets[9] = vec2[](
-                    vec2(0.0, 0.0),
-                    vec2(-1.0, 0.0),
-                    vec2(1.0, 0.0),
-                    vec2(0.0, -1.0),
-                    vec2(0.0, 1.0),
-                    vec2(-1.0, -1.0),
-                    vec2(1.0, -1.0),
-                    vec2(-1.0, 1.0),
-                    vec2(1.0, 1.0)
-                );
-            for (int i = 0; i < 9; i++) {
-                vec2 sample_pos = vTexCoord + shadow_offset + (sample_offsets[i] * blur_dist);
-                vec3 blur_sample = texture(Original, sample_pos).rgb;
-                float w = (i == 0) ? 4.0 : (i < 5 ? 2.0 : 1.0);
-                float blur_brightness = getBrightness(blur_sample);
-                blurred_shadow += (1.0 - blur_brightness) * w;
+            if (param.PT_SHADOW_FAST_BLUR < 0.5) {
+                // 5-tap cross with Gaussian weights: center=4, cardinal=2 (total=12)
+                vec2 sample_offsets[5] = vec2[](
+                        vec2(0.0, 0.0),
+                        vec2(-1.0, 0.0),
+                        vec2(1.0, 0.0),
+                        vec2(0.0, -1.0),
+                        vec2(0.0, 1.0)
+                    );
+                for (int i = 0; i < 5; i++) {
+                    vec2 sample_pos = vTexCoord + shadow_offset + (sample_offsets[i] * blur_dist);
+                    vec3 blur_sample = texture(Original, sample_pos).rgb;
+                    float w = (i == 0) ? 4.0 : 2.0;
+                    float blur_brightness = getBrightness(blur_sample);
+                    blurred_shadow += (1.0 - blur_brightness) * w;
+                }
+                shadow_strength = (blurred_shadow / 12.0) * param.PT_SHADOW_OPACITY;
+            } else {
+                // Full 3x3 grid with Gaussian weights: center=4, edge=2, corner=1 (total=16)
+                vec2 sample_offsets[9] = vec2[](
+                        vec2(0.0, 0.0),
+                        vec2(-1.0, 0.0),
+                        vec2(1.0, 0.0),
+                        vec2(0.0, -1.0),
+                        vec2(0.0, 1.0),
+                        vec2(-1.0, -1.0),
+                        vec2(1.0, -1.0),
+                        vec2(-1.0, 1.0),
+                        vec2(1.0, 1.0)
+                    );
+                for (int i = 0; i < 9; i++) {
+                    vec2 sample_pos = vTexCoord + shadow_offset + (sample_offsets[i] * blur_dist);
+                    vec3 blur_sample = texture(Original, sample_pos).rgb;
+                    float w = (i == 0) ? 4.0 : (i < 5 ? 2.0 : 1.0);
+                    float blur_brightness = getBrightness(blur_sample);
+                    blurred_shadow += (1.0 - blur_brightness) * w;
+                }
+                shadow_strength = (blurred_shadow / 16.0) * param.PT_SHADOW_OPACITY;
             }
-
-            shadow_strength = (blurred_shadow / 16.0) * global.PT_SHADOW_OPACITY;
         } else {
-            vec3 shadow_source = texture(Original, vTexCoord + shadow_offset).rgb;
-            float shadow_source_brightness = getBrightness(shadow_source);
-            shadow_strength = (1.0 - shadow_source_brightness) * global.PT_SHADOW_OPACITY;
+            float shadow_source_brightness = getBrightness(center_source);
+            shadow_strength = (1.0 - shadow_source_brightness) * param.PT_SHADOW_OPACITY;
         }
 
         // Deadzone — suppress faint shadows from near-white pixels
-        float deadzone = (1.0 - global.PT_THRESHOLD) * global.PT_SHADOW_OPACITY;
+        float deadzone = (1.0 - param.PT_THRESHOLD) * param.PT_SHADOW_OPACITY;
         if (deadzone > 0.001) {
             shadow_strength = smoothstep(0.0, deadzone, shadow_strength) * shadow_strength;
         }
@@ -476,10 +373,9 @@ void main() {
         }
     }
 
-    if (global.PT_PIXEL_MODE > 0.5 && global.PT_PIXEL_MODE < 1.5) {
+    if (param.PT_PIXEL_MODE > 0.5 && param.PT_PIXEL_MODE < 1.5) {
         float pixel_intensity = getBrightness(brightness_source);
-        // 2.665 scales to match mode 0/2 transparency at full white (1.0/3 + 0.20 = 0.533)
-        float transparency = (global.PT_BASE_ALPHA * pixel_intensity) * 2.665;
+        float transparency = (param.PT_BASE_ALPHA * pixel_intensity) * 2.665;
 
         if (current_is_white && global.PT_WHITE_BOOST > 0.5) {
             transparency = max(transparency, global.PT_WHITE_TRANSPARENCY);
@@ -487,11 +383,11 @@ void main() {
         transparency = clamp(transparency, 0.0, 1.0);
         output_color.rgb = mix(lcd_color.rgb, background.rgb, transparency);
     } else {
-        bool should_apply = (global.PT_PIXEL_MODE < 0.5) ? current_is_white : true;
+        bool should_apply = (param.PT_PIXEL_MODE < 0.5) ? current_is_white : true;
 
         if (should_apply) {
             float pixel_intensity = getBrightness(brightness_source);
-            float pixel_alpha = (pixel_intensity / 3.0) + global.PT_BASE_ALPHA;
+            float pixel_alpha = (pixel_intensity / 3.0) + param.PT_BASE_ALPHA;
 
             if (current_is_white && global.PT_WHITE_BOOST > 0.5) {
                 pixel_alpha = max(pixel_alpha, global.PT_WHITE_TRANSPARENCY);
@@ -500,6 +396,8 @@ void main() {
             output_color.rgb = mix(lcd_color.rgb, background.rgb, pixel_alpha);
         }
     }
+
+    // === Shared post-compositing ===
 
     // === Polarizer Tint ===
     // Iodine-PVA front polarizer — double-pass (0.94, 1.0, 0.865) for reflective display.
@@ -516,15 +414,15 @@ void main() {
         output_color.rgb = clamp(output_color.rgb * (1.0 + global.PT_HIGHLIGHTS * luma), 0.0, 1.0);
     }
 
-    // === Saturation ===
+    // Saturation
     if (abs(global.PT_SATURATION - 1.0) > 0.001) {
         float luma = getPerceptualBrightness(output_color.rgb);
         output_color.rgb = clamp(mix(vec3(luma), output_color.rgb, global.PT_SATURATION), 0.0, 1.0);
     }
 
-    // === Sunlight Rainbow & Specular Glare ===
-    // Light-source effects modulated by pixel brightness and color.
-    {
+    // === Sunlight Rainbow & Specular Glare (shimmer only) ===
+#ifdef PT_SHIMMER
+    if (param.PT_RAINBOW_ENABLE > 0.5 || param.PT_GLARE_ENABLE > 0.5) {
         float aspect_ratio = param.OutputSize.x / param.OutputSize.y;
         vec2 to_light = (vTexCoord - light_pos) * vec2(aspect_ratio, 1.0);
         float dist_xy = length(to_light);
@@ -536,11 +434,11 @@ void main() {
 
             float gamma_0 = GAMMA_BASE * global.PT_FILM_TUNING;
 
-            // Angle of incidence: height=0 uses flat 2D distance (v1.4 behavior),
+            // Angle of incidence: height=0 uses flat 2D distance,
             // height>0 uses 3D atan model (physically correct light source geometry)
             float angle_incidence;
             if (global.PT_LIGHT_HEIGHT < 0.01) {
-                angle_incidence = dist_xy * global.PT_LIGHT_SPREAD; // Flat — matches v1.4
+                angle_incidence = dist_xy * global.PT_LIGHT_SPREAD; // Flat
             } else {
                 angle_incidence = atan(dist_xy, global.PT_LIGHT_HEIGHT) * global.PT_LIGHT_SPREAD;
             }
@@ -591,9 +489,9 @@ void main() {
             output_color.rgb = mix(output_color.rgb, vec3(1.0), clamp(glare_strength, 0.0, 0.85));
         }
     }
+#endif
 
     // Anti-banding dither — breaks up 8-bit quantization artifacts in smooth gradients
     output_color.rgb += (hash(gl_FragCoord.xy) - 0.5) / 255.0;
 
-    FragColor = output_color;
-}
+    // output_color is ready — main() continues in including file
