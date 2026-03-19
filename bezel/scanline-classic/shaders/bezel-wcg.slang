@@ -28,4 +28,9 @@
 #define WIDE_COLOR
 #define WCG
 
+#define COLOR_SPACE_TO_XYZ (GAMUT_SELECT < 0.5 ? BT2020_TO_XYZ : DCIP3_TO_XYZ)
+#define XYZ_TO_COLOR_SPACE (GAMUT_SELECT < 0.5 ? XYZ_TO_BT2020 : XYZ_TO_DCIP3)
+
+#pragma parameter GAMUT_SELECT "Output gamut (BT.2020, DCI-P3)" 0.0 0.0 1.0 1.0
+
 #include "bezel-base.slang"

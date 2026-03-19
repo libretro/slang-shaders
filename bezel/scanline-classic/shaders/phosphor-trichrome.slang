@@ -32,7 +32,6 @@
 layout(push_constant) uniform Push
 {
     float OriginalFPS;
-    uint CurrentSubFrame;
     uint TotalSubFrames;
     float PHOSPHOR_BYPASS;
     float PHOSPHOR_MANTISSA_R;
@@ -49,7 +48,6 @@ layout(push_constant) uniform Push
 #define PHOSPHOR_BYPASS config.PHOSPHOR_BYPASS
 
 // Subframe support
-#define CURRENT_SUBFRAME config.CurrentSubFrame
 #define TOTAL_SUBFRAMES config.TotalSubFrames
 
 #define PHOSPHOR_MANTISSA_R config.PHOSPHOR_MANTISSA_R

@@ -49,6 +49,9 @@ layout(push_constant) uniform Push
 #ifdef SDR
     float GAMUT_COMPRESSION;
 #endif
+#ifdef WCG
+    float GAMUT_SELECT;
+#endif
     float COLOR_CONVERSION_BYPASS;
     float COLORIMETRY_PRESET;
     float TONEMAP_TYPE;
@@ -74,6 +77,10 @@ layout(push_constant) uniform Push
 
 #ifdef SDR
 #define GAMUT_COMPRESSION config.GAMUT_COMPRESSION
+#endif
+
+#ifdef WCG
+#define GAMUT_SELECT config.GAMUT_SELECT
 #endif
 
 #define TONEMAP_TYPE config.TONEMAP_TYPE
@@ -226,6 +233,52 @@ float scale_chroma_cieluv(vec3 color, vec3 luv, mat3 toRGB)
     return 1.0;
 }
 
+float scale_luminance_ipt(vec3 color, vec3 ipt, mat3 toRGB)
+{
+    if (any(greaterThan(color, vec3(1.0)))) {
+        float minScale = 0.0;
+        float maxScale = 1.0;
+        float scale = 1.0;
+        for (int i = 0; i < 9; ++i) {
+            float testI = ipt.x * scale;
+            vec3 testRGB = toRGB * IPT_to_XYZ(vec3(testI, ipt.y, ipt.z));
+            if (all(lessThanEqual(testRGB, vec3(1.0)))) {
+                minScale = scale;
+            } else {
+                maxScale = scale;
+            }
+            scale = 0.5 * (minScale + maxScale);
+            if (maxScale - minScale < THRESHOLD)
+                break;
+        }
+        return minScale;
+    }
+    return 1.0;
+}
+
+float scale_chroma_ipt(vec3 color, vec3 ipt, mat3 toRGB)
+{
+    if (any(lessThan(color, vec3(0.0)))) {
+        float minScale = 0.0;
+        float maxScale = 1.0;
+        float scale = 1.0;
+        for (int i = 0; i < 9; ++i) {
+            vec3 testIpt = vec3(ipt.x, ipt.yz * scale);
+            vec3 testRGB = toRGB * IPT_to_XYZ(testIpt);
+            if (all(greaterThanEqual(testRGB, vec3(0.0)))) {
+                minScale = scale;
+            } else {
+                maxScale = scale;
+            }
+            scale = 0.5 * (minScale + maxScale);
+            if (maxScale - minScale < THRESHOLD)
+                break;
+        }
+        return minScale;
+    }
+    return 1.0;
+}
+
 // -- Uncharted 2 tone mapping functions -- //
 // Partial tone map (filmic curve)
 float uncharted2_tonemap_partial(float x)
@@ -264,9 +317,10 @@ layout(location = 1) out float white_level;
 layout(location = 2) out float max_luma_weight;
 layout(location = 3) out vec3 ref_XYZ;
 layout(location = 4) out vec2 luv_scale;
-layout(location = 5) out mat3 cat_transform;
-layout(location = 8) out BradfordParams bradford_params;
-layout(location = 12) out Colorimetry colorimetry;
+layout(location = 5) out vec2 ipt_scale;
+layout(location = 6) out mat3 cat_transform;
+layout(location = 9) out BradfordParams bradford_params;
+layout(location = 13) out Colorimetry colorimetry;
 #endif
 
 void main()
@@ -372,6 +426,7 @@ void main()
     // Precompute Luv scale factors for advanced gamut compression
     // Apply chromatic adaptation to primary XYZ values for output gamut testing
     luv_scale = vec2(0.0);
+    ipt_scale = vec2(0.0);
     
     if (GAMUT_COMPRESSION > 1.5) {
         vec3 white_XYZ = RGB_to_XYZ_local * WHITE;
@@ -398,25 +453,45 @@ void main()
         vec3 green_out = XYZ_TO_COLOR_SPACE * green_XYZ;
         vec3 blue_out = XYZ_TO_COLOR_SPACE * blue_XYZ;
 
-        vec3 white_luv = XYZ_to_CIE_LUV(white_XYZ);
-        vec3 red_luv = XYZ_to_CIE_LUV(red_XYZ);
-        vec3 green_luv = XYZ_to_CIE_LUV(green_XYZ);
-        vec3 blue_luv = XYZ_to_CIE_LUV(blue_XYZ);
+        if (GAMUT_COMPRESSION < 2.5) {
+            vec3 white_luv = XYZ_to_CIE_LUV(white_XYZ);
+            vec3 red_luv = XYZ_to_CIE_LUV(red_XYZ);
+            vec3 green_luv = XYZ_to_CIE_LUV(green_XYZ);
+            vec3 blue_luv = XYZ_to_CIE_LUV(blue_XYZ);
 
-        // Determine luminance pre-scale
-        float y_scale = scale_luminance_cieluv(white_out, white_luv, XYZ_TO_COLOR_SPACE);
+            // Determine luminance pre-scale
+            float y_scale = scale_luminance_cieluv(white_out, white_luv, XYZ_TO_COLOR_SPACE);
 
-        red_luv.x *= y_scale;
-        green_luv.x *= y_scale;
-        blue_luv.x *= y_scale;
+            red_luv.x *= y_scale;
+            green_luv.x *= y_scale;
+            blue_luv.x *= y_scale;
 
-        // Determine chroma pre-scale
-        float red_c_scale = scale_chroma_cieluv(red_out, red_luv, XYZ_TO_COLOR_SPACE);
-        float green_c_scale = scale_chroma_cieluv(green_out, green_luv, XYZ_TO_COLOR_SPACE);
-        float blue_c_scale = scale_chroma_cieluv(blue_out, blue_luv, XYZ_TO_COLOR_SPACE);
-        float c_scale = min(min(red_c_scale, green_c_scale), blue_c_scale);
+            // Determine chroma pre-scale
+            float red_c_scale = scale_chroma_cieluv(red_out, red_luv, XYZ_TO_COLOR_SPACE);
+            float green_c_scale = scale_chroma_cieluv(green_out, green_luv, XYZ_TO_COLOR_SPACE);
+            float blue_c_scale = scale_chroma_cieluv(blue_out, blue_luv, XYZ_TO_COLOR_SPACE);
+            float c_scale = min(min(red_c_scale, green_c_scale), blue_c_scale);
 
-        luv_scale = vec2(y_scale, c_scale);
+            luv_scale = vec2(y_scale, c_scale);
+        } else {
+            vec3 white_ipt = XYZ_to_IPT(white_XYZ);
+            vec3 red_ipt = XYZ_to_IPT(red_XYZ);
+            vec3 green_ipt = XYZ_to_IPT(green_XYZ);
+            vec3 blue_ipt = XYZ_to_IPT(blue_XYZ);
+
+            float y_scale = scale_luminance_ipt(white_out, white_ipt, XYZ_TO_COLOR_SPACE);
+
+            red_ipt.x *= y_scale;
+            green_ipt.x *= y_scale;
+            blue_ipt.x *= y_scale;
+
+            float red_c_scale = scale_chroma_ipt(red_out, red_ipt, XYZ_TO_COLOR_SPACE);
+            float green_c_scale = scale_chroma_ipt(green_out, green_ipt, XYZ_TO_COLOR_SPACE);
+            float blue_c_scale = scale_chroma_ipt(blue_out, blue_ipt, XYZ_TO_COLOR_SPACE);
+            float c_scale = min(min(red_c_scale, green_c_scale), blue_c_scale);
+
+            ipt_scale = vec2(y_scale, c_scale);
+        }
     }
 #endif
 }
@@ -437,9 +512,10 @@ layout(location = 1) in float white_level;
 layout(location = 2) in float max_luma_weight;
 layout(location = 3) in vec3 ref_XYZ;
 layout(location = 4) in vec2 luv_scale;
-layout(location = 5) in mat3 cat_transform;
-layout(location = 8) in BradfordParams bradford_params;
-layout(location = 12) in Colorimetry colorimetry;
+layout(location = 5) in vec2 ipt_scale;
+layout(location = 6) in mat3 cat_transform;
+layout(location = 9) in BradfordParams bradford_params;
+layout(location = 13) in Colorimetry colorimetry;
 #endif
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 1) uniform sampler2D Source;
@@ -635,12 +711,18 @@ void main()
         // Take advantage of intermediate for advanced compression
         if (GAMUT_COMPRESSION < 1.5) {
             // Handle later
-        } else {
+        } else if (GAMUT_COMPRESSION < 2.5) {
             vec3 Luv = XYZ_to_CIE_LUV(XYZ);
 
             Luv.x *= luv_scale.x;
             Luv.yz *= luv_scale.y;
             XYZ = CIE_LUV_to_XYZ(Luv);
+        } else {
+            vec3 Ipt = XYZ_to_IPT(XYZ);
+
+            Ipt.x *= ipt_scale.x;
+            Ipt.yz *= ipt_scale.y;
+            XYZ = IPT_to_XYZ(Ipt);
         }
 #endif
         RGB = toRGB * XYZ;

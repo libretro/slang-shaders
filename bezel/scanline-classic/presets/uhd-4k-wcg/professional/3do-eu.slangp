@@ -102,10 +102,14 @@ scale17 = 1.0
 
 shader18 = ..\..\..\shaders\bezel-wcg.slang
 filter_linear18 = true
-scale18 = 1.0
 mipmap_input18 = true
+scale18 = 1.0
 
-textures = BORDER
+textures = "BORDER"
+BORDER_linear = true
+BORDER_wrap_mode = clamp_to_edge
+BORDER_mipmap = true
+
 
 ENCODER_SETUP = 0.0
 UPSAMPLER_INPUT = 1.0
@@ -125,7 +129,6 @@ COLORIMETRY_PRESET = 3.0
 COLOR_FILTER_MODE = 0.0
 BORDER = ..\..\..\share\bezel-trinitron.jpg
 MASK_TYPE = 0.0
-MASK_DIFFUSION = 2.0
 MAGNETIC_CORRECTION = 30.0
 DEFLECTION_ANGLE = 90.0
 SCREEN_ANGLE_H = 25.0

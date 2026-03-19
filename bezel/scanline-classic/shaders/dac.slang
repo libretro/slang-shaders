@@ -42,6 +42,8 @@ layout(push_constant) uniform Push
     vec4 SourceSize;
     vec4 OutputSize;
     uint FrameCount;
+    uint CurrentSubFrame;
+    uint TotalSubFrames;
     float DAC_BYPASS;
     float WORKING_BITS;
     float DAC_BITS;
@@ -54,6 +56,7 @@ layout(push_constant) uniform Push
     float SYS_GAIN_Y;
     float SYS_GAIN_U;
     float SYS_GAIN_V;
+    float DEBUG_DITHER;
 } config;
 
 #define DAC_BYPASS config.DAC_BYPASS
@@ -68,6 +71,7 @@ layout(push_constant) uniform Push
 #define SYS_GAIN_Y config.SYS_GAIN_Y
 #define SYS_GAIN_U config.SYS_GAIN_U
 #define SYS_GAIN_V config.SYS_GAIN_V
+#define DEBUG_DITHER config.DEBUG_DITHER
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -127,16 +131,24 @@ void main()
         // Apply dithering before quantization
         if (DITHER > 0.5) {
             vec2 screen_coord = vTexCoord.xy * config.OutputSize.xy;
-            ycbcr = apply_dither(ycbcr, working_bits, bits, screen_coord, config.FrameCount);
+            uint frame;
+            if (config.TotalSubFrames > 1u) {
+                frame = (config.FrameCount << 4) + (config.CurrentSubFrame << 4) / config.TotalSubFrames;
+            } else {
+                frame = config.FrameCount;
+            }
+            ycbcr = apply_dither(ycbcr, working_bits, bits, screen_coord, frame);
         }
 
         // Quantize to output bit depth
-        if (bits < 7) {
+        if (bits == 6) {
             ycbcr = quantize_6bit(ycbcr);
-        } else if (bits < 9) {
+        } else if (bits == 8) {
             ycbcr = quantize_8bit(ycbcr);
-        } else {
+        } else if (bits == 10) {
             ycbcr = quantize_10bit(ycbcr);
+        } else {
+            ycbcr = quantize(ycbcr, bits);
         }
 
         // Restore full-range PbPr from limited range
@@ -155,8 +167,14 @@ void main()
     // Apply dithering before quantization
     if (DITHER > 0.5) {
         vec2 screen_coord = vTexCoord.xy * config.OutputSize.xy;
-        y = apply_dither(y, working_bits, bits, screen_coord, config.FrameCount);
-        c = apply_dither(c, working_bits, bits, screen_coord + vec2(0.5, 0.5), config.FrameCount);
+        uint frame;
+        if (config.TotalSubFrames > 1u) {
+            frame = (config.FrameCount << 4) + (config.CurrentSubFrame << 4) / config.TotalSubFrames;
+        } else {
+            frame = config.FrameCount;
+        }
+        y = apply_dither(y, working_bits, bits, screen_coord, frame);
+        c = apply_dither(c, working_bits, bits, screen_coord + vec2(0.5, 0.5), frame);
     }
 
     // Quantize to output bit depth

@@ -286,30 +286,20 @@ float compute_field_phase(
     bool is_interlaced, float pixel_time, float original_width,
     float shorten_odd_field_time)
 {
-    float field_time = 1.0 / v_freq;
-    float phase = field_time * field * 2.0 * PI * sc_freq_hz;
+    // Derive field phase from discrete carrier cycles per line/field.
+    // This avoids long-term drift caused by reciprocal frequency accumulation.
+    float cycles_per_line = sc_freq_hz / h_freq_hz;
+    float cycles_per_field = v_lines_per_field * cycles_per_line;
 
-    // Apply odd-field timing adjustment based on standard and scan type
-    float odd_field_adjust = 0.0;
-    if (shorten_odd_field_time > 0.5) {
-        float odd_time_adjust = original_width / 256.0 * pixel_time;
+    // Convert odd-field timing adjustment (seconds) into carrier cycles.
+    float odd_field_adjust = compute_odd_field_time_adjustment(
+        field, shorten_odd_field_time,
+        pixel_time, original_width,
+        is_ntsc, is_interlaced);
+    float odd_cycles = odd_field_adjust * sc_freq_hz;
 
-        if (is_ntsc) {
-            // NTSC: Apply shortening only for progressive scan
-            if (!is_interlaced) {
-                odd_field_adjust = -odd_time_adjust;
-            }
-        } else {
-            // PAL: Different behavior based on scan type
-            if (is_interlaced) {
-                // Interlaced PAL: lengthen odd field
-                odd_field_adjust = odd_time_adjust;
-            }
-        }
-    }
-
-    phase += ceil(field / 2.0) * odd_field_adjust * 2.0 * PI * sc_freq_hz;
-    return mod(phase, 2.0 * PI) - PI;
+    float phase_cycles = fract(field * cycles_per_field + odd_cycles);
+    return normalize_phase(2.0 * PI * phase_cycles);
 }
 
 // ============================================================================

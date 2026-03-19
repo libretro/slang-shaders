@@ -104,10 +104,14 @@ scale17 = 1.0
 
 shader18 = ..\..\..\shaders\bezel-hdr.slang
 filter_linear18 = true
-scale18 = 1.0
 mipmap_input18 = true
+scale18 = 1.0
 
-textures = BORDER
+textures = "BORDER"
+BORDER_linear = true
+BORDER_wrap_mode = clamp_to_edge
+BORDER_mipmap = true
+
 
 ENCODER_SETUP = 0.0
 UPSAMPLER_INPUT = 1.0
@@ -124,7 +128,6 @@ DECODER_SETUP = 0.0
 COLORIMETRY_PRESET = 4.0
 BORDER = ..\..\..\share\bezel-hd.jpg
 MASK_TYPE = 0.0
-MASK_DIFFUSION = "3.0"
 MAGNETIC_CORRECTION = 30.0
 DEFLECTION_ANGLE = 110.0
 SCREEN_ANGLE_H = 0.0
@@ -142,5 +145,5 @@ BEZEL_GAIN = -12.0
 GLOW_WEIGHT = 0.95
 GLOW_RADIUS = 0.04
 DOUBLE_REFRESH = 1.0
-TVL = 800.0
+TVL = "640.0"
 SCANLINE_BLANK_WEIGHT = 80.0

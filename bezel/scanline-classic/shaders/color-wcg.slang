@@ -24,6 +24,9 @@
 #pragma format R16G16B16A16_SFLOAT
 
 #define WIDE_COLOR
-#define XYZ_TO_COLOR_SPACE XYZ_TO_BT2020
+#define WCG
+#define XYZ_TO_COLOR_SPACE (GAMUT_SELECT < 0.5 ? XYZ_TO_BT2020 : XYZ_TO_DCIP3)
+
+#pragma parameter GAMUT_SELECT "Output gamut (BT.2020, DCI-P3)" 0.0 0.0 1.0 1.0
 
 #include "color-base.slang"

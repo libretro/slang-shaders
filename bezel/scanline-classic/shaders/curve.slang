@@ -160,7 +160,8 @@ void main()
 
     // --- Debug: Show surround outside barrel ---
     if (DEBUG_BARREL_SURROUND > 0.5 && (tex.x < 0.0 || tex.x > 1.0 || tex.y < 0.0 || tex.y > 1.0)) {
-        FragColor = vec4(0.0, 0.0, 0.5, 1.0); // Blue
+        float alpha = texture(Source, clamp01(tex)).a;
+        FragColor = vec4(0.0, 0.0, 0.5, alpha); // Blue
         return;
     }
     // ------------------------------------------
@@ -176,7 +177,7 @@ void main()
     if (CURVE_FILTER < 0.5) {
         color = texture(Source, tex).rgb;
     } else {
-        color = sample_bicubic(Source, tex, 1.0 / config.SourceSize.xy, B, C);
+        color = sample_bicubic(Source, tex, config.SourceSize.zw, B, C);
     }
 
     if (CURVE_DEBUG_OUT_OF_RANGE > 0.5) {

@@ -69,6 +69,11 @@ mat3 sRGB_TO_XYZ = mat3(
     0.3576, 0.7152, 0.1192,
     0.1805, 0.0722, 0.9505);
 
+mat3 DCIP3_TO_XYZ = mat3(
+    0.4866, 0.2290, 0.0000,
+    0.2657, 0.6917, 0.0451,
+    0.1982, 0.0793, 1.0439);
+
 mat3 NTSC_TO_XYZ = mat3(
     0.607, 0.299, 0.000,
     0.173, 0.586, 0.066,
@@ -205,6 +210,49 @@ vec3 CIE_LUV_to_XYZ(vec3 LUV) {
     float Z = Y * (12.0 - 3.0 * u - 20.0 * v) / (4.0 * v);
 
     return vec3(X, Y, Z);
+}
+
+// --- IPT conversion helpers --- //
+
+const float IPT_GAMMA = 0.43;
+
+const mat3 IPT_XYZ_TO_LMS = mat3(
+    0.4002, -0.2280, 0.0,
+    0.7075,  1.1500, 0.0,
+   -0.0807,  0.0612, 0.9184);
+
+const mat3 IPT_LMS_TO_XYZ = mat3(
+    1.8502,  0.3668, 0.0,
+   -1.1383,  0.6439, 0.0,
+    0.2384, -0.0107, 1.0889);
+
+const mat3 IPT_LMS_TO_IPT = mat3(
+    0.4000,  4.4550,  0.8056,
+    0.4000, -4.8510,  0.3572,
+    0.2000,  0.3960, -1.1628);
+
+const mat3 IPT_IPT_TO_LMS = mat3(
+    1.0,  1.0,  1.0,
+    0.0975689, -0.11388, 0.0326151,
+    0.205226,  0.133217, -0.67689);
+
+vec3 ipt_signed_pow(vec3 v, float p)
+{
+    return sign(v) * pow(abs(v), vec3(p));
+}
+
+vec3 XYZ_to_IPT(vec3 XYZ)
+{
+    vec3 lms = IPT_XYZ_TO_LMS * XYZ;
+    vec3 lms_p = ipt_signed_pow(lms, IPT_GAMMA);
+    return IPT_LMS_TO_IPT * lms_p;
+}
+
+vec3 IPT_to_XYZ(vec3 IPT)
+{
+    vec3 lms_p = IPT_IPT_TO_LMS * IPT;
+    vec3 lms = ipt_signed_pow(lms_p, 1.0 / IPT_GAMMA);
+    return IPT_LMS_TO_XYZ * lms;
 }
 
 mat3 ParkerCCorrection = mat3(

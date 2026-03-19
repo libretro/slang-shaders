@@ -1,1 +1,1 @@
-#pragma parameter GAMUT_COMPRESSION "Gamut mapping (off, basic, advanced)" 2.0 0.0 2.0 1.0
+#pragma parameter GAMUT_COMPRESSION "Gamut mapping (off, basic, Luv, IPT)" 2.0 0.0 3.0 1.0

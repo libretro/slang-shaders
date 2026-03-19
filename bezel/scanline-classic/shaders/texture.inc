@@ -3,7 +3,7 @@
 #ifndef TEXTURE_INC
 #define TEXTURE_INC
 
-#define clamp01(uv) clamp((uv), 0.0, 1.0)
+#define clamp01(uv) clamp((uv), 0.0, 1.0 - EPS)
 
 float bicubic(const float x, const float B, const float C)
 {
