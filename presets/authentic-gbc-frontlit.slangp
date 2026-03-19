@@ -1,24 +1,32 @@
-shaders = "4"
+shaders = "5"
 
 shader0 = "../motionblur/shaders/feedback.slang"
 filter_linear0 = false
 
 #shader1 = "../shaders/lcd-cgwg/lcd-grid-v2.slang"
-shader1 = "../handheld/shaders/authentic_gbc/authentic_gbc_single_pass.slang"
+shader1 = ../handheld/shaders/authentic_gbc/to_lin_fast.slang
 filter_linear1 = false
-scale_type1 = viewport
+scale_type1 = source
+srgb_framebuffer1 = true
 
-shader2 = "../handheld/shaders/pixel_transparency/pixel_transparency.slang"
-filter_linear2 = true
+shader2 = ../handheld/shaders/authentic_gbc/authentic_gbc_fast.slang
+filter_linear2 = false
 scale_type2 = viewport
 
-shader3 = "../handheld/shaders/frontlit-reflective.slang"
+shader3 = "../handheld/shaders/pixel_transparency/pixel_transparency.slang"
 filter_linear3 = true
 scale_type3 = viewport
-float_framebuffer3 = true
+
+shader4 = "../handheld/shaders/frontlit-reflective.slang"
+filter_linear4 = true
+scale_type4 = viewport
+float_framebuffer4 = true
 
 PT_SHADOW_OFFSET_X = 1.0
 PT_SHADOW_OFFSET_Y = 1.0
+PT_PALETTE = 1.0
+PT_POLARIZER = 0.0
+PT_HIGHLIGHTS = 0.0
 
 
 textures = "dirt"
