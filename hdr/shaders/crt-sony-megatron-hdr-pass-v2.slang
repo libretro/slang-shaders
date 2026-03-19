@@ -30,10 +30,8 @@ THIS SHADER DOES NOT SUPPORT WRGB OLED (Due to the sub pixel layout of WRGB - RG
 layout(push_constant) uniform Push
 {
    // User Settings
-   float hcrt_hdr;
-   float hcrt_max_nits;
-   float hcrt_paper_white_nits;
    float hcrt_colour_space;
+   float hcrt_max_nits;
 	
    float hcrt_r709_gamma_out;
    float hcrt_srgb_gamma_out;
@@ -51,15 +49,14 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	vec4 OutputSize;
 	uint FrameCount;	
 	uint HDRMode;
-	float PaperWhiteNits;
-	float MaxNits;
+	float BrightnessNits;
 } global;
 
 #include "include/parameters_v2.h"
 
 #define HCRT_HDR                            global.HDRMode
-#define HCRT_MAX_NITS                       global.MaxNits
-#define HCRT_PAPER_WHITE_NITS               global.PaperWhiteNits
+#define HCRT_MAX_NITS                        params.hcrt_max_nits
+#define HCRT_PAPER_WHITE_NITS                global.BrightnessNits
 #define HCRT_OUTPUT_COLOUR_SPACE            params.hcrt_colour_space
 
 #define HCRT_R709_GAMMA_OUT                 params.hcrt_r709_gamma_out
