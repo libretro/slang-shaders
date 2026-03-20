@@ -2,7 +2,7 @@
 
 /*
 Drop-in replacement for RetroArch's internal Vulkan HDR pipeline with inverse tonemapping.
-User-configurable variant — BrightnessNits, PeakNits, etc. are exposed as shader parameters
+User-configurable variant — PaperWhiteNits, PeakNits, etc. are exposed as shader parameters
 rather than sourced from RetroArch's HDR menu settings.
 
 Handles all HDR conversion modes:
@@ -20,7 +20,7 @@ Originally part of the crt\crt-sony-pvm-4k-hdr.slangp but can be used for any sh
 
 layout(push_constant) uniform Push
 {
-    float BrightnessNits;
+    float PaperWhiteNits;
     float PeakNits;
     float ExpandGamut;
     float DisplayGamma;
@@ -32,8 +32,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
     uint HDRMode;
 } global;
 
-#pragma parameter BrightnessNits    "Brightness (cd/m2)"                                        200.0    0.0 10000.0 10.0
-#pragma parameter PeakNits          "Display's Peak Luminance"                                  1000.0   0.0 10000.0 10.0
+#pragma parameter PaperWhiteNits    "Paper White Luminance"                                     200.0    0.0 10000.0 10.0
+#pragma parameter PeakNits          "Peak Luminance"                                            1000.0   0.0 10000.0 10.0
 #pragma parameter ExpandGamut       "Colour Boost: Accurate | Expanded | Wide | Super"          0.0      0.0 3.0     1.0
 #pragma parameter DisplayGamma      "Display Gamma"                                             2.2      0.0 5.0     0.1
 
@@ -112,7 +112,7 @@ void main()
       /* HDR10: linearize, inverse tonemap, convert to target colour space, PQ encode.
        * The PQ encoder treats data as Rec.2020 — gamut mismatch creates the boost. */
       vec3 sdr = pow(abs(source.rgb), vec3(params.DisplayGamma));
-      vec3 hdr = InverseTonemap(sdr, params.PeakNits, params.BrightnessNits);
+      vec3 hdr = InverseTonemap(sdr, params.PeakNits, params.PaperWhiteNits);
 
       /* Convert Rec.709 to target colour space for ExpandGamut colour boost:
        * 0=Accurate (709->2020, no boost), 1=Expanded, 2=Wide (709->P3), 3=Super (passthrough) */
@@ -128,7 +128,7 @@ void main()
          rec2020 = hdr;
       rec2020 = max(rec2020, vec3(0.0));
 
-      vec3 pq = LinearToST2084(rec2020 * (params.BrightnessNits / kMaxNitsFor2084));
+      vec3 pq = LinearToST2084(rec2020 * (params.PaperWhiteNits / kMaxNitsFor2084));
       FragColor = vec4(pq, source.a);
    }
    else
