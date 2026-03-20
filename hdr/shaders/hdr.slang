@@ -5,8 +5,8 @@ Drop-in replacement for RetroArch's internal Vulkan HDR pipeline (minus scanline
 
 Handles all HDR conversion modes:
   HDRMode 0 = Off/passthrough (SDR)
-  HDRMode 1 = HDR10 (SDR -> inverse tonemap -> Rec.2020 -> PQ encode)
-  HDRMode 2 = scRGB (sRGB -> linear, scale by MaxNits/80)
+  HDRMode 1 = HDR10 (SDR -> Rec.2020 -> PQ encode, scaled by BrightnessNits)
+  HDRMode 2 = scRGB (sRGB -> linear, scale by BrightnessNits/80)
   HDRMode 3 = PQ->scRGB (decode PQ, Rec.2020->Rec.709, scale x125)
 
 Originally part of the crt\crt-sony-pvm-4k-hdr.slangp but can be used for any shader
@@ -25,15 +25,13 @@ layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
 	uint HDRMode;
-    float MaxNits;
-    float PaperWhiteNits;
+    float BrightnessNits;
     uint ExpandGamut;
 } global;
 
 #pragma parameter DisplayGamma      "Display Gamma"                                             2.2      0.0   5.0   0.1
 
 #include "include\hdr10.h"
-#include "include\inverse_tonemap.h"
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -98,30 +96,29 @@ void main()
 
       linear = target * k2020_to_sRGB;
 
-      linear *= global.MaxNits / 80.0;
+      linear *= global.BrightnessNits / 80.0;
       FragColor = vec4(linear, source.a);
    }
    else if(global.HDRMode >= 1u)
    {
-      /* HDR10: linearize, inverse tonemap, convert to target colour space, PQ encode.
+      /* HDR10: linearize, convert to target colour space, PQ encode.
        * The PQ encoder treats data as Rec.2020 — gamut mismatch creates the boost. */
       vec3 sdr = pow(abs(source.rgb), vec3(params.DisplayGamma));
-      vec3 hdr = InverseTonemap(sdr, global.MaxNits, global.PaperWhiteNits);
 
       /* Convert Rec.709 to target colour space for ExpandGamut colour boost:
        * 0=Accurate (709->2020, no boost), 1=Expanded, 2=Wide (709->P3), 3=Super (passthrough) */
       vec3 rec2020;
       if(global.ExpandGamut == 0u)
-         rec2020 = hdr * k709_to_2020;
+         rec2020 = sdr * k709_to_2020;
       else if(global.ExpandGamut == 1u)
-         rec2020 = hdr * kExpanded709_to_2020;
+         rec2020 = sdr * kExpanded709_to_2020;
       else if(global.ExpandGamut == 2u)
-         rec2020 = hdr * kP3_to_2020;
+         rec2020 = sdr * kP3_to_2020;
       else
-         rec2020 = hdr;
+         rec2020 = sdr;
       rec2020 = max(rec2020, vec3(0.0));
 
-      vec3 pq = LinearToST2084(rec2020 * (global.PaperWhiteNits / kMaxNitsFor2084));
+      vec3 pq = LinearToST2084(rec2020 * (global.BrightnessNits / kMaxNitsFor2084));
       FragColor = vec4(pq, source.a);
    }
    else

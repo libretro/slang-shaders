@@ -2,6 +2,7 @@
 #pragma parameter hcrt_space1                        " "                                                            0.0      0.0   0.0001   0.0001
 
 #pragma parameter hcrt_user_settings                 "YOUR DISPLAY'S SETTINGS:"                                     0.0      0.0   0.0001   0.0001
+#pragma parameter hcrt_max_nits                      "    Display's Peak Luminance"                                 1000.0   0.0   10000.0  10.0
 #pragma parameter hcrt_lcd_resolution                "    Display's Resolution: 1080p | 4K | 8K"                    1.0      0.0   2.0      1.0
 #pragma parameter hcrt_lcd_subpixel                  "    Display's Subpixel Layout: RGB | RWBG (OLED) | BGR"       0.0      0.0   2.0      1.0
 #pragma parameter hcrt_colour_space                  "    Colour Space: r709 | sRGB | Adobe | DCI-P3 | r2020"       0.0      0.0   4.0      1.0
