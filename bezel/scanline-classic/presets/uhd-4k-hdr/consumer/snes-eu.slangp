@@ -98,10 +98,14 @@ scale16 = 1.0
 
 shader17 = ..\..\..\shaders\bezel-hdr.slang
 filter_linear17 = true
-scale17 = 1.0
 mipmap_input17 = true
+scale17 = 1.0
 
-textures = BORDER
+textures = "BORDER"
+BORDER_linear = true
+BORDER_wrap_mode = clamp_to_edge
+BORDER_mipmap = true
+
 
 ENCODER_SETUP = 0.0
 SYS_BANDWIDTH_R = 5.4
@@ -130,7 +134,6 @@ COLORIMETRY_PRESET = 3.0
 COLOR_FILTER_MODE = 0.0
 BORDER = ..\..\..\share\bezel-tv.jpg
 MASK_TYPE = 1.0
-MASK_DIFFUSION = 2.0
 MAGNETIC_CORRECTION = 40.0
 DEFLECTION_ANGLE = 110.0
 SCREEN_ANGLE_H = 30.0

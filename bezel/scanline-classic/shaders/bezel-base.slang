@@ -42,6 +42,7 @@
 
 #include "common.inc"
 #include "color.inc"
+#include "digital.inc"
 #include "texture.inc"
 
 #include "menus/parameters/factory-geometry.inc"
@@ -49,12 +50,17 @@
 
 #pragma parameter BEZEL_BYPASS "Bypass bezel" 0.0 0.0 1.0 1.0
 #pragma parameter GLOW_BYPASS "Bypass glow" 0.0 0.0 1.0 1.0
-#pragma parameter KEY_THRESH "Bezel chroma key threshold" 0.18 0.0 0.5 0.01
+#pragma parameter KEY_THRESH "Bezel chroma key threshold" 0.5 0.0 1.0 0.01
+
+#pragma parameter DEBUG_GLOW "Debug glow" 0.0 0.0 1.0 1.0
 
 layout(push_constant) uniform Push
 {
     vec4 OutputSize;
     vec4 BORDERSize;
+    uint FrameCount;
+    uint CurrentSubFrame;
+    uint TotalSubFrames;
     float ASPECT;
     float VIEWPORT_H_POS;
     float VIEWPORT_V_POS;
@@ -68,10 +74,15 @@ layout(push_constant) uniform Push
     float GLOW_DIFFUSION;
     float GLOW_COMPRESSION;
     float GLOW_FALLOFF;
+    float GLOW_DITHER;
     float GLOW_TEMPERATURE;
     float KEY_THRESH;
-    float GLOW_QUALITY_PRESET;
     float GLOW_RADIUS_PERCENT;
+    float EDGE_GUARD_PERCENT;
+#ifdef WCG
+    float GAMUT_SELECT;
+#endif
+    float DEBUG_GLOW;
 } config;
 
 #define ASPECT config.ASPECT
@@ -90,32 +101,38 @@ layout(push_constant) uniform Push
 #define GLOW_COMPRESSION config.GLOW_COMPRESSION
 #define GLOW_FALLOFF config.GLOW_FALLOFF
 #define GLOW_TEMPERATURE config.GLOW_TEMPERATURE
+#define GLOW_DITHER config.GLOW_DITHER
 
 #define KEY_THRESH config.KEY_THRESH
 #define KEY_SOFT 0.08
 
-#define GLOW_QUALITY_PRESET config.GLOW_QUALITY_PRESET
-
 #define GLOW_RADIUS_PERCENT config.GLOW_RADIUS_PERCENT
-#define EDGE_GUARD_PERCENT 6.0
+#define EDGE_GUARD_PERCENT config.EDGE_GUARD_PERCENT
 
-#define GLOW_JITTER 0.3
-#define GLOW_JITTER_DIST_THRESHOLD 0.9
-#define GLOW_JITTER_WEIGHT_THRESHOLD 0.01
 #define GLOW_MIN_WEIGHT 0.001
 
 #define EFFECTIVE_GLOW_RADIUS (GLOW_RADIUS_PERCENT * 0.01)
+
+#ifdef WCG
+#define GAMUT_SELECT config.GAMUT_SELECT
+#endif
+
+#define DEBUG_GLOW config.DEBUG_GLOW
 
 // Map GLOW_DIFFUSION preset to base diffusion steps
 // 0 = Low (8 steps), 1 = Medium (12 steps), 2 = High (16 steps)
 int glow_diffusion_steps()
 {
     if (GLOW_DIFFUSION < 0.5) {
+        if (USE_MIPMAPPING > 0.5)
+            return 4;
         return 8;   // Low: performance mode
     } else if (GLOW_DIFFUSION < 1.5) {
+        if (USE_MIPMAPPING > 0.5)
+            return 8;
         return 12;  // Medium: balanced
     } else {
-        return 16;  // High: quality mode (default)
+        return 16;  // High: quality mode
     }
 }
 
@@ -133,9 +150,7 @@ layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec2 screen_coord;
 layout(location = 2) out float AspectRatio;
-layout(location = 3) out vec2 viewport_scale; // Precomputed scale of aspect-corrected viewport
-layout(location = 4) out vec2 viewport_offset; // Precomputed offset for centered/shifted viewport
-layout(location = 5) out vec2 viewport_max_dist; // Precomputed normalization distances for radial falloff
+layout(location = 3) out vec2 viewport_max_dist; // Precomputed normalization distances for radial falloff
 
 /**
  * Vertex shader: Transforms the vertex position and calculates texture coordinates
@@ -149,7 +164,9 @@ void main()
 
     // Fit border in display area based on texture to ouput aspect ratio
     float border_dar = config.BORDERSize.x / config.BORDERSize.y;
-    border_dar = 3840.0 / 2160.0; // Force 16:9 for now
+
+    // RA has a bug where BORDERSize is not updated when loading presets, so use 16:9 for now
+    border_dar = 16.0 / 9.0;
     float output_dar = config.OutputSize.x / config.OutputSize.y;
 
     vec2 corrected_size;
@@ -173,8 +190,8 @@ void main()
     }
 
     // Normalize viewport position offsets to texture coordinate space
-    float h_shift = VIEWPORT_H_POS / config.OutputSize.x;
-    float v_shift = VIEWPORT_V_POS / config.OutputSize.y;
+    float h_shift = (VIEWPORT_H_POS / 100.0) - 0.5;
+    float v_shift = (VIEWPORT_V_POS / 100.0) - 0.5;
 
     // Center the viewport, then apply user shift (in normalized texture space)
     vec2 offset = (1.0 - scale) * 0.5 + vec2(-h_shift, v_shift) * scale;
@@ -185,15 +202,11 @@ void main()
         max(offset.y / scale.y, (1.0 - offset.y - scale.y) / scale.y)
     );
 
-    // Export precomputed values to fragment stage
-    viewport_scale = scale;
-    viewport_offset = offset;
-    viewport_max_dist = max_dist;
-
     tex = tex * scale + offset;
 
     // Map texture coordinates to the scaled and shifted screen viewport
-    screen_coord = tex;
+    // Align to pixel centers to ensure stable sampling
+    screen_coord = (floor(tex * config.OutputSize.xy) + 0.5) * config.OutputSize.zw;
 
     // Mixed technique: fill output area up to viewport
     vec2 final_border_size;
@@ -201,39 +214,30 @@ void main()
     if (border_dar > AspectRatio) {
         // Border is wider than view area: scale up X to fill viewport
         final_border_size = vec2(corrected_size.y * border_dar, corrected_size.y);
-        scale = corrected_size.xy / final_border_size;
+        scale = config.OutputSize.xy / final_border_size;
     } else {
         // Border is taller than view area: scale up Y to fill viewport
         final_border_size = vec2(corrected_size.x, corrected_size.x / border_dar);
-        scale = corrected_size.xy / final_border_size;
+        scale = config.OutputSize.xy / final_border_size;
     }
 
     // Apply bezel zoom
     scale /= (BEZEL_ZOOM / 100.0);
 
-    vTexCoord = (tex - 0.5) * scale + 0.5;
+    vTexCoord = (TexCoord.xy - 0.5) * scale + 0.5;
+
+    // Precompute max distances
+    viewport_max_dist = abs((final_border_size - corrected_size) * 0.5) * config.OutputSize.zw;
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec2 screen_coord;
 layout(location = 2) in float AspectRatio;
-layout(location = 3) in vec2 viewport_scale;
-layout(location = 4) in vec2 viewport_offset;
-layout(location = 5) in vec2 viewport_max_dist;
+layout(location = 3) in vec2 viewport_max_dist;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 4) uniform sampler2D BORDER;
-
-/**
- * Blends two colors using multiply blend mode in linear space.
- * This creates a darkening effect where overlapping colors become darker.
- *
- * @param col1 Base color (linear)
- * @param col2 Blend color (linear)
- * @return Blended color (linear)
- */
-#define blend(c1, c2) (c1 * c2)
+layout(set = 0, binding = 1) uniform sampler2D Source;
+layout(set = 0, binding = 2) uniform sampler2D BORDER;
 
 /**
  * Apply PQ curve to LMS tristimulus values for ICtCp conversion
@@ -292,152 +296,101 @@ vec3 ictcp_to_lms_pq(vec3 ictcp)
 }
 
 /**
- * Compresses color dynamic range to reduce extreme highlights and shadows.
- * Uses a power curve to soften the visual impact of bright/dark areas in the glow effect.
- * 
- * @param color Input color to compress
+ * Combined glow color processing: dynamic-range compression + temperature shift.
+ * Consolidates color-space conversions so glow is converted back to RGB once.
+ *
+ * @param color Input color in linear RGB space
  * @param compression Compression amount [0-1]: 0=maximum compression, 1=no compression
- * @return Compressed color with reduced dynamic range
+ * @param temperature Temperature shift [-0.5 to 0.5]: negative=warmer, positive=cooler
+ * @param noise Signed blue-TPDF jitter sample in [-0.5, 0.5]
+ * @param noise_power Jitter amplitude scale
+ * @return Processed glow color
  */
-vec3 compress_color_glow(vec3 color, float compression)
+vec3 process_glow_color(vec3 color, float compression, float temperature, float noise, float noise_power)
 {
-#ifdef HDR
     float c = clamp(compression, 0.0, 1.0);
     float amount = 1.0 - c;
-
-    if (amount <= EPS)
-        return color;
-
-    // Convert RGB → XYZ → LMS
-#ifdef WIDE_COLOR
-    vec3 xyz = BT2020_TO_XYZ * color;
-#else
-    vec3 xyz = sRGB_TO_XYZ * color;
-#endif
-    vec3 lms = XYZ_TO_LMS * xyz;
-    
-    // Apply PQ curve to LMS
-    vec3 lms_pq = lms_apply_pq(lms);
-    
-    // Convert to ICtCp
-    vec3 ictcp = lms_pq_to_ictcp(lms_pq);
-    
-    // Compress chroma (Ct, Cp) components while preserving intensity (I)
-    // Use logarithmic compression for high-intensity colors
-    float intensity_factor = ictcp.x;  // I component (0-1 range after PQ)
-    
-    // Compress chroma more aggressively as intensity increases
-    float chroma_scale = mix(0.3, 1.0, c);  // amount inverted: c=1 → scale=1 (no compression)
-    
-    // Additional intensity-based compression: reduce saturation for bright values
-    if (intensity_factor > 0.5) {
-        float intensity_boost = (intensity_factor - 0.5) * 2.0;
-        chroma_scale *= mix(1.0, 0.4, intensity_boost * (1.0 - c));
-    }
-    
-    ictcp.y *= chroma_scale;  // Compress Ct (red-green)
-    ictcp.z *= chroma_scale;  // Compress Cp (yellow-blue)
-    
-    // Convert back: ICtCp → LMS(PQ) → LMS → XYZ → RGB
-    vec3 lms_pq_compressed = ictcp_to_lms_pq(ictcp);
-    vec3 lms_compressed = lms_remove_pq(lms_pq_compressed);
-    vec3 xyz_compressed = LMS_TO_XYZ * lms_compressed;
-#ifdef WIDE_COLOR
-    vec3 rgb_compressed = XYZ_TO_BT2020 * xyz_compressed;
-#else
-    vec3 rgb_compressed = XYZ_TO_sRGB * xyz_compressed;
-#endif
-    
-    return max(rgb_compressed, vec3(0.0));
-#else
-    // Map compression [0,1] to power curve exponent [0.3, 1.0]
-    // Lower exponents compress bright values more aggressively
-    float power = mix(0.3, 1.0, compression);
-    return pow(color, vec3(power));
-#endif
-}
-
-vec3 luma_weights()
-{
-#ifdef WIDE_COLOR
-    return vec3(0.2627, 0.6780, 0.0593);  // Rec.2020
-#else
-    return vec3(0.2126, 0.7152, 0.0722);  // Rec.709
-#endif
-}
-
-/**
- * Shifts color temperature of the input color.
- * Negative values make colors warmer, positive values make them cooler.
- * This simulates the psychological perception of CRT glow which appears bluish due to
- * reflections and the contrast between the bright screen and darker surroundings.
- * 
- * @param color Input color in linear RGB space
- * @param temperature Temperature shift [-0.5 to 0.5]: negative=warmer, positive=cooler
- * @return Color with shifted temperature
- */
-vec3 shift_temperature(vec3 color, float temperature)
-{
     float t = clamp(temperature, -0.5, 0.5);
-#ifdef WIDE_COLOR
-    vec3 xyz = BT2020_TO_XYZ * color;
+    float dither = max(noise_power, 0.0);
+
+    if (amount <= EPS && abs(t) <= EPS && dither <= EPS)
+        return max(color, vec3(0.0));
+
+    vec3 xyz_in = COLOR_SPACE_TO_XYZ * color;
+    vec3 xyz_base = xyz_in;
+
+#ifdef HDR
+    if (amount > EPS || dither > EPS) {
+        // HDR processing path: RGB → XYZ → LMS(PQ) → ICtCp, then back to XYZ
+        vec3 lms = XYZ_TO_LMS * xyz_in;
+        vec3 lms_pq = lms_apply_pq(lms);
+        vec3 ictcp = lms_pq_to_ictcp(lms_pq);
+
+        if (amount > EPS) {
+            float intensity_factor = ictcp.x;  // I component (0-1 range after PQ)
+            float chroma_scale = mix(0.3, 1.0, c);  // amount inverted: c=1 → scale=1 (no compression)
+
+            if (intensity_factor > 0.5) {
+                float intensity_boost = (intensity_factor - 0.5) * 2.0;
+                chroma_scale *= mix(1.0, 0.4, intensity_boost * (1.0 - c));
+            }
+
+            ictcp.y *= chroma_scale;  // Compress Ct (red-green)
+            ictcp.z *= chroma_scale;  // Compress Cp (yellow-blue)
+        }
+
+        if (dither > EPS)
+            ictcp.x = clamp(ictcp.x + noise * dither, 0.0, 1.0);
+
+        vec3 lms_processed = lms_remove_pq(ictcp_to_lms_pq(ictcp));
+        xyz_base = LMS_TO_XYZ * lms_processed;
+    }
 #else
-    vec3 xyz = sRGB_TO_XYZ * color;
+    if (amount > EPS || dither > EPS) {
+        // SDR/WCG processing path: chroma compression + L* dither in CIE Luv
+        vec3 luv = XYZ_to_CIE_LUV(xyz_in);
+
+        if (amount > EPS) {
+            float intensity_factor = clamp(luv.x, 0.0, 1.0);
+            float chroma_scale = mix(0.3, 1.0, c);
+
+            if (intensity_factor > 0.5) {
+                float intensity_boost = (intensity_factor - 0.5) * 2.0;
+                chroma_scale *= mix(1.0, 0.4, intensity_boost * (1.0 - c));
+            }
+
+            luv.y *= chroma_scale;
+            luv.z *= chroma_scale;
+        }
+
+        if (dither > EPS)
+            luv.x = clamp(luv.x + noise * dither * 100.0, EPS, 100.0);
+
+        xyz_base = CIE_LUV_to_XYZ(luv);
+    }
 #endif
-    vec3 lms = XYZ_TO_LMS * xyz;
 
-    // LMS-domain adaptation: positive t cools (boost S), negative t warms (boost L/M)
-    vec3 lms_scale = vec3(
-        1.0 - t * 0.35,
-        1.0 - t * 0.10,
-        1.0 + t * 0.55
-    );
+    if (abs(t) > EPS) {
+        vec3 lms = XYZ_TO_LMS * xyz_base;
 
-    vec3 shifted_lms = lms * lms_scale;
-#ifdef WIDE_COLOR
-    vec3 shifted = XYZ_TO_BT2020 * (LMS_TO_XYZ * shifted_lms);
-#else
-    vec3 shifted = XYZ_TO_sRGB * (LMS_TO_XYZ * shifted_lms);
-#endif
+        // LMS-domain adaptation: positive t cools (boost S), negative t warms (boost L/M)
+        vec3 lms_scale = vec3(
+            1.0 - t * 0.35,
+            1.0 - t * 0.10,
+            1.0 + t * 0.55
+        );
 
-    vec3 w = luma_weights();
-    float original_luma = max(dot(color, w), EPS);
-    float shifted_luma = max(dot(shifted, w), EPS);
+        vec3 xyz_shifted = LMS_TO_XYZ * (lms * lms_scale);
 
-    // Log-domain luminance normalization remains stable across SDR and HDR ranges
-    float gain = exp2(clamp(log2(original_luma) - log2(shifted_luma), -2.0, 2.0));
-    shifted *= gain;
+        // Log-domain luminance normalization using XYZ Y channel
+        float original_luma = max(xyz_base.y, EPS);
+        float shifted_luma = max(xyz_shifted.y, EPS);
+        float gain = exp2(clamp(log2(original_luma) - log2(shifted_luma), -2.0, 2.0));
 
-    return max(shifted, vec3(0.0));
-}
+        xyz_base = xyz_shifted * gain;
+    }
 
-/**
- * Hash function for generating pseudo-random values from 2D coordinates.
- * Uses a simple but effective fractional pattern to generate deterministic randomness.
- * 
- * @param p Input 2D coordinate
- * @return Pseudo-random value in range [0, 1)
- */
-float hash(vec2 p)
-{
-    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-    p3 += dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
-}
-
-/**
- * Generates a random 2D offset vector for jittering.
- * Uses the hash function to create a random direction and distance.
- * 
- * @param seed Input coordinate used as random seed
- * @param magnitude Maximum offset distance
- * @return Random 2D offset vector
- */
-vec2 random_offset(vec2 seed, float magnitude)
-{
-    float angle = hash(seed) * 2.0 * PI;
-    float distance = hash(seed + vec2(1.0)) * magnitude;
-    return vec2(cos(angle), sin(angle)) * distance;
+    return max(XYZ_TO_COLOR_SPACE * xyz_base, vec3(0.0));
 }
 
 /**
@@ -451,22 +404,21 @@ vec2 random_offset(vec2 seed, float magnitude)
  */
 float compute_manual_lod(vec2 coord, float radius, float distance_factor)
 {
+    const float LOD_FACTOR = 4.0;  // Lower -> more blurred
+
     // Convert texture-space radius to pixel-space based on output resolution
     float coord_pixel_space = radius * distance_factor * config.OutputSize.y;
     
     // LOD scales logarithmically with pixel spread
-    // Near samples (distance_factor ≈ 0) → LOD 0 (full detail)
-    // Far samples (distance_factor ≈ 1) → LOD 2-3 (blurred, lower bandwidth)
-    float lod = log2(max(1.0, coord_pixel_space / 8.0));
+    float lod = log2(max(1.0, coord_pixel_space / LOD_FACTOR));
     
-    return clamp(lod, 0.0, 5.0);
+    return lod;
 }
 
 float glow_falloff(float radial_dist)
 {
-    float x = max(0.0, radial_dist * GLOW_FALLOFF);
-    float xx = x * x;
-    return 1.0 / (1.0 + x + 0.48 * xx);
+    float x = clamp(radial_dist * GLOW_FALLOFF, 0.0, 1.0);
+    return 1.0 - x;
 }
 
 int adaptive_glow_steps(int base_steps, float radial_dist)
@@ -474,75 +426,44 @@ int adaptive_glow_steps(int base_steps, float radial_dist)
     int clamped_base = max(1, base_steps);
     float quality = 1.0;
 
-    if (GLOW_QUALITY_PRESET < 0.5)
-    {
-        quality = (radial_dist < 0.25) ? 1.00
-            : (radial_dist < 0.50) ? 0.75
-            : (radial_dist < 0.75) ? 0.50
-            : 0.35;
-    }
-    else if (GLOW_QUALITY_PRESET < 1.5)
-    {
-        quality = (radial_dist < 0.25) ? 0.85
-            : (radial_dist < 0.50) ? 0.60
-            : (radial_dist < 0.75) ? 0.40
-            : 0.25;
-    }
-    else if (GLOW_QUALITY_PRESET < 2.5)
-    {
-        quality = (radial_dist < 0.25) ? 1.00
-            : (radial_dist < 0.50) ? 0.80
-            : (radial_dist < 0.75) ? 0.60
-            : 0.40;
-    }
-    else
-    {
-        quality = (radial_dist < 0.25) ? 1.00
-            : (radial_dist < 0.50) ? 0.90
-            : (radial_dist < 0.75) ? 0.75
-            : 0.60;
-    }
+    quality = (radial_dist < 0.25)   ? 1.00
+              : (radial_dist < 0.50) ? 0.75
+              : (radial_dist < 0.75) ? 0.50
+                                     : 0.35;
 
     return max(1, int(floor(float(clamped_base) * quality + 0.5)));
 }
 
-// ==== Mirrored sampling with soft edge guard ====
-// Tunables for edge protection (guard band and soft fade width)
-#define EDGE_MARGIN   0.06   // How far from 0/1 to keep samples (0..0.25 is sensible)
-#define EDGE_SOFTNESS 0.02   // Fade width into the margin (0 = hard, >0 = smooth)
-
-// Mirror a continuous UV into [0,1] using mirrored repeat, robust for negative UVs too
+// Mirror a continuous UV into [0,1] using mirrored once, robust for negative UVs too
 vec2 mirror01(vec2 uv)
 {
     vec2 t = mod(uv, 2.0);
     return 1.0 - abs(t - 1.0);
 }
 
-// Smoothly keep mirrored UV away from edges by EDGE_MARGIN, with a soft ramp of EDGE_SOFTNESS
-vec2 soft_guard01(vec2 uv01, float margin, float softness)
-{
-    // Distance to nearest edge per axis
-    vec2 d = min(uv01, 1.0 - uv01);
-
-    // s = 0 near edges (d <= margin), s = 1 past margin+softness
-    vec2 s = smoothstep(vec2(margin), vec2(margin + max(softness, 1e-5)), d);
-
-    // Hard-clamped safe coordinate
-    vec2 clamped = clamp(uv01, margin, 1.0 - margin);
-
-    // Blend from clamped (near edges) to original (away from edges)
-    return mix(clamped, uv01, s);
-}
-
 // Convenience: safe mirrored sampling
-vec3 sample_mirror_safe(sampler2D tex, vec2 uv)
+// Adapts edge guard based on effective glow radius to prevent over-clamping at lower resolutions
+vec3 sample_mirror_safe(sampler2D tex, vec2 uv, float lod)
 {
-    vec2 m = mirror01(uv);
-    float effective_margin = EDGE_GUARD_PERCENT * 0.01;
-    float effective_softness = 0.02;
+    uv = clamp(uv, -2.0, 2.0);
 
-    vec2 safe = soft_guard01(m, effective_margin, effective_softness);
-    return texture(tex, safe).rgb;
+    // Margin sign
+    vec2 s;
+
+    s.x = uv.x < 0.0 || uv.x > 1.0 ? -1.0 : 1.0;
+    s.y = uv.y < 0.0 || uv.y > 1.0 ? -1.0 : 1.0;
+
+    // Shift to normal space
+    uv -= vec2(0.5);
+
+    float margin = EDGE_GUARD_PERCENT * 0.01;
+    float edge_scale = 1.0 - 2.0 * margin;
+
+    uv = uv * pow(vec2(edge_scale), s) + s * margin;
+    uv += vec2(0.5) * pow(vec2(edge_scale), s);
+    vec2 m = mirror01(uv);
+
+    return textureLod(tex, m, lod).rgb;
 }
 
 /**
@@ -552,9 +473,6 @@ vec3 sample_mirror_safe(sampler2D tex, vec2 uv)
  * 
  * Features:
  * - Multi-step diffusion: samples at varying distances for smooth falloff
- * - Anisotropic scaling: more perpendicular spread
- * - Vertical bias: emphasizes vertical glow (CRT scanline characteristic)
- * - Jitter: randomized offsets to eliminate banding artifacts
  * - Color compression: reduces extreme brightness impact
  * 
  * @param coord Base texture coordinate to sample around
@@ -562,7 +480,7 @@ vec3 sample_mirror_safe(sampler2D tex, vec2 uv)
  * @param diffusion_steps Number of distance steps per direction (higher = smoother)
  * @return Accumulated glow color
  */
-vec3 calculate_glow(vec2 coord, float radius, float diffusion_steps, float radial_dist, float glow_weight)
+vec3 calculate_glow(vec2 coord, float radius, float diffusion_steps, float radial_dist)
 {
     // Define 8 cardinal and intercardinal directions (N, NE, E, SE, S, SW, W, NW)
     const vec2 directions[8] = vec2[8](
@@ -579,7 +497,6 @@ vec3 calculate_glow(vec2 coord, float radius, float diffusion_steps, float radia
     vec3 glow = vec3(0.0);
     float total_weight = 0.0;
     int num_steps = adaptive_glow_steps(int(diffusion_steps), radial_dist);
-    bool jitter_enabled = (radial_dist <= GLOW_JITTER_DIST_THRESHOLD) && (glow_weight >= GLOW_JITTER_WEIGHT_THRESHOLD);
     
     // Sample in each direction with multiple distance steps for smooth diffusion
     for (int step = 1; step <= num_steps; step++)
@@ -593,40 +510,25 @@ vec3 calculate_glow(vec2 coord, float radius, float diffusion_steps, float radia
         {
             vec2 dir = directions[i];
             
-            // Decompose direction into horizontal and vertical components
-            float horizontal_component = abs(dir.x);
-            float vertical_component = abs(dir.y);
-            
-            // Anisotropic scaling: increase perpendicular diffusion
-            // Horizontal rays spread vertically, vertical rays spread horizontally
-            vec2 anisotropic_scale = vec2(
-                1.0 + vertical_component * 2.0,    // Expand X when moving vertically
-                1.0 + horizontal_component * 2.0   // Expand Y when moving horizontally
-            );
-            
-            // Calculate sample offset with anisotropic scaling
+            // Calculate sample offset with distance scaling
             float step_radius = radius * distance_factor;
-            vec2 base_offset = dir * step_radius * anisotropic_scale;
-            
-            // Add jitter to eliminate banding and shadow line artifacts
-            vec2 jitter = jitter_enabled
-                ? random_offset(coord * 100.0 + vec2(float(step), float(i)), GLOW_JITTER * radius)
-                : vec2(0.0);
-            vec2 offset = base_offset + jitter;
-            
-            // Sample and compress color to reduce extreme brightness impact
-            vec3 sample_linear = sample_mirror_safe(Source, coord + offset);
-            vec3 sample_color = compress_color_glow(sample_linear, GLOW_COMPRESSION);
+            vec2 offset = dir * step_radius;
+
+            // Sample source color
+            vec3 sample_linear = sample_mirror_safe(Source, coord + offset, 0.0);
             
             // Combine weights and accumulate
             float weight = diffusion_weight;
-            glow += sample_color * weight;
+            glow += sample_linear * weight;
             total_weight += weight;
         }
     }
     
     // Normalize to maintain consistent brightness regardless of sample count
-    return total_weight > 0.0 ? glow / total_weight : glow;
+    if (total_weight > 0.0)
+        glow /= total_weight;
+
+    return max(glow, vec3(0.0));
 }
 
 /**
@@ -637,17 +539,15 @@ vec3 calculate_glow(vec2 coord, float radius, float diffusion_steps, float radia
  * Key differences from base calculate_glow():
  * - Uses textureLod() instead of texture() for explicit LOD control
  * - LOD increases with distance: near=LOD0 (sharp), far=LOD2-3 (blurred)
- * - Reduced jitter at higher LODs (already blurred by mipmapping)
  * - Edge guard softness scales with LOD to prevent harsh transitions
  * 
  * @param coord Base texture coordinate
  * @param radius Glow radius in texture space
  * @param diffusion_steps Number of distance steps per direction
  * @param radial_dist Normalized distance from viewport (for adaptive sampling)
- * @param glow_weight Effective glow weight (for jitter conditional)
  * @return Accumulated glow color
  */
-vec3 calculate_glow_mipmapped(vec2 coord, float radius, float diffusion_steps, float radial_dist, float glow_weight)
+vec3 calculate_glow_mipmapped(vec2 coord, float radius, float diffusion_steps, float radial_dist)
 {
     // Define 8 cardinal and intercardinal directions
     const vec2 directions[8] = vec2[8](
@@ -664,7 +564,6 @@ vec3 calculate_glow_mipmapped(vec2 coord, float radius, float diffusion_steps, f
     vec3 glow = vec3(0.0);
     float total_weight = 0.0;
     int num_steps = adaptive_glow_steps(int(diffusion_steps), radial_dist);
-    bool jitter_enabled = (radial_dist <= GLOW_JITTER_DIST_THRESHOLD) && (glow_weight >= GLOW_JITTER_WEIGHT_THRESHOLD);
     
     // Sample in each direction with multiple distance steps
     for (int step = 1; step <= num_steps; step++)
@@ -678,45 +577,24 @@ vec3 calculate_glow_mipmapped(vec2 coord, float radius, float diffusion_steps, f
         for (int i = 0; i < 8; i++)
         {
             vec2 dir = directions[i];
-            float horizontal_component = abs(dir.x);
-            float vertical_component = abs(dir.y);
-            
-            vec2 anisotropic_scale = vec2(
-                1.0 + vertical_component * 2.0,
-                1.0 + horizontal_component * 2.0
-            );
-            
+
+            // Calculate sample offset with distance scaling
             float step_radius = radius * distance_factor;
-            vec2 base_offset = dir * step_radius * anisotropic_scale;
-            
-            // Jitter intensity reduces at higher LODs (mipmap blur makes it less necessary)
-            vec2 jitter = jitter_enabled && (step_lod < 2.0)
-                ? random_offset(coord * 100.0 + vec2(float(step), float(i)), GLOW_JITTER * radius * (1.0 - step_lod * 0.3))
-                : vec2(0.0);
-            vec2 offset = base_offset + jitter;
-            
-            // Mirror and apply edge guard with LOD-scaled softness
-            vec2 sample_coord = coord + offset;
-            vec2 mirrored = mirror01(sample_coord);
-            
-            // Scale edge guard parameters with LOD to maintain smooth transitions
-            float lod_scale = pow(2.0, step_lod * 0.5);
-            float scaled_margin = EDGE_GUARD_PERCENT * 0.01 * lod_scale;
-            float scaled_softness = 0.02 * lod_scale;
-            vec2 safe = soft_guard01(mirrored, scaled_margin, scaled_softness);
+            vec2 offset = dir * step_radius;
             
             // Sample with explicit LOD
-            vec3 sample_linear = textureLod(Source, safe, step_lod).rgb;
-            
-            vec3 sample_color = compress_color_glow(sample_linear, GLOW_COMPRESSION);
+            vec3 sample_linear = sample_mirror_safe(Source, coord + offset, step_lod).rgb;
             
             float weight = diffusion_weight;
-            glow += sample_color * weight;
+            glow += sample_linear * weight;
             total_weight += weight;
         }
     }
     
-    return total_weight > 0.0 ? glow / total_weight : glow;
+    if (total_weight > 0.0)
+        glow /= total_weight;
+
+    return max(glow, vec3(0.0));
 }
 
 // RA Inverse Tonemapper
@@ -733,6 +611,42 @@ vec3 inverse_tonemap(const vec3 sdr_linear, const float max_nits, const float pa
     return sdr_linear * (tonemapped_val / max(input_val, EPS));
 }
 
+void write_output_color(vec3 final_linear, uint frame)
+{
+    const int WORKING_BITS = 16;
+
+#ifdef HDR
+    // PQ output: SMPTE ST.2084 encoded values
+    vec3 final_pq = pq(final_linear);
+
+    final_pq = apply_dither_blue(final_pq, WORKING_BITS, 10, vTexCoord * config.OutputSize.xy, frame);
+    FragColor = vec4(clamp(final_pq, 0.0, 1.0), 1.0);
+#endif
+#ifdef WCG
+    // WCG requires manual HDR10 handling when HDR is enabled
+    if (global.EnableHDR > 0.5) {
+        // Map linear RGB to nits using RA inverse tonemapping
+        vec3 hdr_linear = inverse_tonemap(final_linear, global.MaxNits, global.PaperWhiteNits);
+
+        vec3 hdr_pq = pq(hdr_linear);
+        hdr_pq = apply_dither_blue(hdr_pq, WORKING_BITS, 10, vTexCoord * config.OutputSize.xy, frame);
+        // PQ output: SMPTE ST.2084 encoding for HDR10
+        FragColor = vec4(clamp(hdr_pq, 0.0, 1.0), 1.0);
+    } else {
+        // SDR WCG output: apply CRT gamma directly to linear RGB
+        vec3 final_gamma = crt_gamma(clamp(final_linear, 0.0, 1.0));
+        final_gamma = apply_dither_blue(final_gamma, WORKING_BITS, 8, vTexCoord * config.OutputSize.xy, frame);
+        FragColor = vec4(clamp(final_gamma, 0.0, 1.0), 1.0);
+    }
+#endif
+#ifdef SDR
+    // Gamma output: use inverse CRT gamma to preserve shadow detail
+    vec3 final_gamma = crt_gamma(clamp(final_linear, 0.0, 1.0));
+    final_gamma = apply_dither_blue(final_gamma, WORKING_BITS, 8, vTexCoord * config.OutputSize.xy, frame);
+    FragColor = vec4(clamp(final_gamma, 0.0, 1.0), 1.0);
+#endif
+}
+
 /**
  * Fragment shader: Composites the CRT screen with bezel/background and glow effect.
  * 
@@ -741,44 +655,53 @@ vec3 inverse_tonemap(const vec3 sdr_linear, const float max_nits, const float pa
  * 2. If bypass is enabled, return screen content directly
  * 3. Sample background/bezel texture
  * 4. Calculate glow effect from screen content
- * 5. Shift glow color temperature (cooler/bluer for realistic CRT reflection)
+ * 5. Process glow color (compression + temperature) in a single pass
  * 6. Apply radial falloff to glow based on distance from viewport
  * 7. Blend glow with background
  * 8. Composite screen over glowing background
  */
 void main()
 {
+    uint frame;
+    if (config.TotalSubFrames > 1u) {
+        frame = (config.FrameCount << 4) + (config.CurrentSubFrame << 4) / config.TotalSubFrames;
+    } else {
+        frame = config.FrameCount;
+    }
+
     // Sample the main CRT screen content with smooth edge guard
-    vec4 screen = texture(Source, screen_coord);
+    vec4 screen = vec4(texture(Source, screen_coord).rgb, 1.0);
     screen.rgb = screen.rgb;
     screen.a = 1.0;  // Ensure opaque screen
 
     // Bypass mode: pass through screen content without bezel/glow processing
     if (BEZEL_BYPASS > 0.5)
     {
-#ifdef HDR
-        FragColor = vec4(clamp(pq(screen.rgb), 0.0, 1.0), 1.0);
+        write_output_color(screen.rgb, frame);
         return;
-#else
-        FragColor = vec4(crt_gamma(clamp(screen.rgb, 0.0, 1.0)), 1.0);
-        return;
-#endif
     }
-
-    // Sample background/bezel texture
-    vec4 background = texture(BORDER, vTexCoord);
-
-    // Color key against green to create transparency in bezel when JPEG is used
-    // Smooth chroma key: alpha is 0 for pure green, 1 for non-green, smooth in between
-    float key_thresh = KEY_THRESH; // Tolerance for keying (tweak as needed)
-    float key_soft = KEY_SOFT;   // Soft edge width for smooth transition
-    vec3 key_color = vec3(0.0, 1.0, 0.0);
-    float key_dist = distance(background.rgb, key_color);
-    float key_alpha = smoothstep(key_thresh, key_thresh + key_soft, key_dist);
-    background.a *= key_alpha;
 
     vec3 glow;
     float effective_glow_weight;
+
+    // Sample background/bezel texture with pixel-aligned sampling
+    vec2 uv = floor(vTexCoord * textureSize(BORDER, 0)) + 0.5; // Align to pixel centers;
+    vec2 tex = uv / textureSize(BORDER, 0);
+    vec4 background = texture(BORDER, tex);
+
+    // Use sRGB for background texture
+    vec3 background_linear = srgb_linear(background.rgb);
+
+    // Color key against green to create transparency in bezel when JPEG is used
+    // Smooth chroma key: alpha is 0 for pure green, 1 for non-green, smooth in between
+    if (background.a > 1.0 - EPS) {
+        float key_thresh = KEY_THRESH; // Tolerance for keying (tweak as needed)
+        float key_soft = KEY_SOFT;     // Soft edge width for smooth transition
+        vec3 key_color = vec3(0.0, 1.0, 0.0);
+        float key_dist = distance(background.rgb, key_color);
+        float key_alpha = smoothstep(key_thresh, key_thresh + key_soft, key_dist);
+        background.a *= key_alpha;
+    }
 
     // === GLOW_BYPASS implementation ===
     if (GLOW_BYPASS > 0.5 || background.a < EPS) {
@@ -788,37 +711,28 @@ void main()
         float radius = EFFECTIVE_GLOW_RADIUS;
 
         // === Calculate radial falloff for glow intensity ===
-        // Use precomputed viewport scale and offset from vertex stage
-        vec2 viewport_pos = (vTexCoord - viewport_offset) / viewport_scale;
-        vec2 clamped_pos = clamp(viewport_pos, 0.0, 1.0);
-        vec2 outside_dist = abs(viewport_pos - clamped_pos);
-
-        // Normalize outside distance using precomputed maximum distances
-        vec2 normalized_dist = outside_dist / max(viewport_max_dist, vec2(EPS));
-        float radial_dist = length(normalized_dist);
-
+        float radial_dist = length(screen_coord - clamp(screen_coord, vec2(0.0), vec2(1.0))) / length(viewport_max_dist);
         float falloff = glow_falloff(radial_dist);
         effective_glow_weight = GLOW_WEIGHT * falloff;
 
-        // Only calculate glow if we're relatively close to viewport
-        // This avoids sampling artifacts from far outside the screen area
-        vec2 dist_from_viewport = max(vec2(0.0), abs(screen_coord - vec2(0.5)) - vec2(0.5));
-        float max_dist = max(dist_from_viewport.x, dist_from_viewport.y);
-
-        if (effective_glow_weight > GLOW_MIN_WEIGHT && max_dist < radius * 2.0) {
+        if (effective_glow_weight > GLOW_MIN_WEIGHT) {
             // Calculate glow effect with preset-based diffusion steps
             int diffusion_steps = glow_diffusion_steps();
             
             if (USE_MIPMAPPING > 0.5) {
                 // Use mipmapped variant for reduced bandwidth and better quality at distance
-                glow = calculate_glow_mipmapped(screen_coord, radius, float(diffusion_steps), radial_dist, effective_glow_weight);
+                glow = calculate_glow_mipmapped(screen_coord, radius, float(diffusion_steps), radial_dist);
             } else {
                 // Standard multi-sample glow (Phase 1 optimization)
-                glow = calculate_glow(screen_coord, radius, float(diffusion_steps), radial_dist, effective_glow_weight);
+                glow = calculate_glow(screen_coord, radius, float(diffusion_steps), radial_dist);
             }
 
-            // Shift glow color temperature to simulate bluish CRT reflection
-            glow = shift_temperature(glow, GLOW_TEMPERATURE);
+            // Combined glow color processing: compression + temperature shift
+            // Apply selected dither in perceptual space before converting back to RGB.
+            float noise = tpdf_blue_noise(screen_coord * config.OutputSize.xy, frame);
+            float noise_power = pow(10.0, GLOW_DITHER / 10.0);
+
+            glow = process_glow_color(glow, GLOW_COMPRESSION, GLOW_TEMPERATURE, noise, noise_power);
             
             // Clamp glow to prevent negative values before tonemapping
             glow = max(glow, vec3(0.0));
@@ -826,43 +740,23 @@ void main()
             glow = vec3(0.0);
         }
     }
-
-    // === Blend glow with background ===
-    // Use sRGB for background texture
-    vec3 background_linear = srgb_linear(background.rgb);
     
+    // === Blend glow with background ===
     // Apply bezel gain and bias first
     float bezel_gain = pow(10.0, BEZEL_GAIN / 20.0);
     float bezel_bias = BEZEL_BIAS / 100.0;
     vec3 background_adjusted = (background_linear + bezel_bias) * bezel_gain;
-    
-    // Multiply blending with color compression
-    vec3 background_with_glow = blend(background_adjusted, glow);
-    vec3 background_final = mix(background_adjusted, background_with_glow, effective_glow_weight * background.a);
 
-    // Final composite: blend CRT screen over glowing background using alpha
-    vec3 screen_linear = screen.rgb;
-    vec3 final_linear = mix(screen_linear, background_final, background.a);
-
-#ifdef HDR
-    // PQ output: SMPTE ST.2084 encoded values
-    FragColor = vec4(clamp(pq(final_linear), 0.0, 1.0), 1.0);
-#endif
-#ifdef WCG
-    // WCG requires manual HDR10 handling when HDR is enabled
-    if (global.EnableHDR > 0.5) {
-        // Map linear RGB to nits using RA inverse tonemapping
-        vec3 hdr_linear = inverse_tonemap(final_linear, global.MaxNits, global.PaperWhiteNits);
-
-        // PQ output: SMPTE ST.2084 encoding for HDR10
-        FragColor = vec4(clamp(pq(hdr_linear), 0.0, 1.0), 1.0);
-    } else {
-        // SDR WCG output: apply CRT gamma directly to linear RGB
-        FragColor = vec4(crt_gamma(clamp(final_linear, 0.0, 1.0)), 1.0);
+    if (DEBUG_GLOW > 0.5) {
+        background_adjusted = WHITE;
     }
-#endif
-#ifdef SDR
-    // Gamma output: use inverse CRT gamma to preserve shadow detail
-    FragColor = vec4(crt_gamma(clamp(final_linear, 0.0, 1.0)), 1.0);
-#endif
+
+    // Blend background with glow
+    background_adjusted = mix(background_adjusted, background_adjusted * glow, effective_glow_weight);
+
+    // Final composite: transparent over opaque composite
+    vec3 screen_linear = screen.rgb;
+    vec3 final_linear = mix(screen_linear, background_adjusted, background.a);
+
+    write_output_color(final_linear, frame);
 }

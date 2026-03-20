@@ -28,4 +28,7 @@
 #define HDR
 #define WIDE_COLOR
 
+#define COLOR_SPACE_TO_XYZ BT2020_TO_XYZ
+#define XYZ_TO_COLOR_SPACE XYZ_TO_BT2020
+
 #include "bezel-base.slang"

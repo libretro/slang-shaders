@@ -28,6 +28,7 @@
 #include "parameters/output-curve.inc"
 #include "parameters/output-tonemap.inc"
 #include "parameters/output-color.inc"
+#include "parameters/output-color-wcg.inc"
 #include "parameters/output-bezel.inc"
 #include "parameters/service-geometry.inc"
 #include "parameters/scanraster.inc"

@@ -278,17 +278,34 @@ vec3 compute_mask(vec2 screen_uv, float units_x_total, float units_y_total, vec2
 
     // Three-case resolution handling:
     // Case 1: pixels_per_unit >= 1.0 -> Point sampling (sufficient resolution)
-    // Case 2: 1/3 <= pixels_per_unit < 1.0 -> Numerical integration (anti-aliasing)
-    // Case 3: pixels_per_unit < 1/3 -> Passthrough (pattern nearly unresolvable)
+    // Case 2: Nyquist <= pixels_per_unit < 1.0 -> Numerical integration (anti-aliasing)
+    // Case 3: pixels_per_unit < Nyquist -> Passthrough (pattern unresolvable)
+    // Nyquist criterion: need at least 2 samples per period
     const float INTEGRATION_THRESHOLD = 1.0;
-    const float PASSTHROUGH_THRESHOLD = 1.0 / 3.0;
+    
+    // Compute Nyquist thresholds based on mask type and period
+    float passthrough_threshold_x, passthrough_threshold_y;
+    
+    if (MASK_TYPE < 0.5) {
+        // Aperture grille: 6-unit horizontal period, no vertical pattern
+        passthrough_threshold_x = 2.0 / 6.0;   // 1/3
+        passthrough_threshold_y = 0.0;         // No vertical component
+    } else if (MASK_TYPE < 1.5) {
+        // Slot mask: 18-unit horizontal, 3-unit vertical periods
+        passthrough_threshold_x = 2.0 / 18.0;  // 1/9
+        passthrough_threshold_y = 2.0 / 3.0;   // 2/3
+    } else {
+        // Shadow mask: 6-unit horizontal, 4-unit vertical periods
+        passthrough_threshold_x = 2.0 / 6.0;   // 1/3
+        passthrough_threshold_y = 2.0 / 4.0;   // 1/2
+    }
 
-    bool use_integration_x = (pixels_per_unit.x >= PASSTHROUGH_THRESHOLD &&
+    bool use_integration_x = (pixels_per_unit.x >= passthrough_threshold_x &&
                               pixels_per_unit.x < INTEGRATION_THRESHOLD);
-    bool use_integration_y = (pixels_per_unit.y >= PASSTHROUGH_THRESHOLD &&
+    bool use_integration_y = (pixels_per_unit.y >= passthrough_threshold_y &&
                               pixels_per_unit.y < INTEGRATION_THRESHOLD);
-    bool passthrough_x = pixels_per_unit.x < PASSTHROUGH_THRESHOLD;
-    bool passthrough_y = pixels_per_unit.y < PASSTHROUGH_THRESHOLD;
+    bool passthrough_x = pixels_per_unit.x < passthrough_threshold_x;
+    bool passthrough_y = pixels_per_unit.y < passthrough_threshold_y;
 
     // Pixel extent in unit space
     float pixel_width_units = 1.0 / max(pixels_per_unit.x, EPS);
@@ -432,6 +449,32 @@ vec3 compute_mask(vec2 screen_uv, float units_x_total, float units_y_total, vec2
 // the gain relative to a unit grayscale input (sum = 3.0).
 float compute_peak_mask_gain(float units_x_total, float units_y_total, vec2 pixels_per_unit, float mask_intensity)
 {
+    // Compute Nyquist thresholds based on mask type
+    float passthrough_threshold_x, passthrough_threshold_y;
+    bool passthrough;
+    
+    if (MASK_TYPE < 0.5) {
+        // Aperture grille: only horizontal pattern
+        passthrough_threshold_x = 2.0 / 6.0;   // 1/3
+        passthrough = (pixels_per_unit.x < passthrough_threshold_x);
+    } else if (MASK_TYPE < 1.5) {
+        // Slot mask: both horizontal and vertical patterns (require AND logic)
+        passthrough_threshold_x = 2.0 / 18.0;  // 1/9
+        passthrough_threshold_y = 2.0 / 3.0;   // 2/3
+        passthrough = (pixels_per_unit.x < passthrough_threshold_x) && 
+                      (pixels_per_unit.y < passthrough_threshold_y);
+    } else {
+        // Shadow mask: both horizontal and vertical patterns (require AND logic)
+        passthrough_threshold_x = 2.0 / 6.0;   // 1/3
+        passthrough_threshold_y = 2.0 / 4.0;   // 1/2
+        passthrough = (pixels_per_unit.x < passthrough_threshold_x) && 
+                      (pixels_per_unit.y < passthrough_threshold_y);
+    }
+    
+    if (passthrough) {
+        return 1.0;  // No mask attenuation at very low resolution
+    }
+
     float period_x = 6.0;
     float period_y = 1.0;
 
@@ -497,10 +540,31 @@ vec3 average_mask_color(vec2 pixels_per_unit)
         sigma *= 0.625;
     }
 
+    // Compute Nyquist thresholds based on mask type
+    float passthrough_threshold_x, passthrough_threshold_y;
+    bool passthrough;
+    
+    if (MASK_TYPE < 0.5) {
+        // Aperture grille: only horizontal pattern
+        passthrough_threshold_x = 2.0 / 6.0;   // 1/3
+        passthrough = (pixels_per_unit.x < passthrough_threshold_x);
+    } else if (MASK_TYPE < 1.5) {
+        // Slot mask: both horizontal and vertical patterns (require AND logic)
+        passthrough_threshold_x = 2.0 / 18.0;  // 1/9
+        passthrough_threshold_y = 2.0 / 3.0;   // 2/3
+        passthrough = (pixels_per_unit.x < passthrough_threshold_x) && 
+                      (pixels_per_unit.y < passthrough_threshold_y);
+    } else {
+        // Shadow mask: both horizontal and vertical patterns (require AND logic)
+        passthrough_threshold_x = 2.0 / 6.0;   // 1/3
+        passthrough_threshold_y = 2.0 / 4.0;   // 1/2
+        passthrough = (pixels_per_unit.x < passthrough_threshold_x) && 
+                      (pixels_per_unit.y < passthrough_threshold_y);
+    }
+
     const float INTEGRATION_THRESHOLD = 1.0;
-    bool use_integration = (pixels_per_unit.x < INTEGRATION_THRESHOLD && pixels_per_unit.x >= 1.0 / 3.0) ||
-                           (pixels_per_unit.y < INTEGRATION_THRESHOLD && pixels_per_unit.y >= 1.0 / 3.0);
-    bool passthrough = (pixels_per_unit.x < 1.0 / 3.0) || (pixels_per_unit.y < 1.0 / 3.0);
+    bool use_integration = (pixels_per_unit.x < INTEGRATION_THRESHOLD && pixels_per_unit.x >= passthrough_threshold_x) ||
+                           (pixels_per_unit.y < INTEGRATION_THRESHOLD && pixels_per_unit.y >= passthrough_threshold_y);
 
     if (passthrough) {
         return vec3(1.0);  // Mask disabled at very low resolution
@@ -613,7 +677,7 @@ void main()
     vec3 masked_color = mix(color, color * mask_color, mask_intensity);
 
     if (MASK_DEBUG_OUT_OF_RANGE >= 1.0) {
-        masked_color = zebra(masked_color, 0.0, 100.0, vTexCoord, config.OutputSize.xy, config.FrameCount, 2.0);
+        masked_color = zebra(masked_color, 0.0, 10000.0, vTexCoord, config.OutputSize.xy, config.FrameCount, 2.0);
     }
 
     // Combine incoming gain with average mask gain

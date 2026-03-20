@@ -27,4 +27,7 @@
 
 #define SDR
 
+#define COLOR_SPACE_TO_XYZ sRGB_TO_XYZ
+#define XYZ_TO_COLOR_SPACE XYZ_TO_sRGB
+
 #include "bezel-base.slang"

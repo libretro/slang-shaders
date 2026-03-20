@@ -1,0 +1,170 @@
+# PC Engine RF shader set
+
+# For A/V Booster, CoreGrafx, CD-ROM2, etc., see pceav.  The shader is
+# setup similarly to the SFC, however in reality there is a distinct
+# difference: the SNES generates RGB first and uses a conventional RGB to
+# YPbPr to composite chip.  The PC Engine uses a proprietary chip that
+# outputs RGB and Y/C directly (Pb and Pr are already modulated).  The
+# composite signal is obtained with a discrete analog combiner. Therefore
+# we have appropriated the sys-component shader to represent the Y/C DAC
+# and bypass sys-rgb entirely.  The PC Engine RGB to YPbPr LUT is not
+# applied here.  Use an emulator that outputs the correct colors for
+# composite video.
+
+GAMUT_SELECT = "1.0"
+shaders = 22
+
+shader0 = ..\..\..\shaders\menus\menu-digital-rf-wcg.slang
+filter_linear0 = false
+scale_type0 = source
+scale0 = 1.0
+
+shader1 = ..\..\..\shaders\frameh.slang
+filter_linear1 = false
+scale_type_x1 = absolute
+scale_type_y1 = source
+scale_x1 = 1365.0
+scale_y1 = 1.0
+
+shader2 = ..\..\..\shaders\digital-component.slang
+filter_linear2 = false
+scale_type2 = source
+scale2 = 1.0
+
+shader3 = ..\..\..\shaders\digital-ycc-filter.slang
+filter_linear3 = false
+scale_type3 = source
+scale3 = 1.0
+
+shader4 = ..\..\..\shaders\dac.slang
+filter_linear4 = false
+scale_type4 = source
+scale4 = 1.0
+
+shader5 = ..\..\..\shaders\composite-mod.slang
+filter_linear5 = false
+scale_type5 = source
+scale5 = 1.0
+
+shader6 = ..\..\..\shaders\composite-iq.slang
+filter_linear6 = false
+scale_type6 = source
+scale6 = 1.0
+
+shader7 = ..\..\..\shaders\iq-filter.slang
+filter_linear7 = false
+scale_type7 = source
+scale7 = 1.0
+
+shader8 = ..\..\..\shaders\iq-noise.slang
+filter_linear8 = false
+scale_type8 = source
+scale8 = 1.0
+
+shader9 = ..\..\..\shaders\iq-demod.slang
+filter_linear9 = false
+scale_type9 = source
+scale9 = 1.0
+
+shader10 = ..\..\..\shaders\composite-prefilter.slang
+filter_linear10 = false
+scale_type10 = source
+scale10 = 1.0
+
+shader11 = ..\..\..\shaders\composite-demod.slang
+filter_linear11 = false
+scale_type11 = source
+scale11 = 1.0
+
+shader12 = ..\..\..\shaders\display-rgb-bandlimit.slang
+filter_linear12 = false
+scale_type12 = source
+scale12 = 1.0
+
+shader13 = ..\..\..\shaders\limiter.slang
+filter_linear13 = false
+scale_type13 = source
+scale13 = 1.0
+
+shader14 = ..\..\..\shaders\crt-linear.slang
+filter_linear14 = false
+scale_type14 = source
+scale14 = 1.0
+
+shader15 = ..\..\..\shaders\framev.slang
+filter_linear15 = false
+scale_type_x15 = source
+scale_type_y15 = absolute
+scale_x15 = 1.0
+scale_y15 = 572.0
+
+shader16 = ..\..\..\shaders\phosphor-trichrome.slang
+filter_linear16 = false
+scale_type16 = source
+scale16 = 1.0
+
+shader17 = ..\..\..\shaders\beam.slang
+filter_linear17 = false
+scale_type17 = viewport
+scale17 = 1.0
+
+shader18 = ..\..\..\shaders\mask.slang
+filter_linear18 = false
+scale_type18 = source
+scale18 = 1.0
+
+shader19 = ..\..\..\shaders\curve.slang
+filter_linear19 = false
+scale_type19 = source
+scale19 = 1.0
+
+shader20 = ..\..\..\shaders\color-wcg.slang
+filter_linear20 = false
+scale_type20 = source
+scale20 = 1.0
+
+shader21 = ..\..\..\shaders\bezel-wcg.slang
+filter_linear21 = true
+mipmap_input21 = true
+scale21 = 1.0
+
+textures = "BORDER"
+BORDER_linear = true
+BORDER_wrap_mode = clamp_to_edge
+BORDER_mipmap = true
+
+
+ENCODER_SETUP = 0.0
+DIGITAL_Y_FILTER_DECIMATION = 2.0
+DIGITAL_Cb_FILTER_DECIMATION = 2.0
+DIGITAL_Cr_FILTER_DECIMATION = 2.0
+WORKING_BITS = 10.0
+DAC_BITS = 8.0
+VIDEO_MODE = 2.0
+COLOR_FILTER_MODE = 0.0
+PIXEL_CLOCK_MODE = 1.0
+PIXEL_CLOCK = 6.0
+H_FREQ_MODE = 1.0
+H_FREQ = 1365.0
+YC_MODEL = 0.0
+DECODER_SETUP = 0.0
+COLORIMETRY_PRESET = 2.0
+BORDER = ..\..\..\share\bezel-trinitron.jpg
+MASK_TYPE = 0.0
+MAGNETIC_CORRECTION = 30.0
+DEFLECTION_ANGLE = 90.0
+SCREEN_ANGLE_H = 25.0
+SCREEN_ANGLE_V = 0.0
+S_CORRECTION_V = 2.0
+TRAPEZOIDAL_CORRECTION = 8.0
+USER_H_SIZE = 56.0
+USER_V_SIZE = 56.0
+ZOOM = "103"
+USER_SHARPNESS = 50.0
+NTSC_CONVERSION = 1.0
+LIMITER_COMPRESSION_POINT = 85.0
+BANDPASS_ATTEN_DB = 6.0
+BANDPASS_WIDTH = 0.6
+TVL = "320.0"
+SCANLINE_BLANK_WEIGHT = 75.0
+BEZEL_ZOOM = "106.0"

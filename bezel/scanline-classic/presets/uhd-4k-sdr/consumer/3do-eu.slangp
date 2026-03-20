@@ -106,11 +106,15 @@ scale18 = 1.0
 
 shader19 = ..\..\..\shaders\bezel-sdr.slang
 filter_linear19 = true
-scale_type19 = viewport
-scale19 = 1.0
 mipmap_input19 = true
+scale_type19 = source
+scale19 = 1.0
 
-textures = BORDER
+textures = "BORDER"
+BORDER_linear = true
+BORDER_wrap_mode = clamp_to_edge
+BORDER_mipmap = true
+
 
 ENCODER_SETUP = 0.0
 UPSAMPLER_INPUT = 1.0
@@ -130,7 +134,6 @@ COLORIMETRY_PRESET = 3.0
 COLOR_FILTER_MODE = 0.0
 BORDER = ..\..\..\share\bezel-tv.jpg
 MASK_TYPE = 1.0
-MASK_DIFFUSION = 2.0
 MAGNETIC_CORRECTION = 40.0
 DEFLECTION_ANGLE = 110.0
 SCREEN_ANGLE_H = 30.0

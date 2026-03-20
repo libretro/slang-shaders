@@ -39,8 +39,8 @@
 #pragma name DisplaySVideo
 #pragma format R16G16B16A16_SFLOAT
 
-#pragma parameter BYPASS_SVIDEO "Bypass S-Video processing (0=Off, 1=On)" 0.0 0.0 1.0 1.0
-#pragma parameter SVIDEO_FILTER_BYPASS "S-Video filter bypass (use center sample)" 0.0 0.0 1.0 1.0
+#pragma parameter BYPASS_SVIDEO "Bypass S-Video processing" 0.0 0.0 1.0 1.0
+#pragma parameter SVIDEO_FILTER_BYPASS "S-Video filter bypass" 0.0 0.0 1.0 1.0
 
 layout(push_constant) uniform Push
 {
@@ -95,14 +95,14 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float SVIDEO_FILTER_BYPASS;
     float BW_MODE;
     float DECODER_SETUP;
-    float DECODER_PAL;
+    float DECODER_TYPE;
 } global;
 
 #define BYPASS_SVIDEO global.BYPASS_SVIDEO
 #define SVIDEO_FILTER_BYPASS global.SVIDEO_FILTER_BYPASS
 #define BW_MODE global.BW_MODE
 #define DECODER_SETUP global.DECODER_SETUP
-#define DECODER_PAL global.DECODER_PAL
+#define DECODER_TYPE global.DECODER_TYPE
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -179,7 +179,7 @@ void main()
     float t0 = line / carrier.h_freq_hz + baseCenter * carrier.pixel_time_px;
     float phase_inc_px = 2.0 * PI * carrier.sc_freq_hz * carrier.pixel_time_px;
 
-    float pal_v_sign = 1.0 - 2.0 * floor(mod(line, 2.0)) * DECODER_PAL;
+    float pal_v_sign = 1.0 - 2.0 * floor(mod(line, 2.0)) * DECODER_TYPE;
 
     vec3 pixel0 = texture(Source, Tex).rgb;
     float phase0 = compute_carrier_phase(t0, carrier.sc_freq_hz, carrier.field_phase);

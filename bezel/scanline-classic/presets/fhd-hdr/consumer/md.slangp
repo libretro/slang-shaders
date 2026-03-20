@@ -96,10 +96,14 @@ scale16 = 1.0
 
 shader17 = ..\..\..\shaders\bezel-hdr.slang
 filter_linear17 = true
-scale17 = 1.0
 mipmap_input17 = true
+scale17 = 1.0
 
-textures = BORDER
+textures = "BORDER"
+BORDER_linear = true
+BORDER_wrap_mode = clamp_to_edge
+BORDER_mipmap = true
+
 
 ENCODER_SETUP = 0.0
 SYS_BANDWIDTH_R = 6.7
@@ -129,9 +133,8 @@ PIXEL_CLOCK_MODE = 0.0
 PIXEL_CLOCK = 53.693175
 DECODER_SETUP = 0.0
 COLORIMETRY_PRESET = 2.0
-BORDER = "..\..\..\share\bezel-trinitron-fhd.jpg"
+BORDER = ..\..\..\share\bezel-trinitron.jpg
 MASK_TYPE = 0.0
-MASK_DIFFUSION = "3.0"
 MAGNETIC_CORRECTION = 30.0
 DEFLECTION_ANGLE = 90.0
 SCREEN_ANGLE_H = 25.0

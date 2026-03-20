@@ -117,11 +117,6 @@ void main()
 
     CarrierPhaseConfig tb = extract_carrier_phase(tb_full);
 
-    // Derive within-field time (matching display-svideo decoder)
-    // Do not include field progression; that's handled via field_phase
-    float field_time = tb_full.v_lines_per_field / tb.h_freq_hz;
-    float t00 = 0.5 * tb.pixel_time_px;
-
     // Precompute fractional cycle at top-left pixel center within field
     base_cycles = 0.0;
     cycles_per_pixel = tb.sc_freq_hz * tb.pixel_time_px;
