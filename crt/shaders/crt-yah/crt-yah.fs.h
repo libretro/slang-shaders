@@ -318,13 +318,6 @@ vec3 get_mask(vec2 tex_coord)
         subpixel_type == 1 ? subpixel_type + 1 :
         subpixel_type;
 
-    // when automatic down-scaled
-    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
-    {
-        // stabilize mask position due to half texel x-offset compensated in vertex-shader
-        pix_coord.x -= subpixel_size;
-    }
-
     vec3 mask = get_subpixel_color(
         pix_coord,
         subpixel_size,
@@ -384,13 +377,6 @@ vec3 apply_color_overflow(vec3 color)
 
 vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord)
 {
-    // when automatic down-scaled
-    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
-    {
-        // stabilize halation position due to half texel x-offset compensated in vertex-shader
-        tex_coord -= vec2o(0.5, 0.0) / global.OriginalSize.xy;
-    }
-
     vec3 halation = INPUT(texture(halation_source, tex_coord).rgb);
 
     // add the difference between color and halation

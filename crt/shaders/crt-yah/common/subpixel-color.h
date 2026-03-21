@@ -21,7 +21,7 @@ const vec3 Cyan = vec3(0.0, 1.0, 1.0);
 vec2 shift_x_every_y(vec2 pixCoord, float amount, float size)
 {
     return vec2(
-        mix(0.0, amount, floor(mod(pixCoord.y / size, 2.0) + EPSILON)),
+        mix(0.0, amount, floor(mod(pixCoord.y / size, 2.0))),
         0.0);
 }
 
@@ -33,7 +33,7 @@ vec2 shift_y_every_x(vec2 pixCoord, float amount, float size)
 {
     return vec2(
         0.0,
-        mix(0.0, amount, floor(mod(pixCoord.x / size, 2.0) + EPSILON)));
+        mix(0.0, amount, floor(mod(pixCoord.x / size, 2.0))));
 }
 
 // Returns an offset to shift the given pixel coordinate by x-amount for each x-block.
@@ -43,13 +43,13 @@ vec2 shift_y_every_x(vec2 pixCoord, float amount, float size)
 vec2 shift_x_each_x(vec2 pixCoord, float amount, float size)
 {
     return vec2(
-        mix(0.0, amount, floor((pixCoord.x / size) + EPSILON)),
+        mix(0.0, amount, floor((pixCoord.x / size))),
         0.0);
 }
 
 int get_index(float pixCoord, int count)
 {
-    return int(floor(mod(pixCoord, count) + EPSILON));
+    return int(floor(mod(pixCoord, count)));
 }
 
 vec3 get_subpixel_color(vec2 pixCoord, vec3 c1, vec3 c2)
@@ -295,7 +295,7 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
         || mask_type == 2)
     {
         // change gap (black) between color-blocks (e.g. RGB) to "half" a sub-pixel
-        float gap = floor((0.5 * size) + EPSILON) / size;
+        float gap = floor(0.5 * size) / size;
 
         // green, magenta, black
         if (subpixel_type == 3)

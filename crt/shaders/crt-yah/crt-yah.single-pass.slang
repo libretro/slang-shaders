@@ -61,13 +61,14 @@ layout (push_constant) uniform Push
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 Coord;
 layout(location = 0) out vec2 TexCoord;
-layout(location = 1) out int ScreenOrientation;
-layout(location = 2) out float ScreenMultiple;
-layout(location = 3) out float ScreenMultipleAuto;
-layout(location = 4) out float BrightnessCompensation;
-layout(location = 5) out vec2 MaskProfile;
-layout(location = 6) out vec4 BeamProfile;
-layout(location = 7) out mat4x4 BeamFilter;
+layout(location = 1) out vec2 ScanTexCoord;
+layout(location = 2) out int ScreenOrientation;
+layout(location = 3) out float ScreenMultiple;
+layout(location = 4) out float ScreenMultipleAuto;
+layout(location = 5) out float BrightnessCompensation;
+layout(location = 6) out vec2 MaskProfile;
+layout(location = 7) out vec4 BeamProfile;
+layout(location = 8) out mat4x4 BeamFilter;
 
 // required by crt-yah.vs.h
 #define INPUT_SCREEN_ORIENTATION ScreenOrientation
@@ -81,6 +82,7 @@ void main()
 {
     gl_Position = global.MVP * Position;
     TexCoord = Coord;
+    ScanTexCoord = Coord;
 
     ScreenOrientation = get_orientation(global.OutputSize.xy, int(PARAM_SCREEN_ORIENTATION));
     ScreenMultiple = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -PARAM_SCREEN_SCALE);
@@ -94,19 +96,20 @@ void main()
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
     {
         // compensate coordinate shift due half texel x-offset applied in fragment shader
-        TexCoord += vec2o(0.5, 0.0) / global.OriginalSize.xy;
+        ScanTexCoord += vec2o(0.5, 0.0) / global.OriginalSize.xy;
     }
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 TexCoord;
-layout(location = 1) flat in int ScreenOrientation;
-layout(location = 2) in float ScreenMultiple;
-layout(location = 3) in float ScreenMultipleAuto;
-layout(location = 4) in float BrightnessCompensation;
-layout(location = 5) in vec2 MaskProfile;
-layout(location = 6) in vec4 BeamProfile;
-layout(location = 7) in mat4x4 BeamFilter;
+layout(location = 1) in vec2 ScanTexCoord;
+layout(location = 2) flat in int ScreenOrientation;
+layout(location = 3) in float ScreenMultiple;
+layout(location = 4) in float ScreenMultipleAuto;
+layout(location = 5) in float BrightnessCompensation;
+layout(location = 6) in vec2 MaskProfile;
+layout(location = 7) in vec4 BeamProfile;
+layout(location = 8) in mat4x4 BeamFilter;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -126,9 +129,12 @@ void main()
     vec2 tex_coord = TexCoord;
     vec2 tex_coord_curved = apply_cubic_lens_distortion(tex_coord);
     vec2 tex_coord_curved_sharpened = apply_sharp_bilinear_filtering(tex_coord_curved);
+    vec2 scan_coord = ScanTexCoord;
+    vec2 scan_coord_curved = apply_cubic_lens_distortion(scan_coord);
+    vec2 scan_coord_curved_sharpened = apply_sharp_bilinear_filtering(scan_coord_curved);
 
     vec3 raw_color_sharpened = get_raw_color(Source, tex_coord_curved_sharpened);
-    vec3 scanlines_color = get_scanlines_color(Source, tex_coord_curved);
+    vec3 scanlines_color = get_scanlines_color(Source, scan_coord_curved);
 
     vec3 color = blend_colors(raw_color_sharpened, scanlines_color);
     float color_luma = get_luminance(color);
