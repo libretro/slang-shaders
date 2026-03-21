@@ -6,8 +6,10 @@ layout(location = 1) out vec2 ScanTexelSize;
 layout(location = 2) out float Phase;
 
 // used in common/screen-helper.h
-#define PIXEL_SIZE_LIMIT 0.0
-#define RESOLUTION_AUTO_SCALE PARAM_SCREEN_RESOLUTION_SCALE < 0.5
+#define MIN_PIXEL_SIZE 0.0 // allow any pixel size
+#define BASE_SIZE PARAM_SCREEN_RESOLUTION_SCALE > 2.5 ? 480.0 : 240.0;
+#define ALLOW_AUTO_SCALE PARAM_SCREEN_RESOLUTION_SCALE > 1.5
+#define ALLOW_AUTO_UP_SCALE PARAM_SCREEN_RESOLUTION_SCALE > 2.5
 
 #include "common/screen-helper.h"
 

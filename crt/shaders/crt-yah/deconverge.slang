@@ -35,7 +35,9 @@ layout(location = 2) out vec2 TexCoordG;
 layout(location = 3) out vec2 TexCoordB;
 
 // used in common/screen-helper.h
-#define RESOLUTION_AUTO_SCALE PARAM_SCREEN_RESOLUTION_SCALE < 0.5
+#define BASE_SIZE PARAM_SCREEN_RESOLUTION_SCALE > 2.5 ? 480.0 : 240.0;
+#define ALLOW_AUTO_SCALE PARAM_SCREEN_RESOLUTION_SCALE > 1.5
+#define ALLOW_AUTO_UP_SCALE PARAM_SCREEN_RESOLUTION_SCALE > 2.5
 
 #include "common/screen-helper.h"
 

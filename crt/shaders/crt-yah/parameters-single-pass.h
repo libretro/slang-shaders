@@ -3,7 +3,7 @@
 
 // Screen parameters
 #pragma parameter SCREEN_ORIENTATION "·  Screen > Orientation  (0-Auto, 1-Horizontal, 2-Vertical)" 0.0 0.0 2.0 1.0
-#pragma parameter SCREEN_RESOLUTION_SCALE "  ⁵Screen > Resolution  (0-Auto, 1-Native)" 0.0 0.0 1.0 1.0
+#pragma parameter SCREEN_RESOLUTION_SCALE "  ⁵Screen > Resolution  (1-Native, 2-Low, 3-High)" 2.0 1.0 3.0 1.0
 #pragma parameter SCREEN_SCALE "   Screen > Scale⁵  (-Down / 0-Auto / +Up)" 0.0 -2.0 2.0 0.05
 
 // Color parameters
