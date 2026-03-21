@@ -113,10 +113,10 @@ layout(location = 6) in vec2 MaskProfile;
 layout(location = 7) in vec4 BeamProfile;
 layout(location = 8) in mat4x4 BeamFilter;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D LutPass;
+layout(set = 0, binding = 2) uniform sampler2D PhosphorPass;
 layout(set = 0, binding = 3) uniform sampler2D BlurVPass;
 
-#define TextureSource LutPass
+#define TextureSource PhosphorPass
 #define HalationSource BlurVPass
 
 // required by crt-yah.fs.h

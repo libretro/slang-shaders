@@ -2,7 +2,6 @@
 
 // Required shader pass settings:
 //    filter_linear1 = true
-//    float_framebuffer1 = false
 //    scale_type_x1 = source
 //    scale_type_y1 = source
 //    scale_x1 = 0.25

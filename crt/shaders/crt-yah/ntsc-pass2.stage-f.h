@@ -10,6 +10,7 @@ layout(set = 0, binding = 3) uniform sampler2D OriginalHistory1; // input frame 
 
 #include "ntsc-pass2.h"
 
+// without gamma correction
 void main()
 {
     // return if effect is disabled

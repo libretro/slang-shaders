@@ -20,6 +20,7 @@ const float Saturation = 1.0;
 
 #include "ntsc-pass1.h"
 
+// without gamma correction
 void main()
 {
     // return if effect is disabled
