@@ -1,6 +1,0 @@
-shaders = 1
-
-shader0 = "crt-yah.single-pass.slang"
-filter_linear0 = true
-scale_type_x11 = viewport
-scale_type_y11 = viewport

@@ -8,7 +8,7 @@ layout(set = 0, binding = 3) uniform sampler2D OriginalHistory1; // input frame 
 
 #include "common/screen-helper.h"
 
-#include "ntsc-pass2.h"
+#include "ntsc-pass2.stage-f.core.h"
 
 // without gamma correction
 void main()
