@@ -6,6 +6,8 @@
     Modified by Jezze
 */
 
+#define IS_SINGLE_PASS
+
 #include "crt-yah.layout.h"
 
 #include "parameters.h"

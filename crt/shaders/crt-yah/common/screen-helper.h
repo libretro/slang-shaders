@@ -12,9 +12,9 @@
     #define OUTPUT_SIZE global.FinalViewportSize
 #endif
 
-#ifndef PIXEL_SIZE_LIMIT
+#ifndef MIN_PIXEL_SIZE
     // The allowed pixel size after the multiple has been applied.
-    #define PIXEL_SIZE_LIMIT 3.0
+    #define MIN_PIXEL_SIZE 3.0
 #endif
 
 #ifndef OFFSET_PRECISION
@@ -22,9 +22,14 @@
     #define OFFSET_PRECISION 0.05
 #endif
 
-#ifndef RESOLUTION_AUTO_SCALE
+#ifndef ALLOW_AUTO_SCALE
     // Whether the resolution shall be auto scaled.
-    #define RESOLUTION_AUTO_SCALE true
+    #define ALLOW_AUTO_SCALE true
+#endif
+
+#ifndef ALLOW_AUTO_UP_SCALE
+    // Whether the resolution can be up scaled when auto scaled.
+    #define ALLOW_AUTO_UP_SCALE false
 #endif
 
 // Returns whether the x-axis is the largest dimension of the given size.
@@ -113,18 +118,18 @@ float get_base_size(vec2 size)
     return get_base_size(size, get_orientation(size));
 }
 
-// Returns the multiple of the size for the defined base size.
+// Returns the multiple of the source size for the defined base size.
 //   The base size can be set by #define BASE_SIZE, which has to be be a float or integer.
-// @size: the size to test
+// @source_size: the source size to test
 //   e.g. global.SourceSize
 // @orientation: the orientation
 //   0 - horizontal
 //   1 - vertical
-float get_multiple(vec2 size, int orientation)
+float get_multiple(vec2 source_size, int orientation)
 {
-    float ratio = get_ratio(size, orientation);
+    float ratio = get_ratio(source_size, orientation);
 
-    float portrait = float(is_portrait(size));
+    float portrait = float(is_portrait(source_size));
 
     float base_size = BASE_SIZE;
     base_size = orientation > 0
@@ -132,8 +137,8 @@ float get_multiple(vec2 size, int orientation)
         : mix(base_size, base_size * ratio, portrait);
 
     return orientation > 0
-        ? size.x / base_size
-        : size.y / base_size;
+        ? source_size.x / base_size
+        : source_size.y / base_size;
 }
 
 // Returns the multiple of the size for the defined base size.
@@ -175,16 +180,21 @@ float get_multiple_factor(float index)
         fract(index));
 }
 
-// Offsets the given multiple, limited by the given target size.
+// Offsets the given multiple, limited by the given pixel size.
 // @multiple: the multiple to offset
-// @target_size: the limiting target size to apply the multiple
+// @pixel_size: the limiting pixel size to apply the multiple
 // @multiple_offset: the multiple offset
 //   = 0.0 - the multiple will be rounded to the next integer greater equal to 1.
 //   > 0.0 - in addition the multiple will be incremented by the offset.
 //   < 0.0 - in addition the multiple will be decremented by the offset.
-float offset_multiple(float multiple, float target_size, float multiple_offset)
+float offset_multiple(float multiple, float pixel_size, float multiple_offset)
 {
-    float multiple_index = max(1.0, round(multiple)) - 1.0;
+    bool upscale = (multiple < 1.0 && ALLOW_AUTO_UP_SCALE);
+
+    float index = upscale ? 1.0 / multiple : multiple;
+    float sign = upscale ? -1.0 : 1.0;
+
+    float multiple_index = sign * (max(1.0, round(index)) - 1.0);
 
     multiple_index += multiple_base;
     multiple_index += multiple_offset;
@@ -194,7 +204,7 @@ float offset_multiple(float multiple, float target_size, float multiple_offset)
         multiple = get_multiple_factor(multiple_index);
 
         // break at a multiple which results in a pixel size larger/equal the given limit
-        if ((target_size * multiple) >= PIXEL_SIZE_LIMIT)
+        if ((pixel_size * multiple) >= MIN_PIXEL_SIZE)
         {
             break;
         }
@@ -218,11 +228,11 @@ float get_auto_multiple(vec2 source_size, int source_orientation, float multiple
 {
     float multiple = get_multiple(source_size, source_orientation);
 
-    float target_size = source_orientation > 0
+    float pixel_size = source_orientation > 0
         ? OUTPUT_SIZE.x / source_size.x
         : OUTPUT_SIZE.y / source_size.y;
 
-    return offset_multiple(multiple, target_size, multiple_offset);
+    return offset_multiple(multiple, pixel_size, multiple_offset);
 }
 
 // Returns the fixed-multiple of the given source size for the defined base size, scaled by the specified offset.
@@ -240,16 +250,16 @@ float get_fixed_multiple(vec2 source_size, int source_orientation, float multipl
 {
     float multiple = 1.0;
 
-    float target_size = source_orientation > 0
+    float pixel_size = source_orientation > 0
         ? OUTPUT_SIZE.x / source_size.x
         : OUTPUT_SIZE.y / source_size.y;
 
-    return offset_multiple(multiple, target_size, multiple_offset);
+    return offset_multiple(multiple, pixel_size, multiple_offset);
 }
 
 float get_screen_multiple(vec2 source_size, int source_orientation, float multiple_offset)
 {
-    return RESOLUTION_AUTO_SCALE
+    return ALLOW_AUTO_SCALE
         ? get_auto_multiple(source_size, source_orientation, multiple_offset)
         : get_fixed_multiple(source_size, source_orientation, multiple_offset);
 }

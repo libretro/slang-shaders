@@ -3,9 +3,9 @@
 
 // Screen parameters
 #pragma parameter SCREEN_ORIENTATION "·  Screen > Orientation  (0-Auto, 1-Horizontal, 2-Vertical)" 0.0 0.0 2.0 1.0
-#pragma parameter SCREEN_RESOLUTION_SCALE "  ⁵Screen > Resolution  (0-Auto, 1-Native)" 0.0 0.0 1.0 1.0
+#pragma parameter SCREEN_RESOLUTION_SCALE "  ⁵Screen > Resolution  (1-Native, 2/3-Low/+, 4/5-High/+)" 2.0 1.0 5.0 1.0
 #pragma parameter SCREEN_SCALE "   Screen > Scale⁵  (-Down / 0-Auto / +Up)" 0.0 -2.0 2.0 0.05
-#pragma parameter SCREEN_FREQUENCY "  ⁴Screen > Frequency  (30Hz, 60Hz)" 60.0 30.0 60.0 30.0
+#pragma parameter SCREEN_FREQUENCY "  ⁴Screen > Frequency  (30Hz .. 60Hz)" 60.0 30.0 60.0 10.0
 
 // Color parameters
 #pragma parameter COLOR_PROFILE "·  Color > Profile¹  (-NTSC .. +Trinitron)" 0.0 -1.0 1.0 0.1
@@ -13,7 +13,7 @@
 #pragma parameter COLOR_SATURATION "   Color > Saturation¹  (0-Low .. 2-High)" 1.1 0.0 2.0 0.05
 #pragma parameter COLOR_CONTRAST "   Color > Contrast¹  (-Lower .. +Higher)" 0.1 -1.0 1.0 0.05
 #pragma parameter COLOR_BRIGHTNESS "   Color > Brightness¹  (-Darken .. +Lighten)" 0.30 -1.0 2.0 0.05
-#pragma parameter COLOR_BRIGHTNESS_FLICKER "   Color > Brightness Flicker¹⁴  (0-None .. 1-Full)" 0.25 0.0 1.0 0.05
+#pragma parameter COLOR_BRIGHTNESS_FLICKER "   Color > Brightness Flicker¹⁴  (0-None .. 1-Full)" 0.2 0.0 1.0 0.05
 #pragma parameter COLOR_OVERFLOW "   Color > Brightness Overflow¹  (0-None .. 1-Full / 2-More)" 1.0 0.0 2.0 0.25
 #pragma parameter COLOR_COMPENSATION "  ²Color > Brightness Compensation  (0-Off, 1-On)" 1.0 0.0 1.0 1.0
 #pragma parameter COLOR_BLACK_LIGHT "  ³Color > Black Lightening (0-None .. 1-Full / 2-More)" 0.5 0.0 2.0 0.1
@@ -26,7 +26,7 @@
 #pragma parameter BEAM_FILTER "   Scanlines > Beam Filter  (-Blocky .. +Blurry)" -0.25 -1.0 1.0 0.05
 #pragma parameter ANTI_RINGING "   Scanlines > Anti-Ringing  (0-None .. 1-Full)" 1.0 0.0 1.0 0.1
 #pragma parameter SCANLINES_COLOR_BURN "   Scanlines > Color Burn¹  (0-None .. 1-Full)" 1.0 0.0 1.0 0.25
-#pragma parameter SCANLINES_OFFSET "   Scanlines > Offset⁴  (-with .. +without Jitter)" -0.25 -1.0 1.0 0.05
+#pragma parameter SCANLINES_OFFSET "   Scanlines > Offset⁴  (-with .. +without Jitter)" -0.1 -1.0 1.0 0.05
 
 // Mask parameters
 #pragma parameter MASK_INTENSITY "·  Mask > Intensity¹²³  (0-None .. 1-Full)" 0.5 0.0 1.0 0.05
@@ -54,7 +54,7 @@
 #pragma parameter NTSC_QUALITY "   NTSC > Chroma Phase  (1-Auto, 2-Two, 3-Three)" 2.0 1.0 3.0 1.0
 #pragma parameter NTSC_SHIFT "   NTSC > Chroma Shift  (-left .. +right)" 0.0 -1.0 1.0 0.1
 #pragma parameter NTSC_SCALE "   NTSC > Scale⁵  (-Down / 0-Auto / +Up)" 0.0 -0.5 0.5 0.05
-#pragma parameter NTSC_JITTER "   NTSC > Offset⁴  (-Merge / 0-Static / +Jitter)" 1.0 -1.0 2.0 0.1
+#pragma parameter NTSC_JITTER "   NTSC > Offset⁴  (-Merge / 0-Static / +Jitter)" 1.0 -1.0 1.0 0.1
 
 // CRT parameters
 #pragma parameter CRT_CURVATURE_AMOUNT "·  CRT > Curvature¹  (0-None .. 1-Full)" 0.0 0.0 1.0 0.05
@@ -69,66 +69,4 @@
 #pragma parameter INFO4 " ⁴ Affects frequency of marked effects" 0.0 0.0 0.0 0.0
 #pragma parameter INFO5 " ⁵ Affects scaling of marked effects" 0.0 0.0 0.0 0.0
 
-#define PARAM_GLOBAL_MASTER global.GLOBAL_MASTER
-#define PARAM_SCREEN_RESOLUTION_SCALE global.SCREEN_RESOLUTION_SCALE
-#define PARAM_SCREEN_ORIENTATION global.SCREEN_ORIENTATION
-#define PARAM_SCREEN_SCALE global.SCREEN_SCALE
-#define PARAM_SCREEN_FREQUENCY global.SCREEN_FREQUENCY
-
-float mix_master(float value, float off_value, float min_value, float max_value)
-{
-    return PARAM_GLOBAL_MASTER > 1.0
-        ? mix(
-            value,
-            clamp(
-                (value - off_value * 0.5) * PARAM_GLOBAL_MASTER,
-                min(value, min_value),
-                max(value, max_value)),
-            PARAM_GLOBAL_MASTER - 1.0)
-        : mix(
-            off_value,
-            value,
-            PARAM_GLOBAL_MASTER);
-}
-
-#define PARAM_COLOR_FLOOR max(PARAM_SCANLINES_STRENGTH, PARAM_MASK_INTENSITY) * (1.0 / 256.0)
-#define PARAM_COLOR_COMPENSATION param.COLOR_COMPENSATION
-#define PARAM_COLOR_BRIGHTNESS mix_master(param.COLOR_BRIGHTNESS, 0.0, -1.0, 2.0)
-#define PARAM_COLOR_OVERFLOW mix_master(param.COLOR_OVERFLOW, 0.0, 0.0, 2.0)
-#define PARAM_COLOR_BRIGHTNESS_FLICKER mix_master(param.COLOR_BRIGHTNESS_FLICKER, 0.0, 0.0, 1.0)
-#define PARAM_COLOR_CONTRAST mix_master(param.COLOR_CONTRAST, 0.0, -1.0, 1.0)
-#define PARAM_COLOR_SATURATION mix_master(param.COLOR_SATURATION, 1.0, 0.0, 2.0)
-#define PARAM_COLOR_TEMPERATUE mix_master(param.COLOR_TEMPERATUE * -1.0, 0.0, -1.0, 1.0)
-#define PARAM_COLOR_BLACK_LIGHT param.COLOR_BLACK_LIGHT
-#define PARAM_MASK_INTENSITY mix_master(param.MASK_INTENSITY, 0.0, 0.0, 1.0)
-#define PARAM_MASK_BLEND param.MASK_BLEND
-#define PARAM_MASK_SCALE param.MASK_SCALE
-#define PARAM_MASK_TYPE param.MASK_TYPE
-#define PARAM_MASK_SUBPIXEL param.MASK_SUBPIXEL
-#define PARAM_MASK_SUBPIXEL_SHAPE param.MASK_SUBPIXEL_SHAPE
-#define PARAM_MASK_COLOR_BLEED mix_master(param.MASK_COLOR_BLEED, 0.0, 0.0, 1.0)
-#define PARAM_SCANLINES_STRENGTH mix_master(param.SCANLINES_STRENGTH, 0.0, 0.0, 1.0)
-#define PARAM_SCANLINES_OFFSET mix_master(param.SCANLINES_OFFSET, 0.0, -1.0, 1.0)
-#define PARAM_SCANLINES_COLOR_BURN mix_master(param.SCANLINES_COLOR_BURN, 0.0, 0.0, 1.0)
-#define PARAM_BEAM_WIDTH_MIN param.BEAM_WIDTH_MIN
-#define PARAM_BEAM_WIDTH_MAX param.BEAM_WIDTH_MAX
-#define PARAM_BEAM_SHAPE param.BEAM_SHAPE
-#define PARAM_BEAM_FILTER mix_master(param.BEAM_FILTER, 0.0, -1.0, 1.0)
-#define PARAM_ANTI_RINGING param.ANTI_RINGING
-#define PARAM_CRT_CURVATURE_AMOUNT mix_master(param.CRT_CURVATURE_AMOUNT, 0.0, 0.0, 1.0)
-#define PARAM_CRT_VIGNETTE_AMOUNT mix_master(param.CRT_VIGNETTE_AMOUNT, 0.0, 0.0, 1.0)
-#define PARAM_CRT_NOISE_AMOUNT mix_master(param.CRT_NOISE_AMOUNT, 0.0, 0.0, 1.0)
-#define PARAM_CRT_CORNER_RAIDUS mix_master(param.CRT_CORNER_RAIDUS, 0.0, 0.0, 0.25)
-#define PARAM_CRT_CORNER_SMOOTHNESS param.CRT_CORNER_SMOOTHNESS
-#define PARAM_COLOR_PROFILE mix_master(param.COLOR_PROFILE, 0.0, -1.0, 1.0)
-#define PARAM_NTSC_PROFILE param.NTSC_PROFILE
-#define PARAM_NTSC_JITTER param.NTSC_JITTER
-#define PARAM_NTSC_SHIFT param.NTSC_SHIFT
-#define PARAM_NTSC_QUALITY param.NTSC_QUALITY
-#define PARAM_NTSC_SCALE param.NTSC_SCALE
-#define PARAM_DECONVERGE_LINEAR mix_master(param.DECONVERGE_LINEAR, 0.0, -2.0, 2.0)
-#define PARAM_DECONVERGE_RADIAL mix_master(param.DECONVERGE_RADIAL, 0.0, -2.0, 2.0)
-#define PARAM_PHOSPHOR_AMOUNT mix_master(param.PHOSPHOR_AMOUNT, 0.0, 0.0, 1.0)
-#define PARAM_PHOSPHOR_DECAY param.PHOSPHOR_DECAY
-#define PARAM_HALATION_INTENSITY mix_master(param.HALATION_INTENSITY, 0.0, 0.0, 1.0)
-#define PARAM_HALATION_DIFFUSION param.HALATION_DIFFUSION * 0.9 // change range from [0.0, 1.0] to [0.0, 0.9]
+#include "parameters.shared.h"

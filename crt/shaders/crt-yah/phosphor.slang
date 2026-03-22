@@ -46,11 +46,11 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D PhosphorPassFeedback;
 
-#define INPUT(color) decode_gamma(color)
-#define OUTPUT(color) encode_gamma(color)
-
 #include "common/colorspace-srgb.h"
 #include "common/frame-helper.h"
+
+#define INPUT(color) decode_gamma(color)
+#define OUTPUT(color) encode_gamma(color)
 
 void main()
 {

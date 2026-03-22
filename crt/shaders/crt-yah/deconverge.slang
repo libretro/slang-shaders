@@ -35,7 +35,9 @@ layout(location = 2) out vec2 TexCoordG;
 layout(location = 3) out vec2 TexCoordB;
 
 // used in common/screen-helper.h
-#define RESOLUTION_AUTO_SCALE PARAM_SCREEN_RESOLUTION_SCALE < 0.5
+#define BASE_SIZE int(PARAM_SCREEN_RESOLUTION_SCALE) > 3 ? 480.0 : 240.0
+#define ALLOW_AUTO_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) > 1
+#define ALLOW_AUTO_UP_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) == 3 || int(PARAM_SCREEN_RESOLUTION_SCALE) == 5
 
 #include "common/screen-helper.h"
 
@@ -100,10 +102,11 @@ layout(location = 3) in vec2 TexCoordB;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
+#include "common/colorspace-srgb.h"
+
+// required by blur.h
 #define INPUT(color) decode_gamma(color)
 #define OUTPUT(color) encode_gamma(color)
-
-#include "common/colorspace-srgb.h"
 
 void main()
 {

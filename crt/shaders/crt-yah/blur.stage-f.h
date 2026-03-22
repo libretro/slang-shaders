@@ -8,11 +8,11 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #include "common/colorspace-srgb.h"
 
-// required by blur.h
+// required by blur.stage-f.core.h
 #define INPUT(color) decode_gamma(color)
 #define OUTPUT(color) encode_gamma(color)
 
-#include "blur.h"
+#include "blur.stage-f.core.h"
 
 void main()
 {

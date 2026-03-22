@@ -8,8 +8,10 @@ layout(location = 3) out float Artifacting;
 layout(location = 4) out float Phase;
 
 // used in common/screen-helper.h
-#define PIXEL_SIZE_LIMIT 0.0
-#define RESOLUTION_AUTO_SCALE PARAM_SCREEN_RESOLUTION_SCALE < 0.5
+#define MIN_PIXEL_SIZE 0.0 // allow any pixel size
+#define BASE_SIZE int(PARAM_SCREEN_RESOLUTION_SCALE) > 3 ? 480.0 : 240.0
+#define ALLOW_AUTO_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) > 1
+#define ALLOW_AUTO_UP_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) == 3 || int(PARAM_SCREEN_RESOLUTION_SCALE) == 5
 
 #include "common/screen-helper.h"
 

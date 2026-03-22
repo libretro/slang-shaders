@@ -18,8 +18,9 @@ const float Saturation = 1.0;
 #include "common/frame-helper.h"
 #include "common/screen-helper.h"
 
-#include "ntsc-pass1.h"
+#include "ntsc-pass1.stage-f.core.h"
 
+// without gamma correction
 void main()
 {
     // return if effect is disabled
