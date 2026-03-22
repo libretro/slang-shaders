@@ -22,6 +22,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 layout(push_constant) uniform Push
 {
+    float COLOR_TEMPERATUE;
+    float COLOR_CONTRAST;
+    float COLOR_SATURATION;
     float COLOR_OVERFLOW;
     float COLOR_BRIGHTNESS;
     float COLOR_BRIGHTNESS_FLICKER;
@@ -80,10 +83,13 @@ vec2 vec2o(float x, float y)
         : vec2(y, x);
 }
 
-float get_luminance(vec3 color, float brightness)
+float get_luminance_corrected(vec3 color)
 {
     color = apply_color_overflow(color, PARAM_COLOR_OVERFLOW);
-    color = apply_brightness(color, brightness);
+    color = apply_contrast(color, PARAM_COLOR_CONTRAST);
+    color = apply_brightness(color, PARAM_COLOR_BRIGHTNESS);
+    color = apply_saturation(color, PARAM_COLOR_SATURATION);
+    color = apply_temperature(color, PARAM_COLOR_TEMPERATUE);
     color = min(vec3(1.0), color);
 
     return get_luminance(color);
@@ -112,8 +118,8 @@ vec3 get_color(sampler2D source, vec2 tex_coord)
         // get color with full offset
         vec3 color = INPUT(texture(source, tex_coord + scanlines_offset * texel_size).rgb);
 
-        // get luminance brightness corrected
-        float luma = get_luminance(color, PARAM_COLOR_BRIGHTNESS);
+        // get luminance corrected
+        float luma = get_luminance_corrected(color);
 
         // scale offset by color luma to avoid too much offset in dark areas
         scanlines_offset *= luma * abs(PARAM_SCANLINES_OFFSET);
@@ -129,7 +135,7 @@ vec3 get_color(sampler2D source, vec2 tex_coord)
 float get_brightness_offset(vec3 color)
 {
     // get luminance brightness corrected
-    float luma = get_luminance(color, PARAM_COLOR_BRIGHTNESS);
+    float luma = get_luminance_corrected(color);
 
     // jitter offset each 3rd frame with 30/60Hz
     float brightness_mod = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 3);
