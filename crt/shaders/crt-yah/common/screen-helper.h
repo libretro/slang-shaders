@@ -191,10 +191,15 @@ float offset_multiple(float multiple, float pixel_size, float multiple_offset)
 {
     bool upscale = (multiple < 1.0 && ALLOW_AUTO_UP_SCALE);
 
-    float index = upscale ? 1.0 / multiple : multiple;
-    float sign = upscale ? -1.0 : 1.0;
+    float sign = upscale
+        ? -1.0
+        : 1.0;
+    float index = upscale
+        ? 1.0 / multiple // invert multiple
+        : multiple;
+    index = round(index * 2.0) * 0.5; // round by half fraction
 
-    float multiple_index = sign * (max(1.0, round(index)) - 1.0);
+    float multiple_index = sign * (max(1.0, index) - 1.0);
 
     multiple_index += multiple_base;
     multiple_index += multiple_offset;
