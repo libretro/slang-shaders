@@ -1,3 +1,8 @@
+/*
+    Based on Blur shader by Hunter K.
+    Modified by Jezze
+*/
+
 // Returns offsets alternating between positive an negative depending whether the given index is even or odd.
 //   @index - The index to get the offset for.
 float get_offset(float index)
