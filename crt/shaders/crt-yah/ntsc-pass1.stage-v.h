@@ -44,7 +44,7 @@ void main()
     // 3 - Three Phase
     Phase = PARAM_NTSC_QUALITY < 1.5
         // auto
-        ? min(global.OriginalSize.x, global.OriginalSize.y) * screen_scale > 240.0 ? 2.0 : 3.0
+        ? min(global.OriginalSize.x, global.OriginalSize.y) * screen_scale < 360.0 ? 3.0 : 2.0
         // manual
         : PARAM_NTSC_QUALITY;
 }
