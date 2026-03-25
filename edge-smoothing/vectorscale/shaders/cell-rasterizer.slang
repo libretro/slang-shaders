@@ -234,10 +234,17 @@ void main() {
 
 
     // Collect nearest boundary hits from CPs in a 5x5 neighborhood.
+    // Positions and neighbors are cached in the Hit struct to avoid
+    // re-fetching them during color resolution.
     struct Hit {
         float d2;
         float t;
         int cp_idx;
+        int prev_ci;
+        int next_ci;
+        vec2 cp_pos;
+        vec2 prev_pos;
+        vec2 next_pos;
     };
 
     Hit hits[4];
@@ -286,6 +293,11 @@ void main() {
                             hits[h].d2 = span_d2;
                             hits[h].t = span_t;
                             hits[h].cp_idx = ci;
+                            hits[h].prev_ci = prev_ci;
+                            hits[h].next_ci = next_ci;
+                            hits[h].cp_pos = cp;
+                            hits[h].prev_pos = pp;
+                            hits[h].next_pos = np;
                             if (num_hits < 4) num_hits++;
                             break;
                         }
@@ -306,13 +318,12 @@ void main() {
         float hit_t = hits[h].t;
         float hit_d2 = hits[h].d2;
 
-        ivec2 nbrs = read_neighbors(ci);
-        int prev_ci = nbrs.x;
-        int next_ci = nbrs.y;
+        int prev_ci = hits[h].prev_ci;
+        int next_ci = hits[h].next_ci;
 
-        vec2 cp = read_pos(ci);
-        vec2 pp = (prev_ci >= 0) ? read_pos(prev_ci) : cp;
-        vec2 np = (next_ci >= 0) ? read_pos(next_ci) : cp;
+        vec2 cp = hits[h].cp_pos;
+        vec2 pp = hits[h].prev_pos;
+        vec2 np = hits[h].next_pos;
 
         // Single-neighbor rejection: skip if pixel is on the wrong side of endpoint
         if (prev_ci < 0) {
