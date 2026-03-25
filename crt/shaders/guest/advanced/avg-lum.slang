@@ -27,12 +27,18 @@ layout(push_constant) uniform Push
 	uint FrameCount;
 	vec4 SourceSize;
 	float lsmooth;
-	float sth;
+	float lsdev;
 } params;
 
-#pragma parameter lsmooth "Raster Bloom Effect Smoothing" 0.70 0.50 0.99 0.01
+
+#pragma parameter bogus_rbloom "[ RASTER BLOOM OPTIONS ]: " 0.0 0.0 1.0 1.0
+#pragma parameter lsmooth "          Raster Bloom Effect Smoothing" 0.70 0.50 0.99 0.01
+#pragma parameter lsdev   "          Raster Bloom Smoothing Bright Deviation" 0.0 -0.25 0.25 0.01
+#pragma parameter OS      "          R. Bloom Overscan Mode" 1.0 0.0 2.0 1.0
+#pragma parameter BLOOM   "          Raster bloom %" 0.0 0.0 20.0 1.0
 
 #define lsmooth params.lsmooth
+#define lsdev params.lsdev
 
 #define COMPAT_TEXTURE(c,d) texture(c,d)
 #define SourceSize params.SourceSize
@@ -95,7 +101,7 @@ void main()
 	
 	float lhistory = texture(AvgLumPassFeedback, vec2(0.5,0.5)).a;
 
-	ltotal = mix(ltotal, lhistory, lsmooth);	
+	ltotal = mix(ltotal, lhistory, min(mix(lsmooth, lsmooth + lsdev, ltotal),0.99));
 
 	vec3 l1 = COMPAT_TEXTURE(Source, TEX0.xy           ).rgb;	   
 	vec3 r1 = COMPAT_TEXTURE(Source, TEX0.xy +dx       ).rgb;

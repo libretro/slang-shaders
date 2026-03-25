@@ -1,9 +1,9 @@
 #version 450
 
 /*
-   Interlacing
+   Interlace Pass
    
-   Copyright (C) 2020-2025 guest(r)
+   Copyright (C) 2020 - 2025 guest(r)
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -24,17 +24,13 @@
 layout(push_constant) uniform Push
 {
 	vec4 OriginalSize;
-	vec4 SourceSize;	
 	vec4 OutputSize;
 	uint FrameCount;
-	float GAMMA_INPUT;
 	float inter;
 	float interm;
 	float iscan;
 	float intres;
 	float iscans;
-	float gamma_out;
-	float vga_mode;
 	float hiscan;
 } params;
 
@@ -45,20 +41,13 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	mat4 MVP;
 } global;
 
-#pragma parameter bogus_gamma "[ GAMMA OPTIONS ]: " 0.0 0.0 0.0 1.0
-
-#pragma parameter GAMMA_INPUT "          Gamma Input" 1.80 1.0 5.0 0.05
-#define GAMMA_INPUT params.GAMMA_INPUT
-
-#pragma parameter gamma_out "          Gamma out" 1.75 1.0 5.0 0.05
-#define gamma_out    params.gamma_out     // output gamma
 
 #pragma parameter bogus_interlacing "[ INTERLACING OPTIONS ]: " 0.0 0.0 0.0 1.0
 
-#pragma parameter inter "          Interlace Trigger Resolution/VGA Trigger:" 375.0 0.0 800.0 25.0
+#pragma parameter inter "          Interlace Trigger Resolution :" 375.0 0.0 800.0 25.0
 #define inter         params.inter     // interlace resolution
 
-#pragma parameter interm "          Interlace Mode: OFF, Normal 1-3,5; Interpolation 4" 4.0 0.0 5.0 1.0
+#pragma parameter interm "          Interlace Mode: OFF, Normal 1-3,6; Interpolation 4-5" 2.0 0.0 6.0 1.0
 #define interm         params.interm     // interlace mode 
 
 #pragma parameter iscan "          Interlacing Scanline Effect ('Laced brightness)" 0.20 0.0 1.0 0.05
@@ -69,14 +58,16 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter intres "          Internal Resolution Y: 0.5...y-dowsample divider" 0.0 0.0 10.0 0.5 // Joint parameter with main pass, values must match
 #define intres         params.intres     // interlace resolution
 
+#pragma parameter downsample_levelx "          Downsampling-X (High-res content, pre-scalers)" 0.0 0.0 3.0 0.05
+
+#pragma parameter downsample_levely "          Downsampling-Y (High-res content, pre-scalers)" 0.0 0.0 3.0 0.05
+
 #pragma parameter iscans "          Interlacing (Scanline) Saturation" 0.25 0.0 1.0 0.05
 #define iscans        params.iscans     // interlace saturation
 
-#pragma parameter vga_mode "          VGA Single/Double Scan mode" 0.0 0.0 1.0 1.0
-#define vga_mode        params.vga_mode
-
 #pragma parameter hiscan "          High Resolution Scanlines (prepend a scaler...)" 0.0 0.0 1.0 1.0
 #define hiscan        params.hiscan
+
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -103,16 +94,14 @@ vec3 plant (vec3 tar, float r)
 	return tar * r / t;
 }
 
-
 void main()
 {
 	vec3 c1 = COMPAT_TEXTURE(Source, vTexCoord).rgb;
-	vec3 c2 = COMPAT_TEXTURE(Source, vTexCoord + vec2(0.0, params.SourceSize.w)).rgb;
-
+	vec3 c2 = COMPAT_TEXTURE(Source, vTexCoord + vec2(0.0, params.OriginalSize.w)).rgb;
+	
 	vec3  c  = c1;
 
 	float intera = 1.0;
-	float gamma_in = GAMMA_INPUT;
 
 	float m1 = max(max(c1.r,c1.g),c1.b);
 	float m2 = max(max(c2.r,c2.g),c2.b);
@@ -124,19 +113,19 @@ void main()
 	float r = m1;
 
 	float yres_div = 1.0; if (intres > 1.25) yres_div = intres;
-	
+
 	bool hscan = (hiscan > 0.5);
-	
-	if (inter <= params.OriginalSize.y/yres_div && interm > 0.5 && intres != 1.0  && intres != 0.5 && vga_mode < 0.5 || hscan)
+		
+	if (inter <= params.OriginalSize.y/yres_div && interm > 0.5 && intres != 1.0 && intres != 0.5 || hscan) 
 	{
 		intera = 0.25;
 		float line_no  = floor(mod(params.OriginalSize.y*vTexCoord.y, 2.0));
 		float frame_no = floor(mod(float(params.FrameCount),2.0));
 		float ii = abs(line_no-frame_no);
 		
-		if (interm < 3.5 || interm > 4.5)
+		if (interm < 3.5 || interm > 5.5)
 		{
-			if (interm == 5.0) c = mix(c2, c1, ii); else
+			if (interm == 6.0) c = mix(c2, c1, ii); else
 			{
 			c2 = plant(mix(c2, c2*c2, iscans), max(max(c2.r,c2.g),c2.b));
 			r = max(m1*ii, (1.0-iscan)*min(m1,m2));
@@ -145,19 +134,10 @@ void main()
 			}
 		}
 		if (interm == 4.0) { c = plant(mix(c, c*c, 0.5*iscans), max(max(c.r,c.g),c.b)) * (1.0-0.5*iscan); }
-	
-		if (hscan) c = c1;
+		if (interm == 5.0) { c = mix(c2, c1, 0.5); c = plant(mix(c, c*c, 0.5*iscans), max(max(c.r,c.g),c.b)) * (1.0-0.5*iscan); }
+		
+		if (hscan) c = c1;		
 	}
-	
-	if (vga_mode > 0.5)
-	{
-		c = c1;
-		if (inter <= params.OriginalSize.y) intera = 0.75; else intera = 0.5;
-	}	
-	
-	c = pow(c, vec3(gamma_in));
-	
-	if (vTexCoord.x > 0.5) gamma_in = intera; else gamma_in = 1.0/gamma_in;
-	
-	FragColor = vec4(c, gamma_in);
+
+	FragColor = vec4(c, intera);
 }

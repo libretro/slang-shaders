@@ -47,6 +47,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	float sth;
 	float overscanX;
 	float overscanY;
+	float VShift;
 	float c_shape;
 	float intres;
 	float prescalex;
@@ -55,8 +56,12 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	float scangamma;
 	float bmask1;
 	float hmask1;
+	float interm;
 } global;
 
+
+#pragma parameter interm "          Interlace Mode: OFF, Normal 1-3,6; Interpolation 4-5" 1.0 0.0 6.0 1.0
+#define interm         global.interm     // interlace mode 
 
 #pragma parameter hiscan "          High Resolution Scanlines (prepend a scaler...)" 0.0 0.0 1.0 1.0
 #define hiscan        params.hiscan
@@ -81,7 +86,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter bmask1 "          Bloom Mask Strength" 0.0 -1.0 1.0 0.025
 #define bmask1         global.bmask1     // bloom/halation mask strength
 
-#pragma parameter hmask1 "          Halation Mask Strength" 0.5 -1.0 1.0 0.025
+#pragma parameter hmask1 "          Halation Mask Strength" 0.35 -1.0 1.0 0.025
 #define hmask1         global.hmask1     // bloom/halation mask strength
 
 #pragma parameter gamma_c "          Gamma correct" 1.0 0.50 2.0 0.025
@@ -191,6 +196,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter overscanY "          Overscan Y original pixels" 0.0 -200.0 200.0 1.0
 #define overscanY        global.overscanY     // OverscanY pixels
 
+#pragma parameter VShift "          Vertical shift Y original pixels" 0.0 -200.0 200.0 1.0
+#define VShift        global.VShift     // Vertical shift
 
 #define COMPAT_TEXTURE(c,d) texture(c,d)
 #define TEX0 vTexCoord
@@ -290,7 +297,8 @@ void main()
 	float gamma_in = 1.0/COMPAT_TEXTURE(LinearizePass, vec2(0.25,0.25)).a;
 	float intera = COMPAT_TEXTURE(LinearizePass, vec2(0.75,0.25)).a;
 	bool hscan = (hiscan > 0.5);
-	bool interb  = (((intera < 0.35) || (no_scanlines > 0.025)) && !hscan);
+	bool inter6 = (intera < 0.35 && interm == 6.0);
+	bool interb  = (((intera < 0.35 && !inter6) || (no_scanlines > 0.025)) && !hscan);
 	bool notate  = (TATE < 0.5);
 	bool vgascan = ((abs(intera-0.5) < 0.05) && (no_scanlines == 0.0));
 
@@ -299,6 +307,7 @@ void main()
 	float sy = 1.0;
 	if (global.intres == 1.0) sy = max(round(SourceY/224.0),1.0);
 	if (global.intres > 0.25 && global.intres != 1.0) sy = global.intres;
+	if (inter6) sy*=2.0;
 	
 	// VGA Scan Mode
 	if (vgascan) sy = 0.5; else if (abs(intera-0.75) < 0.05) sy = 1.0;
@@ -320,19 +329,24 @@ void main()
 	float factor  = 1.00 + (1.0-0.5*OS)*BLOOM/100.0 - lum*BLOOM/100.0;
 	texcoord  = Overscan(texcoord, factor, factor);
 
+	texcoord.y = texcoord.y - VShift*global.OriginalSize.w;
 	texcoord = Overscan(texcoord, (global.OriginalSize.x - overscanX)/global.OriginalSize.x, (global.OriginalSize.y - overscanY)/global.OriginalSize.y);
 
 	vec2 pos  = Warp(texcoord);
    
 	bool smarte  = (smart_ei > 0.01 && notate); // smart edge interpolation on / off
+	
+	// odd / even field line calcs for mode 6
 
-	vec2 coffset = vec2(0.5, 0.5);
+	float ii = float(inter6)*(floor(mod(float(global.FrameCount), 2.0)));
+
+	vec2 coffset = vec2(0.5, 0.5 + 0.5*ii);
 	
 	vec2 ps = SourceSize.zw;
 	vec2 OGL2Pos = pos * SourceSize.xy - coffset;
 	vec2 fp = fract(OGL2Pos);
 	
-	vec2 dx = vec2(ps.x,0.0);
+	vec2 dx = vec2(ps.x, 0.0);
 	vec2 dy = vec2(0.0, ps.y);
    
 	// Reading the texels
@@ -352,7 +366,7 @@ void main()
 	}
 	float  f = (notate) ? fp.y : fp.x;
 	
-	vec2 pC4 = floor(OGL2Pos) * ps + 0.5*ps; 
+	vec2 pC4 = floor(OGL2Pos) * ps + 0.5*ps; pC4.y = pC4.y + float(inter6)*0.25*dy.y;
 	
 	if ((global.intres == 0.5 &&  notate && prescalex.y < 1.5) || vgascan) pC4.y = floor(pC4.y * global.OriginalSize.y)*global.OriginalSize.w + 0.5*global.OriginalSize.w;
 	if ((global.intres == 0.5 && !notate && prescalex.x < 1.5) || (vgascan && !notate)) pC4.x = floor(pC4.x * global.OriginalSize.x)*global.OriginalSize.z + 0.5*global.OriginalSize.z;

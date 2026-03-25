@@ -33,31 +33,32 @@ layout(push_constant) uniform Push
    float CP, CS;
    float WP;
    float wp_saturation;
-   float AS, sat;
+   float AS, agsat;
    float BP;
    float vigstr;
    float vigdef;
    float sega_fix;
    float pre_bb;
    float contr;
+   float pre_gc;
 } params;
 
 #pragma parameter AS "          Afterglow Strength" 0.20 0.0 0.60 0.01
 #define AS params.AS
 
-#pragma parameter sat "          Afterglow saturation" 0.50 0.0 1.0 0.01
-#define sat params.sat
+#pragma parameter agsat "          Afterglow saturation" 0.50 0.0 1.0 0.01
+#define sat params.agsat
 
 #pragma parameter bogus_color "[ COLOR TWEAKS ]:" 0.0 0.0 1.0 1.0
 
-#pragma parameter CS "          Display Gamut: sRGB, Modern, DCI, Adobe, Rec.2020" 0.0 0.0 4.0 1.0 
+#pragma parameter CS "          Display Gamut: sRGB, Modern, DCI, Adobe, Rec.2020, P3" 0.0 0.0 5.0 1.0 
 
 #pragma parameter CP "          CRT Profile: EBU | P22 | SMPTE-C | Philips | Trin." 0.0 -1.0 5.0 1.0 
 
 #define CP params.CP
 #define CS params.CS
 
-#pragma parameter TNTC "          LUT Colors: Trin.1 | Trin.2 | Nec Mult. | NTSC" 0.0 0.0 4.0 1.0
+#pragma parameter TNTC "          LUT Colors: NTSC-J | Trinit. | Nec Mult. | NTSC 1953" 0.0 0.0 4.0 1.0
 #define TNTC params.TNTC
 
 #pragma parameter LS "          LUT Size" 32.0 16.0 64.0 16.0
@@ -74,6 +75,8 @@ layout(push_constant) uniform Push
 #pragma parameter pre_bb "          Brightness Adjustment" 1.0 0.0 2.0 0.01
 
 #pragma parameter contr "          Contrast Adjustment" 0.0 -2.0 2.0 0.05
+
+#pragma parameter pre_gc "          Gamma Correct Adjustment" 1.0 0.5 1.75 0.025
 
 #pragma parameter sega_fix "          Sega Brightness Fix" 0.0 0.0 1.0 1.0
 
@@ -169,16 +172,16 @@ mat3(
 
 const mat3 ToModern = 
 mat3(
- 2.791723,	-0.894766,	0.041678,
--1.173165,	 1.815586, -0.130886,
--0.440973,	 0.032000,	1.002034
+ 2.791723, -0.894766,  0.041678,
+-1.173165,  1.815586, -0.130886,
+-0.440973,  0.032000,  1.002034
 );
 
 const mat3 ToDCI = 
 mat3(
- 2.493497,	-0.829489,	0.035846,
--0.931384,	 1.762664, -0.076172,
--0.402711,	 0.023625,	0.956885
+ 2.973422, -0.867605,  0.045031,
+-1.110433,  1.843757, -0.095697,
+-0.480247,  0.024743,  1.201215
 );
 
 const mat3 ToAdobe = 
@@ -193,6 +196,13 @@ mat3(
  1.716651, -0.666684,  0.017640,
 -0.355671,  1.616481, -0.042771,
 -0.253366,  0.015769,  0.942103
+); 
+
+const mat3 ToP3 = 
+mat3(
+ 2.493509, -0.829473,  0.0358512,
+-0.931388,  1.762630, -0.0761839,
+-0.402712,  0.023624,  0.9570296
 ); 
 
 // Color temperature matrices
@@ -240,6 +250,12 @@ float contrast(float x)
 	return max(mix(x, smoothstep(0.0, 1.0, x), params.contr),0.0);
 }
 
+vec3 pgc(vec3 c)
+{
+	float mc = max(max(c.r,c.g),c.b);
+	float mg = pow(mc, 1.0/params.pre_gc);
+	return c * mg/(mc + 1e-8);  
+}
 
 void main()
 {
@@ -314,7 +330,8 @@ void main()
 	if (CS == 1.0) { p = 2.2; m_out =  ToModern; } else	
 	if (CS == 2.0) { p = 2.6; m_out =  ToDCI;    } else
 	if (CS == 3.0) { p = 2.2; m_out =  ToAdobe;  } else
-	if (CS == 4.0) { p = 2.4; m_out =  ToREC;    }
+	if (CS == 4.0) { p = 2.4; m_out =  ToREC;    } else
+	if (CS == 5.0) { p = 2.2; m_out =  ToP3;     }
 	
 	color = pow(c, vec3(p));
 	
@@ -359,6 +376,7 @@ void main()
 	
 	color = mix(color, comp, m);
 	color = pow(max(color, 0.0), vec3(1.0/p));
+	color = pgc(color);
 
 	if (BP > -0.5) color = color + aftglow.rgb + bp; else
 	{ 

@@ -60,7 +60,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter inter "          Interlace Trigger Resolution/VGA Trigger:" 375.0 0.0 800.0 25.0
 #define inter         params.inter     // interlace resolution
 
-#pragma parameter interm "          Interlace Mode: OFF, Normal 1-3, Interpolation 4-5" 1.0 0.0 5.0 1.0
+#pragma parameter interm "          Interlace Mode: OFF, Normal 1-3,6; Interpolation 4-5" 1.0 0.0 6.0 1.0
 #define interm         params.interm     // interlace mode 
 
 #pragma parameter iscan "          Interlacing Scanline Effect ('Laced brightness)" 0.20 0.0 1.0 0.05
@@ -165,19 +165,22 @@ void main()
 
 	bool hscan = (hiscan > 0.5);
 		
-	if (inter <= params.OriginalSize.y/yres_div && interm > 0.5 && intres != 1.0  && intres != 0.5 && vga_mode < 0.5 || hscan)
+	if (inter <= params.OriginalSize.y/yres_div && (interm > 0.5) && intres != 1.0  && intres != 0.5 && vga_mode < 0.5 || hscan)
 	{
 		intera = 0.25;
 		float line_no  = floor(mod(params.OriginalSize.y*vTexCoord.y, 2.0));
 		float frame_no = floor(mod(float(params.FrameCount),2.0));
 		float ii = abs(line_no-frame_no);
 		
-		if (interm < 3.5)
+		if (interm < 3.5 || interm > 5.5)
 		{
+			if (interm == 6.0) c = mix(c2, c1, ii); else
+			{
 			c2 = plant(mix(c2, c2*c2, iscans), max(max(c2.r,c2.g),c2.b));
 			r = max(m1*ii, (1.0-iscan)*min(m1,m2));
 			c = plant( mix(mix(c1,c2, min(mix(m1, 1.0-m2, min(m1,1.0-m1))/(d+0.00001),1.0)), c1, ii), r);
 			if (interm == 3.0) c = (1.0-0.5*iscan)*mix(c2, c1, ii);
+			}
 		}
 		if (interm == 4.0) { c = plant(mix(c, c*c, 0.5*iscans), max(max(c.r,c.g),c.b)) * (1.0-0.5*iscan); }
 		if (interm == 5.0) { c = mix(c2, c1, 0.5); c = plant(mix(c, c*c, 0.5*iscans), max(max(c.r,c.g),c.b)) * (1.0-0.5*iscan); }

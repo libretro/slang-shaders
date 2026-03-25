@@ -43,7 +43,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	float mask_gamma;
 	float gamma_out;
 	float overscanX;
-	float overscanY;	
+	float overscanY;
+	float VShift;
 	float intres;
 	float c_shape;
 	float barspeed;
@@ -82,9 +83,13 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	float hmask1;
 	float mzoom_sh;
 	float mclip;
-	float maskmid;
-	float edgemask;	
+	float edgemask;
+	float oimage;
+	float interm;
 } global;
+
+#pragma parameter interm "          Interlace Mode: OFF, Normal 1-3,6; Interpolation 4-5" 2.0 0.0 6.0 1.0
+#define interm         global.interm     // interlace mode 
 
 #pragma parameter hiscan "          High Resolution Scanlines (prepend a scaler...)" 0.0 0.0 1.0 1.0
 #define hiscan        params.hiscan
@@ -121,7 +126,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter bmask1 "          Bloom Mask Strength" 0.0 -1.0 1.0 0.025
 #define bmask1         global.bmask1     // bloom/halation mask strength
 
-#pragma parameter hmask1 "          Halation Mask Strength" 0.5 -1.0 1.0 0.025
+#pragma parameter hmask1 "          Halation Mask Strength" 0.35 -1.0 1.0 0.025
 #define hmask1         global.hmask1     // bloom/halation mask strength
 
 #pragma parameter brightboost "          Bright Boost Dark Pixels" 1.40 0.25 10.0 0.05
@@ -177,16 +182,19 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter overscanY "          Overscan Y original pixels" 0.0 -200.0 200.0 1.0
 #define overscanY        global.overscanY     // OverscanY pixels
 
+#pragma parameter VShift "          Vertical shift Y original pixels" 0.0 -200.0 200.0 1.0
+#define VShift        global.VShift     // Vertical shift
+
 #pragma parameter bogus_masks "[ CRT MASK OPTIONS ]: " 0.0 0.0 1.0 1.0
 
-#pragma parameter shadowMask "          CRT Mask: 0:CGWG, 1-4:Lottes, 5-13:'Trinitron'" 0.0 -1.0 13.0 1.0
+#pragma parameter shadowMask "          CRT Mask: 0:CGWG, 1-4:Lottes, 5-14:'Trinitron'" 0.0 -1.0 14.0 1.0
 #define shadowMask   params.shadowMask     // Mask Style
 
-#pragma parameter maskstr "          Mask Strength (0, 5-12)" 0.3 -0.5 1.0 0.025
+#pragma parameter maskstr "          Mask Strength (0, 5-14)" 0.3 -0.5 1.0 0.025
 #define maskstr         params.maskstr      // Mask Strength
 
-#pragma parameter mcut "          Mask 5-12 Low Strength" 1.10 0.0 2.0 0.05
-#define mcut         params.mcut      // Mask 5-12 dark color strength
+#pragma parameter mcut "          Mask 5-14 Low Strength" 1.10 0.0 2.0 0.05
+#define mcut         params.mcut      // Mask 5-14 dark color strength
 
 #pragma parameter maskboost "          CRT Mask Boost" 1.0 1.0 3.0 0.05
 #define maskboost     global.maskboost     // Mask Boost
@@ -242,11 +250,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter mclip "          Preserve Mask Strength" 0.0 0.0 1.0 0.025
 #define mclip  global.mclip
 
-#pragma parameter pr_scan "          Preserve Scanline Strength" 0.10 0.0 1.0 0.025
+#pragma parameter pr_scan "          Preserve Scanline Properties" 0.10 0.0 1.0 0.025
 #define pr_scan  params.pr_scan
-
-#pragma parameter maskmid "          Mitigate Mask on Mid-Colors" 0.0 0.0 1.0 0.05
-#define maskmid  global.maskmid
 
 #pragma parameter edgemask "          Mitigate Mask on Edges" 0.0 0.0 1.0 0.10
 #define edgemask  global.edgemask
@@ -283,6 +288,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter post_br "          Post Brightness" 1.0 0.25 5.0 0.01
 
+#pragma parameter oimage "          Show Original Image" 0.0 0.0 1.0 0.25
 
 #define COMPAT_TEXTURE(c,d) texture(c,d)
 #define TEX0 vTexCoord
@@ -310,6 +316,7 @@ layout(set = 0, binding = 4) uniform sampler2D GlowPass;
 layout(set = 0, binding = 5) uniform sampler2D BloomPass;
 layout(set = 0, binding = 6) uniform sampler2D PrePass0;
 layout(set = 0, binding = 7) uniform sampler2D Source;
+layout(set = 0, binding = 8) uniform sampler2D StockPass;
 
 #define eps 1e-10 
 
@@ -476,7 +483,7 @@ vec3 Mask(vec2 pos, float mx, float mb)
 	}
 
 	// 4k mask
-	else
+	else if (shadowMask == 13.0)
 	{
 		mask = vec3(0.0);
 		pos.x = floor(mod(pos.x,6.0));
@@ -488,6 +495,19 @@ vec3 Mask(vec2 pos, float mx, float mb)
 		else                   mask.b = 1.0;
 		mask = clamp(mix( mix(one, mask, mcut), mix(one, mask, maskstr), mx), 0.0, 1.0);
 	}
+
+	// 4k mask
+	else
+	{
+		mask = vec3(0.0);
+		pos.x = floor(mod(pos.x, 5.0));
+		if      (pos.x < 0.5)  mask    = 0.0.xxx;
+		else if (pos.x < 1.5)  mask.r  = 1.0;
+		else if (pos.x < 2.5)  mask.rg = 1.0.xx;
+		else if (pos.x < 3.5)  mask.gb = 1.0.xx;	
+		else                   mask.b  = 1.0;
+		mask = clamp(mix( mix(one, mask, mcut), mix(one, mask, maskstr), mx), 0.0, 1.0);
+	} 
 	
 	if (mask_layout > 0.5) mask = mask.rbg;
 	float maskmin = min(min(mask.r,mask.g),mask.b);
@@ -655,7 +675,8 @@ void main()
 	
 	float gamma_in = 1.0/COMPAT_TEXTURE(LinearizePass, vec2(0.25,0.25)).a;
 	float intera = COMPAT_TEXTURE(LinearizePass, vec2(0.75,0.25)).a;
-	bool interb  = ((intera < 0.35 || global.no_scanlines > 0.025) && hiscan < 0.5);
+	bool inter6 = (intera < 0.35 && interm == 6.0);
+	bool interb  = (((intera < 0.35 && !inter6) || global.no_scanlines > 0.025) && hiscan < 0.5);
 	
 	// Calculating texel coordinates
    
@@ -672,12 +693,16 @@ void main()
 	float factor  = 1.00 + (1.0-0.5*OS)*BLOOM/100.0 - lum*BLOOM/100.0;
 	texcoord  = Overscan(texcoord, factor, factor);
 
+	texcoord.y = texcoord.y - VShift*global.OriginalSize.w;
 	texcoord = Overscan(texcoord, (global.OriginalSize.x - overscanX)/global.OriginalSize.x, (global.OriginalSize.y - overscanY)/global.OriginalSize.y);
 
 	vec2 pos1 = TEX0.xy;
 	vec2 pos  = Warp(texcoord);
 	vec2 pos0 = Warp(TEX0.xy);
-	
+	vec2 posb = 2.0*(pos0-0.5);
+	if (BLOOM < 0.5) posb = max(abs(posb), abs(2.0*(pos-0.5)))*sign(posb);
+	posb = 0.5*posb + 0.5;
+
 	// color and bloom fetching
 	vec3 color = COMPAT_TEXTURE(Source,pos1).rgb;
 	vec3  Bloom = COMPAT_TEXTURE(BloomPass, pos).rgb;
@@ -715,11 +740,12 @@ if ((abs(global.deconrr) + abs(global.deconrry) + abs(global.deconrg) + abs(glob
 	vec3 cmask2 = one;	
 
 	// mask widths and mask dark compensate (fractional part) values
-	float mwidths[14] = float[14] (2.0, 3.0, 3.0, 6.0, 6.0, 2.4, 3.5, 2.4, 3.25, 3.5, 4.5, 4.25, 7.5, 6.25); 
+	float mwidths[15] = float[15] (2.0, 3.0, 3.0, 6.0, 6.0, 2.4, 3.4, 2.4, 3.25, 3.4, 4.4, 4.25, 7.4, 6.25, 5.25); 
 	
 	float mwidth = mwidths[int(shadowMask)];
 	float mask_compensate = fract(mwidth);
-
+	float mwidth1 = mwidth;
+	
 if (shadowMask > -0.5)
 {	
 	vec2 maskcoord = gl_FragCoord.xy;
@@ -731,7 +757,7 @@ if (shadowMask > -0.5)
 	float mscale = 1.0;
 	vec2 maskcoord0 = maskcoord;
 	maskcoord.y = floor(maskcoord.y/masksize);
-	float mwidth1 = max(mwidth + mask_zoom, 2.0);
+	mwidth1 = max(mwidth + mask_zoom, 2.0);
 
 if ( mshift > 0.25 )
 {	
@@ -742,20 +768,19 @@ if ( mshift > 0.25 )
 	maskcoord = maskcoord0/masksize;
 
 if ( !zoomed )	
-	cmask*= Mask(floor(maskcoord), mx, mb);
+	cmask = Mask(floor(maskcoord), mx, mb);
 else{
 	mscale  = mwidth1/mwidth;
 	float mlerp = fract(maskcoord.x/mscale); if (mzoom_sh > 0.025) mlerp = clamp((1.0 + mzoom_sh)*mlerp - 0.5*mzoom_sh, 0.0, 1.0);
-	float mcoord = floor(maskcoord.x/mscale); if (shadowMask == 12.0 && mask_zoom == -2.0) mcoord = ceil(maskcoord.x/mscale);
-	cmask*=mix(Mask(vec2(mcoord,maskcoord.y), mx, mb), Mask(vec2(mcoord + 1.0, maskcoord.y), mx, mb), mlerp);
+	float mcoord = floor(maskcoord.x/mscale);
+	if (shadowMask == 12.0 && mask_zoom == -2.0) mcoord = ceil(maskcoord.x/mscale);
+	cmask = mix(Mask(vec2(mcoord,maskcoord.y), mx, mb), Mask(vec2(mcoord + 1.0, maskcoord.y), mx, mb), mlerp);
 }
-
-	if (slotwidth > 0.5) swidth = slotwidth; float smask = 1.0;
 
 	float sm_offset = 0.0; bool bsm_offset = (shadowMask == 0.0 || shadowMask == 2.0 || shadowMask == 5.0 || shadowMask == 6.0 || shadowMask == 8.0 || shadowMask == 11.0);
 	if( zoomed ) { if (mask_layout < 0.5 && bsm_offset) sm_offset = 1.0; else if (bsm_offset) sm_offset = -1.0; }
 	
-	swidth = round(swidth*mscale);
+	swidth = round(mwidth1); if (slotwidth > 0.5) swidth = slotwidth; float smask = 1.0;
 	smask = SlotMask(scoord + vec2(sm_offset,0.0), mx, swidth);
 
 	smask = clamp(smask + mix(smask_mit, 0.0, w3*pow(colmx, 0.3)), 0.0, 1.0);
@@ -778,8 +803,6 @@ else{
 
 	cmask  = min(cmask, 1.0);
 	cmask1 = min(cmask1, 1.0);
-	
-	float mm = max(-2.75*cx*(cx-1.0)-mix(0.075, 0.165, cx), 0.0); color = max(color, orig1*maskmid*mm);
 }
 
 	float dark_compensate  = mix(max( clamp( mix (mcut, maskstr, mx),0.0, 1.0) - 1.0 + mask_compensate, 0.0) + 1.0, 1.0, mx); if(shadowMask < -0.5) dark_compensate = 1.0;
@@ -789,6 +812,12 @@ else{
 	vec3  Ref = COMPAT_TEXTURE(LinearizePass, pos).rgb;	
 	float maxb = COMPAT_TEXTURE(BloomPass, pos).a;
 	float vig  = COMPAT_TEXTURE(PrePass0, clamp(pos, 0.0+0.5*global.OriginalSize.zw, 1.0-0.5*global.OriginalSize.zw)).a;
+
+	if(pr_scan > 0.025)
+	{
+		float mbl = max(max(Bloom.r,Bloom.g),Bloom.b);
+		Bloom = mix(Bloom, mix(Bloom, plant(orig1,mbl), min(2.5*(1.0-w3),1.0)), min(2.0*pr_scan, 1.0));
+	}	
 
 	vec3 Bloom1 = Bloom;
 	vec3 bcmask = mix(one, cmask1, bmask1);
@@ -815,7 +844,9 @@ else{
 	if (halation < -0.01) {
 		float mbl = max(max(Bloom.r,Bloom.g),Bloom.b);
 		Bloom = plant(Bloom + Ref + orig1 + Bloom*Bloom*Bloom, min(mbl*mbl,0.75));
-		color = color + 2.0*mix(1.0,w3,0.5*colmx)*hcmask*Bloom*(-halation); }
+		Bloom = 2.0*mix(1.0,w3,0.5*colmx)*hcmask*Bloom;
+		color = color -halation*Bloom;
+	}
 
 	color = min(color,1.0);
 	color = gc2(color,w3);
@@ -871,5 +902,6 @@ else{
 	colmx = max(max(orig1.r,orig1.g),orig1.b);
 	color = color + bmask*mix(cmask2, 0.125*(1.0-colmx)*color, min(20.0*colmx, 1.0));
 	
-	FragColor = vec4(color*vig*humbar(mix(pos.y, pos.x, global.bardir))*global.post_br*corner(pos0), 1.0);
+	FragColor = mix(vec4(color*vig*humbar(mix(pos.y, pos.x, global.bardir))*global.post_br*corner(posb), 1.0), 
+	            COMPAT_TEXTURE(StockPass, (floor(pos1*global.OriginalSize.xy)+0.5)*global.OriginalSize.zw), step(pos1.x,global.oimage-0.00025));
 }
