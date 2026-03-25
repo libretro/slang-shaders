@@ -80,8 +80,7 @@ void main() {
         int px = (gx - 1) / 2;
         int py = (gy - 1) / 2;
         // Store as normalized RGB (0-1).
-        ivec2 pp = clamp(ivec2(px, py), ivec2(0), imgSize - ivec2(1));
-        vec4 c = texelFetch(Source, pp, 0);
+        vec4 c = texelFetch(Source, ivec2(px, py), 0);
         FragColor = vec4(c.rgb, 1.0);
 
     } else if (gx_even && !gy_even) {
@@ -94,8 +93,8 @@ void main() {
             // Border edge: not connected
             FragColor = vec4(0.0, 0.0, 0.0, 0.0);
         } else {
-            vec4 left = texelFetch(Source, clamp(ivec2(px_left, py), ivec2(0), imgSize - ivec2(1)), 0);
-            vec4 right = texelFetch(Source, clamp(ivec2(px_right, py), ivec2(0), imgSize - ivec2(1)), 0);
+            vec4 left = texelFetch(Source, ivec2(px_left, py), 0);
+            vec4 right = texelFetch(Source, ivec2(px_right, py), 0);
             float val = (all(equal(left.rgb, right.rgb))) ? 1.0 : 0.0;
             FragColor = vec4(val, 0.0, 0.0, 0.0);
         }
@@ -110,8 +109,8 @@ void main() {
             // Border edge: not connected
             FragColor = vec4(0.0, 0.0, 0.0, 0.0);
         } else {
-            vec4 top = texelFetch(Source, clamp(ivec2(px, py_top), ivec2(0), imgSize - ivec2(1)), 0);
-            vec4 bot = texelFetch(Source, clamp(ivec2(px, py_bot), ivec2(0), imgSize - ivec2(1)), 0);
+            vec4 top = texelFetch(Source, ivec2(px, py_top), 0);
+            vec4 bot = texelFetch(Source, ivec2(px, py_bot), 0);
             float val = (all(equal(top.rgb, bot.rgb))) ? 1.0 : 0.0;
             FragColor = vec4(val, 0.0, 0.0, 0.0);
         }
@@ -128,10 +127,10 @@ void main() {
             // Border corner: no diagonals
             FragColor = vec4(0.0, 0.0, 0.0, 0.0);
         } else {
-            vec4 tl = texelFetch(Source, clamp(ivec2(bx, by), ivec2(0), imgSize - ivec2(1)), 0);
-            vec4 tr = texelFetch(Source, clamp(ivec2(bx + 1, by), ivec2(0), imgSize - ivec2(1)), 0);
-            vec4 bl = texelFetch(Source, clamp(ivec2(bx, by + 1), ivec2(0), imgSize - ivec2(1)), 0);
-            vec4 br = texelFetch(Source, clamp(ivec2(bx + 1, by + 1), ivec2(0), imgSize - ivec2(1)), 0);
+            vec4 tl = texelFetch(Source, ivec2(bx, by), 0);
+            vec4 tr = texelFetch(Source, ivec2(bx + 1, by), 0);
+            vec4 bl = texelFetch(Source, ivec2(bx, by + 1), 0);
+            vec4 br = texelFetch(Source, ivec2(bx + 1, by + 1), 0);
 
             uint flags = 0u;
             // Bit 0: backslash diagonal TL-BR

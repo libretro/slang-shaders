@@ -230,9 +230,6 @@ void main() {
     int cell_cx = int(floor(center.x));
     int cell_cy = int(floor(center.y));
 
-
-
-
     // Collect nearest boundary hits from CPs in a 5x5 neighborhood.
     // Positions and neighbors are cached in the Hit struct to avoid
     // re-fetching them during color resolution.
@@ -347,23 +344,22 @@ void main() {
         // Pick edge colors. Next edge SWAPPED (tangent at t=1 reverses normal).
         vec3 c_left, c_right;
         float ref_t;
-        bool have_colors;
         bool prev_valid = any(notEqual(pl, pr));
         bool next_valid = any(notEqual(nl, nr));
 
         if (prev_ci < 0) {
-            if (next_valid) { c_left = nr; c_right = nl; ref_t = 1.0; have_colors = true; }
+            if (next_valid) { c_left = nr; c_right = nl; ref_t = 1.0; }
             else continue;
         } else if (next_ci < 0) {
-            if (prev_valid) { c_left = pl; c_right = pr; ref_t = 0.0; have_colors = true; }
+            if (prev_valid) { c_left = pl; c_right = pr; ref_t = 0.0; }
             else continue;
         } else if (hit_t < 0.5) {
-            if (prev_valid) { c_left = pl; c_right = pr; ref_t = 0.0; have_colors = true; }
-            else if (next_valid) { c_left = nr; c_right = nl; ref_t = 1.0; have_colors = true; }
+            if (prev_valid) { c_left = pl; c_right = pr; ref_t = 0.0; }
+            else if (next_valid) { c_left = nr; c_right = nl; ref_t = 1.0; }
             else continue;
         } else {
-            if (next_valid) { c_left = nr; c_right = nl; ref_t = 1.0; have_colors = true; }
-            else if (prev_valid) { c_left = pl; c_right = pr; ref_t = 0.0; have_colors = true; }
+            if (next_valid) { c_left = nr; c_right = nl; ref_t = 1.0; }
+            else if (prev_valid) { c_left = pl; c_right = pr; ref_t = 0.0; }
             else continue;
         }
 

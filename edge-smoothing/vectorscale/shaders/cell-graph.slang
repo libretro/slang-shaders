@@ -18,7 +18,7 @@
 //       R = next_cx, G = next_cy, B = next_slot, A = 0
 //       (-1.0 sentinel for no neighbor)
 //
-// Reads from: ResolvedGraph (pass 2 output), Original (input image via alias)
+// Reads from: ResolvedGraph (pass 2 output)
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -46,7 +46,6 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 
 layout(set = 0, binding = 2) uniform sampler2D Source;   // ResolvedGraph
-layout(set = 0, binding = 3) uniform sampler2D Original; // Input image
 
 // Dimensions derived from input image at runtime.
 int IMG_W()    { return int(params.OriginalSize.x); }
@@ -63,18 +62,6 @@ uint g(int gx, int gy) {
         return 0u;
     vec4 val = texelFetch(Source, ivec2(gx, gy), 0);
     return uint(val.r + 0.5);
-}
-
-// Read pixel color as normalized RGB from graph (stored at odd,odd positions).
-vec3 get_px_color(int px, int py) {
-    px = clamp(px, 0, IMG_W() - 1);
-    py = clamp(py, 0, IMG_H() - 1);
-    int gx = 2 * px + 1;
-    int gy = 2 * py + 1;
-    if (gx < 0 || gy < 0 || gx >= IMG_W() * 2 || gy >= IMG_H() * 2)
-        return vec3(0.0);
-    vec4 val = texelFetch(Source, ivec2(gx, gy), 0);
-    return val.rgb;
 }
 
 // Check if two adjacent pixels are similar using the graph.
@@ -159,31 +146,6 @@ bool checkForCorner(vec2 v1, vec2 v2) {
     return false;
 }
 
-// Get edge colors for a boundary edge in direction dir at grid corner (icx, icy).
-void get_edge_colors(int icx, int icy, int dir, out vec3 color_left, out vec3 color_right) {
-    switch (dir) {
-        case 0: // N
-            color_left  = get_px_color(icx - 1, icy - 1);
-            color_right = get_px_color(icx,     icy - 1);
-            break;
-        case 1: // E
-            color_left  = get_px_color(icx,     icy - 1);
-            color_right = get_px_color(icx,     icy);
-            break;
-        case 2: // S
-            color_left  = get_px_color(icx,     icy);
-            color_right = get_px_color(icx - 1, icy);
-            break;
-        case 3: // W
-            color_left  = get_px_color(icx - 1, icy);
-            color_right = get_px_color(icx - 1, icy - 1);
-            break;
-        default:
-            color_left = vec3(0.0); color_right = vec3(0.0);
-            break;
-    }
-}
-
 // Encode a CP index as (cx, cy, slot) components.
 vec3 encode_cp_idx(int cp_idx) {
     if (cp_idx < 0) return vec3(-1.0);
@@ -202,20 +164,13 @@ struct CPData {
     uint flag;
     int prev_dir;
     int next_dir;
-    vec3 pl; // prev_left color
-    vec3 pr; // prev_right color
-    vec3 nl; // next_left color
-    vec3 nr; // next_right color
 };
 
 CPData make_inactive() {
-    return CPData(vec2(0.0), -1, -1, 0u, -1, -1,
-                  vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0));
+    return CPData(vec2(0.0), -1, -1, 0u, -1, -1);
 }
 
 // Compute both CPs for a given grid corner (cx, cy).
-// Boundary computation happens exactly once and is shared between
-// position/neighbor assignment and edge color assignment.
 void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
     slot0 = make_inactive();
     slot1 = make_inactive();
@@ -282,10 +237,7 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
             }
             int d_prev = cp0_has_s ? 2 : -1;
             int d_next = cp0_has_w ? 3 : -1;
-            vec3 pl=vec3(0.0),pr=vec3(0.0),nl=vec3(0.0),nr=vec3(0.0);
-            if (d_prev >= 0) get_edge_colors(cx, cy, d_prev, pl, pr);
-            if (d_next >= 0) get_edge_colors(cx, cy, d_next, nl, nr);
-            slot0 = CPData(p0, prev0, next0, cp0_flag, d_prev, d_next, pl, pr, nl, nr);
+            slot0 = CPData(p0, prev0, next0, cp0_flag, d_prev, d_next);
         }
 
         if (cp1_alive) {
@@ -301,10 +253,7 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
             }
             int d_prev = cp1_has_n ? 0 : -1;
             int d_next = cp1_has_e ? 1 : -1;
-            vec3 pl=vec3(0.0),pr=vec3(0.0),nl=vec3(0.0),nr=vec3(0.0);
-            if (d_prev >= 0) get_edge_colors(cx, cy, d_prev, pl, pr);
-            if (d_next >= 0) get_edge_colors(cx, cy, d_next, nl, nr);
-            slot1 = CPData(p1, prev1, next1, cp1_flag, d_prev, d_next, pl, pr, nl, nr);
+            slot1 = CPData(p1, prev1, next1, cp1_flag, d_prev, d_next);
         }
         return;
     }
@@ -329,10 +278,7 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
             }
             int d_prev = cp0_has_n ? 0 : -1;
             int d_next = cp0_has_w ? 3 : -1;
-            vec3 pl=vec3(0.0),pr=vec3(0.0),nl=vec3(0.0),nr=vec3(0.0);
-            if (d_prev >= 0) get_edge_colors(cx, cy, d_prev, pl, pr);
-            if (d_next >= 0) get_edge_colors(cx, cy, d_next, nl, nr);
-            slot0 = CPData(p0, prev0, next0, cp0_flag, d_prev, d_next, pl, pr, nl, nr);
+            slot0 = CPData(p0, prev0, next0, cp0_flag, d_prev, d_next);
         }
 
         if (cp1_alive) {
@@ -348,10 +294,7 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
             }
             int d_prev = cp1_has_s ? 2 : -1;
             int d_next = cp1_has_e ? 1 : -1;
-            vec3 pl=vec3(0.0),pr=vec3(0.0),nl=vec3(0.0),nr=vec3(0.0);
-            if (d_prev >= 0) get_edge_colors(cx, cy, d_prev, pl, pr);
-            if (d_next >= 0) get_edge_colors(cx, cy, d_next, nl, nr);
-            slot1 = CPData(p1, prev1, next1, cp1_flag, d_prev, d_next, pl, pr, nl, nr);
+            slot1 = CPData(p1, prev1, next1, cp1_flag, d_prev, d_next);
         }
         return;
     }
@@ -382,10 +325,7 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
             vec2 np = neighbor_cp_pos(next_cx, next_cy, n_dir);
             if (checkForCorner(pp - pos, np - pos)) f |= IS_CORNER;
         }
-        vec3 pl=vec3(0.0),pr=vec3(0.0),nl=vec3(0.0),nr=vec3(0.0);
-        if (p_dir >= 0) get_edge_colors(cx, cy, p_dir, pl, pr);
-        if (n_dir >= 0) get_edge_colors(cx, cy, n_dir, nl, nr);
-        slot0 = CPData(pos, prev, next, f, p_dir, n_dir, pl, pr, nl, nr);
+        slot0 = CPData(pos, prev, next, f, p_dir, n_dir);
 
     } else if (bnd_count == 1u) {
         int nbr = -1; int nbr_dir = -1;
@@ -393,9 +333,7 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
         else if (bnd_e) { nbr = e_idx; nbr_dir = 1; }
         else if (bnd_s) { nbr = s_idx; nbr_dir = 2; }
         else { nbr = w_idx; nbr_dir = 3; }
-        vec3 pl=vec3(0.0),pr=vec3(0.0);
-        if (nbr_dir >= 0) get_edge_colors(cx, cy, nbr_dir, pl, pr);
-        slot0 = CPData(pos, nbr, -1, 1u, nbr_dir, -1, pl, pr, vec3(0.0), vec3(0.0));
+        slot0 = CPData(pos, nbr, -1, 1u, nbr_dir, -1);
 
     } else if (bnd_count == 3u) {
         // T-junction
@@ -423,10 +361,7 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
             );
         }
 
-        vec3 pl=vec3(0.0),pr=vec3(0.0),nl=vec3(0.0),nr=vec3(0.0);
-        get_edge_colors(cx, cy, t_prev_dir, pl, pr);
-        get_edge_colors(cx, cy, t_next_dir, nl, nr);
-        slot0 = CPData(pos, prev, next, 2u | IS_TJUNCTION, t_prev_dir, t_next_dir, pl, pr, nl, nr);
+        slot0 = CPData(pos, prev, next, 2u | IS_TJUNCTION, t_prev_dir, t_next_dir);
 
         // Stem CP at slot 1 for the dropped direction
         int stem_idx = -1; int stem_dir = -1;
@@ -435,17 +370,12 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
         else if (bnd_s && t_prev_dir != 2 && t_next_dir != 2) { stem_idx = s_idx; stem_dir = 2; }
         else if (bnd_w && t_prev_dir != 3 && t_next_dir != 3) { stem_idx = w_idx; stem_dir = 3; }
         if (stem_idx >= 0) {
-            vec3 spl=vec3(0.0),spr=vec3(0.0);
-            get_edge_colors(cx, cy, stem_dir, spl, spr);
-            slot1 = CPData(pos, stem_idx, -1, 1u, stem_dir, -1, spl, spr, vec3(0.0), vec3(0.0));
+            slot1 = CPData(pos, stem_idx, -1, 1u, stem_dir, -1);
         }
 
     } else {
         // Valence 4: pinned, N-S pair
-        vec3 pl=vec3(0.0),pr=vec3(0.0),nl=vec3(0.0),nr=vec3(0.0);
-        get_edge_colors(cx, cy, 0, pl, pr);
-        get_edge_colors(cx, cy, 2, nl, nr);
-        slot0 = CPData(pos, n_idx, s_idx, 1u, 0, 2, pl, pr, nl, nr);
+        slot0 = CPData(pos, n_idx, s_idx, 1u, 0, 2);
     }
 }
 
@@ -499,11 +429,11 @@ void main() {
         float dir_pack = float((cp.prev_dir + 1) + (cp.next_dir + 1) * 8);
         FragColor = vec4(cp.pos.x, cp.pos.y, float(cp.flag), dir_pack);
     } else if (sub_row == 1) {
-        // Previous neighbor encoded as (cx/256, cy/256, slot)
+        // Previous neighbor encoded as (cx, cy, slot)
         vec3 prev_enc = encode_cp_idx(cp.prev);
         FragColor = vec4(prev_enc, 0.0);
     } else {
-        // Next neighbor encoded as (cx/256, cy/256, slot)
+        // Next neighbor encoded as (cx, cy, slot)
         vec3 next_enc = encode_cp_idx(cp.next);
         FragColor = vec4(next_enc, 0.0);
     }
