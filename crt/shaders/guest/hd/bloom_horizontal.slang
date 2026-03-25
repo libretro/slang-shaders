@@ -37,7 +37,7 @@ layout(push_constant) uniform Push
 #pragma parameter bogus_bloom "[ BLOOM/HALATION/(GLOW) PASS SETTINGS ]:" 0.0 0.0 1.0 1.0
 
 #pragma parameter auto_res "          SNES/Amiga Hi-Res Auto Mode" 0.0 0.0 1.0 1.0
-float auto_rez = mix(1.0, 2.0, clamp(params.auto_res * round(params.OriginalSize.x/300.0)-1.0, 0.0,1.0));
+float auto_rez = (params.OriginalSize.y < 375.0) ? mix(1.0, 2.0, clamp(params.auto_res * round(params.OriginalSize.x/300.0)-1.0, 0.0,1.0)) : 1.0;
 
 #pragma parameter FINE_BLOOM "          Fine Bloom/Halation Sampling" 1.0 -1.0 5.0 1.0 
 float FINE_BLOOM = (params.FINE_BLOOM > 0.5) ? params.FINE_BLOOM : mix(0.75, 0.5, -params.FINE_BLOOM);

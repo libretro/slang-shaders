@@ -1,0 +1,8 @@
+shaders = 1
+
+shader0 = ../../../../edge-smoothing/xbr/shaders/xbr-lv3-standalone.slang
+scale_type0 = source
+scale_x0 = 3.0
+scale_y0 = 1.0
+filter_linear0 = false
+

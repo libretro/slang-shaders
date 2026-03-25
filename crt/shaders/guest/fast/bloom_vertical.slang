@@ -35,8 +35,6 @@ layout(push_constant) uniform Push
 #pragma parameter FINE_BLOOM "          Fine Bloom/Halation Sampling" 1.0 -1.0 5.0 1.0 
 float FINE_BLOOM = (params.FINE_BLOOM > 0.5) ? params.FINE_BLOOM : mix(0.75, 0.5, -params.FINE_BLOOM);
 
-#pragma parameter GLOW_MAX "          Max. Glow/M.Glow Value" 1.0 0.1 1.0 0.025 
-
 #pragma parameter SIZEVB "          Vertical Bloom/Halation Radius" 3.0 1.0 50.0 1.0 
 #define SIZEVB params.SIZEVB
 

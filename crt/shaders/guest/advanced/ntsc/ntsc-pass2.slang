@@ -13,11 +13,13 @@ layout(push_constant) uniform Push
    float ntsc_phase;
    float ntsc_ring;
    float ntsc_cscale;
-   float ntsc_cscale1;   
+   float ntsc_cscale1;
    float ntsc_taps;
    float auto_res;
    float ntsc_charp;
-   float ntsc_charp3;   
+   float ntsc_charp3;
+   float speedup;
+   float nscale;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -26,9 +28,11 @@ layout(std140, set = 0, binding = 0) uniform UBO
 } global;
 
 #pragma parameter auto_res "          SNES/Amiga Hi-Res Auto Mode" 0.0 0.0 1.0 1.0
+#pragma parameter speedup  "          Speedup w. higher Internal Res." 1.0 1.0 4.0 1.0
 #pragma parameter ntsc_scale   "NTSC Resolution Scaling" 1.0 0.20 2.5 0.025
-#pragma parameter ntsc_phase   "NTSC Phase: Auto | 2 phase | 3 phase | Mixed" 1.0 1.0 4.0 1.0
-#pragma parameter ntsc_taps    "NTSC # of Taps (Filter Width)" 32.0 6.0 32.0 1.0
+#pragma parameter nscale       "NTSC Filter Scaling" 1.0 0.20 2.5 0.025
+#pragma parameter ntsc_phase   "NTSC Phase: Auto | 2 phase | 3 phase | Mixed | PCE" 1.0 1.0 5.0 1.0
+#pragma parameter ntsc_taps    "NTSC # of Taps (Filter Width)" 32.0 6.0 48.0 1.0
 #pragma parameter ntsc_cscale  "NTSC Chroma Scaling / Bleeding (2-phase)" 1.0 0.50 4.00 0.05
 #pragma parameter ntsc_cscale1 "NTSC Chroma Scaling / Bleeding (3-phase)" 1.0 0.20 2.25 0.05
 #pragma parameter ntsc_charp   "NTSC Preserve 'Edge' Colors 2-phase" 0.0 0.0 10.0 0.50
@@ -38,6 +42,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 float auto_rez = mix(1.0, 0.5, clamp(params.auto_res * round(params.OriginalSize.x/300.0)-1.0, 0.0, 1.0));
 #define ntsc_scale params.ntsc_scale * auto_rez
+#define speedup params.speedup
+#define nscale params.nscale;
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -47,7 +53,7 @@ layout(location = 0) out vec2 vTexCoord;
 void main()
 {
    gl_Position = global.MVP * Position;
-   vTexCoord = TexCoord - vec2(0.25 * (params.OriginalSize.z/auto_rez)/4.0, 0.0); // Compensate for decimate-by-2.
+   vTexCoord = TexCoord + vec2(0.5 / speedup * (params.OriginalSize.z/auto_rez)/4.0, 0.0);    // Compensate for decimate-by-2.
 }
 
 #pragma stage fragment
@@ -99,6 +105,9 @@ float smothstep (float e0, float e1, float x)
 }
 
 const int TAPS_2_phase = 32;
+const int TAPS_3_phase = 24;
+
+
 const float luma_filter_2_phase[33] = float[33](
   -0.000174844,
   -0.000205844,
@@ -134,10 +143,15 @@ const float luma_filter_2_phase[33] = float[33](
    0.168055832,
    0.178571429);
 
-
-const int TAPS_3_phase = 24;
-
-const float chroma_filter_3_phase[25] = float[25](
+const float chroma_filter_3_phase[33] = float[33](
+   0.000000000,
+   0.000000000,
+   0.000000000,
+   0.000000000,
+   0.000000000,
+   0.000000000,
+   0.000000000,
+   0.000000000,
   -0.000118847,
   -0.000271306,
   -0.000502642,
@@ -164,37 +178,21 @@ const float chroma_filter_3_phase[25] = float[25](
    0.077856564,
    0.079052396);
 
-const float luma_filter_4_phase[25] = float[25](
-  -0.000472644,
-  -0.000252236,
-   0.000198929,
-   0.000687058,
-   0.000944112,
-   0.000803467,
-   0.000363199,
-   0.000013422,
-   0.000253402,
-   0.001339461,
-   0.002932972,
-   0.003983485,
-   0.003026683,
-  -0.001102056,
-  -0.008373026,
-  -0.016897700,
-  -0.022914480,
-  -0.021642347,
-  -0.028863273,
-   0.027271957,
-   0.054921920,
-   0.098342579,
-   0.139044281,
-   0.168055832,
-   0.178571429);
-
 void main()
 {
 
-float luma_filter_3_phase[25] = float[25](
+if (vTexCoord.x * speedup > (1.00325)) discard;
+
+
+float luma_filter_3_phase[33] = float[33](
+   0.000000000,
+   0.000000000,
+   0.000000000,
+   0.000000000,
+   0.000000000,
+   0.000000000,
+   0.000000000,
+   0.000000000,
   -0.000012020,
   -0.000022146,
   -0.000013155,
@@ -221,14 +219,14 @@ float luma_filter_3_phase[25] = float[25](
    0.175261268,
    0.220176552);
 
-   float res = ntsc_scale;
+   float res = ntsc_scale * nscale;
    float OriginalSize = params.OriginalSize.x * auto_rez; 
-   vec2 one_x = 0.25*params.OriginalSize.zz / res;
+   vec2 one_x = 0.25*params.OriginalSize.zz / res / speedup;
    vec3 signal = vec3(0.0);
    float phase = (params.ntsc_phase < 1.5) ? ((OriginalSize > 300.0) ? 2.0 : 3.0) : ((params.ntsc_phase > 2.5) ? 3.0 : 2.0);
-   if (params.ntsc_phase == 4.0) { phase = 3.0; luma_filter_3_phase = luma_filter_4_phase; }
+   if (params.ntsc_phase > 3.5) { phase = 3.0; luma_filter_3_phase = luma_filter_2_phase; }
 
-   float offset = 0.0; float tf = 0.0; int i = 0; float j = 0.0;
+   float offset = 0.0; int i = 0; float j = 0.0;
    vec3 wsum = 0.0.xxx;
    vec3 sums = wsum;
    vec3 tmp  = wsum;  
@@ -242,14 +240,14 @@ float luma_filter_3_phase[25] = float[25](
       float ltap = iloop + 1.0;
       float cs_sub = iloop - iloop / params.ntsc_cscale;
       float ctap = 0.0;
-      float mit = 1.0 + 0.0375*pow(smothstep(16.0, 8.0, iloop), 0.5);
+      float mit = 1.0 + 0.04*pow(smothstep(16.0, 8.0, iloop), 0.5);
       vec2 dx = vec2(one_x.x*mit, 0.0); vec2 dx1 = dx;
 	  
       for (i = loopstart; i < 32; i++)
       {
          offset = float(i-loopstart); j = offset + 1.0; dx1 = (offset - iloop)*dx;
          sums = fetch_offset2(dx1); ctap = max(j-cs_sub, 0.0);
-         tmp = vec3(luma_filter_2_phase[i], ctap.xx);
+         tmp = vec3(luma_filter_2_phase[max(i,0)], ctap.xx);
          wsum = wsum + tmp;
          signal += sums * tmp;
       }
@@ -265,19 +263,19 @@ float luma_filter_3_phase[25] = float[25](
       vec3 dx = vec3(one_x.x, one_x.y, 0.0);
       float mit = 1.0;
       float iloop = min(params.ntsc_taps, TAPS_3_phase);
-      if (params.ntsc_phase == 4.0) { iloop = max(params.ntsc_taps, 8.0); mit = 1.0 + 0.0375*pow(smothstep(16.0, 8.0, iloop), 0.5); }
+      if (params.ntsc_phase > 3.5) { iloop = max(iloop, 8.0); mit = 1.0 + 0.04*pow(smothstep(16.0, 8.0, iloop), 0.5); }
       vec3 dx1 = dx; dx.x*=mit;
-      int loopstart = int(24.0 - iloop);
+      int loopstart = int(32.0 - iloop);
 	  
-      for (i = loopstart; i < 24; i++)
+      for (i = loopstart; i < 32; i++)
       {
-         offset = float(i-loopstart); j = offset + 1.0; dx1.xy = (offset - iloop)*dx.xy;
+         offset = float(i-loopstart); dx1.xy = (offset - iloop)*dx.xy;
          sums = fetch_offset3(dx1);
          tmp = vec3(luma_filter_3_phase[i], chroma_filter_3_phase[i].xx);
          wsum = wsum + tmp;
          signal += sums * tmp;
       }
-      tmp = vec3(luma_filter_3_phase[TAPS_3_phase], chroma_filter_3_phase[TAPS_3_phase], chroma_filter_3_phase[TAPS_3_phase]);
+      tmp = vec3(luma_filter_3_phase[TAPS_2_phase], chroma_filter_3_phase[TAPS_2_phase], chroma_filter_3_phase[TAPS_2_phase]);
       wsum = wsum + wsum + tmp;
       signal += texture(Source, vTexCoord).xyz * tmp;
       signal = signal / wsum;
@@ -287,7 +285,7 @@ float luma_filter_3_phase[25] = float[25](
 
    if (params.ntsc_ring > 0.05)
    {
-      vec2 dx = vec2(params.OriginalSize.z / min(res, 1.0), 0.0);
+      vec2 dx = vec2(params.OriginalSize.z / min(res, 1.0) / speedup, 0.0);
       float a = texture(Source, vTexCoord - 2.0*dx).a;
       float b = texture(Source, vTexCoord -     dx).a;
       float c = texture(Source, vTexCoord + 2.0*dx).a;
@@ -296,7 +294,7 @@ float luma_filter_3_phase[25] = float[25](
       signal.x = mix(signal.x, clamp(signal.x, min(min(min(a,b),min(c,d)),e), max(max(max(a,b),max(c,d)),e)), params.ntsc_ring);
    }
    
-   float orig = get_luma(texture(PrePass0, vTexCoord).rgb);
+   float orig = get_luma(texture(PrePass0, vTexCoord * vec2(speedup, 1.0)).rgb);
    
    FragColor = vec4(signal, orig);
 }  

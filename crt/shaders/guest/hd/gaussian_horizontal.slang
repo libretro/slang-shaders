@@ -42,7 +42,7 @@ layout(push_constant) uniform Push
 #pragma parameter bogus_mglow "[ MAGIC GLOW SETTINGS ]:" 0.0 0.0 1.0 1.0
 
 #pragma parameter auto_res "          SNES/Amiga Hi-Res Auto Mode" 0.0 0.0 1.0 1.0
-float auto_rez = mix(1.0, 2.0, clamp(params.auto_res*round(params.OriginalSize.x/300.0)-1.0, 0.0, 1.0));
+float auto_rez = (params.OriginalSize.y < 375.0) ? mix(1.0, 2.0, clamp(params.auto_res * round(params.OriginalSize.x/300.0)-1.0, 0.0,1.0)) : 1.0;
 
 #pragma parameter m_glow "          Ordinary Glow / Magic Glow" 0.0 0.0 2.0 1.0 
 #define m_glow params.m_glow

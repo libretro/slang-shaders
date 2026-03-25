@@ -36,7 +36,7 @@ layout(push_constant) uniform Push
 	float HARNG;
 	float HSHARP; 
 	float spike;
-	float internal_res;
+	float filter_res;
 	float MAXS;
 	float auto_res;
 } params;
@@ -46,13 +46,13 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	mat4 MVP;
 } global;
 
-#pragma parameter internal_res "          Internal Resolution" 1.0 0.5 8.0 0.10
-#define internal_res params.internal_res
+#pragma parameter filter_res   "          Horizontal Filtering Resolution" 1.0 0.5 8.0 0.10
+#define filter_res params.filter_res
 
 #pragma parameter bogus_filtering "[ FILTERING OPTIONS ]: " 0.0 0.0 1.0 1.0
 
 #pragma parameter auto_res "          SNES/Amiga Hi-Res Auto Mode" 0.0 0.0 1.0 1.0
-float auto_rez = mix(1.0, 1.75, clamp(params.auto_res * round(params.OriginalSize.x/300.0)-1.0, 0.0, 1.0));
+float auto_rez = (params.OriginalSize.y < 375.0) ? mix(1.0, 1.85, clamp(params.auto_res * round(params.OriginalSize.x/300.0)-1.0, 0.0, 1.0)) : 1.0;
 
 #pragma parameter HSHARPNESS "          Horizontal Filter Range" 1.60 1.0 8.0 0.05
 #define HSHARPNESS params.HSHARPNESS
@@ -99,8 +99,7 @@ layout(set = 0, binding = 2) uniform sampler2D LinearizePass;
 
 float gaussian(float x, float xscale)
 {
-	float invsqrsigma = 1.0/(2.0*SIGMA_HOR*SIGMA_HOR*xscale*xscale*internal_res*internal_res);
-	return exp(-x*x*invsqrsigma);
+	return exp(-x*x*xscale);
 }
 
 void main()
@@ -120,12 +119,13 @@ void main()
 	float swsum = 0.0;
 	float wsum = 0.0;
 	vec3 pixel;
-
-	float xscale = prescalex.x * 0.5 * auto_rez;
-	
-	float hsharpness = HSHARPNESS * xscale * internal_res;
 	vec3 cmax = 0.0.xxx;
 	vec3 cmin = 1.0.xxx;
+	
+	float xscale = max(prescalex.x * 0.4, 1.0) * auto_rez;
+	float hsharpness = HSHARPNESS * xscale * filter_res;
+	
+	xscale = 1.0/(2.0*SIGMA_HOR*SIGMA_HOR*xscale*xscale*filter_res*filter_res);	
 	float sharp = gaussian(hsharpness, xscale) * S_SHARP;
 	float maxsharp = MAXS;
 	float FPR = hsharpness;
@@ -136,7 +136,7 @@ void main()
 
 	float ts = 0.025;
 	vec3 luma = vec3(0.2126, 0.7152, 0.0722); 
-
+	
 	float LOOPSIZE = ceil(2.0*FPR);
 	
 	float n = -LOOPSIZE;

@@ -146,14 +146,14 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter bogus_masks "[ CRT MASK OPTIONS ]: " 0.0 0.0 1.0 1.0
 
-#pragma parameter shadowMask "          CRT Mask: 0:CGWG, 1-4:Lottes, 5-13:'Trinitron'" 0.0 -1.0 13.0 1.0
+#pragma parameter shadowMask "          CRT Mask: 0:CGWG, 1-4:Lottes, 5-14:'Trinitron'" 0.0 -1.0 14.0 1.0
 #define shadowMask   params.shadowMask     // Mask Style
 
-#pragma parameter maskstr "          Mask Strength (0, 5-12)" 0.3 -0.5 1.0 0.025
+#pragma parameter maskstr "          Mask Strength (0, 5-14)" 0.3 -0.5 1.0 0.025
 #define maskstr         params.maskstr      // Mask Strength
 
-#pragma parameter mcut "          Mask 5-12 Low Strength" 1.10 0.0 2.0 0.05
-#define mcut         params.mcut      // Mask 5-12 dark color strength
+#pragma parameter mcut "          Mask 5-14 Low Strength" 1.10 0.0 2.0 0.05
+#define mcut         params.mcut      // Mask 5-14 dark color strength
 
 #pragma parameter maskboost "          CRT Mask Boost" 1.0 1.0 3.0 0.05
 #define maskboost     global.maskboost     // Mask Boost
@@ -439,7 +439,7 @@ vec3 Mask(vec2 pos, float mx)
 	}
 
 	// 4k mask
-	else
+	else if (shadowMask == 13.0)
 	{
 		mask = vec3(0.0);
 		pos.x = floor(mod(pos.x,6.0));
@@ -451,6 +451,19 @@ vec3 Mask(vec2 pos, float mx)
 		else                   mask.b = 1.0;
 		mask = clamp(mix( mix(one, mask, mcut), mix(one, mask, maskstr), mx), 0.0, 1.0);
 	}
+
+	// 4k mask
+	else
+	{
+		mask = vec3(0.0);
+		pos.x = floor(mod(pos.x, 5.0));
+		if      (pos.x < 0.5)  mask    = 0.0.xxx;
+		else if (pos.x < 1.5)  mask.r  = 1.0;
+		else if (pos.x < 2.5)  mask.rg = 1.0.xx;
+		else if (pos.x < 3.5)  mask.gb = 1.0.xx;	
+		else                   mask.b  = 1.0;
+		mask = clamp(mix( mix(one, mask, mcut), mix(one, mask, maskstr), mx), 0.0, 1.0);
+	} 
 	
 	if (mask_layout > 0.5) mask = mask.rbg;
 	float maskmin = min(min(mask.r,mask.g),mask.b);
@@ -717,7 +730,7 @@ if (abs(vertmask) > 0.025)
 if (shadowMask > -0.5)
 {	
 	// mask widths and mask dark compensate (fractional part) values
-	float mwidths[14] = float[14] (2.0, 3.0, 3.0, 6.0, 6.0, 2.0, 3.0, 2.0, 3.0, 3.0, 4.0, 4.0, 7.0, 6.0); 
+	float mwidths[15] = float[15] (2.0, 3.0, 3.0, 6.0, 6.0, 2.0, 3.0, 2.0, 3.0, 3.0, 4.0, 4.0, 7.0, 6.0, 5.0); 
 	
 	float mwidth = mwidths[int(shadowMask)];
 	if (shadowMask > 4.5) mask_compensate = 1.325;
@@ -741,12 +754,13 @@ if ( mshift > 0.25 )
 	maskcoord = maskcoord0/masksize;
 
 if ( !zoomed )	
-	cmask*= Mask(floor(maskcoord), mx);
+	cmask = Mask(floor(maskcoord), mx);
 else{
 	mscale  = mwidth1/mwidth;
 	float mlerp = fract(maskcoord.x/mscale); if (mzoom_sh > 0.025) mlerp = clamp((1.0 + mzoom_sh)*mlerp - 0.5*mzoom_sh, 0.0, 1.0);
-	float mcoord = floor(maskcoord.x/mscale); if (shadowMask == 12.0 && mask_zoom == -2.0) mcoord = ceil(maskcoord.x/mscale);
-	cmask*=mix(Mask(vec2(mcoord,maskcoord.y), mx), Mask(vec2(mcoord + 1.0, maskcoord.y), mx), mlerp);
+	float mcoord = floor(maskcoord.x/mscale);
+	if (shadowMask == 12.0 && mask_zoom == -2.0) mcoord = ceil(maskcoord.x/mscale);
+	cmask = mix(Mask(vec2(mcoord,maskcoord.y), mx), Mask(vec2(mcoord + 1.0, maskcoord.y), mx), mlerp);
 }
 
 	if (slotwidth > 0.5) swidth = slotwidth; float smask = 1.0;

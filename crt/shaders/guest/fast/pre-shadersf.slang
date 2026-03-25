@@ -38,11 +38,12 @@ layout(push_constant) uniform Push
    float sega_fix;
    float pre_bb;
    float contr;
+   float pre_gc;
 } params;
 
 #pragma parameter bogus_color "[ COLOR TWEAKS ]:" 0.0 0.0 1.0 1.0
 
-#pragma parameter TNTC "          LUT Colors: Trin.1 | Trin.2 | Nec Mult. | NTSC" 0.0 0.0 4.0 1.0
+#pragma parameter TNTC "          LUT Colors: NTSC-J | Trinit. | Nec Mult. | NTSC 1953" 0.0 0.0 4.0 1.0
 #define TNTC params.TNTC
 
 #pragma parameter LS "          LUT Size" 32.0 16.0 64.0 16.0
@@ -59,6 +60,8 @@ layout(push_constant) uniform Push
 #pragma parameter pre_bb "          Brightness Adjustment" 1.0 0.0 2.0 0.01
 
 #pragma parameter contr "          Contrast Adjustment" 0.0 -2.0 2.0 0.05
+
+#pragma parameter pre_gc "          Gamma Correct Adjustment" 1.0 0.5 1.75 0.025
 
 #pragma parameter sega_fix "          Sega Brightness Fix" 0.0 0.0 1.0 1.0
 
@@ -158,6 +161,12 @@ float contrast(float x)
 	return max(mix(x, smoothstep(0.0, 1.0, x), params.contr),0.0);
 }
 
+vec3 pgc(vec3 c)
+{
+	float mc = max(max(c.r,c.g),c.b);
+	float mg = pow(mc, 1.0/params.pre_gc);
+	return c * mg/(mc + 1e-8);  
+}
 
 void main()
 {
@@ -245,6 +254,7 @@ void main()
 	
 	color = mix(color, comp, m);
 	color = pow(max(color, 0.0), vec3(1.0/p));
+	color = pgc(color);
 	
 	if (BP > -0.5) color = color + bp; else
 	{ 

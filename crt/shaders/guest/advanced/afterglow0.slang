@@ -28,9 +28,12 @@ layout(push_constant) uniform Push
    vec4 OutputSize;
    uint FrameCount;
    float PR, PG, PB;
+   float esrc, bth;
 } params;
 
 #pragma parameter bogus_afterglow "[ AFTERGLOW SETTINGS ]:" 0.0 0.0 1.0 1.0
+#pragma parameter esrc "          Afterglow Effect Source: OriginalHistory | Source" 1.0 1.0 2.0 1.0
+#pragma parameter bth  "          Afterglow Effect Threshold" 4.0 1.0 125.0 1.0
 #pragma parameter PR "          Persistence Red" 0.32 0.0 0.50 0.01
 #pragma parameter PG "          Persistence Green"  0.32 0.0 0.50 0.01
 #pragma parameter PB "          Persistence Blue"  0.32 0.0 0.50 0.01
@@ -60,8 +63,9 @@ void main()
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D OriginalHistory0;
-layout(set = 0, binding = 3) uniform sampler2D AfterglowPassFeedback;
+layout(set = 0, binding = 2) uniform sampler2D Source;
+layout(set = 0, binding = 3) uniform sampler2D OriginalHistory0;
+layout(set = 0, binding = 4) uniform sampler2D AfterglowPassFeedback;
 
 #define TEX0 vTexCoord
 
@@ -77,12 +81,23 @@ void main()
 	vec3 color3  = COMPAT_TEXTURE(OriginalHistory0, TEX0.xy - dy).rgb;
 	vec3 color4  = COMPAT_TEXTURE(OriginalHistory0, TEX0.xy + dy).rgb;	
 
+if (params.esrc > 1.5)
+{
+	color0  = COMPAT_TEXTURE(Source, TEX0.xy).rgb;
+	color1  = COMPAT_TEXTURE(Source, TEX0.xy - dx).rgb;
+	color2  = COMPAT_TEXTURE(Source, TEX0.xy + dx).rgb;
+	color3  = COMPAT_TEXTURE(Source, TEX0.xy - dy).rgb;
+	color4  = COMPAT_TEXTURE(Source, TEX0.xy + dy).rgb;	
+}
+
 	vec3 color = (2.5 * color0 + color1 + color2 + color3 + color4)/6.5;
 	
 	vec3 accumulate = COMPAT_TEXTURE(AfterglowPassFeedback, TEX0.xy).rgb;
 
 	float w = 1.0;
-	if ((color0.r + color0.g + color0.b < 5.0/255.0)) { w = 0.0; }
+	float b = params.bth/255.0;
+	float c = max(max(color0.r,color0.g),color0.b);
+	w = smoothstep(b, 2.0*b, c);
 
 	vec3 result = mix( max(mix(color, accumulate, 0.49 + vec3(PR, PG, PB))- 1.25/255.0, 0.0), color, w);
 

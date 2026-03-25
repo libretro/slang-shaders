@@ -12,7 +12,8 @@ layout(push_constant) uniform Push
    uint FrameCount;
    float quality, ntsc_sat, cust_fringing, cust_artifacting, ntsc_bright, ntsc_scale, ntsc_fields, ntsc_phase, ntsc_gamma, ntsc_rainbow1, ntsc_taps, auto_res;
    float ntsc_charp;
-   float ntsc_charp3;   
+   float ntsc_charp3;
+   float speedup;
 } params;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -22,27 +23,30 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter ntsc-row0 "------------------------------------------------" 0.0 0.0 0.0 1.0
 #pragma parameter auto_res     "          SNES/Amiga Hi-Res Auto Mode" 0.0 0.0 1.0 1.0
-#pragma parameter internal_res "          Internal Resolution" 1.0 0.5 8.0 0.10
+#pragma parameter filter_res   "          Horizontal Filtering Resolution" 1.0 0.5 8.0 0.10
+#pragma parameter speedup      "          Speedup w. higher Internal Res." 1.0 1.0 4.0 1.0
 #pragma parameter ntsc-row1 "------------------------------------------------" 0.0 0.0 0.0 1.0
 #pragma parameter quality "INFO --> A&F Values: Svideo = 0.0 | Composite = 1.0 | RF = 2.0" 0.0 0.0 0.0 1.0
 #pragma parameter cust_artifacting "NTSC Artifacting Value" 1.0 0.0 5.0 0.1
 #pragma parameter cust_fringing "NTSC Fringing Value" 1.0 0.0 5.0 0.1
 #pragma parameter ntsc-row2 "------------------------------------------------" 0.0 0.0 0.0 1.0
 #pragma parameter ntsc_fields "NTSC Merge Fields: Auto | NO | YES" -1.0 -1.0 1.0 1.0
-#pragma parameter ntsc_phase  "NTSC Phase: Auto | 2 phase | 3 phase | Mixed" 1.0 1.0 4.0 1.0
+#pragma parameter ntsc_phase  "NTSC Phase: Auto | 2 phase | 3 phase | Mixed | PCE" 1.0 1.0 5.0 1.0
 #pragma parameter ntsc_scale  "NTSC Resolution Scaling" 1.0 0.20 2.5 0.025
+#pragma parameter nscale      "NTSC Filter Scaling" 1.0 0.20 2.5 0.025
 #pragma parameter ntsc_sat    "NTSC Color Saturation" 1.0 0.0 2.0 0.01
 #pragma parameter ntsc_bright "NTSC Brightness" 1.0 0.0 1.5 0.01
 #pragma parameter ntsc_gamma  "NTSC Filtering Gamma Correction" 1.0 0.25 2.5 0.025
 #pragma parameter ntsc_rainbow1 "NTSC Coloring/Rainbow Effect (2-phase)" 0.0 0.0 3.0 1.0
 #pragma parameter ntsc-row3 "------------------------------------------------" 0.0 0.0 0.0 1.0
-#pragma parameter ntsc_taps   "NTSC # of Taps (Filter Width)" 32.0 6.0 32.0 1.0
+#pragma parameter ntsc_taps   "NTSC # of Taps (Filter Width)" 32.0 6.0 48.0 1.0
 #pragma parameter ntsc_charp  "NTSC Preserve 'Edge' Colors 2-phase" 0.0 0.0 10.0 0.50
 #pragma parameter ntsc_charp3 "NTSC Preserve 'Edge' Colors 3-phase" 0.0 0.0 10.0 0.50
 
 float FrameCount = float(params.FrameCount);
 float auto_rez = mix(1.0, 0.5, clamp(params.auto_res * round(params.OriginalSize.x/300.0)-1.0, 0.0, 1.0));
 #define ntsc_scale params.ntsc_scale * auto_rez
+#define speedup params.speedup
 
 #define PI 3.14159265
 
@@ -64,13 +68,13 @@ void main()
 	float res = min(ntsc_scale, 1.0);
 	float OriginalSize = params.OriginalSize.x * auto_rez;
 	gl_Position = global.MVP * Position;
-	vTexCoord = TexCoord;
-	pix_no = TexCoord * params.OriginalSize.xy * vec2(res, res/auto_rez) * vec2(4.0,1.0);
+	vTexCoord = TexCoord * vec2(speedup, 1.0);
+	pix_no = vTexCoord * params.OriginalSize.xy * vec2(res, res/auto_rez) * vec2(4.0, 1.0);
 	
 	phase = (params.ntsc_phase < 1.5) ? ((OriginalSize > 300.0) ? 2.0 : 3.0) : ((params.ntsc_phase > 2.5) ? 3.0 : 2.0);
-	if (params.ntsc_phase == 4.0) phase = 3.0;
+	if (params.ntsc_phase == 4.0) phase = 3.0; else if (params.ntsc_phase == 5.0) phase = 2.0;
 	
-	CHROMA_MOD_FREQ = (phase < 2.5) ? (4.0 * PI / 15.0) : (PI / 3.0);
+	CHROMA_MOD_FREQ = (phase == 2.0 && params.ntsc_phase != 5.0) ? (4.0 * PI / 15.0) : ((OriginalSize <= 300.0 || phase == 3.0) ? (PI / 3.0) : (PI/2.0));
 	ARTIFACTING = params.cust_artifacting;
 	FRINGING = params.cust_fringing;
 	SATURATION = params.ntsc_sat;
@@ -94,7 +98,8 @@ layout(location = 8) in float MERGE;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-#define mix_mat  mat3(BRIGHTNESS, FRINGING, FRINGING, ARTIFACTING, 2.0 * SATURATION, 0.0, ARTIFACTING, 0.0, 2.0 * SATURATION)
+mat3 mix_mat = mat3(BRIGHTNESS, FRINGING, FRINGING, ARTIFACTING, 2.0*SATURATION, 0.0, ARTIFACTING, 0.0, 2.0*SATURATION);
+
 
 const mat3 yiq2rgb_mat = mat3(
    1.0, 0.956, 0.6210,
@@ -127,8 +132,12 @@ float smothstep (float e0, float e1, float x)
    return clamp((x - e0) / (e1 - e0), 0.0, 1.0);
 }
 
+
 void main()
 {
+if (vTexCoord.x > 1.0) FragColor = 0.0.xxxx; else
+{
+
    float res = ntsc_scale;
    float mit = params.ntsc_taps; if (params.ntsc_charp > 0.25 && phase == 2.0) mit = clamp(mit, 8.0, min(params.ntsc_taps,14.0));
    mit = smothstep(16.0, 8.0, mit) * 0.325;
@@ -138,22 +147,23 @@ void main()
    vec3 yiq = rgb2yiq(col);
    yiq.x = pow(yiq.x, params.ntsc_gamma);
    float lum = yiq.x;
- 
-   vec2 dx = vec2(params.OriginalSize.z/auto_rez, 0.0);
-   float c1 = get_luma(texture(Source, vTexCoord - dx).rgb);
-   float c2 = get_luma(texture(Source, vTexCoord + dx).rgb);
 
 if (params.ntsc_phase == 4.0) 
 {
+   vec2 dx = vec2(params.OriginalSize.z/auto_rez, 0.0);
+   float c1 = get_luma(texture(Source, vTexCoord - dx).rgb);
+   float c2 = get_luma(texture(Source, vTexCoord + dx).rgb);
    float mix01 = min(5.0*abs(c1-c2),1.0);
    c1 = pow(c1, params.ntsc_gamma);
    c2 = pow(c2, params.ntsc_gamma);
    yiq.x = mix(min(0.5*(yiq.x + max(c1,c2)), max(yiq.x , min(c1,c2))), yiq.x, mix01);
 }   
+
+   vec3 tmp =  yiq; 
    vec3 yiq2 = yiq;	
    vec3 yiqs = yiq;
    vec3 yiqz = yiq;
-   vec3 tmp =  yiq;
+
 
 if (MERGE > 0.5)
 {
@@ -194,12 +204,14 @@ if (MERGE > 0.5)
       yiq.x = dot(yiqz, mix_mat[0]); // Cross-talk.
    }
       
-if (params.ntsc_phase == 4.0)
-{
-	yiq.x = lum; yiq2.x = lum;
-}
+   if (params.ntsc_phase == 4.0)
+   {
+      yiq.x = lum; yiq2.x = lum;
+   }
 
    if (MERGE > 0.5) { if (params.ntsc_rainbow1 < 0.5 || phase > 2.5) yiq = 0.5*(yiq + yiq2); else yiq.x = 0.5*(yiq.x + yiq2.x); }
    
    FragColor = vec4(yiq, lum);
+}
+
 } 

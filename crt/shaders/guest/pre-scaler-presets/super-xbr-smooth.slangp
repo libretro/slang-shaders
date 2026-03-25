@@ -1,0 +1,28 @@
+shaders = "4"
+
+shader0 = "../../../../stock.slang"
+filter_linear0 = false
+scale_type0 = "source"
+scale0 = "1.000000"
+alias0 = XbrSource
+
+shader1 = "../../../../edge-smoothing/xbr/shaders/super-xbr/super-xbr-pass0.slang"
+filter_linear1 = false
+scale_type1 = "source"
+scale1 = "1.000000"
+
+shader2 = "../../../../edge-smoothing/xbr/shaders/super-xbr/super-xbr-pass1.slang"
+filter_linear2 = false
+scale_type2 = "source"
+scale2 = "2.000000"
+
+shader3 = "../../../../edge-smoothing/xbr/shaders/super-xbr/super-xbr-pass2.slang"
+filter_linear3 = false
+scale_type3 = "source"
+scale3 = "1.000000"
+
+XBR_EDGE_STR_P0 = "1.000000"
+XBR_EDGE_SHP = "3.000000"
+XBR_TEXTURE_SHP = "2.000000"
+XBR_EDGE_STR_P1 = "2.000000"
+XBR_EDGE_STR_P2 = "2.000000"

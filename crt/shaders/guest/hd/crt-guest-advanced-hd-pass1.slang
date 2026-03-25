@@ -54,7 +54,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define auto_res params.auto_res
 
 #pragma parameter internal_res "          Internal Resolution" 1.0 0.5 8.0 0.10
-float internal_res = mix(params.internal_res, 1.75*params.internal_res, clamp(auto_res * round(params.OriginalSize.x/300.0)-1.0, 0.0, 1.0));
+
+float internal_res = (params.OriginalSize.y < 375.0) ? mix(params.internal_res, 1.85*params.internal_res, clamp(auto_res * round(params.OriginalSize.x/300.0)-1.0, 0.0, 1.0)) : params.internal_res;
 
 #pragma parameter HSHARPNESS "          Horizontal Filter Range" 1.0 1.0 8.0 0.05
 #define HSHARPNESS params.HSHARPNESS
