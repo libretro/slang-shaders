@@ -11,7 +11,7 @@
 //     bit 0 = backslash diagonal (x-1,y-1)-(x,y) connected
 //     bit 1 = slash diagonal (x,y-1)-(x-1,y) connected
 //
-// All values are FP16-safe: colors are normalized 0-1, flags are small integers.
+// All values are small: colors are normalized 0-1, flags are small integers.
 //
 // The graph is conceptually (2W+1)x(2H+1) but we output to a 2Wx2H texture.
 // The missing rightmost column and bottom row are border edges that default
@@ -79,9 +79,7 @@ void main() {
         // Pixel (px, py) = ((gx-1)/2, (gy-1)/2)
         int px = (gx - 1) / 2;
         int py = (gy - 1) / 2;
-        // Store as normalized RGB (0-1) to survive FP16 framebuffers.
-        // FP16 only has 10 bits of mantissa, so float(packed_color) for values
-        // up to 16M would lose precision. Normalized 0-1 values are exact in FP16.
+        // Store as normalized RGB (0-1).
         ivec2 pp = clamp(ivec2(px, py), ivec2(0), imgSize - ivec2(1));
         vec4 c = texelFetch(Source, pp, 0);
         FragColor = vec4(c.rgb, 1.0);

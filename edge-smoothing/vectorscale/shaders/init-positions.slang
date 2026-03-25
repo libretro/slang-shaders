@@ -1,9 +1,8 @@
 #version 450
+#pragma format R32G32B32A32_SFLOAT
 
-// Pass: Initialize the offset texture to zero.
-// The optimizer chain stores OFFSETS from original positions (not absolute positions)
-// to avoid FP16 precision loss at large position values (80-160 range).
-// Offsets are small (<1 pixel) so FP16 gives ~0.0005 precision.
+// Pass: Initialize the position texture from cell graph original positions.
+// The optimizer chain stores absolute positions in F32 framebuffers.
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -35,6 +34,10 @@ layout(set = 0, binding = 2) uniform sampler2D Source;    // Previous pass (unus
 layout(set = 0, binding = 3) uniform sampler2D CellGraph; // Pass 3
 
 void main() {
-    // All offsets start at zero (positions = originals).
-    FragColor = vec4(0.0);
+    ivec2 opos = ivec2(gl_FragCoord.xy);
+    // Position texture at (cx, cy_slot) maps to CellGraph row cy_slot * 3 + 0
+    int base_row = opos.y * 3;
+    vec4 val = texelFetch(CellGraph, ivec2(opos.x, base_row), 0);
+    // Original position is in RG channels
+    FragColor = vec4(val.r, val.g, 0.0, 0.0);
 }

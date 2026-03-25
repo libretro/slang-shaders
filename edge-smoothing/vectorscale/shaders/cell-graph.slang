@@ -9,13 +9,13 @@
 // Output texture: 3 rows per CP (edge colors computed by rasterizer on-the-fly).
 //   For grid corner (cx, cy) and slot s (0 or 1):
 //     Row (cy * 2 + s) * 3 + 0, Col cx:
-//       R = pos.x, G = pos.y, B = float(flag)/64.0, A = dir_pack/64.0
+//       R = pos.x, G = pos.y, B = float(flag), A = float(dir_pack)
 //       dir_pack = (prev_dir+1) + (next_dir+1)*8
 //     Row (cy * 2 + s) * 3 + 1, Col cx:
-//       R = prev_cx/256, G = prev_cy/256, B = prev_slot, A = 0
+//       R = prev_cx, G = prev_cy, B = prev_slot, A = 0
 //       (-1.0 sentinel for no neighbor)
 //     Row (cy * 2 + s) * 3 + 2, Col cx:
-//       R = next_cx/256, G = next_cy/256, B = next_slot, A = 0
+//       R = next_cx, G = next_cy, B = next_slot, A = 0
 //       (-1.0 sentinel for no neighbor)
 //
 // Reads from: ResolvedGraph (pass 2 output), Original (input image via alias)
@@ -184,14 +184,14 @@ void get_edge_colors(int icx, int icy, int dir, out vec3 color_left, out vec3 co
     }
 }
 
-// Encode a CP index as (cx/256, cy/256, slot) components for FP16 safety.
+// Encode a CP index as (cx, cy, slot) components.
 vec3 encode_cp_idx(int cp_idx) {
     if (cp_idx < 0) return vec3(-1.0);
     int cp_half = cp_idx / 2;
     int cp_slot = cp_idx & 1;
     int ncx = cp_half % CORNERS_W();
     int ncy = cp_half / CORNERS_W();
-    return vec3(float(ncx) / 256.0, float(ncy) / 256.0, float(cp_slot));
+    return vec3(float(ncx), float(ncy), float(cp_slot));
 }
 
 // Combined CP data: geometry + metadata.
@@ -450,10 +450,10 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
 }
 
 // Output: 3 rows per CP (packed layout, edge colors computed by rasterizer).
-// Row 0: pos.x, pos.y, flag/64.0, dir_pack/64.0
+// Row 0: pos.x, pos.y, float(flag), float(dir_pack)
 //   dir_pack = (prev_dir+1) + (next_dir+1)*8
-// Row 1: prev_cx/256, prev_cy/256, prev_slot, 0 (or -1.0 sentinel)
-// Row 2: next_cx/256, next_cy/256, next_slot, 0 (or -1.0 sentinel)
+// Row 1: prev_cx, prev_cy, prev_slot, 0 (or -1.0 sentinel)
+// Row 2: next_cx, next_cy, next_slot, 0 (or -1.0 sentinel)
 
 void main() {
     ivec2 opos = ivec2(gl_FragCoord.xy);
@@ -496,8 +496,8 @@ void main() {
 
     if (sub_row == 0) {
         // Position + flags + packed directions
-        float dir_pack = float((cp.prev_dir + 1) + (cp.next_dir + 1) * 8) / 64.0;
-        FragColor = vec4(cp.pos.x, cp.pos.y, float(cp.flag) / 64.0, dir_pack);
+        float dir_pack = float((cp.prev_dir + 1) + (cp.next_dir + 1) * 8);
+        FragColor = vec4(cp.pos.x, cp.pos.y, float(cp.flag), dir_pack);
     } else if (sub_row == 1) {
         // Previous neighbor encoded as (cx/256, cy/256, slot)
         vec3 prev_enc = encode_cp_idx(cp.prev);

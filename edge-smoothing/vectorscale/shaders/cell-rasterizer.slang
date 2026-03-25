@@ -10,7 +10,7 @@
 // endpoint rejection, matching the compute shader's resolve_from_shared().
 //
 // Input textures:
-//   Source   (FinalPositions): optimized position offsets
+//   Source   (FinalPositions): optimized absolute positions
 //   CellGraph: original positions + neighbors + flags + packed directions
 //   Original: input pixel art image
 //
@@ -42,7 +42,7 @@ void main() {
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 
-layout(set = 0, binding = 2) uniform sampler2D Source;    // FinalPositions (optimized offsets)
+layout(set = 0, binding = 2) uniform sampler2D Source;    // FinalPositions (optimized positions)
 layout(set = 0, binding = 3) uniform sampler2D CellGraph; // positions + neighbors + flags + directions
 layout(set = 0, binding = 4) uniform sampler2D Original;  // input pixel art image
 
@@ -73,21 +73,20 @@ vec2 read_orig(int cp_idx) {
     return vec2(val.r, val.g);
 }
 
-// Read optimized position = original + offset from optimizer chain.
+// Read optimized absolute position from Source.
 vec2 read_pos(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return vec2(-1e10);
     int cx, cy_slot;
     decode_cp(cp_idx, cx, cy_slot);
-    vec2 orig = read_orig(cp_idx);
-    vec4 offset_val = texelFetch(Source, ivec2(cx, cy_slot), 0);
-    return orig + vec2(offset_val.r, offset_val.g);
+    vec4 val = texelFetch(Source, ivec2(cx, cy_slot), 0);
+    return vec2(val.r, val.g);
 }
 
 // Decode a neighbor CP index from component encoding.
 int decode_neighbor(vec4 val) {
     if (val.r < -0.5) return -1;
-    int ncx = int(val.r * 256.0 + 0.5);
-    int ncy = int(val.g * 256.0 + 0.5);
+    int ncx = int(val.r + 0.5);
+    int ncy = int(val.g + 0.5);
     int nslot = int(val.b + 0.5);
     return (ncy * CORNERS_W() + ncx) * 2 + nslot;
 }
@@ -110,7 +109,7 @@ uint read_flags(int cp_idx) {
     decode_cp(cp_idx, cx, cy_slot);
     int base_row = cy_slot * 3;
     vec4 val = texelFetch(CellGraph, ivec2(cx, base_row), 0);
-    return uint(val.b * 64.0 + 0.5);
+    return uint(val.b + 0.5);
 }
 
 // Read packed boundary directions from cell graph (row 0, A channel).
@@ -121,7 +120,7 @@ ivec2 read_dirs(int cp_idx) {
     decode_cp(cp_idx, cx, cy_slot);
     int base_row = cy_slot * 3;
     vec4 val = texelFetch(CellGraph, ivec2(cx, base_row), 0);
-    int dir_pack = int(val.a * 64.0 + 0.5);
+    int dir_pack = int(val.a + 0.5);
     int prev_dir = (dir_pack % 8) - 1;
     int next_dir = (dir_pack / 8) - 1;
     return ivec2(prev_dir, next_dir);

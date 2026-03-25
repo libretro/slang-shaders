@@ -1,4 +1,5 @@
 #version 450
+#pragma format R32G32B32A32_SFLOAT
 
 // Optimizer pass: 2D Newton-Raphson for B-spline control point smoothing.
 //
@@ -7,15 +8,13 @@
 // iterations vs the ~120 energy evaluations the old golden section search
 // needed.
 //
-// Stores OFFSETS from original positions (not absolute positions) to avoid
-// FP16 precision loss. Offsets are small (<1 pixel) so FP16 gives ~1e-4
-// precision vs ~0.06 for absolute positions in the 80-160 range.
+// Stores absolute positions in F32 framebuffers.
 //
 // Input textures:
-//   Source (previous pass): current position offsets
+//   Source (previous pass): current absolute positions
 //   CellGraph (pass 3): original positions + neighbors + flags
 //
-// Output: (R=offset.x, G=offset.y, B=0, A=0)
+// Output: (R=pos.x, G=pos.y, B=0, A=0)
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -43,7 +42,7 @@ void main() {
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 
-layout(set = 0, binding = 2) uniform sampler2D Source;    // previous pass (current offsets)
+layout(set = 0, binding = 2) uniform sampler2D Source;    // previous pass (current positions)
 layout(set = 0, binding = 3) uniform sampler2D CellGraph; // pass 3 (orig positions + neighbors + flags)
 
 int IMG_W()    { return int(params.OriginalSize.x); }
@@ -67,8 +66,8 @@ void decode_cp(int cp_idx, out int cx, out int cy_slot) {
     cy_slot = cy * 2 + cp_slot;
 }
 
-// Read current offset from Source texture.
-vec2 read_offset(int cp_idx) {
+// Read current absolute position from Source texture.
+vec2 read_pos(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return vec2(0.0);
     int cx, cy_slot;
     decode_cp(cp_idx, cx, cy_slot);
@@ -86,16 +85,11 @@ vec2 read_orig_pos(int cp_idx) {
     return vec2(val.r, val.g);
 }
 
-// Read current absolute position = original + offset.
-vec2 read_pos(int cp_idx) {
-    return read_orig_pos(cp_idx) + read_offset(cp_idx);
-}
-
 // Decode a neighbor CP index from component encoding.
 int decode_neighbor(vec4 val) {
     if (val.r < -0.5) return -1;
-    int ncx = int(val.r * 256.0 + 0.5);
-    int ncy = int(val.g * 256.0 + 0.5);
+    int ncx = int(val.r + 0.5);
+    int ncy = int(val.g + 0.5);
     int nslot = int(val.b + 0.5);
     return (ncy * CORNERS_W() + ncx) * 2 + nslot;
 }
@@ -118,7 +112,7 @@ uint read_flags(int cp_idx) {
     decode_cp(cp_idx, cx, cy_slot);
     int base_row = cy_slot * 3;
     vec4 val = texelFetch(CellGraph, ivec2(cx, base_row), 0);
-    return uint(val.b * 64.0 + 0.5);
+    return uint(val.b + 0.5);
 }
 
 // Read neighbor position, using corrected position for T-junctions.
@@ -152,14 +146,13 @@ void main() {
     int cp_slot = cy_slot % 2;
     int i = (cy * CORNERS_W() + col) * 2 + cp_slot;
 
-    vec2 offset = read_offset(i);
+    vec2 p = read_pos(i);
     vec2 p_orig = read_orig_pos(i);
-    vec2 p = p_orig + offset;
 
     uint flags = read_flags(i);
 
     if (flags == 0u || (flags & 1u) != 0u) {
-        FragColor = vec4(offset.x, offset.y, 0.0, 0.0);
+        FragColor = vec4(p.x, p.y, 0.0, 0.0);
         return;
     }
 
@@ -168,14 +161,14 @@ void main() {
     int next_idx = nbrs.y;
 
     if (prev_idx < 0 || next_idx < 0) {
-        FragColor = vec4(offset.x, offset.y, 0.0, 0.0);
+        FragColor = vec4(p.x, p.y, 0.0, 0.0);
         return;
     }
 
     if ((flags & IS_CORNER) != 0u ||
         (read_flags(prev_idx) & IS_CORNER) != 0u ||
         (read_flags(next_idx) & IS_CORNER) != 0u) {
-        FragColor = vec4(offset.x, offset.y, 0.0, 0.0);
+        FragColor = vec4(p.x, p.y, 0.0, 0.0);
         return;
     }
 
@@ -205,6 +198,5 @@ void main() {
                   -h01 * grad.x + h00 * grad.y) / det;
     }
 
-    vec2 new_offset = p - p_orig;
-    FragColor = vec4(new_offset.x, new_offset.y, 0.0, 0.0);
+    FragColor = vec4(p.x, p.y, 0.0, 0.0);
 }
