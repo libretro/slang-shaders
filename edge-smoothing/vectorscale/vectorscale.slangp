@@ -1,0 +1,73 @@
+# Vibeboy vectorize shader preset
+# Works with any input resolution (not just Game Boy 160x144).
+# Intermediate textures are over-allocated using source-relative scales:
+#   Cell graph: 2W x 7H (needs (W+1) x 6(H+1), works for H >= 6)
+#   Positions:  2W x 3.5H (needs (W+1) x 2(H+1), works for H >= 2)
+shaders = 8
+
+shader0 = shaders/similarity-graph.slang
+alias0 = SimilarityGraph
+filter_linear0 = false
+scale_type0 = source
+scale0 = 2.0
+wrap_mode0 = clamp_to_border
+float_framebuffer0 = true
+
+shader1 = shaders/resolve-crossings.slang
+alias1 = ResolvedGraph
+filter_linear1 = false
+scale_type1 = source
+scale1 = 1.0
+wrap_mode1 = clamp_to_border
+float_framebuffer1 = true
+
+shader2 = shaders/cell-graph.slang
+alias2 = CellGraph
+filter_linear2 = false
+scale_type_x2 = source
+scale_x2 = 1.0
+scale_type_y2 = source
+scale_y2 = 3.5
+wrap_mode2 = clamp_to_border
+float_framebuffer2 = true
+
+shader3 = shaders/init-positions.slang
+alias3 = InitPos
+filter_linear3 = false
+scale_type_x3 = source
+scale_x3 = 1.0
+scale_type_y3 = source
+scale_y3 = 0.5
+wrap_mode3 = clamp_to_border
+float_framebuffer3 = true
+
+shader4 = shaders/optimize-energy.slang
+alias4 = Opt1
+filter_linear4 = false
+scale_type4 = source
+scale4 = 1.0
+wrap_mode4 = clamp_to_border
+float_framebuffer4 = true
+
+shader5 = shaders/optimize-energy.slang
+alias5 = Opt2
+filter_linear5 = false
+scale_type5 = source
+scale5 = 1.0
+wrap_mode5 = clamp_to_border
+float_framebuffer5 = true
+
+shader6 = shaders/update-tjunction.slang
+alias6 = FinalPositions
+filter_linear6 = false
+scale_type6 = source
+scale6 = 1.0
+wrap_mode6 = clamp_to_border
+float_framebuffer6 = true
+
+shader7 = shaders/cell-rasterizer.slang
+alias7 = FinalOutput
+filter_linear7 = true
+scale_type7 = viewport
+scale7 = 1.0
+wrap_mode7 = clamp_to_border
