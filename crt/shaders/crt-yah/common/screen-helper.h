@@ -195,9 +195,8 @@ float offset_multiple(float multiple, float pixel_size, float multiple_offset)
         ? -1.0
         : 1.0;
     float index = upscale
-        ? 1.0 / multiple // invert multiple
-        : multiple;
-    index = round(index * 2.0) * 0.5; // round by half fraction
+        ? round((1.0 / multiple) * 2.0) * 0.5 // invert multiple and round by half fraction
+        : round(multiple);
 
     float multiple_index = sign * (max(1.0, index) - 1.0);
 
