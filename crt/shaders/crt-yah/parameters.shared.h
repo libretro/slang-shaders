@@ -7,18 +7,18 @@
 
 float mix_master(float value, float off_value, float min_value, float max_value)
 {
-    return PARAM_GLOBAL_MASTER > 1.0
-        ? mix(
-            value,
-            clamp(
-                (value - off_value * 0.5) * PARAM_GLOBAL_MASTER,
-                min(value, min_value),
-                max(value, max_value)),
-            PARAM_GLOBAL_MASTER - 1.0)
-        : mix(
-            off_value,
-            value,
-            PARAM_GLOBAL_MASTER);
+    float master = PARAM_GLOBAL_MASTER;
+
+    float scaled_value = clamp(
+        (value - off_value * 0.5) * master,
+        min_value,
+        max_value
+    );
+
+    float low = mix(off_value, value, master);
+    float high = mix(value, scaled_value, master - 1.0);
+
+    return mix(low, high, step(1.0, master));
 }
 
 #define PARAM_COLOR_FLOOR max(PARAM_SCANLINES_STRENGTH, PARAM_MASK_INTENSITY) * (1.0 / 256.0)
