@@ -1,11 +1,11 @@
 #version 450
 #pragma format R32G32B32A32_SFLOAT
 
-// Pass 2: Resolve diagonal crossings in the similarity graph.
+// Pass 1: Resolve diagonal crossings in the similarity graph.
 //
 // Each output pixel corresponds to a graph position. Only corner positions
 // (even,even) with crossing flags == 3 (both diagonals) need resolution.
-// All other positions are passed through from the snapshot.
+// All other positions are passed through unchanged.
 //
 // Three heuristics vote to decide which diagonal to keep:
 //   1. Curve length — longer connected chain wins (walk_chain)
@@ -16,9 +16,7 @@
 // Single diagonals in fully-connected blocks are also removed.
 // Ties remove both diagonals (matches reference implementation).
 //
-// Reads from Pass1 (graph snapshot) to ensure consistent data.
-// The graph snapshot is accessed via PassOutput0 alias (Pass 0 output)
-// or via Source which is Pass 1 output. We read from Source (the snapshot).
+// Reads from Source (similarity graph, Pass 0 output).
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -45,7 +43,7 @@ void main() {
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 
-layout(set = 0, binding = 2) uniform sampler2D Source; // Pass 1 output (snapshot)
+layout(set = 0, binding = 2) uniform sampler2D Source; // Pass 0 output (similarity graph)
 
 // ---- Graph access helpers ----
 
@@ -234,11 +232,11 @@ void sparse_pixel_sizes(uint bx, uint by, out uint sizeA, out uint sizeB) {
 // ---- Main ----
 
 void main() {
-    ivec2 opos = ivec2(gl_FragCoord.xy);
+    ivec2 opos = ivec2(vTexCoord * params.OutputSize.xy);
     int gx = opos.x;
     int gy = opos.y;
 
-    // Default: passthrough from snapshot
+    // Default: passthrough from similarity graph
     vec4 src = texelFetch(Source, opos, 0);
     // Corner flags stored as float(value), read back with uint(val + 0.5)
     uint src_val = uint(src.r + 0.5);

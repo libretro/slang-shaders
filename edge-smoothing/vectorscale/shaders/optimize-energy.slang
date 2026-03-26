@@ -133,7 +133,7 @@ vec2 read_neighbor_pos(int idx) {
 // analytical gradient and Hessian.
 
 void main() {
-    ivec2 opos = ivec2(gl_FragCoord.xy);
+    ivec2 opos = ivec2(vTexCoord * params.OutputSize.xy);
     int col = opos.x;
     int cy_slot = opos.y;
 

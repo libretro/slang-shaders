@@ -207,19 +207,13 @@ vec2 closest_on_span(vec2 p0, vec2 p1, vec2 p2, vec2 pt) {
 // ---- Main rasterizer ----
 
 void main() {
-    ivec2 opos = ivec2(gl_FragCoord.xy);
-    float out_w = params.OutputSize.x;
-    float out_h = params.OutputSize.y;
-
-    // Map output pixel to source coordinates.
-    // This pass renders at a fixed source-relative resolution.
-    // A passthrough pass after this handles viewport scaling via RetroArch's MVP.
-    float scale_x = out_w / float(IMG_W());
-    float scale_y = out_h / float(IMG_H());
+    // Map output pixel to source coordinates via vTexCoord (MVP-transformed).
+    float scale_x = params.OutputSize.x / float(IMG_W());
+    float scale_y = params.OutputSize.y / float(IMG_H());
     float scale = min(scale_x, scale_y);
     float inv_scale = 1.0 / scale;
 
-    vec2 center = (vec2(opos) + 0.5) / vec2(out_w, out_h) * vec2(float(IMG_W()), float(IMG_H()));
+    vec2 center = vTexCoord * vec2(float(IMG_W()), float(IMG_H()));
 
     // Fallback: nearest pixel color (normalized RGB).
     int fb_x = clamp(int(floor(center.x)), 0, IMG_W() - 1);

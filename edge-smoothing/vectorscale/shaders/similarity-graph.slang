@@ -48,7 +48,7 @@ void main() {
     // Output pixel coordinates (integer)
     ivec2 imgSize = ivec2(params.SourceSize.xy);
     ivec2 outSize = ivec2(params.OutputSize.xy); // should be 2*imgSize
-    ivec2 opos = ivec2(gl_FragCoord.xy);
+    ivec2 opos = ivec2(vTexCoord * params.OutputSize.xy);
 
     if (opos.x >= outSize.x || opos.y >= outSize.y) {
         FragColor = vec4(0.0);

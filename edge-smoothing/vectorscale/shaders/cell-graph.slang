@@ -386,7 +386,7 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
 // Row 2: next_cx, next_cy, next_slot, 0 (or -1.0 sentinel)
 
 void main() {
-    ivec2 opos = ivec2(gl_FragCoord.xy);
+    ivec2 opos = ivec2(vTexCoord * params.OutputSize.xy);
     int col = opos.x; // cx
     int row = opos.y;
 

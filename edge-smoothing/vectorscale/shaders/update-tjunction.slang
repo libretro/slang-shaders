@@ -99,7 +99,7 @@ uint read_flags(int cp_idx) {
 }
 
 void main() {
-    ivec2 opos = ivec2(gl_FragCoord.xy);
+    ivec2 opos = ivec2(vTexCoord * params.OutputSize.xy);
     int col = opos.x;
     int cy_slot = opos.y;
 

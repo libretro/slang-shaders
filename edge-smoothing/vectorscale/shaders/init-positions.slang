@@ -33,7 +33,7 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 3) uniform sampler2D CellGraph; // Pass 3
 
 void main() {
-    ivec2 opos = ivec2(gl_FragCoord.xy);
+    ivec2 opos = ivec2(vTexCoord * params.OutputSize.xy);
     // Position texture at (cx, cy_slot) maps to CellGraph row cy_slot * 3 + 0
     int base_row = opos.y * 3;
     vec4 val = texelFetch(CellGraph, ivec2(opos.x, base_row), 0);
