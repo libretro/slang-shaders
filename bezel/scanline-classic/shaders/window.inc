@@ -165,7 +165,7 @@ float kaiser(float n, float N, float beta)
     float Ne = max(N - 1.0, 1.0);
     float k = n + 0.5 * Ne;        // center at (N-1)/2
     float alpha = 2.0 * k / Ne - 1.0;
-    
+
     // Normalized argument for I0: β√(1 - α²)
     float arg = beta * sqrt(max(1.0 - sq(alpha), 0.0));
     return kaiser_i0(arg) / kaiser_i0(beta);
@@ -239,10 +239,10 @@ float sinc_bandpass_modulated_kaiser(float n, float fc_center, float bandwidth, 
         float x = 2.0 * PI * bandwidth * n;
         sinc_lp = sin(x) / (PI * n);
     }
-    
+
     // Apply Kaiser window
     float window = kaiser(n, N, beta);
-    
+
     // Modulate to subcarrier (factor of 2 for real-valued signal)
     return 2.0 * sinc_lp * window * cos(2.0 * PI * fc_center * n);
 }

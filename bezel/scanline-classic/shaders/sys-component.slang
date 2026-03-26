@@ -35,6 +35,9 @@
 //     SYS_COMPONENT_BYPASS          -> output source RGB unmodified (skip color conversion + filter)
 //     SYS_COMPONENT_FILTER_BYPASS   -> convert to selected color space and apply SYS_GAIN/BIAS, but skip filtering
 
+#pragma name SysComponent
+#pragma format R16G16B16A16_SFLOAT
+
 #include "common.inc"
 #include "color.inc"
 #include "modulation.inc"
@@ -42,11 +45,13 @@
 #include "menus/parameters/sys-component.inc"
 #include "menus/parameters/sys-timing.inc"
 
-#pragma name SysComponent
-#pragma format R16G16B16A16_SFLOAT
+#pragma include_optional "../config/options.cfg"
 
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_SYS_COMPONENT_HEADER " —— Debug Sys Component —— " 0.0 0.0 0.0 0.0
 #pragma parameter SYS_COMPONENT_BYPASS "Bypass system component stage" 0.0 0.0 1.0 1.0
 #pragma parameter SYS_COMPONENT_FILTER_BYPASS "Bypass system component filter" 0.0 0.0 1.0 1.0
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
@@ -106,10 +111,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
 
-    // Bypasses
-    float SYS_COMPONENT_BYPASS;        // 0 or 1
-    float SYS_COMPONENT_FILTER_BYPASS; // 0 or 1
-
     // Post-filter gain/bias per component
     float SYS_GAIN_Y;
     float SYS_GAIN_U;
@@ -117,10 +118,19 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float SYS_BIAS_Y;
     float SYS_BIAS_U;
     float SYS_BIAS_V;
+
+#ifdef OPTION_DEBUG
+    // Bypasses
+    float SYS_COMPONENT_BYPASS;        // 0 or 1
+    float SYS_COMPONENT_FILTER_BYPASS; // 0 or 1
+#endif                                 // OPTION_DEBUG
+
 } global;
 
+#ifdef OPTION_DEBUG
 #define SYS_COMPONENT_BYPASS global.SYS_COMPONENT_BYPASS
 #define SYS_COMPONENT_FILTER_BYPASS global.SYS_COMPONENT_FILTER_BYPASS
+#endif  // OPTION_DEBUG
 
 #define SYS_GAIN_Y global.SYS_GAIN_Y
 #define SYS_GAIN_U global.SYS_GAIN_U
@@ -191,6 +201,8 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 void main()
 {
     // Full stage bypass: pass through RGB
+
+#ifdef OPTION_DEBUG
     if (SYS_COMPONENT_BYPASS >= 1.0) {
         FragColor = vec4(texture(Source, vTexCoord).rgb, 1.0);
         return;
@@ -203,6 +215,7 @@ void main()
         FragColor = vec4(yc, 1.0);
         return;
     }
+#endif  // OPTION_DEBUG
 
     // Horizontal coordinate handling using nearest pixel center (no vertical shift)
     vec2 UV  = vTexCoord * config.OutputSize.xy;

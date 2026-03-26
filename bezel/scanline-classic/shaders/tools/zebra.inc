@@ -38,28 +38,28 @@ vec3 zebra(vec3 color, float low, float high, vec2 texCoord, vec2 outputSize, ui
         color.g < low || color.g > high || isinf(color.g) || isnan(color.g),
         color.b < low || color.b > high || isinf(color.b) || isnan(color.b)
     );
-    
+
     if (!any(outOfRange)) {
         return color;
     }
-    
+
     // Create animated temporal square wave (cycles over ~60 frames at 60fps)
     float temporalPhase = float(frameCount) * 0.1;
     float temporalSquare = sign(sin(temporalPhase)) * 0.5 + 0.5; // Square wave: 0.0 or 1.0
-    
+
     // Create spatial square wave pattern (checkerboard-like)
     float spatialPhase = (texCoord.x + texCoord.y) * outputSize.x / 2.0 * frequencyMult;
     float spatialSquare = sin(spatialPhase) * 0.5 + 0.5; // Square wave: 0.0 or 1.0
-    
+
     // Combine temporal and spatial patterns with XOR-like behavior
     float modulation = abs(temporalSquare - spatialSquare);
-    
+
     // Modulate out-of-range channels with the combined pattern
     vec3 debugMask = vec3(
         outOfRange.r ? modulation : 1.0,
         outOfRange.g ? modulation : 1.0,
         outOfRange.b ? modulation : 1.0
     );
-    
+
     return color * debugMask;
 }

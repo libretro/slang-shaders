@@ -1,6 +1,6 @@
 #version 450
 
-// Filename: iq-mod.slang
+// Filename: iq-filter.slang
 //
 // Copyright (C) 2025 W. M. Martinez
 //
@@ -21,13 +21,16 @@
 // -----------------------------------------------------------------
 // Input: Component voltage signal (RGB)
 // Output: Complex IQ baseband representation (R16G16_SFLOAT)
-// 
+//
 // This shader models VSB modulation in complex baseband (I/Q) form:
 // - Consumes analytic baseband (R=I, G=Q) from composite-iq.slang
 // - Applies asymmetric lowpass filtering (I: 4.2 MHz, Q: 0.75 MHz)
 // - Per-channel bypass: I filter, Q filter
 // - Optional overall I/Q bypass for quick debugging
 // - Operates entirely at baseband (no RF carrier)
+
+#pragma name IQMod
+#pragma format R16G16_SFLOAT
 
 // Includes trimmed to what is needed for timebase and windowed sinc
 #include "common.inc"
@@ -37,13 +40,16 @@
 #include "menus/parameters/sys-timing.inc"
 #include "menus/parameters/rf.inc"
 
+#pragma include_optional "../config/options.cfg"
+
 // Bypass & control parameters
+
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_IQ_FILTER_HEADER " —— Debug IQ Filter —— " 0.0 0.0 0.0 0.0
 #pragma parameter BYPASS_IQ_MOD "Bypass I/Q filtering (off,on)" 0.0 0.0 1.0 1.0
 #pragma parameter BYPASS_I_FILTER "Bypass I lowpass (off,on)" 0.0 0.0 1.0 1.0
 #pragma parameter BYPASS_Q_FILTER "Bypass Q lowpass (off,on)" 0.0 0.0 1.0 1.0
-
-#pragma name IQMod
-#pragma format R16G16_SFLOAT
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
@@ -52,9 +58,6 @@ layout(push_constant) uniform Push
     vec4 FrameHSize;
     uint FrameCount;
     float OriginalFPS;
-    float BYPASS_IQ_MOD;
-    float BYPASS_I_FILTER;
-    float BYPASS_Q_FILTER;
     float V_FREQ_MODE;
     float V_FREQ;
     float SHORTEN_ODD_FIELD_TIME;
@@ -69,11 +72,24 @@ layout(push_constant) uniform Push
     float LSB_BANDWIDTH;
     float USB_ROLL_OFF;
     float LSB_ROLL_OFF;
+
+#ifdef OPTION_DEBUG
+    float BYPASS_IQ_MOD;
+    float BYPASS_I_FILTER;
+    float BYPASS_Q_FILTER;
+#endif  // OPTION_DEBUG
+
 } config;
 
+#ifdef OPTION_DEBUG
 #define BYPASS_IQ_MOD      config.BYPASS_IQ_MOD
 #define BYPASS_I_FILTER    config.BYPASS_I_FILTER
+#endif  // OPTION_DEBUG
+
+#ifdef OPTION_DEBUG
 #define BYPASS_Q_FILTER    config.BYPASS_Q_FILTER
+#endif  // OPTION_DEBUG
+
 #define V_FREQ_MODE        config.V_FREQ_MODE
 #define V_FREQ             config.V_FREQ
 #define SHORTEN_ODD_FIELD_TIME config.SHORTEN_ODD_FIELD_TIME
@@ -99,12 +115,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define VSB_I_CUTOFF_MHZ USB_BANDWIDTH
 #define VSB_Q_CUTOFF_MHZ LSB_BANDWIDTH
 
-// Hamming windowed-sinc filter design (asymmetric per channel)
-// Stopband: ~43 dB, minimal ringing (~1.5% overshoot)
-// Analytical tap count formula: N = 3.3 / transition_width
-// Transition width = TRANSITION_FACTOR × fc_norm (normalized cutoff)
-const float HAMMING_TRANSITION_CONST = 3.3; // Hamming -43 dB stopband
-
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
@@ -114,6 +124,12 @@ layout(location = 2) out float fc_q_norm;          // Q channel cutoff (normaliz
 layout(location = 3) out float taps_i;             // I channel tap count (even)
 layout(location = 4) out float taps_q;             // Q channel tap count (even)
 layout(location = 5) out TimebaseConfig tb;
+
+// Hamming windowed-sinc filter design (asymmetric per channel)
+// Stopband: ~43 dB, minimal ringing (~1.5% overshoot)
+// Analytical tap count formula: N = 3.3 / transition_width
+// Transition width = TRANSITION_FACTOR × fc_norm (normalized cutoff)
+const float HAMMING_TRANSITION_CONST = 3.3; // Hamming -43 dB stopband
 
 void main()
 {
@@ -141,17 +157,17 @@ void main()
 
     float transition_i = USB_ROLL_OFF / USB_BANDWIDTH;
     float transition_q = LSB_ROLL_OFF / LSB_BANDWIDTH;
-    
+
     // Normalize cutoff frequencies to sample rate (cycles per sample)
     fc_i_norm = (VSB_I_CUTOFF_MHZ * 1.0e6) * tb.pixel_time_px;
     fc_q_norm = (VSB_Q_CUTOFF_MHZ * 1.0e6) * tb.pixel_time_px;
 
     // Analytical tap count design for Hamming window
     // Formula: N = HAMMING_TRANSITION_CONST / transition_width
-    // Transition band = TRANSITION_FACTOR × cutoff frequency    
+    // Transition band = TRANSITION_FACTOR × cutoff frequency
     float taps_i_calc = HAMMING_TRANSITION_CONST / max(transition_i * fc_i_norm, EPS);
     float taps_q_calc = HAMMING_TRANSITION_CONST / max(transition_q * fc_q_norm, EPS);
-    
+
     // Round to odd numbers for symmetric FIR (center + pairs)
     taps_i = int(ceil(taps_i_calc));
     if (int(mod(taps_i, 2.0)) == 0) taps_i += 1.0;
@@ -179,7 +195,7 @@ void main()
     float baseIndex = floor(UV.x);
     float baseCenter = baseIndex + 0.5;
     float Ax = UV.x - baseCenter;
-    
+
     vec2 Tex = vec2(
         baseCenter * config.OutputSize.z,
         (floor(UV.y) + 0.5) * config.OutputSize.w);
@@ -188,49 +204,68 @@ void main()
     int max_tap_i = int(taps_i);
     int max_tap_q = int(taps_q);
     int max_tap = max(max_tap_i, max_tap_q);
-    
+
     // Central sample from analytic input
     vec2 iq0 = texture(Source, Tex).rg;
 
+#ifdef OPTION_CRISPY
+    FragColor = vec4(iq0.r, iq0.g, 0.0, 1.0);
+    return;
+#endif  // OPTION_CRISPY
+
+#ifdef OPTION_DEBUG
     if (BYPASS_IQ_MOD > 0.5) {
         FragColor = vec4(iq0.r, iq0.g, 0.0, 1.0); // pass-through analytic
         return;
     }
+#endif  // OPTION_DEBUG
 
     // Apply asymmetric lowpass filtering for VSB to the analytic input
     float i_signal = 0.0;
     float i_wsum = 0.0;
+
+#ifdef OPTION_DEBUG
     if (BYPASS_I_FILTER > 0.5) {
         i_signal = iq0.r;
         i_wsum = 1.0;
         max_tap_i = 0; // skip loop accumulation
     } else {
+#else
+    {
+#endif  // OPTION_DEBUG
+
         float coeff0_i = sinc_lowpass_hamming(-Ax, fc_i_norm, taps_i);
         i_signal = coeff0_i * iq0.r;
         i_wsum = coeff0_i;
     }
-    
+
     float q_signal = 0.0;
     float q_wsum = 0.0;
+
+#ifdef OPTION_DEBUG
     if (BYPASS_Q_FILTER > 0.5) {
         q_signal = iq0.g;
         q_wsum = 1.0;
         max_tap_q = 0;
     } else {
+#else
+    {
+#endif  // OPTION_DEBUG
+
         float coeff0_q = sinc_lowpass_hamming(-Ax, fc_q_norm, taps_q);
         q_signal = coeff0_q * iq0.g;
         q_wsum = coeff0_q;
     }
-    
+
     // Convolve both channels with neighboring samples (single texture fetch per offset)
     int n_pairs = int(floor(max_tap * 0.5));
 
     for (int n = 1; n <= 44; ++n) {
         if (n > n_pairs)
             break;
-        
+
         float nf = float(n);
-        
+
         // Neighbor analytic samples
         vec2 tex_r = Tex + nf * dx;
         vec2 tex_l = Tex - nf * dx;
@@ -271,11 +306,11 @@ void main()
         q_signal += coeff_r_q * iq_r.g + coeff_l_q * iq_l.g;
         q_wsum += coeff_r_q + coeff_l_q;
     }
-    
+
     // Normalize filters to maintain unity gain
     i_signal /= max(i_wsum, EPS);
     q_signal /= max(q_wsum, EPS);
-      
+
     // Output complex IQ: (I, Q) in RG channels
     FragColor = vec4(i_signal, q_signal, 0.0, 1.0);
 }

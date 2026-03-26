@@ -25,6 +25,9 @@
 // Applies Gaussian lowpass filters per channel with decimation-based
 // bandwidth control. Operates horizontally on already-demodulated data.
 
+#pragma name DigitalYCCFilter
+#pragma format A2B10G10R10_UNORM_PACK32
+
 #include "common.inc"
 #include "digital.inc"
 #include "window.inc"
@@ -33,10 +36,12 @@
 #include "menus/parameters/sys-timing.inc"
 #include "menus/parameters/digital-component.inc"
 
-#pragma name DigitalYCCFilter
-#pragma format A2B10G10R10_UNORM_PACK32
+#pragma include_optional "../config/options.cfg"
 
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_DIGITAL_YCC_FILTER_HEADER " —— Debug Digital YCC Filter —— " 0.0 0.0 0.0 0.0
 #pragma parameter DIGITAL_YC_FILTER_BYPASS "Bypass digital YC filter" 0.0 0.0 1.0 1.0
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
@@ -46,7 +51,6 @@ layout(push_constant) uniform Push
     uint FrameCount;
     float OriginalFPS;
     float WORKING_BITS;
-    float DIGITAL_YC_FILTER_BYPASS;
     float DIGITAL_Y_FILTER_DECIMATION;
     float DIGITAL_Cb_FILTER_DECIMATION;
     float DIGITAL_Cr_FILTER_DECIMATION;
@@ -60,9 +64,17 @@ layout(push_constant) uniform Push
     float V_FREQ;
     float SHORTEN_ODD_FIELD_TIME;
     float H_BLANK_FUZZ;
+
+#ifdef OPTION_DEBUG
+    float DIGITAL_YC_FILTER_BYPASS;
+#endif  // OPTION_DEBUG
+
 } config;
 
+#ifdef OPTION_DEBUG
 #define DIGITAL_YC_FILTER_BYPASS config.DIGITAL_YC_FILTER_BYPASS
+#endif  // OPTION_DEBUG
+
 #define WORKING_BITS config.WORKING_BITS
 #define DIGITAL_Y_FILTER_DECIMATION config.DIGITAL_Y_FILTER_DECIMATION
 #define DIGITAL_Cb_FILTER_DECIMATION config.DIGITAL_Cb_FILTER_DECIMATION
@@ -95,7 +107,7 @@ void main()
 {
     gl_Position = global.MVP * Position;
     vTexCoord = TexCoord;
-    
+
     // Compute complete timebase configuration
     TimebaseConfig tb = compute_timebase(
         config.FrameCount,
@@ -114,7 +126,7 @@ void main()
         V_FREQ,
         H_BLANK_FUZZ,
         SHORTEN_ODD_FIELD_TIME);
-    
+
     // Baseband lowpass widths from decimation (MHz)
     const float FIXED_ATTEN_DB = 3.0;
 
@@ -138,10 +150,13 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
+
+#ifdef OPTION_DEBUG
     if (DIGITAL_YC_FILTER_BYPASS > 0.5) {
         FragColor = texture(Source, vTexCoord);
         return;
     }
+#endif  // OPTION_DEBUG
 
     // Skip filtering at decimation factor 1 (bypass)
     if (DIGITAL_Cb_FILTER_DECIMATION <= 1.0 && DIGITAL_Cr_FILTER_DECIMATION <= 1.0 && DIGITAL_Y_FILTER_DECIMATION <= 1.0) {
@@ -154,15 +169,15 @@ void main()
     float baseIndex = floor(UV.x);
     float baseCenter = baseIndex + 0.5;
     float Ax = UV.x - baseCenter;
-    
+
     // Sample at pixel center
     vec2 Tex = vec2(
         baseCenter * config.OutputSize.z,
         (floor(UV.y) + 0.5) * config.OutputSize.w);
     vec2 dx_vec = vec2(config.OutputSize.z, 0.0);
-    
+
     vec3 pixel0 = texture(Source, Tex).rgb;
-    
+
     // Initialize accumulators for both Y and C channels
     float luma_filtered = 0.0;
     float cb_filtered = 0.0;
@@ -170,12 +185,12 @@ void main()
     float weight_sum_y = 0.0;
     float weight_sum_cb = 0.0;
     float weight_sum_cr = 0.0;
-    
+
     // Process center tap for both channels
     bool filter_y = DIGITAL_Y_FILTER_DECIMATION > 1.0;
     bool filter_cb = DIGITAL_Cb_FILTER_DECIMATION > 1.0;
     bool filter_cr = DIGITAL_Cr_FILTER_DECIMATION > 1.0;
-    
+
     if (filter_y) {
         float g_y0 = gaussian(Ax, sigma_y);
         luma_filtered += g_y0 * pixel0.r;
@@ -183,18 +198,18 @@ void main()
     } else {
         luma_filtered = pixel0.r;
     }
-    
+
     float g_cb0 = gaussian(Ax, sigma_cb);
     float g_cr0 = gaussian(Ax, sigma_cr);
     cb_filtered += g_cb0 * pixel0.g;
     cr_filtered += g_cr0 * pixel0.b;
     weight_sum_cb += g_cb0;
     weight_sum_cr += g_cr0;
-    
+
     // Combined loop for both Y and C processing
     for (int n = 1; n <= 16; ++n) {
         float nf = float(n);
-        
+
         // Compute Gaussian weights for both channels
         float g_y_r  = gaussian(nf - Ax, sigma_y);
         float g_y_l  = gaussian(nf + Ax, sigma_y);
@@ -210,24 +225,24 @@ void main()
 
         if (y_done && cb_done && cr_done)
             break;
-        
+
         // Sample with boundary checks - treat out-of-bounds as neutral (0.5 for YCC)
         vec2 tex_right = Tex + nf * dx_vec;
         vec2 tex_left = Tex - nf * dx_vec;
-        
-        vec4 sample_right = (tex_right.x >= 0.0 && tex_right.x <= 1.0) 
-            ? texture(Source, tex_right) 
+
+        vec4 sample_right = (tex_right.x >= 0.0 && tex_right.x <= 1.0)
+            ? texture(Source, tex_right)
             : vec4(0.0, 0.5, 0.5, 1.0);
-        vec4 sample_left = (tex_left.x >= 0.0 && tex_left.x <= 1.0) 
-            ? texture(Source, tex_left) 
+        vec4 sample_left = (tex_left.x >= 0.0 && tex_left.x <= 1.0)
+            ? texture(Source, tex_left)
             : vec4(0.0, 0.5, 0.5, 1.0);
-        
+
         // Process Y channel
         if (!y_done) {
             luma_filtered += g_y_r * sample_right.r + g_y_l * sample_left.r;
             weight_sum_y += g_y_r + g_y_l;
         }
-        
+
         // Process Cb channel
         if (!cb_done) {
             cb_filtered += g_cb_r * sample_right.g + g_cb_l * sample_left.g;
@@ -240,11 +255,11 @@ void main()
             weight_sum_cr += g_cr_r + g_cr_l;
         }
     }
-    
+
     // Normalize results
     if (filter_y && weight_sum_y > 0.0)
         luma_filtered /= weight_sum_y;
-    
+
     if (filter_cb && weight_sum_cb > 0.0)
         cb_filtered /= weight_sum_cb;
     else if (!filter_cb)

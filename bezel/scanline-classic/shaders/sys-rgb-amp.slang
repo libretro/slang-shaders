@@ -25,27 +25,40 @@
 // Can be used to alter channel level, e.g. to compensate an emulator's
 // output being too dark or too bright
 
-#include "common.inc"
-
 #pragma name Amplifier
 #pragma format R16G16B16A16_SFLOAT
 
+#include "common.inc"
+
 #include "menus/parameters/sys-rgb.inc"
 
+#pragma include_optional "../config/options.cfg"
+
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_SYS_RGB_AMP_HEADER " —— Debug Sys RGB Amp —— " 0.0 0.0 0.0 0.0
 #pragma parameter SYS_RGB_AMP_BYPASS "Bypass RGB Amplifier" 0 0 1 1
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
-    float SYS_RGB_AMP_BYPASS;
     float SYS_BIAS_R;
     float SYS_BIAS_G;
     float SYS_BIAS_B;
     float SYS_GAIN_R;
     float SYS_GAIN_G;
     float SYS_GAIN_B;
+
+#ifdef OPTION_DEBUG
+    float SYS_RGB_AMP_BYPASS;
+#endif  // OPTION_DEBUG
+
 } config;
 
+#ifdef OPTION_DEBUG
 #define SYS_RGB_AMP_BYPASS config.SYS_RGB_AMP_BYPASS
+#else
+const float SYS_RGB_AMP_BYPASS = 0;
+#endif  // OPTION_DEBUG
 
 #define SYS_BIAS_R config.SYS_BIAS_R
 #define SYS_BIAS_G config.SYS_BIAS_G
@@ -57,7 +70,7 @@ layout(push_constant) uniform Push
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
-	mat4 MVP;
+    mat4 MVP;
 } global;
 
 #pragma stage vertex

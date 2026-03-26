@@ -29,5 +29,7 @@
 #define XYZ_TO_COLOR_SPACE XYZ_TO_sRGB
 
 #pragma parameter GAMUT_COMPRESSION "Gamut mapping (off, basic, Luv, IPT)" 2.0 0.0 3.0 1.0
+#pragma parameter TONEMAP_TYPE "Tone map output (off, Reinhard, Neutral, Hable, ACES)" 2.0 0.0 4.0 1.0
 
+// lint: allow-unused-include
 #include "color-base.slang"

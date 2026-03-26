@@ -1,21 +1,24 @@
 #version 450
 
-/* Filename: composite-demod.slang
+// Filename: composite-demod.slang
+//
+// Copyright (C) 2025 W. M. Martinez
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-   Copyright (C) 2025 W. M. Martinez
-
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>. */
+#pragma name CompositeDemod
+#pragma format R16G16B16A16_SFLOAT
 
 #include "common.inc"
 #include "color.inc"
@@ -26,14 +29,16 @@
 #include "menus/parameters/sys-timing.inc"
 #include "menus/parameters/composite.inc"
 
-#pragma name CompositeDemod
-#pragma format R16G16B16A16_SFLOAT
+#pragma include_optional "../config/options.cfg"
 
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_COMPOSITE_DEMOD_HEADER " —— Debug Composite Demod —— " 0.0 0.0 0.0 0.0
 #pragma parameter BYPASS_COMPOSITE_DEMOD "Bypass composite demodulation (off, on)" 0.0 0.0 1.0 1.0
 #pragma parameter COMPOSITE_DEMOD_FILTER_BYPASS "Bypass composite demodulation filter (off, on)" 0.0 0.0 1.0 1.0
 #pragma parameter CORRELATION "Correlation" 0.5 0.0 1.0 0.01
 #pragma parameter COMB_ADJUST_X "Comb filter phase adjustment X (texels)" 0.0 -10.0 10.0 0.01
 #pragma parameter COMB_ADJUST_Y "Comb filter phase adjustment Y (texels)" 0.0 -10.0 10.0 0.01
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
@@ -42,7 +47,6 @@ layout(push_constant) uniform Push
     vec4 FrameHSize;
     uint FrameCount;
     float OriginalFPS;
-    float BYPASS_COMPOSITE_DEMOD;
     float V_FREQ_MODE;
     float V_FREQ;
     float SHORTEN_ODD_FIELD_TIME;
@@ -55,14 +59,23 @@ layout(push_constant) uniform Push
     float H_BLANK_FUZZ;
     float COLOR_FILTER_MODE;
     float COMB_FILTER_2D;
-    float DISPLAY_BANDWIDTH_Y;
-    float DISPLAY_BANDWIDTH_C;
-    float DISPLAY_CUTOFF_ATTEN_Y;
-    float DISPLAY_CUTOFF_ATTEN_C;
     float BW_MODE;
+
+#ifdef OPTION_DEBUG
+    float BYPASS_COMPOSITE_DEMOD;
+#endif  // OPTION_DEBUG
+
+    float DECODER_SETUP;
+    float DECODER_TYPE; // Decoder type
+    float PAL_DECODER_MODE; // PAL decoder mode (0=simple, 1=delay-line, 2=adaptive)
+    float USER_MONOCHROME; // Monochrome mode (off, B&W, sepia)
 } config;
 
+#ifdef OPTION_DEBUG
 #define BYPASS_COMPOSITE_DEMOD config.BYPASS_COMPOSITE_DEMOD
+#else
+const float BYPASS_COMPOSITE_DEMOD = 0.0;
+#endif  // OPTION_DEBUG
 
 #define V_FREQ_MODE config.V_FREQ_MODE
 #define V_FREQ config.V_FREQ
@@ -78,41 +91,39 @@ layout(push_constant) uniform Push
 #define COLOR_FILTER_MODE config.COLOR_FILTER_MODE
 #define COMB_FILTER_2D config.COMB_FILTER_2D
 
-#define DISPLAY_BANDWIDTH_Y config.DISPLAY_BANDWIDTH_Y
-#define DISPLAY_BANDWIDTH_C config.DISPLAY_BANDWIDTH_C
-
-#define DISPLAY_CUTOFF_ATTEN_Y config.DISPLAY_CUTOFF_ATTEN_Y
-#define DISPLAY_CUTOFF_ATTEN_C config.DISPLAY_CUTOFF_ATTEN_C
 
 #define BW_MODE config.BW_MODE
-
+#define PAL_DECODER_MODE config.PAL_DECODER_MODE
+#define DECODER_TYPE config.DECODER_TYPE
+#define DECODER_SETUP config.DECODER_SETUP
+#define USER_MONOCHROME config.USER_MONOCHROME
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
     float USER_COLOR;       // Color (%)
     float USER_TINT;        // Tint (degrees)
-    float PAL_DECODER_MODE; // PAL decoder mode (0=simple, 1=delay-line, 2=adaptive)
-    float DECODER_TYPE; // Decoder type
-    float DECODER_SETUP;
-    float USER_MONOCHROME; // Monochrome mode (off, B&W, sepia)
+
+#ifdef OPTION_DEBUG
     float COMB_ADJUST_X;
     float COMB_ADJUST_Y;
     float COMPOSITE_DEMOD_FILTER_BYPASS;
     float CORRELATION;
+#endif  // OPTION_DEBUG
+
+    float DISPLAY_BANDWIDTH_C;
+    float DISPLAY_BANDWIDTH_Y;
+    float DISPLAY_CUTOFF_ATTEN_C;
+    float DISPLAY_CUTOFF_ATTEN_Y;
 } global;
 
+#define DISPLAY_BANDWIDTH_Y global.DISPLAY_BANDWIDTH_Y
+#define DISPLAY_BANDWIDTH_C global.DISPLAY_BANDWIDTH_C
+#define DISPLAY_CUTOFF_ATTEN_Y global.DISPLAY_CUTOFF_ATTEN_Y
+#define DISPLAY_CUTOFF_ATTEN_C global.DISPLAY_CUTOFF_ATTEN_C
 #define USER_COLOR global.USER_COLOR
 #define USER_TINT global.USER_TINT
-#define PAL_DECODER_MODE global.PAL_DECODER_MODE
 
-#define DECODER_TYPE global.DECODER_TYPE
-#define DECODER_SETUP global.DECODER_SETUP
-#define USER_MONOCHROME global.USER_MONOCHROME
-#define COMB_ADJUST_X global.COMB_ADJUST_X
-#define COMB_ADJUST_Y global.COMB_ADJUST_Y
-#define COMPOSITE_DEMOD_FILTER_BYPASS global.COMPOSITE_DEMOD_FILTER_BYPASS
-#define CORRELATION global.CORRELATION
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -172,6 +183,18 @@ layout(location = 4) in mat3 toRGB;
 layout(location = 7) in CarrierPhaseConfig carrier;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
+#ifdef OPTION_DEBUG
+#define COMB_ADJUST_X global.COMB_ADJUST_X
+#define COMB_ADJUST_Y global.COMB_ADJUST_Y
+#define COMPOSITE_DEMOD_FILTER_BYPASS global.COMPOSITE_DEMOD_FILTER_BYPASS
+#define CORRELATION global.CORRELATION
+#else
+const float COMB_ADJUST_X = 0.0;
+const float COMB_ADJUST_Y = 0.0;
+const float COMPOSITE_DEMOD_FILTER_BYPASS = 0.0;
+const float CORRELATION = 0.5;
+#endif  // OPTION_DEBUG
+
 // Compute correlation coefficient between two samples
 // Simple point correlation: returns similarity in [0, 1]
 float compute_point_correlation(float ref, float cmp) {
@@ -186,21 +209,20 @@ void main()
         FragColor = vec4(texture(Source, vTexCoord).rgb, 1.0);
         return;
     }
-    
+
     // Optimized symmetric lobed approach with early exit
     // Horizontal coordinate handling: nearest pixel center (no Y shift)
     vec2 UV = vTexCoord * config.OutputSize.xy;
     float line = floor(UV.y);
-    float baseIndex = floor(UV.x); // nearest pixel index
-    float baseCenter = baseIndex + 0.5;  // pixel center coordinate
+    float baseCenter = floor(UV.x) + 0.5; // nearest pixel center coordinate
     float Ax = UV.x - baseCenter;        // offset in [-0.5, 0.5]
     vec2 Tex = vec2(
         baseCenter * config.OutputSize.z,
-        (floor(UV.y) + 0.5) * config.OutputSize.w);
+        (line + 0.5) * config.OutputSize.w);
     vec2 dx = vec2(config.OutputSize.z, 0.0);
 
     vec3 wsum = vec3(0.0);
-    
+
     // Process center sample
     float t0 = line / carrier.h_freq_hz + baseCenter * carrier.pixel_time_px;
 
@@ -211,14 +233,13 @@ void main()
     float phase_prev_center = compute_carrier_phase(t0 - (1.0 / carrier.h_freq_hz), carrier.sc_freq_hz, carrier.field_phase);
     phase0_full = normalize_phase(phase0_full);
     phase_prev_center = normalize_phase(phase_prev_center);
-    vec2 carrier0;
 
     float composite0 = pixel0.r;
     float chroma0 = pixel0.g;
     float bypass = pixel0.b;
 
     // Compute phase-neutral carrier (PAL delay line handles alternation via add/subtract)
-    carrier0 = sincos_phase_raw(vec2(phase0_full));
+    vec2 carrier0 = sincos_phase_raw(phase0_full);
 
     // PAL V polarity correction: delay line subtraction produces alternating sign
     float pal_v_sign = 1.0 - 2.0 * floor(mod(line, 2.0)) * step(0.5, DECODER_TYPE);
@@ -256,45 +277,42 @@ void main()
     // Monitor mode: use center sample directly (bypass filter)
     float y_out = composite0;
     float c_out = chroma0;
-    
+
     vec3 demod0;
 
     demod0.r = composite0;
 
-    float CORRELATION_MIN = CORRELATION - 0.05;
-    float CORRELATION_MAX = CORRELATION + 0.05;
-    
+    const float CORRELATION_MIN = CORRELATION - 0.05;
+    const float CORRELATION_MAX = CORRELATION + 0.05;
+    const float PHASE_ERROR_MIN = 0.017453; // 1 degree in radians
+    const float PHASE_ERROR_MAX = 0.087266; // 5 degrees in radians
+
     // PAL decoder mode selection (phase-corrected delay-line, simple, or adaptive)
     if (DECODER_TYPE > 0.5) {
-        bool effective_delay_line = use_delay_line;
-
         // ADAPTIVE: blend delay-line with correlation based on phase error magnitude
         if (PAL_DECODER_MODE > 1.5) {
             // Check for external phase error (e.g., incorrect hue knob)
             float actual_phase_shift = normalize_phase(phase0_full - phase_prev_center);
             float phase_error = normalize_phase(actual_phase_shift - system_phase_shift);
             float phase_error_mag = abs(phase_error);
-            
-            const float PHASE_ERROR_MIN = 0.017453; // 1 degree in radians
-            const float PHASE_ERROR_MAX = 0.087266; // 5 degrees in radians
-            
+
             // Blend factor: 0 = correlation decides, 1 = force delay-line
             float phase_blend = smoothstep(PHASE_ERROR_MIN, PHASE_ERROR_MAX, phase_error_mag);
 
             vec2 dy = vec2(-dx_phase_offset_px * config.OutputSize.z, -config.OutputSize.w);
             vec3 pal_delay = texture(Source, Tex + dy).rgb;
-            
+
             float correlation = compute_point_correlation(chroma0, pal_delay.g);
             float correlation_weight = smoothstep(CORRELATION_MIN, CORRELATION_MAX, correlation);
-            
+
             vec2 simple_uv = vec2(
                 2.0 * chroma0 * carrier0.x,
                 pal_v_sign * 2.0 * chroma0 * carrier0.y);
-            
+
             vec2 delay_uv = vec2(
                 (chroma0 + pal_delay.g) * carrier0.x,
                 pal_v_sign * (chroma0 - pal_delay.g) * carrier0.y);
-            
+
             // Use max to prioritize delay-line whenever either cue is strong
             float delay_weight = max(phase_blend, correlation_weight);
             demod0.gb = mix(simple_uv, delay_uv, delay_weight);
@@ -315,13 +333,13 @@ void main()
         demod0.g = 2.0 * chroma0 * carrier0.x;
         demod0.b = 2.0 * chroma0 * carrier0.y;
     }
-    
+
     // Center weights for all filter modes
     float w_y0 = gaussian(Ax, sigma.x);
     float w_c0 = gaussian(Ax, sigma.y);
 
     vec3 color = vec3(0.0);
-    
+
     color += vec3(w_y0 * demod0.r, w_c0 * demod0.g, w_c0 * demod0.b);
     wsum += vec3(w_y0, w_c0, w_c0);
 
@@ -341,26 +359,22 @@ void main()
             // Right sample (output pixel lattice)
             vec3 pixelR = texture(Source, Tex + nf * dx).rgb;
             // Compute exact phase at right tap position to avoid drift
-            float phaseR_full = normalize_phase(phase0_full + phase_inc_px * nf);
-            float phase_prev_R = normalize_phase(phase_prev_center + phase_inc_px * nf);
-            vec2 carrierR = sincos_phase_raw(vec2(phaseR_full));
+            float phase_delta_px = phase_inc_px * nf;  // Hoist per-iteration computation
+            float phaseR_full = normalize_phase(phase0_full + phase_delta_px);
+            float phase_prev_R = normalize_phase(phase_prev_center + phase_delta_px);
+            vec2 carrierR = sincos_phase_raw(phaseR_full);
             float compositeR = pixelR.r;
             float chromaR = pixelR.g;
             vec3 demodR;
 
             if (DECODER_TYPE > 0.5) {
-                bool effective_delay_line = use_delay_line;
-
                 // ADAPTIVE: blend delay-line with correlation based on phase error magnitude
                 if (PAL_DECODER_MODE > 1.5) {
                     // Check for external phase error at this sample position
                     float actual_phase_shift = normalize_phase(phaseR_full - phase_prev_R);
                     float phase_error = normalize_phase(actual_phase_shift - system_phase_shift);
                     float phase_error_mag = abs(phase_error);
-                    
-                    const float PHASE_ERROR_MIN = 0.017453; // 1 degree in radians
-                    const float PHASE_ERROR_MAX = 0.087266; // 5 degrees in radians
-                    
+
                     float phase_blend = smoothstep(PHASE_ERROR_MIN, PHASE_ERROR_MAX, phase_error_mag);
 
                     vec2 dxy = vec2((nf - dx_phase_offset_px) * dx.x, -config.OutputSize.w);
@@ -368,18 +382,18 @@ void main()
 
                     float correlation = compute_point_correlation(chromaR, pal_delay.g);
                     float correlation_weight = smoothstep(CORRELATION_MIN, CORRELATION_MAX, correlation);
-                    
+
                     vec2 simple_uv = vec2(
                         2.0 * chromaR * carrierR.x,
                         pal_v_sign * 2.0 * chromaR * carrierR.y);
-                    
+
                     vec2 delay_uv = vec2(
                         (chromaR + pal_delay.g) * carrierR.x,
                         pal_v_sign * (chromaR - pal_delay.g) * carrierR.y);
-                    
+
                     float delay_weight = max(phase_blend, correlation_weight);
                     vec2 mixed_uv = mix(simple_uv, delay_uv, delay_weight);
-                    
+
                     demodR = vec3(compositeR, mixed_uv.x, mixed_uv.y);
                 } else if (use_delay_line) {
                     // DELAY: Phase-corrected PAL delay-line
@@ -407,26 +421,21 @@ void main()
             // Left sample (output pixel lattice)
             vec3 pixelL = texture(Source, Tex - nf * dx).rgb;
             // Compute exact phase at left tap position to avoid drift
-            float phaseL_full = normalize_phase(phase0_full - phase_inc_px * nf);
-            float phase_prev_L = normalize_phase(phase_prev_center - phase_inc_px * nf);
-            vec2 carrierL = sincos_phase_raw(vec2(phaseL_full));
+            float phaseL_full = normalize_phase(phase0_full - phase_delta_px);
+            float phase_prev_L = normalize_phase(phase_prev_center - phase_delta_px);
+            vec2 carrierL = sincos_phase_raw(phaseL_full);
             float compositeL = pixelL.r;
             float chromaL = pixelL.g;
             vec3 demodL;
 
             if (DECODER_TYPE > 0.5) {
-                bool effective_delay_line = use_delay_line;
-
                 // ADAPTIVE: blend delay-line with correlation based on phase error magnitude
                 if (PAL_DECODER_MODE > 1.5) {
                     // Check for external phase error at this sample position
                     float actual_phase_shift = normalize_phase(phaseL_full - phase_prev_L);
                     float phase_error = normalize_phase(actual_phase_shift - system_phase_shift);
                     float phase_error_mag = abs(phase_error);
-                    
-                    const float PHASE_ERROR_MIN = 0.017453; // 1 degree in radians
-                    const float PHASE_ERROR_MAX = 0.087266; // 5 degrees in radians
-                    
+
                     float phase_blend = smoothstep(PHASE_ERROR_MIN, PHASE_ERROR_MAX, phase_error_mag);
 
                     vec2 dxy = vec2((-nf - dx_phase_offset_px) * dx.x, -config.OutputSize.w);
@@ -434,18 +443,18 @@ void main()
 
                     float correlation = compute_point_correlation(chromaL, pal_delay.g);
                     float correlation_weight = smoothstep(CORRELATION_MIN, CORRELATION_MAX, correlation);
-                    
+
                     vec2 simple_uv = vec2(
                         2.0 * chromaL * carrierL.x,
                         pal_v_sign * 2.0 * chromaL * carrierL.y);
-                    
+
                     vec2 delay_uv = vec2(
                         (chromaL + pal_delay.g) * carrierL.x,
                         pal_v_sign * (chromaL - pal_delay.g) * carrierL.y);
-                    
+
                     float delay_weight = max(phase_blend, correlation_weight);
                     vec2 mixed_uv = mix(simple_uv, delay_uv, delay_weight);
-                    
+
                     demodL = vec3(compositeL, mixed_uv.x, mixed_uv.y);
                 } else if (use_delay_line) {
                     // DELAY: Phase-corrected PAL delay-line
@@ -469,7 +478,7 @@ void main()
                     2.0 * chromaL * carrierL.x,
                     2.0 * chromaL * carrierL.y);
             }
-            
+
 
             color.r += w_y_r * demodR.r + w_y_l * demodL.r;
             color.g += w_c_r * demodR.g + w_c_l * demodL.g;
@@ -477,12 +486,16 @@ void main()
             wsum.x += w_y_r + w_y_l;
             wsum.y += w_c_r + w_c_l;
             wsum.z += w_c_r + w_c_l;
-            
+
         }
 
         // Normalize
         color /= max(wsum, vec3(EPS));
     }
+
+#ifdef OPTION_CRISPY
+    color.r = demod0.r;  // Bypass Y Gaussian filter: use unfiltered center luma sample
+#endif  // OPTION_CRISPY
 
     float chroma = color.g * carrier0.x + color.b * carrier0.y;
 
@@ -508,8 +521,6 @@ void main()
 
     if (USER_MONOCHROME > 0.5) {
         // Monochrome modes
-        float mono;
-
         if (USER_MONOCHROME < 1.5) {
             // Standard black & white
             color.g = 0.0;

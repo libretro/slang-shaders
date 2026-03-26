@@ -20,6 +20,9 @@
 // Input: Linear YrYgYb signal
 // Output: Linear YrYgYb signal
 
+#pragma name CRTBeam
+#pragma format R16G16B16A16_SFLOAT
+
 #include "common.inc"
 #include "geometry.inc"
 #include "modulation.inc"
@@ -28,16 +31,17 @@
 #include "menus/parameters/sys-timing.inc"
 #include "menus/parameters/factory-geometry.inc"
 #include "menus/parameters/service-geometry.inc"
-#include "menus/parameters/user-common.inc"
 #include "menus/parameters/user-uncommon.inc"
 
-#pragma name CRTBeam
-#pragma format R16G16B16A16_SFLOAT
+#pragma include_optional "../config/options.cfg"
 
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_BEAM_HEADER " —— Debug Beam —— " 0.0 0.0 0.0 0.0
 #pragma parameter GEOMETRY_BYPASS "Bypass beam geometry" 0.0 0.0 1.0 1.0
 #pragma parameter FILTER_BYPASS "Bypass beam filter" 0.0 0.0 1.0 1.0
 
 #pragma parameter DAR_SCALE "Display Aspect Ratio Scale" 1.0 0.1 5.0 0.01
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
@@ -46,74 +50,123 @@ layout(push_constant) uniform Push
     vec4 OutputSize;     // xy = output size in pixels
     vec4 FrameHSize;
     vec4 FrameVSize;
-    uint FrameCount;
-    float OriginalFPS;
     float OriginalAspect;
-    float ASPECT;
-    float GEOMETRY_BYPASS;
-    float FILTER_BYPASS;
-    float V_FREQ_MODE;
-    float V_FREQ;
-    float SC_FREQ_MODE;
-    float SC_FREQ;
-    float DAR_SCALE;
     float BEAM_FOCUS;
+    float CORNER_CORRECTION;      // %
+    float DEFLECTION_ANGLE; // degrees
+    float MAGNETIC_CORRECTION;    // % (0..100)
+    float TRAPEZOIDAL_CORRECTION; // %
+    float UNDERSCAN;        // %
+    float USER_H_POS;            // % (50 = center)
+    float USER_H_SIZE;            // % (50 = 1.0)
+    float USER_UNDERSCAN_TOGGLE; // toggle
+    float USER_V_POS;            // % (50 = center)
+    float USER_V_SIZE;            // % (50 = 1.0)
 } config;
+
+#define BEAM_FOCUS config.BEAM_FOCUS
+#define USER_H_SIZE config.USER_H_SIZE
+#define USER_V_SIZE config.USER_V_SIZE
+#define TRAPEZOIDAL_CORRECTION config.TRAPEZOIDAL_CORRECTION
+#define CORNER_CORRECTION config.CORNER_CORRECTION
+#define MAGNETIC_CORRECTION config.MAGNETIC_CORRECTION
+#define USER_H_POS config.USER_H_POS
+#define USER_V_POS config.USER_V_POS
+#define USER_UNDERSCAN_TOGGLE config.USER_UNDERSCAN_TOGGLE
+#define DEFLECTION_ANGLE config.DEFLECTION_ANGLE
+#define UNDERSCAN config.UNDERSCAN
 
 layout(std140, set = 0, binding = 0) uniform UBO {
     mat4 MVP;
-    float PIXEL_CLOCK_MODE;
-    float PIXEL_CLOCK;
-    float H_FREQ_MODE;
     float H_FREQ;
     float H_BLANK_FUZZ;
 
     // ---- Geometry/user viewport controls ----
-    float USER_H_SIZE;            // % (50 = 1.0)
-    float USER_V_SIZE;            // % (50 = 1.0)
 
-    float TRAPEZOIDAL_CORRECTION; // %
-    float CORNER_CORRECTION;      // %
-    float MAGNETIC_CORRECTION;    // % (0..100)
-    float USER_H_POS;            // % (50 = center)
-    float USER_V_POS;            // % (50 = center)
-    float USER_UNDERSCAN_TOGGLE; // toggle
 
     // Factory/service geometry controls needed here
-    float DEFLECTION_ANGLE; // degrees
-    float UNDERSCAN;        // %
     float S_CORRECTION_H;   // %
     float S_CORRECTION_V;   // %
+
+#ifdef OPTION_DEBUG
+    // Debug-only stage bypass / diagnostics controls
+    float GEOMETRY_BYPASS;
+    float FILTER_BYPASS;
+    float DAR_SCALE;
+#endif  // OPTION_DEBUG
+
+    float ASPECT;
+    uint FrameCount;
+    float H_FREQ_MODE;
+    float OriginalFPS;
+    float PIXEL_CLOCK;
+    float PIXEL_CLOCK_MODE;
+    float SC_FREQ;
+    float SC_FREQ_MODE;
+    float V_FREQ;
+    float V_FREQ_MODE;
 } global;
 
-#define ASPECT config.ASPECT
-#define GEOMETRY_BYPASS config.GEOMETRY_BYPASS
-#define FILTER_BYPASS config.FILTER_BYPASS
-#define V_FREQ_MODE config.V_FREQ_MODE
-#define V_FREQ config.V_FREQ
-#define SC_FREQ_MODE config.SC_FREQ_MODE
-#define SC_FREQ config.SC_FREQ
+#define ASPECT global.ASPECT
+#define V_FREQ_MODE global.V_FREQ_MODE
+#define V_FREQ global.V_FREQ
+#define SC_FREQ_MODE global.SC_FREQ_MODE
+#define SC_FREQ global.SC_FREQ
 #define PIXEL_CLOCK_MODE global.PIXEL_CLOCK_MODE
 #define PIXEL_CLOCK global.PIXEL_CLOCK
 #define H_FREQ_MODE global.H_FREQ_MODE
 #define H_FREQ global.H_FREQ
 #define H_BLANK_FUZZ global.H_BLANK_FUZZ
-#define DAR_SCALE config.DAR_SCALE
 
 // Geometry macro bindings
-#define USER_H_SIZE global.USER_H_SIZE
-#define USER_V_SIZE global.USER_V_SIZE
-#define TRAPEZOIDAL_CORRECTION global.TRAPEZOIDAL_CORRECTION
-#define CORNER_CORRECTION global.CORNER_CORRECTION
-#define MAGNETIC_CORRECTION global.MAGNETIC_CORRECTION
-#define USER_H_POS global.USER_H_POS
-#define USER_V_POS global.USER_V_POS
-#define USER_UNDERSCAN_TOGGLE global.USER_UNDERSCAN_TOGGLE
-#define DEFLECTION_ANGLE global.DEFLECTION_ANGLE
-#define UNDERSCAN global.UNDERSCAN
 #define S_CORRECTION_H global.S_CORRECTION_H
 #define S_CORRECTION_V global.S_CORRECTION_V
-#define BEAM_FOCUS config.BEAM_FOCUS
+
+#ifdef OPTION_DEBUG
+#define GEOMETRY_BYPASS global.GEOMETRY_BYPASS
+#define FILTER_BYPASS global.FILTER_BYPASS
+#define DAR_SCALE global.DAR_SCALE
+#endif // OPTION_DEBUG
+
+#pragma stage vertex
+layout(location = 0) in vec4 Position;
+layout(location = 1) in vec2 TexCoord;
+layout(location = 0) out vec2 vTexCoord;
+layout(location = 1) out float maskAR;
+layout(location = 2) out FrameGeometry geom;
+
+void main()
+{
+    gl_Position = global.MVP * Position;
+    vTexCoord = TexCoord;
+
+    // Selected target aspect ratio for framing
+    maskAR = (ASPECT < 0.5) ? (4.0 / 3.0)
+        : (ASPECT < 1.5) ? (16.0 / 9.0)
+        : (ASPECT < 2.5) ? (5.0 / 4.0)
+        : (16.0 / 10.0);
+
+    geom = compute_frame_geometry(
+        global.FrameCount,
+        config.OriginalSize.xy,
+        global.OriginalFPS,
+        SC_FREQ_MODE,
+        SC_FREQ,
+        PIXEL_CLOCK,
+        PIXEL_CLOCK_MODE,
+        H_FREQ_MODE,
+        H_FREQ,
+        V_FREQ_MODE,
+        V_FREQ,
+        H_BLANK_FUZZ);
+}
+
+#pragma stage fragment
+layout(location = 0) in vec2 vTexCoord;
+layout(location = 1) in float maskAR;
+layout(location = 2) in FrameGeometry geom;
+layout(location = 0) out vec4 FragColor;
+layout(set = 0, binding = 1) uniform sampler2D Source;
 
 // ---- Local geometry helpers (subset; barrel handled later stage) ----
 // Parameterized pincushion (electrostatic/linear) using anisotropic angles (radians)
@@ -218,45 +271,28 @@ void apply_geometry_pipeline(
     input_tex = uv_full * 0.5 + 0.5; // full video area [0,1]
 }
 
-#pragma stage vertex
-layout(location = 0) in vec4 Position;
-layout(location = 1) in vec2 TexCoord;
-layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out float maskAR;
-layout(location = 2) out FrameGeometry geom;
-
-void main()
+// Same coordinate transform path as apply_geometry_pipeline, but with all
+// distortion/correction steps removed.
+void apply_geometry_pipeline_nodistort(
+    vec2 uv,
+    float dar,
+    out vec2 input_tex)
 {
-    gl_Position = global.MVP * Position;
-    vTexCoord = TexCoord;
+    vec2 uv_screen = uv * 2.0 - 1.0;
+    vec2 sq = vec2(uv_screen.x, uv_screen.y / dar);
 
-    // Selected target aspect ratio for framing
-    maskAR = (ASPECT < 0.5) ? (4.0 / 3.0)
-        : (ASPECT < 1.5) ? (16.0 / 9.0)
-        : (ASPECT < 2.5) ? (5.0 / 4.0)
-        : (16.0 / 10.0);
+    // --- Electronic positioning/sizing and service corrections (all in square space) ---
+    float sx = USER_H_SIZE / 50.0;
+    float sy = USER_V_SIZE / 50.0;
+    float ox = (USER_H_POS - 50.0) / 50.0;
+    float oy = (USER_V_POS - 50.0) / 50.0;
+    float underscan_scale = (USER_UNDERSCAN_TOGGLE > 0.5) ? (1.0 - (UNDERSCAN * 0.01)) : 1.0;
+    // Offset/scale in display-geometry units (dar for X)
+    sq = (sq - vec2(ox * dar, oy)) / (vec2(sx, sy) * underscan_scale);
 
-    geom = compute_frame_geometry(
-        config.FrameCount,
-        config.OriginalSize.xy,
-        config.OriginalFPS,
-        SC_FREQ_MODE,
-        SC_FREQ,
-        PIXEL_CLOCK,
-        PIXEL_CLOCK_MODE,
-        H_FREQ_MODE,
-        H_FREQ,
-        V_FREQ_MODE,
-        V_FREQ,
-        H_BLANK_FUZZ);
+    vec2 uv_full = vec2(sq.x, sq.y * dar);
+    input_tex = uv_full * 0.5 + 0.5;
 }
-
-#pragma stage fragment
-layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in float maskAR;
-layout(location = 2) in FrameGeometry geom;
-layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 1) uniform sampler2D Source;
 
 void main()
 {
@@ -290,7 +326,10 @@ void main()
     float source_sar = config.SourceSize.x * config.SourceSize.w;
     float active_sar = active_width / max(active_height, 1.0);
     float source_dar = full_dar * source_sar / active_sar;
+
+#ifdef OPTION_DEBUG
     source_dar *= DAR_SCALE;
+#endif  // OPTION_DEBUG
 
     // Calculate active region bounds in texture UV space (centered)
     float active_left = (config.SourceSize.x - active_width) * 0.5 * config.SourceSize.z;
@@ -325,6 +364,15 @@ void main()
 
     // ---- Geometry pipeline ----
     vec2 geometry_uv;
+
+#ifdef OPTION_FLAT
+    apply_geometry_pipeline_nodistort(
+        active_uv,
+        maskAR,
+        geometry_uv);
+#else
+
+#ifdef OPTION_DEBUG
     if (GEOMETRY_BYPASS > 0.5) {
         geometry_uv = active_uv;
     } else {
@@ -333,6 +381,14 @@ void main()
             maskAR,
             geometry_uv);
     }
+#else
+    apply_geometry_pipeline(
+        active_uv,
+        maskAR,
+        geometry_uv);
+#endif  // OPTION_DEBUG
+
+#endif  // OPTION_FLAT
 
     // Remap from geometry UVs to input texture UVs
     vec2 input_uv = vec2(
@@ -347,11 +403,16 @@ void main()
 
     vec3 color;
     float alpha = texture(Source, clamp01(input_uv)).a;
+
+#ifdef OPTION_DEBUG
     if (FILTER_BYPASS < 0.5) {
         color = sample_bicubic(Source, input_uv, config.SourceSize.zw, B, C);
     } else {
         color = texture(Source, input_uv).rgb;
     }
+#else
+    color = sample_bicubic(Source, input_uv, config.SourceSize.zw, B, C);
+#endif  // OPTION_DEBUG
 
     FragColor = vec4(max(color, 0.0), alpha);
 }

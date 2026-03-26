@@ -1,30 +1,55 @@
 #version 450
 
-/* Filename: display-component.slang
+// Filename: display-component.slang
+//
+// Copyright (C) 2025 W. M. Martinez
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-   Copyright (C) 2025 W. M. Martinez
-
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>. */
+#pragma name DisplayComponent
+#pragma format R16G16B16A16_SFLOAT
 
 #include "common.inc"
 #include "color.inc"
 #include "bandlimit.inc"
 #include "modulation.inc"
 
-#pragma name DisplayComponent
-#pragma format R16G16B16A16_SFLOAT
+#pragma include_optional "../config/options.cfg"
 
+#pragma parameter DISPLAY_COMPONENT_HEADER " ==== Display Component Parameters ==== " 0.0 0.0 0.0 0.0
+#pragma parameter V_FREQ_MODE "Vertical frequency mode (0=Auto, 1=NTSC, 2=PAL, 3=PAL-M, 4=Custom)" 1.0 0.0 4.0 1.0
+#pragma parameter V_FREQ "Custom vertical frequency (Hz)" 59.94 1.0 240.0 0.01
+#pragma parameter SHORTEN_ODD_FIELD_TIME "Shorten odd field time (0=Off, 1=On)" 0.0 0.0 1.0 1.0
+#pragma parameter SC_FREQ_MODE "Subcarrier frequency mode (0=Auto, 1=NTSC, 2=PAL, 3=Custom)" 1.0 0.0 3.0 1.0
+#pragma parameter SC_FREQ "Custom Subcarrier Frequency (MHz)" 3.579545 0.0 10.0 0.000001
+#pragma parameter PIXEL_CLOCK_MODE "Pixel clock mode (0=Auto, 1=NTSC, 2=PAL, 3=Divisor, 4=Custom)" 1.0 0.0 4.0 1.0
+#pragma parameter PIXEL_CLOCK "Pixel clock (MHz)" 21.477272 0.1 100.0 0.000001
+#pragma parameter H_FREQ_MODE "Horizontal frequency mode (0=Auto, 1=NTSC, 2=PAL, 3=Divisor, 4=Custom)" 0.0 0.0 4.0 1.0
+#pragma parameter H_FREQ "Custom horizontal frequency (kHz)" 15.734 1.0 100.0 0.001
+#pragma parameter H_BLANK_FUZZ "Horizontal blanking fuzz (cycles)" 0.0 0.0 20.0 0.1
+#pragma parameter YC_MODEL "YC color model (0=YIQ,1=YPbPr,2=YUV,3=YDbDr,4=YCbCr)" 1.0 0.0 4.0 1.0
+#pragma parameter DISPLAY_BANDWIDTH_Y "Display Luma (Y) bandwidth (MHz)" 5.4 0.0 75.0 0.01
+#pragma parameter DISPLAY_BANDWIDTH_U "Display Chroma (U) bandwidth (MHz)" 2.7 0.0 15.0 0.01
+#pragma parameter DISPLAY_BANDWIDTH_V "Display Chroma (V) bandwidth (MHz)" 2.7 0.0 15.0 0.01
+#pragma parameter DISPLAY_CUTOFF_ATTEN_Y "Display Y cutoff attenuation (dB)" 12.5 0.0 30.0 1.0
+#pragma parameter DISPLAY_CUTOFF_ATTEN_U "Display U cutoff attenuation (dB)" 12.5 0.0 30.0 1.0
+#pragma parameter DISPLAY_CUTOFF_ATTEN_V "Display V cutoff attenuation (dB)" 12.5 0.0 30.0 1.0
+
+#ifdef OPTION_DEBUG
+#pragma parameter DISPLAY_COMPONENT_BYPASS "Display component bypass" 0.0 0.0 1.0 1.0
+#pragma parameter DISPLAY_COMPONENT_FILTER_BYPASS "Display component filter bypass" 0.0 0.0 1.0 1.0
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
@@ -32,7 +57,7 @@ layout(push_constant) uniform Push
     vec4 OutputSize;
     vec4 FrameHSize;
     uint FrameCount;
-    // Timing parameters for timebase computation
+    float OriginalFPS;
     float V_FREQ_MODE;
     float V_FREQ;
     float SHORTEN_ODD_FIELD_TIME;
@@ -43,56 +68,48 @@ layout(push_constant) uniform Push
     float H_FREQ_MODE;
     float H_FREQ;
     float H_BLANK_FUZZ;
-    float DISPLAY_COMPONENT_BYPASS;
-    float YC_MODEL; // 0=YIQ, 1=YPbPr, 2=YUV, 3=YDbDr, 4=YCbCr
-    float DISPLAY_COMPONENT_FILTER_BYPASS;
+    float YC_MODEL;
     float DISPLAY_BANDWIDTH_Y;
     float DISPLAY_BANDWIDTH_U;
     float DISPLAY_BANDWIDTH_V;
     float DISPLAY_CUTOFF_ATTEN_Y;
     float DISPLAY_CUTOFF_ATTEN_U;
     float DISPLAY_CUTOFF_ATTEN_V;
+
+#ifdef OPTION_DEBUG
+    float DISPLAY_COMPONENT_BYPASS;
+#endif  // OPTION_DEBUG
+
 } config;
 
-
-#pragma parameter DISPLAY_COMPONENT_HEADER " ==== Display Component Parameters ==== " 0.0 0.0 0.0 0.0
-#pragma parameter DISPLAY_COMPONENT_BYPASS "Display component bypass" 0.0 0.0 1.0 1.0
-#define DISPLAY_COMPONENT_BYPASS config.DISPLAY_COMPONENT_BYPASS
-#pragma parameter V_FREQ_MODE "Vertical frequency mode (0=Auto, 1=NTSC, 2=PAL, 3=PAL-M, 4=Custom)" 1.0 0.0 4.0 1.0
 #define V_FREQ_MODE config.V_FREQ_MODE
-#pragma parameter V_FREQ "Custom vertical frequency (Hz)" 59.94 1.0 240.0 0.01
 #define V_FREQ config.V_FREQ
-#pragma parameter SHORTEN_ODD_FIELD_TIME "Shorten odd field time (0=Off, 1=On)" 0.0 0.0 1.0 1.0
 #define SHORTEN_ODD_FIELD_TIME config.SHORTEN_ODD_FIELD_TIME
-#pragma parameter SC_FREQ_MODE "Subcarrier frequency mode (0=Auto, 1=NTSC, 2=PAL, 3=Custom)" 1.0 0.0 3.0 1.0
 #define SC_FREQ_MODE config.SC_FREQ_MODE
-#pragma parameter SC_FREQ "Custom Subcarrier Frequency (MHz)" 3.579545 0.0 10.0 0.000001
 #define SC_FREQ config.SC_FREQ
-#pragma parameter PIXEL_CLOCK_MODE "Pixel clock mode (0=Auto, 1=NTSC, 2=PAL, 3=Divisor, 4=Custom)" 1.0 0.0 4.0 1.0
 #define PIXEL_CLOCK_MODE config.PIXEL_CLOCK_MODE
-#pragma parameter PIXEL_CLOCK "Pixel clock (MHz)" 21.477272 0.1 100.0 0.000001
 #define PIXEL_CLOCK config.PIXEL_CLOCK
-#pragma parameter H_FREQ_MODE "Horizontal frequency mode (0=Auto, 1=NTSC, 2=PAL, 3=Divisor, 4=Custom)" 0.0 0.0 4.0 1.0
 #define H_FREQ_MODE config.H_FREQ_MODE
-#pragma parameter H_FREQ "Custom horizontal frequency (kHz)" 15.734 1.0 100.0 0.001
 #define H_FREQ config.H_FREQ
-#pragma parameter H_BLANK_FUZZ "Horizontal blanking fuzz (cycles)" 0.0 0.0 20.0 0.1
 #define H_BLANK_FUZZ config.H_BLANK_FUZZ
-#pragma parameter YC_MODEL "YC color model (0=YIQ,1=YPbPr,2=YUV,3=YDbDr,4=YCbCr)" 1.0 0.0 4.0 1.0
 #define YC_MODEL config.YC_MODEL
-#pragma parameter DISPLAY_COMPONENT_FILTER_BYPASS "Display component filter bypass" 0.0 0.0 1.0 1.0
-#define DISPLAY_COMPONENT_FILTER_BYPASS config.DISPLAY_COMPONENT_FILTER_BYPASS
-#pragma parameter DISPLAY_BANDWIDTH_Y "Display Luma (Y) bandwidth (MHz)" 5.4 0.0 75.0 0.01
-#pragma parameter DISPLAY_BANDWIDTH_U "Display Chroma (U) bandwidth (MHz)" 2.7 0.0 15.0 0.01
-#pragma parameter DISPLAY_BANDWIDTH_V "Display Chroma (V) bandwidth (MHz)" 2.7 0.0 15.0 0.01
-#pragma parameter DISPLAY_CUTOFF_ATTEN_Y "Display Y cutoff attenuation (dB)" 12.5 0.0 30.0 1.0
-#pragma parameter DISPLAY_CUTOFF_ATTEN_U "Display U cutoff attenuation (dB)" 12.5 0.0 30.0 1.0
-#pragma parameter DISPLAY_CUTOFF_ATTEN_V "Display V cutoff attenuation (dB)" 12.5 0.0 30.0 1.0
+
+#ifdef OPTION_DEBUG
+#define DISPLAY_COMPONENT_BYPASS config.DISPLAY_COMPONENT_BYPASS
+#endif  // OPTION_DEBUG
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
+#ifdef OPTION_DEBUG
+    float DISPLAY_COMPONENT_FILTER_BYPASS;
+#endif  // OPTION_DEBUG
+
 } global;
+
+#ifdef OPTION_DEBUG
+#define DISPLAY_COMPONENT_FILTER_BYPASS global.DISPLAY_COMPONENT_FILTER_BYPASS
+#endif  // OPTION_DEBUG
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -139,6 +156,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
+#ifdef OPTION_DEBUG
     if (DISPLAY_COMPONENT_BYPASS > 0.5) {
         FragColor = texture(Source, vTexCoord);
         return;
@@ -151,17 +169,18 @@ void main()
         FragColor = vec4(rgb, 1.0);
         return;
     }
+#endif // OPTION_DEBUG
 
     const float FILTER_THRESHOLD = 1.0 / 255.0;
 
     // Horizontal coordinate handling using nearest pixel-center addressing
     vec2 UV  = vTexCoord * config.OutputSize.xy;
-    float baseIndex = floor(UV.x + 0.5);   // nearest pixel index
-    float baseCenter = baseIndex + 0.5;    // pixel center position
+    float baseCenter = floor(UV.x + 0.5) + 0.5;  // pixel center position
+    float line = floor(UV.y);
     float Ax = UV.x - baseCenter;          // offset from center in [-0.5, 0.5]
     vec2 Tex = vec2(
         baseCenter * config.OutputSize.z,
-        (floor(UV.y) + 0.5) * config.OutputSize.w);
+        (line + 0.5) * config.OutputSize.w);
     vec2 dx  = vec2(config.OutputSize.z, 0.0);
 
     // Accumulators and weights for Y, U/Db, V/Dr
@@ -202,6 +221,9 @@ void main()
 
     // Normalize
     vec3 outyc = accum / max(wsum, vec3(EPS));
+#ifdef OPTION_CRISPY
+    outyc.x = yc_c.x;  // Bypass Y luma filter: use unfiltered center sample
+#endif  // OPTION_CRISPY
     vec3 pixel = decode_luma_chroma_to_rgb(outyc, YC_MODEL);
     FragColor = vec4(pixel, 1.0);
 }

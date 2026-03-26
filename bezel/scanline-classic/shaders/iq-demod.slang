@@ -34,10 +34,14 @@
 #include "window.inc"
 
 #include "menus/parameters/sys-timing.inc"
-#include "menus/parameters/sys-encode.inc"
 #include "menus/parameters/rf.inc"
 
+#pragma include_optional "../config/options.cfg"
+
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_IQ_DEMOD_HEADER " —— Debug IQ Demod —— " 0.0 0.0 0.0 0.0
 #pragma parameter BYPASS_IQ_DEMOD "Bypass IQ demod (off, on)" 0.0 0.0 1.0 1.0
+#endif  // OPTION_DEBUG
 
 #pragma name IQDemod
 #pragma format R16_SFLOAT
@@ -49,7 +53,6 @@ layout(push_constant) uniform Push
     vec4 FrameHSize;
     uint FrameCount;
     float OriginalFPS;
-    float BYPASS_IQ_DEMOD;
     float IQ_DEMOD_Q_WEIGHT;
     float V_FREQ_MODE;
     float V_FREQ;
@@ -65,9 +68,17 @@ layout(push_constant) uniform Push
     float LSB_BANDWIDTH;
     float USB_ROLL_OFF;
     float LSB_ROLL_OFF;
+
+#ifdef OPTION_DEBUG
+    float BYPASS_IQ_DEMOD;
+#endif  // OPTION_DEBUG
+
 } config;
 
+#ifdef OPTION_DEBUG
 #define BYPASS_IQ_DEMOD config.BYPASS_IQ_DEMOD
+#endif  // OPTION_DEBUG
+
 #define IQ_DEMOD_Q_WEIGHT config.IQ_DEMOD_Q_WEIGHT
 #define V_FREQ_MODE config.V_FREQ_MODE
 #define V_FREQ config.V_FREQ
@@ -94,11 +105,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define VSB_I_CUTOFF_MHZ USB_BANDWIDTH
 #define VSB_Q_CUTOFF_MHZ LSB_BANDWIDTH
 
-// Hamming windowed-sinc lowpass (matched to iq-filter.slang)
-// Stopband: ~43 dB, minimal ringing (~1.5% overshoot)
-// Analytical tap count formula: N = 3.3 / transition_width
-const float HAMMING_TRANSITION_CONST = 3.3;  // Hamming -43 dB stopband
-
 // Hilbert demod removed; weighted method only
 
 #pragma stage vertex
@@ -110,6 +116,11 @@ layout(location = 2) out float fc_q_norm;      // Q cutoff normalized
 layout(location = 3) out float taps_i;         // I tap count
 layout(location = 4) out float taps_q;         // Q tap count
 layout(location = 5) out TimebaseConfig tb;
+
+// Hamming windowed-sinc lowpass (matched to iq-filter.slang)
+// Stopband: ~43 dB, minimal ringing (~1.5% overshoot)
+// Analytical tap count formula: N = 3.3 / transition_width
+const float HAMMING_TRANSITION_CONST = 3.3;  // Hamming -43 dB stopband
 
 void main()
 {
@@ -146,7 +157,7 @@ void main()
     // Transition band = TRANSITION_FACTOR × cutoff frequency
     float taps_i_calc = HAMMING_TRANSITION_CONST / max(transition_i * fc_i_norm, EPS);
     float taps_q_calc = HAMMING_TRANSITION_CONST / max(transition_q * fc_q_norm, EPS);
-    
+
     // Round to odd numbers for symmetric FIR (center + pairs)
     taps_i = int(ceil(taps_i_calc));
     if (int(mod(taps_i, 2.0)) == 0) taps_i += 1.0;
@@ -166,12 +177,15 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
+
+#ifdef OPTION_DEBUG
     if (BYPASS_IQ_DEMOD > 0.5) {
         // Passthrough I as composite for quick debug
         vec2 iq_passthru = texture(Source, vTexCoord).rg;
         FragColor = vec4(iq_passthru.r, 0.0, 0.0, 1.0);
         return;
     }
+#endif  // OPTION_DEBUG
 
     vec2 UV = vTexCoord * config.OutputSize.xy;
     float line = floor(UV.y);
@@ -187,6 +201,14 @@ void main()
     vec2 iq0 = texture(Source, Tex).rg;
     vec2 dx = vec2(config.OutputSize.z, 0.0);
 
+#ifdef OPTION_CRISPY
+    {
+        float composite = iq0.r + IQ_DEMOD_Q_WEIGHT * iq0.g;
+        FragColor = vec4(composite, 0.0, 0.0, 1.0);
+        return;
+    }
+#endif  // OPTION_CRISPY
+
     // Lowpass I and Q separately (matched to modulator)
     float I_lp = 0.0, I_w = 0.0;
     float Q_lp = 0.0, Q_w = 0.0;
@@ -198,7 +220,7 @@ void main()
     I_w = c0_i;
     Q_lp = c0_q * iq0.g;
     Q_w = c0_q;
-    
+
     // Hilbert at center is zero for odd kernel, skip
 
     int max_i = int(taps_i);
@@ -257,11 +279,11 @@ void main()
     // Normalize
     I_lp /= max(I_w, EPS);
     Q_lp /= max(Q_w, EPS);
-    
+
     // Weighted demodulation only
     // composite = I_lp + alpha * Q_lp
     // where alpha ≈ -K_VSB (vestige/full ratio, typically -0.27 for NTSC)
     float composite = I_lp + IQ_DEMOD_Q_WEIGHT * Q_lp;
-    
+
     FragColor = vec4(composite, 0.0, 0.0, 1.0);
 }

@@ -13,7 +13,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>. */ 
+   along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 
 // ==== CRT Geometry Simulation and Correction ====
 //
@@ -21,7 +21,7 @@
 // and the correction techniques used in real CRT monitors.
 //
 // DISTORTION TYPES:
-// 
+//
 // 1. Pincushion Distortion (linear/electrostatic)
 //    - Simulates electron beam deflection in CRTs
 //    - Creates inward curvature at edges (corners pinched inward)
@@ -141,14 +141,14 @@ vec2 magnetic_correction(vec2 uv, const float strength, const float THETA)
     // This is essentially a scaled version of barrel distortion
     // but applied in the deflection phase rather than for screen curvature
     float effective_theta = THETA * strength;
-    
+
     if (effective_theta < 0.001) return uv;
-    
+
     // Apply inverse transformation (same math as barrel, but scaled by correction strength)
     vec2 uv_corrected = uv * effective_theta;
     uv_corrected.x = tan(uv_corrected.x) / cos(uv_corrected.y);
     uv_corrected.y = tan(uv_corrected.y) / cos(uv_corrected.x);
-    
+
     return uv_corrected / effective_theta;
 }
 
@@ -176,15 +176,15 @@ vec2 corner_correction(vec2 uv, const float strength)
     // Calculate squared distance for each axis
     float x2 = uv.x * uv.x;
     float y2 = uv.y * uv.y;
-    
+
     // Apply correction that's strongest at corners (where both x and y are large)
     // Fourth-order term (x²y²) ensures correction is localized to corners
     float corner_factor = x2 * y2;
-    
+
     // Push corners outward to counteract pincushion
     uv.x *= 1.0 + strength * corner_factor;
     uv.y *= 1.0 + strength * corner_factor;
-    
+
     return uv;
 }
 
@@ -204,29 +204,29 @@ vec2 s_correction(vec2 uv, const float h_strength, const float v_strength)
 // Combined geometric correction - applies multiple correction techniques in sequence
 // This is what high-end CRT monitors did with their digital geometry processors
 // Order of operations matters due to interaction between corrections
-vec2 geometric_correction(vec2 uv, 
-                          const float trap_strength, 
-                          const float corner_strength, 
-                          const float s_h_strength, 
+vec2 geometric_correction(vec2 uv,
+                          const float trap_strength,
+                          const float corner_strength,
+                          const float s_h_strength,
                           const float s_v_strength)
 {
     // Early exit if no corrections are needed (optimization)
-    if (abs(trap_strength) < 0.001 && abs(corner_strength) < 0.001 && 
+    if (abs(trap_strength) < 0.001 && abs(corner_strength) < 0.001 &&
         abs(s_h_strength) < 0.001 && abs(s_v_strength) < 0.001)
         return uv;
-    
+
     // Apply corrections in order (mimics real CRT correction pipeline)
     // 1. Trapezoid correction - coarse adjustment of horizontal edges
     if (abs(trap_strength) > 0.001)
         uv = trapezoid(uv, trap_strength);
-    
+
     // 2. S-correction - fine adjustment for parabolic distortion
     if (abs(s_h_strength) > 0.001 || abs(s_v_strength) > 0.001)
         uv = s_correction(uv, s_h_strength, s_v_strength);
-    
+
     // 3. Corner correction - final localized adjustment for corners
     if (abs(corner_strength) > 0.001)
         uv = corner_correction(uv, corner_strength);
-    
+
     return uv;
 }

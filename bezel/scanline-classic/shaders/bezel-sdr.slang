@@ -30,4 +30,5 @@
 #define COLOR_SPACE_TO_XYZ sRGB_TO_XYZ
 #define XYZ_TO_COLOR_SPACE XYZ_TO_sRGB
 
+// lint: allow-unused-include
 #include "bezel-base.slang"

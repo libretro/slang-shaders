@@ -22,18 +22,22 @@
 // Input: Luma (R) and chroma (G) signals from sys-yc.slang
 // Output: Composite baseband signal (R16_SFLOAT)
 
+#pragma name YCComposite
+#pragma format R16_SFLOAT
+
 #include "common.inc"
 #include "modulation.inc"
 #include "bandlimit.inc"
 
 #include "menus/parameters/sys-timing.inc"
-#include "menus/parameters/sys-encode.inc"
 #include "menus/parameters/sys-yc.inc"
 
-#pragma name YCComposite
-#pragma format R16_SFLOAT
+#pragma include_optional "../config/options.cfg"
 
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_YC_COMPOSITE_HEADER " —— Debug YC Composite —— " 0.0 0.0 0.0 0.0
 #pragma parameter BYPASS_YC_FILTER "Bypass Y/C filter (off, on)" 0.0 0.0 1.0 1.0
+#endif
 
 layout(push_constant) uniform Push
 {
@@ -42,7 +46,11 @@ layout(push_constant) uniform Push
     vec4 FrameHSize;
     uint FrameCount;
     float OriginalFPS;
+
+#ifdef OPTION_DEBUG
     float BYPASS_YC_FILTER;
+#endif
+
     float V_FREQ_MODE;
     float V_FREQ;
     float SHORTEN_ODD_FIELD_TIME;
@@ -62,7 +70,9 @@ layout(push_constant) uniform Push
     float LUMA_NOTCH_ATTEN_DB;
 } config;
 
+#ifdef OPTION_DEBUG
 #define BYPASS_YC_FILTER config.BYPASS_YC_FILTER
+#endif
 
 #define V_FREQ_MODE config.V_FREQ_MODE
 #define V_FREQ config.V_FREQ
@@ -127,14 +137,14 @@ void main()
     float f_sc_mhz = tb.sc_freq_hz * 1.0e-6; // Convert Hz to MHz
     float bw_to_fsc_ratio = CHROMA_BANDPASS_WIDTH / (2.0 * max(f_sc_mhz, 1e-6));
     float bandpass_edge_atten_min = TARGET_DC_ATTEN_DB * bw_to_fsc_ratio * bw_to_fsc_ratio;
-    
+
     // Use the maximum of calculated minimum and user parameter
     // This ensures brightness preservation while allowing user override
     float bandpass_edge_atten_db = max(bandpass_edge_atten_min, CHROMA_EDGE_ATTEN_DB);
-    
+
     // Clamp to reasonable range
     bandpass_edge_atten_db = clamp(bandpass_edge_atten_db, 0.1, 20.0);
-    
+
     sigma_bp = sigma_tb(tb, max(CHROMA_BANDPASS_WIDTH, 1e-6), bandpass_edge_atten_db);
 
     // Fixed notch width for luma rejection, independent of chroma bandpass
@@ -159,8 +169,7 @@ void main()
     // Input: Y/C signal (luma in R, chroma in G)
     vec2 UV = vTexCoord * config.OutputSize.xy;
     float line = floor(UV.y);
-    float baseIndex = floor(UV.x);
-    float baseCenter = baseIndex + 0.5;
+    float baseCenter = floor(UV.x) + 0.5;
     float Ax = UV.x - baseCenter;
 
     vec2 Tex = vec2(baseCenter * config.OutputSize.z,
@@ -168,15 +177,14 @@ void main()
     vec2 dx = vec2(config.OutputSize.z, 0.0);
 
     // If bypass is enabled, just sum Y+C and output
+
+#ifdef OPTION_DEBUG
     if (BYPASS_YC_FILTER > 0.5) {
         vec2 yc = texture(Source, Tex).rg;
-        float y_out = yc.r;
-        float c_bp = yc.g;
-        float color = y_out + c_bp;
-        
-        FragColor = vec4(color, 0.0, 0.0, 1.0);
+        FragColor = vec4(yc.r + yc.g, 0.0, 0.0, 1.0);
         return;
     }
+#endif
 
     const float THRESHOLD = 1.0 / 255.0;
 
@@ -195,15 +203,16 @@ void main()
 
     // Subcarrier cycles per pixel for modulation (cycles/pixel)
     float f_sc_px = carrier.sc_freq_hz * carrier.pixel_time_px;
+    float phase_scale = 2.0 * PI * f_sc_px;
 
     // Center weights (include fractional horizontal offset Ax)
     float g_bp0 = gaussian(Ax, sigma_bp);
-    float w_bp0 = g_bp0 * cos(2.0 * PI * f_sc_px * Ax);
+    float w_bp0 = g_bp0 * cos(phase_scale * Ax);
     bp_accum_c += w_bp0 * chroma0;
     sum_bp += g_bp0;
 
     float g_notch0 = gaussian(Ax, sigma_notch);
-    float w_notch0 = g_notch0 * cos(2.0 * PI * f_sc_px * Ax);
+    float w_notch0 = g_notch0 * cos(phase_scale * Ax);
     notch_accum_y += w_notch0 * luma0;
     sum_notch += g_notch0;
 
@@ -234,12 +243,12 @@ void main()
         vec2 yc_l = texture(Source, Tex_l).rg;
 
         // Chroma bandpass weights
-        float w_bp_r = g_bp_r * cos(2.0 * PI * f_sc_px * (nf - Ax));
-        float w_bp_l = g_bp_l * cos(2.0 * PI * f_sc_px * (nf + Ax));
+        float w_bp_r = g_bp_r * cos(phase_scale * (nf - Ax));
+        float w_bp_l = g_bp_l * cos(phase_scale * (nf + Ax));
 
         // Luma notch bandpass weights
-        float w_notch_r = g_notch_r * cos(2.0 * PI * f_sc_px * (nf - Ax));
-        float w_notch_l = g_notch_l * cos(2.0 * PI * f_sc_px * (nf + Ax));
+        float w_notch_r = g_notch_r * cos(phase_scale * (nf - Ax));
+        float w_notch_l = g_notch_l * cos(phase_scale * (nf + Ax));
 
         // Accumulate chroma bandpass and luma notch bandpass
         bp_accum_c += w_bp_r * yc_r.g + w_bp_l * yc_l.g;

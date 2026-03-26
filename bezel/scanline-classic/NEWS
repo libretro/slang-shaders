@@ -1,3 +1,13 @@
+Version 10.1
+
+* Add Famicom presets and shaders
+
+* Added global options file as config/options.cfg
+
+* Add an option for darker and brighter HDR output
+
+* Remove MASK_DIFFUSION; diffusion is handled automatically
+
 Version 10.0
 
 * WCG mode gamut selection: BT.2020 and DCI

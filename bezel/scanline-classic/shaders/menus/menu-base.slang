@@ -23,6 +23,12 @@
 #pragma name Menu
 #pragma format R8G8B8A8_UNORM
 
+#pragma include_optional "../config/options.cfg"
+
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_HEADER " —— Debug (requires OPTION_DEBUG in options.cfg) —— " 0.0 0.0 0.0 0.0
+#endif  // OPTION_DEBUG
+
 layout(push_constant) uniform Push
 {
     vec4 SourceSize;

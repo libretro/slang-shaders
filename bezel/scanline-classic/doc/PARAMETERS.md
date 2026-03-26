@@ -59,9 +59,9 @@ Controls the presentation of the simulated display on the output display.
 
   * TONEMAP_TYPE - Tone map output (off, Reinhard, Neutral, Hable, ACES): Selects a tone mapping technique; Neutral is a good default, while Hable and ACES are stronger filmic options
 
-### Color Correction
+  * VIEWING_ENVIRONMENT - Viewing environment (dark, dim, bright): HDR only; selects the scene-adaptation environment used by the tone-mapping stage
 
-  * MAKEUP_GAIN - Makeup gain (off, on): Restores brightness after color correction stages; usually best left on unless comparing raw transform behavior
+### Color Correction
 
   * CHROMATIC_ADAPTATION - Chromatic adaptation (off, LBrad, Z-L, Brad): Selects the technique for translating the source white point to the display white point; Linear Bradford or Zhang-Li is generally recommended
 
@@ -211,7 +211,6 @@ These settings represent design parameters that are fixed to the display and can
 
   * MASK_INTENSITY - Mask intensity (%): Adjusts the strength of the mask effect; recommended to leave at 100 unless brightness is limited
 
-  * MASK_DIFFUSION - Mask diffusion (standard deviations): Adjusts how phosphor dots are blended; it is often preferable to use this to reduce moire patterns due to insufficient resolution
 ### Colorimetry
 
   * COLORIMETRY_PRESET - Colorimetry preset (off, SMPTE, Japan, EBU, 709): Presets colorimetry to the given standard
@@ -226,11 +225,11 @@ These settings represent design parameters that are fixed to the display and can
 
 ### Phosphors
 
-  * PHOSPHOR_MANTISSA_R/G/B - Phosphor decay mantissa R/G/B (s): Selects the phosphor decay mantissa where decay time is mantissa * 10 ^ exponent seconds
+  * PHOSPHOR_MANTISSA_R, PHOSPHOR_MANTISSA_G, PHOSPHOR_MANTISSA_B - Phosphor decay mantissa R/G/B (s): Selects the phosphor decay mantissa where decay time is mantissa * 10 ^ exponent seconds
 
-  * PHOSPHOR_EXPONENT_R/G/B - Phosphor decay exponent R/G/B (base-10): Selects the phosphor decay exponent where decay time is mantissa * 10 ^ exponent seconds
+  * PHOSPHOR_EXPONENT_R, PHOSPHOR_EXPONENT_G, PHOSPHOR_EXPONENT_B - Phosphor decay exponent R/G/B (base-10): Selects the phosphor decay exponent where decay time is mantissa * 10 ^ exponent seconds
 
-  * PHOSPHOR_HOLD_R/G/B - Phosphor tail hold R/G/B (order): Adjusts tail strength of the phosphor decay. Higher values result in a longer overall decay
+  * PHOSPHOR_HOLD_R, PHOSPHOR_HOLD_G, PHOSPHOR_HOLD_B - Phosphor tail hold R/G/B (order): Adjusts tail strength of the phosphor decay. Higher values result in a longer overall decay
 
 ### Limiter
 
@@ -330,6 +329,20 @@ These settings are identical in purpose to Display RGB, but apply at the system 
 
   * PAL - Phase alternating line (off, on): Enables PAL line encoding for phase recovery
 
+### Famicom/NES Filter
+
+  * FILTER_BANDWIDTH - Filter bandwidth (MHz): Controls the nominal low-pass bandwidth used by the Famicom/NES composite filter path
+
+  * FILTER_CUTOFF_ATTEN - Filter cutoff attenuation (dB): Controls attenuation strength at the filter cutoff point in the Famicom/NES filter path
+
+  * FILTER_DPD_AMOUNT_NS - Filter DPD amount (ns): Controls differential phase delay amount used to model brightness-dependent hue shift behavior
+
+  * FILTER_DPD_CURVE - Filter DPD curve: Controls how strongly differential phase delay is concentrated into brighter signal regions
+
+  * FILTER_DPD_IN_MIN - Filter DPD input min: Sets the lower input bound of the signal window mapped into DPD drive
+
+  * FILTER_DPD_IN_MAX - Filter DPD input max: Sets the upper input bound of the signal window mapped into DPD drive
+
 ### Y/C Processing
 
   * YC_MODEL - System color space (YPbPr, YDbDr, YCbCr): Selects the RGB-to-Y/C conversion matrix used before encoding or modulation
@@ -383,3 +396,29 @@ These settings are identical in purpose to Display RGB, but apply at the system 
   * UPSAMPLER_INPUT - Upsampler input type (RGB, YCbCr): Selects the signal domain fed into the digital upsampler
 
   * GAMMA_CORRECT_BLENDING - RGB: gamma correct blending (off, fast, accurate): Controls whether RGB upsampling blends in gamma-corrected space; accurate is best quality, fast is cheaper
+
+## Global Options
+
+These are compile-time options from `config/options.skel.cfg`. Unlike runtime parameters above, they are enabled by editing `config/options.cfg`.
+
+  * OPTION_DEBUG - Enable debug parameters in shaders
+
+  * OPTION_NOBEZEL - Disable bezel and glow rendering
+
+  * OPTION_NOGLOW - Disable glow rendering when bezel rendering is enabled
+
+  * OPTION_NOBEZEL_ZOOM - Apply additional zoom when bezel is disabled to compensate for bezel crop; default is 1.07 (7%)
+
+  * OPTION_NOCOLOR - Disable color correction and treat the pipeline effectively as Rec.709
+
+  * OPTION_NOCAT - Disable chromatic adaptation (for example, NTSC-J presets will render at 9300K relative to D65)
+
+  * OPTION_FLAT - Force flat geometry with no curvature or geometric distortion
+
+  * OPTION_NOSCANLINES - Disable blank scanline rendering
+
+  * OPTION_NOMASK - Disable mask effects
+
+  * OPTION_NOPHOSPHOR - Disable phosphor decay effects
+
+  * OPTION_CRISPY - Disable R/G/B/Y bandwidth filters for the sharpest pixel response (does not disable chroma filters or special filters such as the Famicom filter; also disables sharpening)

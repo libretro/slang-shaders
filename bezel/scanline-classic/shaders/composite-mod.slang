@@ -22,15 +22,20 @@
 // Input: Component voltage signal (from sys-component.slang)
 // Output: Composite baseband (R16_SFLOAT, R channel)
 
+#pragma name CompositeMod
+#pragma format R16_SFLOAT
+
 #include "common.inc"
 #include "modulation.inc"
 #include "menus/parameters/sys-timing.inc"
 #include "menus/parameters/sys-encode.inc"
 
-#pragma name CompositeMod
-#pragma format R16_SFLOAT
+#pragma include_optional "../config/options.cfg"
 
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_COMPOSITE_MOD_HEADER " —— Debug Composite Mod —— " 0.0 0.0 0.0 0.0
 #pragma parameter COMPOSITE_MOD_BYPASS "Composite Modulation Bypass" 0.0 0.0 1.0 1.0
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
@@ -51,7 +56,11 @@ layout(push_constant) uniform Push
     float H_BLANK_FUZZ;
     float ENCODER_SETUP;
     float PAL;
+
+#ifdef OPTION_DEBUG
     float COMPOSITE_MOD_BYPASS;
+#endif  // OPTION_DEBUG
+
 } config;
 
 #define V_FREQ_MODE config.V_FREQ_MODE
@@ -66,7 +75,10 @@ layout(push_constant) uniform Push
 #define H_BLANK_FUZZ config.H_BLANK_FUZZ
 #define ENCODER_SETUP config.ENCODER_SETUP
 #define PAL config.PAL
+
+#ifdef OPTION_DEBUG
 #define COMPOSITE_MOD_BYPASS config.COMPOSITE_MOD_BYPASS
+#endif  // OPTION_DEBUG
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -112,26 +124,28 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
+
+#ifdef OPTION_DEBUG
     if (COMPOSITE_MOD_BYPASS > 0.5) {
         FragColor = texture(Source, vTexCoord);
         return;
     }
+#endif  // OPTION_DEBUG
 
     vec2 UV = vTexCoord * config.OutputSize.xy;
     float line = floor(UV.y);
-    float baseIndex = floor(UV.x);
-    float baseCenter = baseIndex + 0.5;
+    float baseCenter = floor(UV.x) + 0.5;
     vec2 Tex = vec2(
         baseCenter * config.OutputSize.z,
-        (floor(UV.y) + 0.5) * config.OutputSize.w);
+        (line + 0.5) * config.OutputSize.w);
 
     vec3 pixel0 = texture(Source, Tex).rgb;
     float t0 = line / carrier.h_freq_hz + baseCenter * carrier.pixel_time_px;
     float phase0 = compute_carrier_phase(t0, carrier.sc_freq_hz, carrier.field_phase);
-    
+
     // PAL V-axis alternation: simply invert V on odd lines
     float pal_v_sign = 1.0 - 2.0 * floor(mod(line, 2.0)) * PAL;
-    
+
     vec2 carrier0 = sincos_phase_raw(phase0);
     float chroma0 = pixel0.g * carrier0.x + pal_v_sign * pixel0.b * carrier0.y;
 

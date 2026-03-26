@@ -27,7 +27,9 @@ layout(push_constant) uniform Push
     vec4 OriginalSize;
     vec4 OutputSize;
     uint FrameCount;
+
     float PQ_OUTPUT;
+
 } params;
 
 #define PQ_OUTPUT params.PQ_OUTPUT

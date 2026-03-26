@@ -27,10 +27,14 @@
 #include "bandlimit.inc"
 
 #include "menus/parameters/sys-timing.inc"
-#include "menus/parameters/sys-encode.inc"
 #include "menus/parameters/composite.inc"
 
+#pragma include_optional "../config/options.cfg"
+
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_COMPOSITE_PREFILTER_HEADER " —— Debug Composite Prefilter —— " 0.0 0.0 0.0 0.0
 #pragma parameter BYPASS_PREFILTER "Bypass prefilter (off, on)" 0.0 0.0 1.0 1.0
+#endif  // OPTION_DEBUG
 
 #pragma name CompositePreFilter
 #pragma format R16G16B16A16_SFLOAT
@@ -42,7 +46,6 @@ layout(push_constant) uniform Push
     vec4 FrameHSize;
     uint FrameCount;
     float OriginalFPS;
-    float BYPASS_PREFILTER;
     float V_FREQ_MODE;
     float V_FREQ;
     float SHORTEN_ODD_FIELD_TIME;
@@ -57,12 +60,19 @@ layout(push_constant) uniform Push
     float NOTCH_WIDTH;
     float NOTCH_ATTEN_DB;
     float BANDPASS_WIDTH;
-    float BANDPASS_ATTEN_DB;
     float COMB_FILTER_LUMA_ADAPT;
     float COMB_FILTER_CHROMA_ADAPT;
+
+#ifdef OPTION_DEBUG
+    float BYPASS_PREFILTER;
+#endif  // OPTION_DEBUG
+
+    float BW_MODE;
 } config;
 
+#ifdef OPTION_DEBUG
 #define BYPASS_PREFILTER config.BYPASS_PREFILTER
+#endif  // OPTION_DEBUG
 
 #define V_FREQ_MODE config.V_FREQ_MODE
 #define V_FREQ config.V_FREQ
@@ -80,19 +90,19 @@ layout(push_constant) uniform Push
 #define NOTCH_WIDTH config.NOTCH_WIDTH
 #define NOTCH_ATTEN_DB config.NOTCH_ATTEN_DB
 
-#define BANDPASS_ATTEN_DB config.BANDPASS_ATTEN_DB
 #define BANDPASS_WIDTH config.BANDPASS_WIDTH
 
 #define COMB_FILTER_LUMA_ADAPT config.COMB_FILTER_LUMA_ADAPT
 #define COMB_FILTER_CHROMA_ADAPT config.COMB_FILTER_CHROMA_ADAPT
+#define BW_MODE config.BW_MODE
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
-    float BW_MODE;
+    float BANDPASS_ATTEN_DB;
 } global;
+#define BANDPASS_ATTEN_DB global.BANDPASS_ATTEN_DB
 
-#define BW_MODE global.BW_MODE
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -124,7 +134,7 @@ void main()
         V_FREQ,
         H_BLANK_FUZZ,
         SHORTEN_ODD_FIELD_TIME);
- 
+
     // Enforce minimum edge attenuation to guarantee ~48 dB DC rejection for chroma
     const float TARGET_DC_ATTEN_DB = 48.0;
     float f_sc_mhz = tb.sc_freq_hz * 1.0e-6; // Hz → MHz
@@ -156,30 +166,32 @@ float compute_point_correlation(float ref, float cmp) {
 
 void main()
 {
+
+#ifdef OPTION_DEBUG
     if (BYPASS_PREFILTER > 0.5) {
         FragColor = vec4(texture(Source, vTexCoord).rgb, 1.0);
         return;
     }
+#endif  // OPTION_DEBUG
 
     // Input composite baseband from previous stage
     vec2 UV = vTexCoord * config.OutputSize.xy;
     float line = floor(UV.y);
-    float baseIndex = floor(UV.x);
-    float baseCenter = baseIndex + 0.5;
+    float baseCenter = floor(UV.x) + 0.5;
     float Ax = UV.x - baseCenter;
 
     vec2 Tex = vec2(
         baseCenter * config.OutputSize.z,
-        (floor(UV.y) + 0.5) * config.OutputSize.w);
+        (line + 0.5) * config.OutputSize.w);
     vec2 dx = vec2(config.OutputSize.z, 0.0);
-  
+
     // Center sample - input is already composite baseband from iq-demod.slang
     float composite0 = texture(Source, Tex).r;
 
     // Notch/bandpass filtering (always computed for modes < 0.5 and as fallback)
     float y_notch = 0.0;
     float c_notch = 0.0;
-    
+
     if (COLOR_FILTER_MODE < 0.5 || COLOR_FILTER_MODE >= 2.0) {
         // Chroma bandpass accumulators
         float c_accum = 0.0;
@@ -190,16 +202,17 @@ void main()
 
         // Subcarrier cycles per pixel for modulation (cycles/pixel)
         float f_sc_px = carrier.sc_freq_hz * carrier.pixel_time_px;
+        float phase_scale = 2.0 * PI * f_sc_px;  // Hoist constant multiplier
 
         // Center weights (include fractional horizontal offset Ax)
         float g_bp0 = gaussian(Ax, sigma_bp);
-        float w_bp0 = g_bp0 * cos(2.0 * PI * f_sc_px * Ax);
+        float w_bp0 = g_bp0 * cos(phase_scale * Ax);
 
         c_accum += w_bp0 * composite0;
         sum_c += g_bp0;
 
         float g_notch0 = gaussian(Ax, sigma_notch);
-        float w_notch0 = g_notch0 * cos(2.0 * PI * f_sc_px * Ax);
+        float w_notch0 = g_notch0 * cos(phase_scale * Ax);
         notch_accum += w_notch0 * composite0;
         sum_notch += g_notch0;
 
@@ -218,14 +231,14 @@ void main()
             // Right
             vec2 Tex_r = Tex + nf * dx;
             float comp_r = texture(Source, Tex_r).r;
-            float w_bp_r = g_bp_r * cos(2.0 * PI * f_sc_px * (nf - Ax));
-            float w_notch_r = g_notch_r * cos(2.0 * PI * f_sc_px * (nf - Ax));
+            float w_bp_r = g_bp_r * cos(phase_scale * (nf - Ax));
+            float w_notch_r = g_notch_r * cos(phase_scale * (nf - Ax));
 
             // Left
             vec2 Tex_l = Tex - nf * dx;
             float comp_l = texture(Source, Tex_l).r;
-            float w_bp_l = g_bp_l * cos(2.0 * PI * f_sc_px * (nf + Ax));
-            float w_notch_l = g_notch_l * cos(2.0 * PI * f_sc_px * (nf + Ax));
+            float w_bp_l = g_bp_l * cos(phase_scale * (nf + Ax));
+            float w_notch_l = g_notch_l * cos(phase_scale * (nf + Ax));
 
             c_accum += w_bp_r * comp_r + w_bp_l * comp_l;
             sum_c += g_bp_r + g_bp_l;
@@ -274,25 +287,21 @@ void main()
         // Sample phase-aligned taps
         float comb_taps_composite = texture(Source, Tex + dxy).r;
 
-        if (COLOR_FILTER_MODE >= 0.5) {
-            // Mode 1: Simple comb filter using parallel single-tap filter
-            
-            // Single-tap filter
-            float y1 = 0.5 * (composite0 + comb_taps_composite);
-            float c1 = 0.5 * (composite0 - comb_taps_composite);
-            if (COLOR_FILTER_MODE >= 1.5) {
-                // Mode 2: Adaptive comb filter using magnitude-based correlation
-                float composite_corr = compute_point_correlation(abs(composite0), abs(comb_taps_composite));
+        // Mode 1: Simple comb filter using parallel single-tap filter
+        float y1 = 0.5 * (composite0 + comb_taps_composite);
+        float c1 = 0.5 * (composite0 - comb_taps_composite);
+        if (COLOR_FILTER_MODE >= 1.5) {
+            // Mode 2: Adaptive comb filter using magnitude-based correlation
+            float composite_corr = compute_point_correlation(abs(composite0), abs(comb_taps_composite));
 
-                // Smoothly mix using +/-0.05 transition around adapt thresholds
-                float luma_w = smoothstep(COMB_FILTER_LUMA_ADAPT - 0.05, COMB_FILTER_LUMA_ADAPT + 0.05, composite_corr);
+            // Smoothly mix using +/-0.05 transition around adapt thresholds
+            float luma_w = smoothstep(COMB_FILTER_LUMA_ADAPT - 0.05, COMB_FILTER_LUMA_ADAPT + 0.05, composite_corr);
 
-                color_comb.r = mix(y_notch, y1, luma_w);
-                color_comb.g = c1;  // Always use comb chroma
-            } else {
-                // Fixed-weight simple comb filter output
-                color_comb = vec2(y1, c1);
-            }
+            color_comb.r = mix(y_notch, y1, luma_w);
+            color_comb.g = c1;  // Always use comb chroma
+        } else {
+            // Fixed-weight simple comb filter output
+            color_comb = vec2(y1, c1);
         }
     }
 
@@ -300,7 +309,7 @@ void main()
     vec2 color;
     float y_out;
     float c_out;
-    
+
     if (COLOR_FILTER_MODE < 0.5) {
         // Mode 0: Notch filter output only
         y_out = y_notch;
@@ -321,8 +330,6 @@ void main()
     // BW monitor modes: route either luma-only or chroma-only to all channels
     if (BW_MODE < 0.5) {
         // Normal output (no user scaling applied here)
-    } else if (BW_MODE < 1.5) {
-        color = vec2(y_out, c_out);
     } else if (BW_MODE < 2.5) {
         color = vec2(y_out, 0.0);
     } else if (BW_MODE < 3.5) {

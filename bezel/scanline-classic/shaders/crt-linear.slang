@@ -25,14 +25,16 @@
 // Linearizes CRT display output using BT.1886 transfer function
 // with user-configurable brightness and picture controls.
 
+#pragma name CRTLinear
+#pragma format R16G16B16A16_SFLOAT
+
 #include "common.inc"
 #include "color.inc"
 
 #include "menus/parameters/user-common.inc"
 #include "menus/parameters/colorimetry.inc"
 
-#pragma name CRTLinear
-#pragma format R16G16B16A16_SFLOAT
+#pragma include_optional "../config/options.cfg"
 
 layout(push_constant) uniform Push
 {
@@ -94,6 +96,9 @@ void main()
 
     mat3 RGB_to_XYZ;
 
+#ifdef OPTION_NOCOLOR
+    RGB_to_XYZ = sRGB_TO_XYZ;
+#else
     if (COLORIMETRY_PRESET < 0.5) {
         vec3 ref_XYZ = xyY_to_XYZ(vec3(W_X, W_Y, 1.0));
         vec3 red_XYZ = xyY_to_XYZ(vec3(R_X, R_Y, 1.0));
@@ -110,6 +115,7 @@ void main()
     } else {
         RGB_to_XYZ = sRGB_TO_XYZ;
     }
+#endif  // OPTION_NOCOLOR
 
     luma_weights = vec3(RGB_to_XYZ[0][1], RGB_to_XYZ[1][1], RGB_to_XYZ[2][1]);
 }
@@ -125,7 +131,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 void main()
 {
     const float TARGET_NITS = 100.0;
-    
+
     // Linearize input using BT.1886 transfer function
     vec3 color = bt1886_linear(texture(Source, vTexCoord).rgb, bt1886_a, bt1886_b);
 
