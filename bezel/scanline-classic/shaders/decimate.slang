@@ -25,27 +25,38 @@
 // Cutoff frequency set to fc = 0.5 * scale = 0.25 cycles/sample
 // for uniform 0.5 downsampling.
 
-#include "common.inc"
-#include "window.inc"
-
 #pragma name Decimate
 #pragma format R16G16B16A16_SFLOAT
 
-#pragma parameter BYPASS_DECIMATE_FILTER "Bypass decimation filter" 0.0 0.0 1.0 1.0
+#include "common.inc"
+#include "window.inc"
 
-layout(std140, set = 0, binding = 0) uniform UBO
-{
-    mat4 MVP;
-} global;
+#pragma include_optional "../config/options.cfg"
+
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_DECIMATE_HEADER " —— Debug Decimate —— " 0.0 0.0 0.0 0.0
+#pragma parameter BYPASS_DECIMATE_FILTER "Bypass decimation filter" 0.0 0.0 1.0 1.0
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
     vec4 SourceSize;   // xy = size, zw = 1/size
     vec4 OutputSize;   // xy = size, zw = 1/size
+
+#ifdef OPTION_DEBUG
     float BYPASS_DECIMATE_FILTER;
+#endif  // OPTION_DEBUG
+
 } config;
 
+#ifdef OPTION_DEBUG
 #define BYPASS_DECIMATE_FILTER config.BYPASS_DECIMATE_FILTER
+#endif  // OPTION_DEBUG
+
+layout(std140, set = 0, binding = 0) uniform UBO
+{
+    mat4 MVP;
+} global;
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -86,7 +97,13 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 void main()
 {
     // If no horizontal downsampling (defensive), pass-through
-    if (scale.x >= 0.999 || BYPASS_DECIMATE_FILTER > 0.5) {
+    bool bypass = scale.x >= 0.999;
+
+#ifdef OPTION_DEBUG
+    bypass = bypass || BYPASS_DECIMATE_FILTER > 0.5;
+#endif  // OPTION_DEBUG
+
+    if (bypass) {
         FragColor = texture(Source, vTexCoord);
         return;
     }

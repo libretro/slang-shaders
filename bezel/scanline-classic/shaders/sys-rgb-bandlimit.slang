@@ -1,21 +1,24 @@
 #version 450
 
-/* Filename: sys-rgb-bandlimit.slang
+// Filename: sys-rgb-bandlimit.slang
+//
+// Copyright (C) 2025 W. M. Martinez
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-   Copyright (C) 2025 W. M. Martinez
-
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>. */
+#pragma name SysRGBBandlimit
+#pragma format R16G16B16A16_SFLOAT
 
 #include "common.inc"
 #include "color.inc"
@@ -25,8 +28,11 @@
 #include "menus/parameters/sys-timing.inc"
 #include "menus/parameters/sys-rgb.inc"
 
-#pragma name SysRGBBandlimit
-#pragma format R16G16B16A16_SFLOAT
+#pragma include_optional "../config/options.cfg"
+
+#ifdef OPTION_DEBUG
+#pragma parameter SYS_RGB_BANDLIMIT_BYPASS "System RGB bandlimit bypass" 0.0 0.0 1.0 1.0
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
@@ -45,7 +51,11 @@ layout(push_constant) uniform Push
     float H_FREQ_MODE;
     float H_FREQ;
     float H_BLANK_FUZZ;
+
+#ifdef OPTION_DEBUG
     float SYS_RGB_BANDLIMIT_BYPASS;
+#endif
+
     float SYS_BANDWIDTH_R;
     float SYS_BANDWIDTH_G;
     float SYS_BANDWIDTH_B;
@@ -54,8 +64,11 @@ layout(push_constant) uniform Push
     float SYS_CUTOFF_ATTEN_B;
 } config;
 
-#pragma parameter SYS_RGB_BANDLIMIT_BYPASS "System RGB bandlimit bypass" 0.0 0.0 1.0 1.0
+#ifdef OPTION_DEBUG
 #define SYS_RGB_BANDLIMIT_BYPASS config.SYS_RGB_BANDLIMIT_BYPASS
+#else
+const float SYS_RGB_BANDLIMIT_BYPASS = 0.0;
+#endif  // OPTION_DEBUG
 
 #define V_FREQ_MODE config.V_FREQ_MODE
 #define V_FREQ config.V_FREQ
@@ -125,10 +138,18 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
+
+#ifdef OPTION_CRISPY
+    FragColor = texture(Source, vTexCoord);
+    return;
+#endif  // OPTION_CRISPY
+
+#ifdef OPTION_DEBUG
     if (SYS_RGB_BANDLIMIT_BYPASS > 0.5) {
         FragColor = texture(Source, vTexCoord);
         return;
     }
+#endif
 
     // Single-pass lobe-based horizontal Gaussian convolution
     vec3 color = bandlimit_convolve_gaussian_x(vTexCoord, config.OutputSize, Source, sigma);

@@ -26,16 +26,21 @@
 // channels, simulating DAC-level signal conditioning. Also applies
 // encoder setup pedestal to luma if enabled.
 
+#pragma name DAC
+#pragma format R16G16B16A16_SFLOAT
+
 #include "common.inc"
 #include "digital.inc"
 
 #include "menus/parameters/digital-component.inc"
 #include "menus/parameters/sys-encode.inc"
 
-#pragma name DAC
-#pragma format R16G16B16A16_SFLOAT
+#pragma include_optional "../config/options.cfg"
 
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_DAC_HEADER " —— Debug DAC —— " 0.0 0.0 0.0 0.0
 #pragma parameter DAC_BYPASS "Bypass DAC stage" 0.0 0.0 1.0 1.0
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
@@ -44,7 +49,6 @@ layout(push_constant) uniform Push
     uint FrameCount;
     uint CurrentSubFrame;
     uint TotalSubFrames;
-    float DAC_BYPASS;
     float WORKING_BITS;
     float DAC_BITS;
     float DITHER;
@@ -57,9 +61,17 @@ layout(push_constant) uniform Push
     float SYS_GAIN_U;
     float SYS_GAIN_V;
     float DEBUG_DITHER;
+
+#ifdef OPTION_DEBUG
+    float DAC_BYPASS;
+#endif  // OPTION_DEBUG
+
 } config;
 
+#ifdef OPTION_DEBUG
 #define DAC_BYPASS config.DAC_BYPASS
+#endif  // OPTION_DEBUG
+
 #define WORKING_BITS config.WORKING_BITS
 #define DAC_BITS config.DAC_BITS
 #define DITHER config.DITHER
@@ -94,14 +106,14 @@ void main()
     float gain_y = pow(10.0, SYS_GAIN_Y / 20.0);
     float gain_u = pow(10.0, SYS_GAIN_U / 20.0);
     float gain_v = pow(10.0, SYS_GAIN_V / 20.0);
-    
+
     gain = vec3(gain_y, gain_u, gain_v);
 
     // Convert IRE to voltage: bias = IRE * 10e-3
     float bias_y = SYS_BIAS_Y * 10e-3;
     float bias_u = SYS_BIAS_U * 10e-3;
     float bias_v = SYS_BIAS_V * 10e-3;
-    
+
     bias = vec3(bias_y, bias_u, bias_v);
 }
 
@@ -116,10 +128,12 @@ void main()
 {
     vec3 color = texture(Source, vTexCoord).rgb;
 
+#ifdef OPTION_DEBUG
     if (DAC_BYPASS > 0.5) {
         FragColor = vec4(color, 1.0);
         return;
     }
+#endif  // OPTION_DEBUG
 
     int bits = int(DAC_BITS + 0.5);
     int working_bits = int(WORKING_BITS + 0.5);

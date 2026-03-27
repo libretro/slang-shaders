@@ -28,6 +28,9 @@
 //  - applies Gaussian low-pass for luma/chroma
 //  - outputs RGB
 
+#pragma name DisplaySVideo
+#pragma format R16G16B16A16_SFLOAT
+
 #include "common.inc"
 #include "color.inc"
 #include "modulation.inc"
@@ -36,11 +39,13 @@
 #include "menus/parameters/sys-timing.inc"
 #include "menus/parameters/svideo.inc"
 
-#pragma name DisplaySVideo
-#pragma format R16G16B16A16_SFLOAT
+#pragma include_optional "../config/options.cfg"
 
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_DISPLAY_SVIDEO_HEADER " —— Debug Display S-Video —— " 0.0 0.0 0.0 0.0
 #pragma parameter BYPASS_SVIDEO "Bypass S-Video processing" 0.0 0.0 1.0 1.0
 #pragma parameter SVIDEO_FILTER_BYPASS "S-Video filter bypass" 0.0 0.0 1.0 1.0
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
@@ -62,10 +67,10 @@ layout(push_constant) uniform Push
     float USER_COLOR;
     float USER_TINT;
     float USER_MONOCHROME;
-    float DISPLAY_BANDWIDTH_Y;
-    float DISPLAY_BANDWIDTH_C;
     float DISPLAY_CUTOFF_ATTEN_Y;
-    float DISPLAY_CUTOFF_ATTEN_C;
+    float BW_MODE;
+    float DECODER_SETUP;
+    float DECODER_TYPE;
 } config;
 
 #define V_FREQ_MODE config.V_FREQ_MODE
@@ -83,26 +88,33 @@ layout(push_constant) uniform Push
 #define USER_TINT config.USER_TINT
 #define USER_MONOCHROME config.USER_MONOCHROME
 
-#define DISPLAY_BANDWIDTH_Y config.DISPLAY_BANDWIDTH_Y
-#define DISPLAY_BANDWIDTH_C config.DISPLAY_BANDWIDTH_C
 #define DISPLAY_CUTOFF_ATTEN_Y config.DISPLAY_CUTOFF_ATTEN_Y
-#define DISPLAY_CUTOFF_ATTEN_C config.DISPLAY_CUTOFF_ATTEN_C
+#define BW_MODE config.BW_MODE
+#define DECODER_SETUP config.DECODER_SETUP
+#define DECODER_TYPE config.DECODER_TYPE
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
+
+#ifdef OPTION_DEBUG
     float BYPASS_SVIDEO;
     float SVIDEO_FILTER_BYPASS;
-    float BW_MODE;
-    float DECODER_SETUP;
-    float DECODER_TYPE;
+#endif
+
+    float DISPLAY_BANDWIDTH_C;
+    float DISPLAY_BANDWIDTH_Y;
+    float DISPLAY_CUTOFF_ATTEN_C;
 } global;
 
+#define DISPLAY_BANDWIDTH_Y global.DISPLAY_BANDWIDTH_Y
+#define DISPLAY_BANDWIDTH_C global.DISPLAY_BANDWIDTH_C
+#define DISPLAY_CUTOFF_ATTEN_C global.DISPLAY_CUTOFF_ATTEN_C
+#ifdef OPTION_DEBUG
 #define BYPASS_SVIDEO global.BYPASS_SVIDEO
 #define SVIDEO_FILTER_BYPASS global.SVIDEO_FILTER_BYPASS
-#define BW_MODE global.BW_MODE
-#define DECODER_SETUP global.DECODER_SETUP
-#define DECODER_TYPE global.DECODER_TYPE
+#endif  // OPTION_DEBUG
+
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -160,22 +172,25 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
+
+#ifdef OPTION_DEBUG
     if (BYPASS_SVIDEO >= 1.0) {
         FragColor = vec4(texture(Source, vTexCoord).rgb, 1.0);
         return;
     }
+#endif
 
     // Position and base center
     vec2 UV = vTexCoord * config.OutputSize.xy;
+    float line = floor(UV.y);
     float baseIndex = floor(UV.x);
     float baseCenter = baseIndex + 0.5;
     float Ax = UV.x - baseCenter;
     vec2 Tex = vec2(baseCenter * config.OutputSize.z,
-        (floor(UV.y) + 0.5) * config.OutputSize.w);
+        (line + 0.5) * config.OutputSize.w);
     vec2 dx = vec2(config.OutputSize.z, 0.0);
 
     // Carrier phase for center sample
-    float line = floor(UV.y);
     float t0 = line / carrier.h_freq_hz + baseCenter * carrier.pixel_time_px;
     float phase_inc_px = 2.0 * PI * carrier.sc_freq_hz * carrier.pixel_time_px;
 
@@ -184,8 +199,6 @@ void main()
     vec3 pixel0 = texture(Source, Tex).rgb;
     float phase0 = compute_carrier_phase(t0, carrier.sc_freq_hz, carrier.field_phase);
     float phase0_user = normalize_phase(phase0 + c_phase);
-    phase0 = normalize_phase(phase0);
-    vec2 carrier0 = sincos_phase_raw(phase0);
     vec2 carrier0_user = sincos_phase_raw(phase0_user);
 
     // Input chroma already modulated: use directly
@@ -208,6 +221,8 @@ void main()
     wsum  += vec3(wy0, wc0, wc0);
 
     // Symmetric lobes with early exit
+
+#ifdef OPTION_DEBUG
     if (SVIDEO_FILTER_BYPASS < 1.0) {
         for (int n = 1; n <= 16; ++n) {
             float nf = float(n);
@@ -222,9 +237,7 @@ void main()
 
             // Right tap
             vec3 pixelR = texture(Source, Tex + nf * dx).rgb;
-            float phaseR = normalize_phase(phase0 + phase_inc_px * nf);
             float phaseR_user = normalize_phase(phase0_user + phase_inc_px * nf);
-            vec2 carrierR = sincos_phase_raw(phaseR);
             vec2 carrierR_user = sincos_phase_raw(phaseR_user);
             float chroma_modR = pixelR.g;
             float chroma_uR = chroma_modR * 2.0 * carrierR_user.x;
@@ -232,9 +245,7 @@ void main()
 
             // Left tap
             vec3 pixelL = texture(Source, Tex - nf * dx).rgb;
-            float phaseL = normalize_phase(phase0 - phase_inc_px * nf);
             float phaseL_user = normalize_phase(phase0_user - phase_inc_px * nf);
-            vec2 carrierL = sincos_phase_raw(phaseL);
             vec2 carrierL_user = sincos_phase_raw(phaseL_user);
             float chroma_modL = pixelL.g;
             float chroma_uL = chroma_modL * 2.0 * carrierL_user.x;
@@ -248,6 +259,44 @@ void main()
             wsum.z  += wc_r + wc_l;
         }
     }
+#else
+    {
+        for (int n = 1; n <= 16; ++n) {
+            float nf = float(n);
+            float wy_r = gaussian(nf - Ax, sigma.x);
+            float wy_l = gaussian(nf + Ax, sigma.x);
+            float wc_r = gaussian(nf - Ax, sigma.y);
+            float wc_l = gaussian(nf + Ax, sigma.y);
+
+            if (wy_r < FILTER_THRESHOLD && wy_l < FILTER_THRESHOLD &&
+                wc_r < FILTER_THRESHOLD && wc_l < FILTER_THRESHOLD)
+                break;
+
+            // Right tap
+            vec3 pixelR = texture(Source, Tex + nf * dx).rgb;
+            float phaseR_user = normalize_phase(phase0_user + phase_inc_px * nf);
+            vec2 carrierR_user = sincos_phase_raw(phaseR_user);
+            float chroma_modR = pixelR.g;
+            float chroma_uR = chroma_modR * 2.0 * carrierR_user.x;
+            float chroma_vR = chroma_modR * 2.0 * carrierR_user.y * pal_v_sign;
+
+            // Left tap
+            vec3 pixelL = texture(Source, Tex - nf * dx).rgb;
+            float phaseL_user = normalize_phase(phase0_user - phase_inc_px * nf);
+            vec2 carrierL_user = sincos_phase_raw(phaseL_user);
+            float chroma_modL = pixelL.g;
+            float chroma_uL = chroma_modL * 2.0 * carrierL_user.x;
+            float chroma_vL = chroma_modL * 2.0 * carrierL_user.y * pal_v_sign;
+
+            accum.x += wy_r * pixelR.r + wy_l * pixelL.r;
+            accum.y += wc_r * chroma_uR + wc_l * chroma_uL;
+            accum.z += wc_r * chroma_vR + wc_l * chroma_vL;
+            wsum.x  += wy_r + wy_l;
+            wsum.y  += wc_r + wc_l;
+            wsum.z  += wc_r + wc_l;
+        }
+    }
+#endif
 
     vec3 yc = accum / max(wsum, vec3(EPS));
 

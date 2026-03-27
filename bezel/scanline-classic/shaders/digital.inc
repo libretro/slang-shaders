@@ -116,7 +116,7 @@ vec3 limit_ycbcr(vec3 ycbcr, int bits)
     float y = ycbcr.x;
     float cb = ycbcr.y;
     float cr = ycbcr.z;
-    
+
     if (bits <= 8) {
         const float inv255 = 1.0 / 255.0;
         // Y: [16, 235] out of 255
@@ -134,7 +134,7 @@ vec3 limit_ycbcr(vec3 ycbcr, int bits)
         cb = (512.0 + cb * 448.0) * inv1023;
         cr = (512.0 + cr * 448.0) * inv1023;
     }
-    
+
     return vec3(y, cb, cr);
 }
 
@@ -146,7 +146,7 @@ vec3 unlimit_ycbcr(vec3 ycbcr, int bits)
     float y = ycbcr.x;
     float cb = ycbcr.y;
     float cr = ycbcr.z;
-    
+
     if (bits <= 8) {
         // Y: [16, 235] -> [0, 1]
         y = (y * 255.0 - 16.0) / 219.0;
@@ -160,7 +160,7 @@ vec3 unlimit_ycbcr(vec3 ycbcr, int bits)
         cb = (cb * 1023.0 - 512.0) / 448.0;
         cr = (cr * 1023.0 - 512.0) / 448.0;
     }
-    
+
     return vec3(y, cb, cr);
 }
 
@@ -173,7 +173,7 @@ float apply_dither(float value, int working_bits, int output_bits, vec2 coord, u
         // No dithering needed if working bits are less than or equal to output bits
         return value;
     }
-    
+
     // Dither amplitude
     float dither_amount;
 
@@ -187,7 +187,7 @@ float apply_dither(float value, int working_bits, int output_bits, vec2 coord, u
     } else {
         dither_amount = 1.0 / (pow(2.0, float(output_bits)) - 1.0);
     }
-    
+
     // Add TPDF dither (integer pixel + frame-seeded)
     float dither = tpdf_noise(coord, frame) * dither_amount;
     return value + dither;

@@ -1,6 +1,6 @@
 #version 450
 
-// Filename: svideo-mod.slang
+// Filename: sys-yc.slang
 //
 // Copyright (C) 2025 W. M. Martinez
 //
@@ -22,6 +22,9 @@
 // Input: RGB voltage signal
 // Output: Luma and chroma (R16G16_SFLOAT, R=luma, G=chroma)
 
+#pragma name SysYC
+#pragma format R16G16_SFLOAT
+
 #include "common.inc"
 #include "color.inc"
 #include "modulation.inc"
@@ -29,15 +32,11 @@
 #include "menus/parameters/sys-encode.inc"
 #include "menus/parameters/sys-yc.inc"
 
-#pragma name SysYC
-#pragma format R16G16_SFLOAT
-
 layout(push_constant) uniform Push
 {
     vec4 OriginalSize;
     vec4 OutputSize;
     vec4 FrameHSize;
-    uint FrameCount;
     float OriginalFPS;
     float V_FREQ_MODE;
     float V_FREQ;
@@ -57,6 +56,7 @@ layout(push_constant) uniform Push
     float SYS_BIAS_Y;
     float SYS_BIAS_U;
     float SYS_BIAS_V;
+    float ENCODER_SETUP;
 } config;
 
 #define V_FREQ_MODE config.V_FREQ_MODE
@@ -77,14 +77,14 @@ layout(push_constant) uniform Push
 #define SYS_BIAS_Y config.SYS_BIAS_Y
 #define SYS_BIAS_U config.SYS_BIAS_U
 #define SYS_BIAS_V config.SYS_BIAS_V
+#define ENCODER_SETUP config.ENCODER_SETUP
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
-    float ENCODER_SETUP;
+    uint FrameCount;
 } global;
 
-#define ENCODER_SETUP global.ENCODER_SETUP
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -100,7 +100,7 @@ void main()
     vTexCoord = TexCoord;
 
     tb = compute_timebase(
-        config.FrameCount,
+        global.FrameCount,
         vTexCoord,
         config.OriginalSize.xy,
         config.OutputSize.xy,
@@ -140,24 +140,23 @@ void main()
 {
     vec2 UV = vTexCoord * config.OutputSize.xy;
     float line = floor(UV.y);
-    float baseIndex = floor(UV.x);
-    float baseCenter = baseIndex + 0.5;
+    float baseCenter = floor(UV.x) + 0.5;
     vec2 Tex = vec2(
         baseCenter * config.OutputSize.z,
-        (floor(UV.y) + 0.5) * config.OutputSize.w);
+        (line + 0.5) * config.OutputSize.w);
 
     // Convert RGB to selected luma-chroma space
     vec3 rgb = texture(Source, Tex).rgb;
     vec3 yc = rgb_to_luma_chroma(rgb, YC_MODEL);
-    
+
     // Apply gain and bias
     yc = gain * (yc + bias);
-    
+
     // Modulate chroma onto subcarrier
-    vec2 pal_phase = vec2(0.0, floor(mod(line, 2.0)) * PI * PAL);
+    float pal_phase = floor(mod(line, 2.0)) * PI * PAL;
     float t0 = line / tb.h_freq_hz + baseCenter * tb.pixel_time_px;
     float phase0 = compute_carrier_phase(t0, tb.sc_freq_hz, tb.field_phase);
-    vec2 carrier0 = sincos_phase_raw(vec2(phase0) + pal_phase);
+    vec2 carrier0 = sincos_phase_raw(vec2(phase0, phase0 + pal_phase));
     float chroma0 = yc.g * carrier0.x + yc.b * carrier0.y;
 
     float y_gain = 1.0;

@@ -1,21 +1,24 @@
 #version 450
 
-/* Filename: display-rgb-bandlimit.slang
+// Filename: display-rgb-bandlimit.slang
+//
+// Copyright (C) 2025 W. M. Martinez
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-   Copyright (C) 2025 W. M. Martinez
-
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>. */
+#pragma name DisplayRGBBandlimit
+#pragma format R16G16B16A16_SFLOAT
 
 #include "common.inc"
 #include "color.inc"
@@ -26,11 +29,13 @@
 #include "menus/parameters/sys-timing.inc"
 #include "menus/parameters/display-rgb.inc"
 
-#pragma name DisplayRGBBandlimit
-#pragma format R16G16B16A16_SFLOAT
+#pragma include_optional "../config/options.cfg"
 
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_DISPLAY_RGB_BANDLIMIT_HEADER " —— Debug Display RGB Bandlimit —— " 0.0 0.0 0.0 0.0
 #pragma parameter DISPLAY_RGB_AMP_BYPASS "Bypass display RGB amplifier" 0.0 0.0 1.0 1.0
 #pragma parameter DISPLAY_RGB_FILTER_BYPASS "Bypass display RGB filter" 0.0 0.0 1.0 1.0
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
@@ -79,24 +84,29 @@ layout(push_constant) uniform Push
 #define DISPLAY_CUTOFF_ATTEN_B config.DISPLAY_CUTOFF_ATTEN_B
 
 
-
 #define USER_BLUE_ONLY config.USER_BLUE_ONLY
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
-    float DISPLAY_RGB_FILTER_BYPASS;
-    float DISPLAY_RGB_AMP_BYPASS;
     float DISPLAY_GAIN_R;
     float DISPLAY_GAIN_G;
     float DISPLAY_GAIN_B;
     float DISPLAY_BIAS_R;
     float DISPLAY_BIAS_G;
     float DISPLAY_BIAS_B;
+
+#ifdef OPTION_DEBUG
+    float DISPLAY_RGB_FILTER_BYPASS;
+    float DISPLAY_RGB_AMP_BYPASS;
+#endif  // OPTION_DEBUG
+
 } global;
 
+#ifdef OPTION_DEBUG
 #define DISPLAY_RGB_FILTER_BYPASS global.DISPLAY_RGB_FILTER_BYPASS
 #define DISPLAY_RGB_AMP_BYPASS global.DISPLAY_RGB_AMP_BYPASS
+#endif  // OPTION_DEBUG
 
 #define DISPLAY_GAIN_R global.DISPLAY_GAIN_R
 #define DISPLAY_GAIN_G global.DISPLAY_GAIN_G
@@ -166,16 +176,34 @@ void main()
 {
     vec3 color;
 
+#ifdef OPTION_DEBUG
+#ifdef OPTION_CRISPY
+    color = texture(Source, vTexCoord).rgb;  // Bypass RGB filters: use unfiltered center sample
+#else
     if (DISPLAY_RGB_FILTER_BYPASS < 0.5) {
         color = bandlimit_convolve_gaussian_x(vTexCoord, config.OutputSize, Source, sigma);
     } else {
+        // Bypass RGB filter: use unfiltered samples
         color = texture(Source, vTexCoord).rgb;
     }
+#endif  // OPTION_CRISPY
+#else
+#ifdef OPTION_CRISPY
+    color = texture(Source, vTexCoord).rgb;  // Bypass RGB filters: use unfiltered center sample
+#else
+    color = bandlimit_convolve_gaussian_x(vTexCoord, config.OutputSize, Source, sigma);
+#endif  // OPTION_CRISPY
+#endif  // OPTION_DEBUG
 
     // RGB amplifier
+
+#ifdef OPTION_DEBUG
     if (DISPLAY_RGB_AMP_BYPASS < 0.5) {
         color = gain * (color + bias);
     }
+#else
+    color = gain * (color + bias);
+#endif  // OPTION_DEBUG
 
     // Apply blue-only filter
     color.r *= 1.0 - USER_BLUE_ONLY;

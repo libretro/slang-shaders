@@ -1,6 +1,6 @@
 #version 450
 
-// Filename: menu.slang
+// Filename: menu-digital-rf-upsample-sdr.slang
 //
 // Copyright (C) 2023, 2025 W. M. Martinez
 //
@@ -26,7 +26,7 @@
 #include "parameters/user-video.inc"
 #include "parameters/user-uncommon.inc"
 #include "parameters/output-curve.inc"
-#include "parameters/output-tonemap.inc"
+#include "parameters/output-tonemap-sdr.inc"
 #include "parameters/output-color.inc"
 #include "parameters/output-color-sdr.inc"
 #include "parameters/output-bezel.inc"
@@ -44,6 +44,5 @@
 #include "parameters/sys-encode.inc"
 #include "parameters/digital-component.inc"
 #include "parameters/digital-upsample.inc"
-#include "parameters/debug-common.inc"
 
 #include "menu-base.slang"

@@ -142,7 +142,7 @@ mat3 YCbCr_TO_RGB = mat3(
     1.0,    1.0,      1.0,
     0.0,   -0.1873,   1.8556,
     1.5748, -0.4681,   0.0);
-    
+
 
 mat3 colorspace_rgb(const float colorspace)
 {

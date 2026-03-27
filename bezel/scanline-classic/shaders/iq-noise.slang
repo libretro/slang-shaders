@@ -2,6 +2,21 @@
 
 // Filename: iq-noise.slang
 //
+// Copyright (C) 2025 W. M. Martinez
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
 // Noise post-processing pass for IQ baseband.
 // Consumes filtered analytic IQ (R=I, G=Q) and injects noise effects.
 // Modes:
@@ -9,15 +24,20 @@
 //  - Advanced: band-limited AWGN + optional ghost, impulse, phase jitter.
 // Output: R16G16_SFLOAT (no alpha usage).
 
+#pragma name IQNoise
+#pragma format R16G16_SFLOAT
+
 #include "common.inc"
 #include "window.inc"
 
 #include "menus/parameters/rf.inc"
 
-#pragma name IQNoise
-#pragma format R16G16_SFLOAT
+#pragma include_optional "../config/options.cfg"
 
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_IQ_NOISE_HEADER " —— Debug IQ Noise —— " 0.0 0.0 0.0 0.0
 #pragma parameter BYPASS_NOISE "Bypass noise (off,on)" 0.0 0.0 1.0 1.0
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
@@ -27,7 +47,6 @@ layout(push_constant) uniform Push
     uint CurrentSubFrame;
     uint TotalSubFrames;
     float OriginalFPS;
-    float BYPASS_NOISE;
     float NOISE_MODE;
     float NOISE_AWGN_DB;
     float NOISE_PHASE_JITTER_DEG;
@@ -35,9 +54,17 @@ layout(push_constant) uniform Push
     float NOISE_GHOST1_PIX;
     float NOISE_IMPULSE_RATE;
     float NOISE_IMPULSE_DB;
+
+#ifdef OPTION_DEBUG
+    float BYPASS_NOISE;
+#endif  // OPTION_DEBUG
+
 } config;
 
+#ifdef OPTION_DEBUG
 #define BYPASS_NOISE            config.BYPASS_NOISE
+#endif  // OPTION_DEBUG
+
 #define NOISE_MODE              config.NOISE_MODE
 #define NOISE_AWGN_DB           config.NOISE_AWGN_DB
 #define NOISE_PHASE_JITTER_DEG  config.NOISE_PHASE_JITTER_DEG
@@ -70,10 +97,13 @@ layout(set = 0, binding = 2) uniform sampler2D Source; // Input IQ
 void main()
 {
     vec2 iq = texture(Source, vTexCoord).rg;
+
+#ifdef OPTION_DEBUG
     if (BYPASS_NOISE > 0.5) {
         FragColor = vec4(iq, 0.0, 1.0);
         return;
     }
+#endif  // OPTION_DEBUG
 
     // Base AWGN amplitude (linear)
     float awgn_amp = exp(NOISE_AWGN_DB * 0.1151292546); // ln(10)/20

@@ -25,6 +25,9 @@
 // Performs chroma subsampling by sampling luma from source RGB
 // and applying nearest-neighbor chroma sampling.
 
+#pragma name DigitalChromaSubsample
+#pragma format A2B10G10R10_UNORM_PACK32
+
 #include "common.inc"
 #include "color.inc"
 #include "modulation.inc"
@@ -33,10 +36,12 @@
 #include "menus/parameters/digital-component.inc"
 #include "menus/parameters/digital-chroma-subsample.inc"
 
-#pragma name DigitalChromaSubsample
-#pragma format A2B10G10R10_UNORM_PACK32
+#pragma include_optional "../config/options.cfg"
 
+#ifdef OPTION_DEBUG
+#pragma parameter DEBUG_CHROMA_SUBSAMPLE_HEADER " —— Debug Chroma Subsample —— " 0.0 0.0 0.0 0.0
 #pragma parameter CHROMA_SUBSAMPLE_BYPASS "Bypass chroma subsampling" 0.0 0.0 1.0 1.0
+#endif  // OPTION_DEBUG
 
 layout(push_constant) uniform Push
 {
@@ -46,7 +51,6 @@ layout(push_constant) uniform Push
     uint FrameCount;
     float OriginalFPS;
 
-    float CHROMA_SUBSAMPLE_BYPASS;
     float YCBCR_MODEL;
     float CHROMA_SUBSAMPLE;
     float SC_FREQ_MODE;
@@ -58,9 +62,17 @@ layout(push_constant) uniform Push
     float V_FREQ_MODE;
     float V_FREQ;
     float H_BLANK_FUZZ;
+
+#ifdef OPTION_DEBUG
+    float CHROMA_SUBSAMPLE_BYPASS;
+#endif  // OPTION_DEBUG
+
 } config;
 
+#ifdef OPTION_DEBUG
 #define CHROMA_SUBSAMPLE_BYPASS config.CHROMA_SUBSAMPLE_BYPASS
+#endif  // OPTION_DEBUG
+
 #define YCBCR_MODEL config.YCBCR_MODEL
 #define CHROMA_SUBSAMPLE config.CHROMA_SUBSAMPLE
 
@@ -99,14 +111,17 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 void main()
 {
     // Bypass check
+
+#ifdef OPTION_DEBUG
     if (CHROMA_SUBSAMPLE_BYPASS > 0.5) {
         FragColor = texture(Source, vTexCoord);
         return;
     }
+#endif  // OPTION_DEBUG
 
     // Determine subsampling mode
     float mode = CHROMA_SUBSAMPLE;
-    
+
     // Auto mode: choose based on color model
     if (mode < 0.5) {
         if (YCBCR_MODEL < 0.5) {
@@ -119,7 +134,7 @@ void main()
     // Sample full-resolution YCbCr
     vec3 yc_full = texture(Source, vTexCoord).rgb;
     float y = yc_full.r; // Y component passes through unchanged
-    
+
     // If mode 4:4:4, no chroma subsampling needed
     if (mode < 1.5) {
         FragColor = vec4(yc_full, 1.0);
@@ -128,24 +143,24 @@ void main()
 
     // For 4:2:2 or 4:2:0: subsample chroma (G, B components)
     vec2 output_pixel = vTexCoord * config.OutputSize.xy;
-    
+
     // Sample from neighboring pixels for blending
     vec2 chroma_pixel_0 = output_pixel;
     vec2 chroma_pixel_1 = output_pixel + vec2(1.0, 0.0);
-    
+
     // For 4:2:0, also include vertical neighbors
     if (mode > 2.5) {
         vec2 chroma_pixel_2 = output_pixel + vec2(0.0, 1.0);
         vec2 chroma_pixel_3 = output_pixel + vec2(1.0, 1.0);
     }
-    
+
     // Average chroma samples from neighboring pixels
     vec2 chroma = vec2(0.0);
     int sample_count = 0;
-    
+
     for (int dx = 0; dx < 2; dx++) {
         vec2 chroma_pixel = output_pixel + vec2(float(dx), 0.0);
-        
+
         int y_end = (mode > 2.5) ? 2 : 1;
         for (int dy = 0; dy < y_end; dy++) {
             vec2 sample_pos = chroma_pixel + vec2(0.0, float(dy));
@@ -154,8 +169,8 @@ void main()
             sample_count++;
         }
     }
-    
+
     chroma /= float(sample_count);
-    
+
     FragColor = vec4(y, chroma.x, chroma.y, 1.0);
 }

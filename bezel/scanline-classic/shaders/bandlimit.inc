@@ -15,7 +15,7 @@ vec3 bandlimit_convolve_gaussian_x(vec2 vTexCoord, vec4 OutputSize, sampler2D So
     float baseIndex = floor(UV.x + 0.5);              // rounds to nearest integer
     float baseCenter = (baseIndex + 0.5);              // pixel center in pixel units
     float Ax = UV.x - baseCenter;                      // offset in [-0.5, 0.5]
-    
+
     float baseX = baseCenter * OutputSize.z;
     float baseY = (floor(UV.y) + 0.5) * OutputSize.w;
     vec2 Tex = vec2(baseX, baseY);
