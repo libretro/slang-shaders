@@ -95,7 +95,30 @@ int nbr_cp_idx(int cx, int cy, int from_dir) {
     bool is_ullr = (diag & 1u) != 0u && (diag & 2u) == 0u;
     bool is_llur = (diag & 2u) != 0u && (diag & 1u) == 0u;
 
-    if (!is_ullr && !is_llur) return base;
+    if (!is_ullr && !is_llur) {
+        // No resolved diagonal: check for 3/4-way junction needing slot routing.
+        // Slot 0 = main pair, slot 1 = stem (3-way) or second pair (4-way).
+        bool t_bnd_n = g(2 * cx, 2 * cy - 1) == 0u;
+        bool t_bnd_e = g(2 * cx + 1, 2 * cy) == 0u;
+        bool t_bnd_s = g(2 * cx, 2 * cy + 1) == 0u;
+        bool t_bnd_w = g(2 * cx - 1, 2 * cy) == 0u;
+        uint t_count = (t_bnd_n ? 1u : 0u) + (t_bnd_e ? 1u : 0u)
+                     + (t_bnd_s ? 1u : 0u) + (t_bnd_w ? 1u : 0u);
+        if (t_count >= 3u) {
+            // Determine main pair (same priority order as compute_corner)
+            int pair0, pair1;
+            if (t_bnd_n && t_bnd_s) { pair0 = 0; pair1 = 2; }
+            else if (t_bnd_e && t_bnd_w) { pair0 = 1; pair1 = 3; }
+            else if (t_bnd_n && t_bnd_e) { pair0 = 0; pair1 = 1; }
+            else if (t_bnd_n && t_bnd_w) { pair0 = 0; pair1 = 3; }
+            else if (t_bnd_s && t_bnd_e) { pair0 = 2; pair1 = 1; }
+            else { pair0 = 2; pair1 = 3; }
+            // Map from_dir to the boundary direction at the target corner
+            int target_side = from_dir ^ 2;
+            if (target_side != pair0 && target_side != pair1) return base + 1;
+        }
+        return base;
+    }
 
     int slot = 0;
     if (from_dir == 0) { if (is_llur) slot = 1; }
@@ -374,8 +397,9 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
         }
 
     } else {
-        // Valence 4: pinned, N-S pair
+        // Valence 4 cross-junction: two crossing curve pairs, both pinned
         slot0 = CPData(pos, n_idx, s_idx, 1u, 0, 2);
+        slot1 = CPData(pos, e_idx, w_idx, 1u, 1, 3);
     }
 }
 
