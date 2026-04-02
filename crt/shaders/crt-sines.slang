@@ -14,7 +14,7 @@ layout(push_constant) uniform Push
    float beam_max, beam_min, scan_max, scan_min,CURVATURE_X,
    CURVATURE_Y,CURVATURE_SCALE,u_vignette,MSK_BRI,mask_type,
    boost_bright,boost_dark,glow_str,color_sat,deconv,glass_refl,
-   MSK_WIDTH,MSK_HEIGHT,MSK_STAG,glass_refl_pos;
+   MSK_WIDTH,MSK_HEIGHT,MSK_STAG,glass_refl_pos, crt_colors;
 } params;
 
 #pragma parameter dummy_beam " [ BEAM ] " 0.0 0.0 0.0 0.0
@@ -31,8 +31,8 @@ layout(push_constant) uniform Push
 #pragma parameter MSK_BRI "Mask Brightness" 0.4 0.0 1.0 0.05
 
 #pragma parameter dummy_tube " [ TUBE ] " 0.0 0.0 0.0 0.0
-#pragma parameter CURVATURE_X "Curvature Horiz." 0.0 0.0 0.3 0.01
-#pragma parameter CURVATURE_Y "Curvature Vert." 0.06 0.0 0.3 0.01
+#pragma parameter CURVATURE_X "Curvature Horiz." 0.01 0.0 0.3 0.01
+#pragma parameter CURVATURE_Y "Curvature Vert." 0.04 0.0 0.3 0.01
 #pragma parameter CURVATURE_SCALE "Curvature Scale" 0.0 0.0 1.0 0.01
 #pragma parameter u_vignette "Vignette" 0.25 0.0 1.0 0.01
 #pragma parameter deconv "Deconvergence" 0.0 0.0 1.0 1.0
@@ -40,6 +40,7 @@ layout(push_constant) uniform Push
 #pragma parameter glass_refl_pos "Glass Reflection Pos." 0.5 0.0 1.0 0.01
 
 #pragma parameter dymmy_col " [ COLORS ] " 0.0 0.0 0.0 0.0
+#pragma parameter crt_colors "CRT Colors" 1.0 0.0 1.0 1.0
 #pragma parameter boost_dark "Boost Dark Pixels" 1.5 1.0 4.0 0.05
 #pragma parameter boost_bright "Boost Bright Pixels" 1.2 1.0 4.0 0.05
 #pragma parameter glow_str "Glow Strength" 0.15 0.0 1.0 0.01
@@ -65,6 +66,7 @@ layout(push_constant) uniform Push
 #define deconv params.deconv
 #define glass_refl params.glass_refl
 #define glass_refl_pos params.glass_refl_pos
+#define crt_colors params.crt_colors
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -156,6 +158,10 @@ vec3 mask_ = (m == 0.0)? vec3(MSK_BRI) : vec3(1.0);
  return mask_;
 }
 
+mat3 crt = mat3( 1.05, 0.1,-0.1,
+                -0.05,0.9, 0.0,
+                 0.05,0.0, 1.1);
+
 void main()
 {
 // curve screen   
@@ -169,7 +175,7 @@ void main()
    float y = p.y - i.y;
    float x = fract(p.x);
 
-   // blurrier X axis
+   // blurrier X axis, smoothstep cubic
    p.x = (i.x + x*x*(3.0-2.0*x))*invDims.x;
    // sharp Y axis, max sharp quillez modification
    p.y = (i.y + 16.0*y*y*y*y*y)*invDims.y;
@@ -178,9 +184,12 @@ void main()
 
 // hardcoded deconvergence
 if (deconv == 1.0){   
-colour.r = texture(Source, applyCurvature(vTexCoord + vec2(0.001,0))).r;
-colour.b = texture(Source, applyCurvature(vTexCoord - vec2(0.001,0))).b;
+colour.r = texture(Source, applyCurvature(vTexCoord + vec2(0.001,0.0))).r;
+colour.b = texture(Source, applyCurvature(vTexCoord - vec2(0.001,0.0))).b;
 }
+
+if (crt_colors == 1.0) {colour *= crt; 
+   colour = clamp(colour,vec3(0.0),vec3(1.0));}
 
 // glass reflect
 float glass = pow(1.0 - distance(uv, vec2(glass_refl_pos)), 6.0) * glass_refl/10.0;
