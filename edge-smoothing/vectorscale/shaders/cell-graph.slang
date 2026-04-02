@@ -55,6 +55,7 @@ int CORNERS_H() { return IMG_H() + 1; }
 
 const uint IS_CORNER = 16u;
 const uint IS_TJUNCTION = 32u;
+const uint IS_CROSSING  = 64u;
 
 // Read edge/diagonal flag from the resolved graph texture.
 uint g(int gx, int gy) {
@@ -397,9 +398,12 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
         }
 
     } else {
-        // Valence 4 cross-junction: two crossing curve pairs, both pinned
-        slot0 = CPData(pos, n_idx, s_idx, 1u, 0, 2);
-        slot1 = CPData(pos, e_idx, w_idx, 1u, 1, 3);
+        // Valence 4 cross-junction: inverse-correct both CPs so their
+        // B-spline curves pass through the grid corner at t=0.5.
+        // IS_CORNER prevents optimizer movement, IS_CROSSING triggers
+        // inverse correction in update_tjunction.
+        slot0 = CPData(pos, n_idx, s_idx, 2u | IS_CORNER | IS_CROSSING, 0, 2);
+        slot1 = CPData(pos, e_idx, w_idx, 2u | IS_CORNER | IS_CROSSING, 1, 3);
     }
 }
 

@@ -54,6 +54,7 @@ int CORNERS_H() { return IMG_H() + 1; }
 int NUM_CPS()  { return CORNERS_W() * CORNERS_H() * 2; }
 
 const uint IS_TJUNCTION = 32u;
+const uint IS_CROSSING  = 64u;
 
 void decode_cp(int cp_idx, out int cx, out int cy_slot) {
     int cp_half = cp_idx / 2;
@@ -118,7 +119,21 @@ void main() {
     int partner = i ^ 1;
     uint partner_flags = read_flags(partner);
 
-    if ((flags & IS_TJUNCTION) != 0u) {
+    // Valence-4 crossing: inverse B-spline correction so the curve
+    // passes through the grid corner (current position) at t=0.5.
+    if ((flags & IS_CROSSING) != 0u) {
+        ivec2 nbrs = read_neighbors(i);
+        int prev_idx = nbrs.x;
+        int next_idx = nbrs.y;
+
+        if (prev_idx >= 0 && next_idx >= 0) {
+            vec2 prev_pos = read_pos(prev_idx);
+            vec2 next_pos = read_pos(next_idx);
+            vec2 corrected = (curr_pos - 0.125 * prev_pos - 0.125 * next_pos) / 0.75;
+            FragColor = vec4(corrected.x, corrected.y, 0.0, 0.0);
+            return;
+        }
+    } else if ((flags & IS_TJUNCTION) != 0u) {
         ivec2 nbrs = read_neighbors(i);
         int prev_idx = nbrs.x;
         int next_idx = nbrs.y;
