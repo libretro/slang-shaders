@@ -1,6 +1,6 @@
 #version 450
 
-// colEG
+// monoCRT
 // by hunterk
 // license: public domain
 
@@ -12,8 +12,7 @@ layout(push_constant) uniform Push
 	uint FrameCount;
 	uint CurrentSubFrame;
 	uint TotalSubFrames;
-	float scanMax, horzSharp, brightBoost, gammaIn, gammaOut,
-		noiseFactor, monoColParam, maskPicker;
+	float scanMax, horzSharp, brightBoost, gammaIn, gammaOut, monoColParam;
 } params;
 
 #pragma parameter brightBoost "BrightBoost" 1.0 1.0 29.0 1.0
