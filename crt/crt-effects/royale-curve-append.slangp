@@ -1,0 +1,3 @@
+shaders = 1
+
+shader0 = shaders/royale-curve-append/crt-royale-geometry-aa-last-pass.slang

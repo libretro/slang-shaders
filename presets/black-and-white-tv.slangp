@@ -1,0 +1,50 @@
+shaders = 10
+
+shader0 = ../subframe-bfi/shaders/crt-beam-simulator.slang
+
+shader1 = ../stock.slang
+alias1 = "glow_trails_refpass"
+
+shader2 = ../crt/crt-effects/shaders/glow-trails/glow-trails0.slang
+filter_linear2 = false
+scale_type2 = source
+scale2 = 1.0
+alias2 = Trails0
+
+# replace the blur passes with stock for sharp trails
+shader3 = "../blurs/shaders/royale/blur9fast-vertical.slang"
+filter_linear3 = "true"
+scale_type3 = "source"
+scale3 = "1.0"
+srgb_framebuffer3 = "true"
+
+shader4 = "../blurs/shaders/royale/blur9fast-horizontal.slang"
+alias4 = "TRAIL_BLUR"
+filter_linear4 = "true"
+scale_type4 = "source"
+scale4 = "1.0"
+srgb_framebuffer4 = "true"
+
+shader5 = ../crt/crt-effects/shaders/glow-trails/glow-trails1.slang
+
+shader6 = ../crt/shaders/monoCRT.slang
+scale_type6 = viewport
+scale6 = 1.0
+
+shader7 = ../linear/linearize.slang
+srgb_framebuffer7 = true
+
+shader8 = ../crt/crt-effects/shaders/analog-service-menu.slang
+
+shader9 = ../crt/crt-effects/shaders/royale-curve-append.slang
+
+geom_mode_runtime = 2.0
+geom_radius = 1.0
+geom_tilt_angle_y = -0.10
+border_compress = 6.0
+horzSharp = 1.0
+scanMax = 2.2
+hSize = 1.01
+vSize = 1.02
+pinCushionStrengthX = 0.06
+pinCushionStrengthY = 0.04
