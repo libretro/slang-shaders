@@ -8,14 +8,17 @@ layout(location = 3) out float Multiple;
 
 #include "common/screen-helper.h"
 
+const float OneO16 = 1.0 / 16.0;
+
 void main()
 {
     gl_Position = global.MVP * Position;
     TexCoord = Coord;
 
-    // invert parameter, avoid 0
-    Diffusion = sqrt(PARAM_HALATION_DIFFUSION);
-    Diffusion = max(1.0 / 16.0, 1.0 - Diffusion);
+    // square parameter and avoid 1
+    Diffusion = sqrt(PARAM_HALATION_DIFFUSION) * (1.0 - OneO16);
+    // invert parameter and avoid 0
+    Diffusion = max(OneO16, 1.0 - Diffusion);
 
     // 4 to 16 tabs
     Tabs = PARAM_HALATION_DIFFUSION * PARAM_HALATION_DIFFUSION * 16.0;

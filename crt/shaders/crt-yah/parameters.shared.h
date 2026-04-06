@@ -68,4 +68,4 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 #define PARAM_PHOSPHOR_DECAY param.PHOSPHOR_DECAY
 
 #define PARAM_HALATION_INTENSITY mix_master(param.HALATION_INTENSITY, 0.0, 0.0, 1.0)
-#define PARAM_HALATION_DIFFUSION param.HALATION_DIFFUSION * 0.9 // change range from [0.0, 1.0] to [0.0, 0.9]
+#define PARAM_HALATION_DIFFUSION param.HALATION_DIFFUSION
