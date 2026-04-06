@@ -49,7 +49,7 @@ const float gamma_shift_amt = 0.6;
 #pragma parameter fr_dummy2 "=== End Front-lit LCD Parameters ===" 0.001 0.0 0.001 0.0001 
 
 // comment if you don't want to fool with the dirt LUT
-//#define HAVE_DIRT_LUT
+#define HAVE_DIRT_LUT
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
