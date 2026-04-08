@@ -45,7 +45,7 @@ layout(push_constant) uniform Push
 #pragma parameter crt_colors "CRT Colors" 1.0 0.0 1.0 1.0
 #pragma parameter boost_dark "Boost Dark Pixels" 1.5 1.0 4.0 0.05
 #pragma parameter boost_bright "Boost Bright Pixels" 1.2 1.0 4.0 0.05
-#pragma parameter glow_str "Glow Strength" 0.15 0.0 1.0 0.01
+#pragma parameter glow_str "Glow Strength" 0.06 0.0 1.0 0.01
 #pragma parameter color_sat "Saturation" 1.0 0.0 2.0 0.05
 
 #define filt params.filt
@@ -144,24 +144,25 @@ vec3 glow(vec2 uv)
 {
    vec3 final = vec3(0.0);
 
-   for (int i=-2; i<3; i++)
+   for (int x=-2; x<3; x++)
    {
-      float n = float(i);
-      final += texture(Source,uv + vec2(invDims.x,0.0)*n).rgb*kernel[i+2];
+      for (int y=-1; y<2; y++)
+      {
+      float w = kernel[x+2] + kernel[y+2];
+      float n = float(x);
+      float a = float(y);
+      final += texture(Source,uv + invDims*vec2(n,a*1.25)).rgb*w;
+      }
    }
-   for (int i=-1; i<2; i++)
-   {
-      float a = float(i);
-      final += texture(Source,uv + vec2(0.0,invDims.y)*a).rgb*kernel[i+2];
-   }
-   return final*0.5;
+   return final/1.875;
+
 }
 
 vec3 mask(vec2 maskpos)
 {
 int m = int(mod(floor(maskpos.x) + mod(floor(maskpos.y),2.0)*MSK_STAG, mask_type == 1.0 ? 3.0 : 2.0));
 
-vec3 mask_ = (m == 0.0)? vec3(MSK_BRI) : vec3(1.0);
+vec3 mask_ = (m == 0)? vec3(MSK_BRI) : vec3(1.0);
 
  return mask_;
 }
@@ -181,7 +182,7 @@ void main()
    float sig = sign(x);
 
    // X axis: Smoothstep, polynomial, Quillez, Soft--->Sharp
-   p.x = filt == 0.0 ? (i.x + x*x*(3.0-2.0*x))*invDims.x : 
+   p.x = filt == 0.0 ? (i.x + x*x*(2.0-x))*invDims.x : 
          filt == 1.0 ? (i.x + sig*2.0*x*x)*invDims.x : 
                        (i.x + 4.0*x*x*x)*invDims.x;
 
@@ -192,9 +193,11 @@ void main()
 
 // hardcoded deconvergence
 if (deconv == 1.0){   
-colour.r = texture(Source, applyCurvature(vTexCoord + vec2(0.001,0.0))).r;
-colour.b = texture(Source, applyCurvature(vTexCoord - vec2(0.001,0.0))).b;
+colour.r = texture(Source, (p + vec2(0.001,0.0))).r;
+colour.b = texture(Source, (p - vec2(0.001,0.0))).b;
 }
+//help for color clipping due to glow etc
+colour *= 0.95;
 
 if (crt_colors == 1.0) {colour *= crt; 
    colour = clamp(colour,vec3(0.0),vec3(1.0));}
@@ -210,9 +213,6 @@ colour += vec3(glass);
    float beam = mix(beam_min, beam_max, l);
    float scan = mix(scan_min, scan_max, l);
 
-// add cheap glow effect  
-   colour += glow(p)*glow_str;
-
 // apply gaussian scanlines
    colour *= exp(-beam*y*y*scan);
 
@@ -224,6 +224,10 @@ colour += vec3(glass);
 
 // gamma out
    colour = sqrt(colour);
+
+// add glow effect  
+   colour += glow(p)*glow_str;
+
 
 // vignette
 float dist = distance(uv, vec2(0.5));
