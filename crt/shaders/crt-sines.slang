@@ -14,10 +14,12 @@ layout(push_constant) uniform Push
    float beam_max, beam_min, scan_max, scan_min,CURVATURE_X,
    CURVATURE_Y,CURVATURE_SCALE,u_vignette,MSK_BRI,mask_type,
    boost_bright,boost_dark,glow_str,color_sat,deconv,glass_refl,
-   MSK_WIDTH,MSK_HEIGHT,MSK_STAG,glass_refl_pos, crt_colors;
+   MSK_WIDTH,MSK_HEIGHT,MSK_STAG,glass_refl_pos,profiler,crt_colors,filt;
 } params;
 
 #pragma parameter dummy_beam " [ BEAM ] " 0.0 0.0 0.0 0.0
+#pragma parameter filt "Filter Sharpness" 0.0 0.0 2.0 1.0
+#pragma parameter profiler "Scanline profile soft/sharp" 0.0 0.0 1.0 1.0
 #pragma parameter beam_min "Scanline Beam Min." 8.0 2.0 15.0 1.0 
 #pragma parameter beam_max "Scanline Beam Max." 6.0 2.0 15.0 1.0 
 #pragma parameter scan_min "Scanlines Min" 1.3 0.0 2.5 0.05
@@ -46,6 +48,8 @@ layout(push_constant) uniform Push
 #pragma parameter glow_str "Glow Strength" 0.15 0.0 1.0 0.01
 #pragma parameter color_sat "Saturation" 1.0 0.0 2.0 0.05
 
+#define filt params.filt
+#define profiler params.profiler
 #define beam_max params.beam_max
 #define beam_min params.beam_min
 #define scan_max params.scan_max
@@ -106,6 +110,10 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #define grayweights vec3(0.3,0.6,0.1)
 
+mat3 crt = mat3( 1.05, 0.1,-0.1,
+                -0.05,0.9, 0.0,
+                 0.05,0.0, 1.1);
+
 vec2 applyCurvature(vec2 uv)
 {
     // Convert UV from 0–1 space to -1–1 space
@@ -141,10 +149,10 @@ vec3 glow(vec2 uv)
       float n = float(i);
       final += texture(Source,uv + vec2(invDims.x,0.0)*n).rgb*kernel[i+2];
    }
-   for (int i=-2; i<3; i++)
+   for (int i=-1; i<2; i++)
    {
-      float n = float(i);
-      final += texture(Source,uv + vec2(0.0,invDims.y)*n).rgb*kernel[i+2];
+      float a = float(i);
+      final += texture(Source,uv + vec2(0.0,invDims.y)*a).rgb*kernel[i+2];
    }
    return final*0.5;
 }
@@ -158,10 +166,6 @@ vec3 mask_ = (m == 0.0)? vec3(MSK_BRI) : vec3(1.0);
  return mask_;
 }
 
-mat3 crt = mat3( 1.05, 0.1,-0.1,
-                -0.05,0.9, 0.0,
-                 0.05,0.0, 1.1);
-
 void main()
 {
 // curve screen   
@@ -173,10 +177,14 @@ void main()
    vec2 i = floor(p) + 0.50;
 
    float y = p.y - i.y;
-   float x = fract(p.x);
+   float x = fract(p.x) - (filt !=0.0? 0.5: 0.0);
+   float sig = sign(x);
 
-   // blurrier X axis, smoothstep cubic
-   p.x = (i.x + x*x*(3.0-2.0*x))*invDims.x;
+   // X axis: Smoothstep, polynomial, Quillez, Soft--->Sharp
+   p.x = filt == 0.0 ? (i.x + x*x*(3.0-2.0*x))*invDims.x : 
+         filt == 1.0 ? (i.x + sig*2.0*x*x)*invDims.x : 
+                       (i.x + 4.0*x*x*x)*invDims.x;
+
    // sharp Y axis, max sharp quillez modification
    p.y = (i.y + 16.0*y*y*y*y*y)*invDims.y;
 
@@ -196,7 +204,7 @@ float glass = pow(1.0 - distance(uv, vec2(glass_refl_pos)), 6.0) * glass_refl/10
 colour += vec3(glass);
 
 // grab max pixel R/G/B value
-   float l = max(max(colour.r,colour.g),colour.b);
+   float l = profiler == 0.0 ? max(max(colour.r,colour.g),colour.b) : dot(vec3(0.3),colour);
 
 // calculate beam width based on the above
    float beam = mix(beam_min, beam_max, l);
