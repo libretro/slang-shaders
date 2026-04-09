@@ -103,6 +103,8 @@ vec3 get_color(sampler2D source, vec2 tex_coord)
     float scanlines_offset = PARAM_SCANLINES_OFFSET;
     if (scanlines_offset < 0.0)
     {
+        float offset_amount = 0.5;
+
         // jitter offset each 3rd frame with 30/60Hz
         float scanlines_mod = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 3);
 
@@ -116,13 +118,13 @@ vec3 get_color(sampler2D source, vec2 tex_coord)
             0.0;
 
         // get color with full offset
-        vec3 color = INPUT(texture(source, tex_coord + scanlines_offset * texel_size).rgb);
+        vec3 color = INPUT(texture(source, tex_coord + scanlines_offset * offset_amount * texel_size).rgb);
 
         // get luminance corrected
         float luma = get_luminance_corrected(color);
 
         // scale offset by color luma to avoid too much offset in dark areas
-        scanlines_offset *= luma * abs(PARAM_SCANLINES_OFFSET);
+        scanlines_offset *= luma * abs(PARAM_SCANLINES_OFFSET * offset_amount);
     }
 
     // fade out for lower scanlines strength
