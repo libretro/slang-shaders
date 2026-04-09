@@ -14,7 +14,8 @@ layout(push_constant) uniform Push
    float beam_max, beam_min, scan_max, scan_min,CURVATURE_X,
    CURVATURE_Y,CURVATURE_SCALE,u_vignette,MSK_BRI,mask_type,
    boost_bright,boost_dark,glow_str,color_sat,deconv,glass_refl,
-   MSK_WIDTH,MSK_HEIGHT,MSK_STAG,glass_refl_pos,profiler,crt_colors,filt;
+   MSK_WIDTH,MSK_HEIGHT,MSK_STAG,glass_refl_pos,profiler,crt_colors,filt,
+   corner_cut;
 } params;
 
 #pragma parameter dummy_beam " [ BEAM ] " 0.0 0.0 0.0 0.0
@@ -27,15 +28,16 @@ layout(push_constant) uniform Push
 
 #pragma parameter dummy_mask " [ MASK ] " 0.0 0.0 0.0 0.0
 #pragma parameter mask_type "Mask Fine/Coarse" 0.0 0.0 1.0 1.0
-#pragma parameter MSK_WIDTH "Mask Width" 1.0 1.0 4.0 1.0
-#pragma parameter MSK_HEIGHT "Mask Height" 1.0 1.0 4.0 1.0
+#pragma parameter MSK_WIDTH "Mask Stagger Width" 1.0 1.0 4.0 1.0
+#pragma parameter MSK_HEIGHT "Mask Stagger Height" 1.0 1.0 4.0 1.0
 #pragma parameter MSK_STAG "Mask Stagger" 0.0 0.0 2.0 1.0
 #pragma parameter MSK_BRI "Mask Brightness" 0.4 0.0 1.0 0.05
 
 #pragma parameter dummy_tube " [ TUBE ] " 0.0 0.0 0.0 0.0
 #pragma parameter CURVATURE_X "Curvature Horiz." 0.01 0.0 0.3 0.01
 #pragma parameter CURVATURE_Y "Curvature Vert." 0.04 0.0 0.3 0.01
-#pragma parameter CURVATURE_SCALE "Curvature Scale" 0.0 0.0 1.0 0.01
+#pragma parameter corner_cut "Corners Cut" 1.0 0.0 1.0 1.0
+#pragma parameter CURVATURE_SCALE "Curvature Scale" 0.0 -1.0 1.0 0.01
 #pragma parameter u_vignette "Vignette" 0.25 0.0 1.0 0.01
 #pragma parameter deconv "Deconvergence" 0.0 0.0 1.0 1.0
 #pragma parameter glass_refl "Glass Reflection" 0.15 0.0 0.5 0.01
@@ -71,6 +73,7 @@ layout(push_constant) uniform Push
 #define glass_refl params.glass_refl
 #define glass_refl_pos params.glass_refl_pos
 #define crt_colors params.crt_colors
+#define corner_cut params.corner_cut
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -126,7 +129,7 @@ vec2 applyCurvature(vec2 uv)
     p.y += (original.x * original.x) * original.y * CURVATURE_Y;
     // Optional uniform curvature (tube warping)
     float r = dot(original, original);
-    p *= 1.0 + r * CURVATURE_SCALE;
+    p *= 1.0 - CURVATURE_SCALE*0.1;
     
     // Return to 0–1 space
     return p * 0.5 + 0.5;
@@ -196,6 +199,7 @@ if (deconv == 1.0){
 colour.r = texture(Source, (p + vec2(0.001,0.0))).r;
 colour.b = texture(Source, (p - vec2(0.001,0.0))).b;
 }
+
 //help for color clipping due to glow etc
 colour *= 0.95;
 
@@ -237,6 +241,8 @@ colour *= vig;
 // saturation
    vec3 gray = vec3(dot(vec3(grayweights),colour));
    colour = mix(gray,colour,color_sat);
+
+if (corner_cut == 1.0 && dist > 0.7) colour *= 0.0;
 
    FragColor.rgb = colour;
 }
