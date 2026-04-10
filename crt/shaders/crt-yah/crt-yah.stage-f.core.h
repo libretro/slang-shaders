@@ -51,8 +51,10 @@ vec3 INPUT(vec3 color)
 
 vec3 OUTPUT(vec3 color, float color_luma)
 {
+    float brightness_compensation = get_brightness_compensation(color_luma);
+
     color = apply_contrast(color, PARAM_COLOR_CONTRAST);
-    color = apply_brightness(color, PARAM_COLOR_BRIGHTNESS + get_brightness_compensation(color_luma));
+    color = apply_brightness(apply_brightness(color, brightness_compensation), PARAM_COLOR_BRIGHTNESS);
     color = apply_saturation(color, PARAM_COLOR_SATURATION);
     color = apply_temperature(color, PARAM_COLOR_TEMPERATUE);
     color = encode_gamma(color);
