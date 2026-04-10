@@ -16,9 +16,10 @@ layout(location = 2) out float Phase;
 // orientation-aware vec2 constructors
 vec2 vec2o(vec2 v)
 {
-    return ScreenOrientation == 0
-        ? v.xy
-        : v.yx;
+    return mix(
+        v.xy,
+        v.yx,
+        ScreenOrientation);
 }
 
 void main()

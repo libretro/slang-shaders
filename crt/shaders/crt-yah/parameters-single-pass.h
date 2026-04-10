@@ -5,6 +5,8 @@
 #pragma parameter SCREEN_ORIENTATION "·  Screen > Orientation  (0-Auto, 1-Horizontal, 2-Vertical)" 0.0 0.0 2.0 1.0
 #pragma parameter SCREEN_RESOLUTION_SCALE "  ⁵Screen > Resolution  (1-Native, 2/3-Low/+, 4/5-High/+)" 2.0 1.0 5.0 1.0
 #pragma parameter SCREEN_SCALE "   Screen > Scale⁵  (-Down / 0-Auto / +Up)" 0.0 -2.0 2.0 0.05
+#pragma parameter SCREEN_FREQUENCY "  ⁴Screen > Frequency  (30Hz .. 60Hz)" 60.0 30.0 60.0 10.0
+#pragma parameter SCREEN_INTERLACED "   Screen > Interlaced²⁴  (0-None .. 1-Full)" 0.0 0.0 1.0 0.05
 
 // Color parameters
 #pragma parameter COLOR_PROFILE "·  Color > Profile¹  (-NTSC .. +Trinitron)" 0.0 -1.0 1.0 0.1

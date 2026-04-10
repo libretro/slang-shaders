@@ -4,6 +4,7 @@
 #define PARAM_SCREEN_ORIENTATION global.SCREEN_ORIENTATION
 #define PARAM_SCREEN_SCALE global.SCREEN_SCALE
 #define PARAM_SCREEN_FREQUENCY global.SCREEN_FREQUENCY
+#define PARAM_SCREEN_INTERLACED global.SCREEN_INTERLACED
 
 float mix_master(float value, float off_value, float min_value, float max_value)
 {
@@ -24,7 +25,7 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 #define PARAM_COLOR_FLOOR max(PARAM_SCANLINES_STRENGTH, PARAM_MASK_INTENSITY) * (1.0 / 256.0)
 #define PARAM_COLOR_COMPENSATION param.COLOR_COMPENSATION
 #define PARAM_COLOR_BRIGHTNESS mix_master(param.COLOR_BRIGHTNESS, 0.0, -1.0, 2.0)
-#define PARAM_COLOR_BRIGHTNESS_FLICKER mix_master(param.COLOR_BRIGHTNESS_FLICKER, 0.0, 0.0, 1.0)
+#define PARAM_COLOR_BRIGHTNESS_FLICKER param.COLOR_BRIGHTNESS_FLICKER
 #define PARAM_COLOR_OVERFLOW mix_master(param.COLOR_OVERFLOW, 0.0, 0.0, 2.0)
 #define PARAM_COLOR_CONTRAST mix_master(param.COLOR_CONTRAST, 0.0, -1.0, 1.0)
 #define PARAM_COLOR_SATURATION mix_master(param.COLOR_SATURATION, 1.0, 0.0, 2.0)
@@ -42,7 +43,7 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 
 #define PARAM_SCANLINES_STRENGTH mix_master(param.SCANLINES_STRENGTH, 0.0, 0.0, 1.0)
 #define PARAM_SCANLINES_COLOR_BURN mix_master(param.SCANLINES_COLOR_BURN, 0.0, 0.0, 1.0)
-#define PARAM_SCANLINES_OFFSET mix_master(param.SCANLINES_OFFSET, 0.0, -1.0, 1.0)
+#define PARAM_SCANLINES_OFFSET param.SCANLINES_OFFSET
 #define PARAM_BEAM_WIDTH_MIN param.BEAM_WIDTH_MIN
 #define PARAM_BEAM_WIDTH_MAX param.BEAM_WIDTH_MAX
 #define PARAM_BEAM_SHAPE param.BEAM_SHAPE

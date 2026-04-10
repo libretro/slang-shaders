@@ -63,35 +63,51 @@ vec3 OUTPUT(vec3 color, float color_luma)
 // orientation-aware vec2 constructors
 vec2 vec2o(vec2 v)
 {
-    return INPUT_SCREEN_ORIENTATION == 0.0
-        ? v.xy
-        : v.yx;
+    return mix(
+        v.xy,
+        v.yx,
+        INPUT_SCREEN_ORIENTATION);
 }
 
 vec2 vec2o(float x, float y)
 {
-    return INPUT_SCREEN_ORIENTATION == 0.0
-        ? vec2(x, y)
-        : vec2(y, x);
+    return mix(
+        vec2(x, y),
+        vec2(y, x),
+        INPUT_SCREEN_ORIENTATION);
 }
 
 vec2 vec2ox(vec2 v, float f)
 {
-    return INPUT_SCREEN_ORIENTATION == 0.0
-        ? vec2(v.x, f)
-        : vec2(f, v.y);
+    return mix(
+        vec2(v.x, f),
+        vec2(f, v.y),
+        INPUT_SCREEN_ORIENTATION);
 }
 
 vec2 vec2oy(vec2 v, float f)
 {
-    return INPUT_SCREEN_ORIENTATION == 0.0
-        ? vec2(f, v.y)
-        : vec2(v.x, f);
+    return mix(
+        vec2(f, v.y),
+        vec2(v.x, f),
+        INPUT_SCREEN_ORIENTATION);
+}
+
+vec2 apply_scale(vec2 tex_size)
+{
+    vec2 multiple = vec2o(1.0, INPUT_SCREEN_MULTIPLE);
+
+    // apply "fake" scale (only y-axis)
+    tex_size /= multiple;
+
+    return tex_size;
 }
 
 vec2 apply_sharp_bilinear_filtering(vec2 tex_coord)
 {
-    return sharp_bilinear(tex_coord, global.SourceSize.xy, global.OutputSize.xy);
+    vec2 tex_size = apply_scale(global.OriginalSize.xy);
+
+    return sharp_bilinear(tex_coord, tex_size, global.OutputSize.xy);
 }
 
 vec2 apply_cubic_lens_distortion(vec2 tex_coord)
@@ -197,11 +213,6 @@ vec3 get_half_beam_color(sampler2D source, vec2 tex_coord, vec2 delta_x, vec2 de
     return color;
 }
 
-vec3 get_raw_color(sampler2D source, vec2 tex_coord)
-{
-    return INPUT(texture(source, tex_coord).rgb);
-}
-
 vec2 get_scanlines_pixel_coordinate(vec2 tex_coord, vec2 tex_size)
 {
     // texture to pixel coordinates
@@ -213,8 +224,10 @@ vec2 get_scanlines_pixel_coordinate(vec2 tex_coord, vec2 tex_size)
     return pix_coord;
 }
 
-vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple)
+vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size)
 {
+    vec2 multiple = vec2o(1.0, INPUT_SCREEN_MULTIPLE);
+
     vec2 tex_coord = floor(pix_coord);
 
     // when manual down-scaled
@@ -249,16 +262,44 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size, vec2 multiple
     return tex_coord;
 }
 
+vec3 apply_interlace(vec2 pix_coord, vec3 even_color, vec3 uneven_color)
+{
+    // determine even or uneven row
+    bool even = (int(floor(vec2o(pix_coord).y)) % 2) != 0;
+
+    vec3 progressive = even_color + uneven_color;
+
+    // interlace every 2rd frame with 30/60Hz
+    vec3 interlace = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 2.0) > 0.0
+        ? mix(even_color, uneven_color, float(even))
+        : mix(even_color, uneven_color, float(!even));
+
+    return mix(
+        progressive,
+        interlace,
+        PARAM_SCREEN_INTERLACED);
+}
+
+vec3 get_raw_color(sampler2D source, vec2 tex_coord)
+{
+    vec2 tex_size = apply_scale(global.OriginalSize.xy);
+
+    // texture to pixel coordinates
+    vec2 pix_coord = tex_coord * tex_size;
+
+    vec3 color0 = vec3(0.0);
+    vec3 color1 =  INPUT(texture(source, tex_coord).rgb);
+
+    return apply_interlace(pix_coord, color0, color1);
+}
+
 vec3 get_scanlines_color(sampler2D source, vec2 tex_coord)
 {
-    vec2 multiple = vec2o(1.0, INPUT_SCREEN_MULTIPLE);
-
-    // apply "fake" scale (only y-axis)
-    vec2 tex_size = global.OriginalSize.xy / multiple;
+    vec2 tex_size = apply_scale(global.OriginalSize.xy);
 
     vec2 pix_coord = vec2(0.0);
     pix_coord = get_scanlines_pixel_coordinate(tex_coord, tex_size);
-    tex_coord = get_scanlines_texel_coordinate(pix_coord, tex_size, multiple);
+    tex_coord = get_scanlines_texel_coordinate(pix_coord, tex_size);
 
     vec2 tex_delta = vec2(1.0) / tex_size;
     vec2 tex_delta_x = vec2ox(tex_delta, 0.0);
@@ -280,7 +321,7 @@ vec3 get_scanlines_color(sampler2D source, vec2 tex_coord)
     vec3 factor0 = get_half_scanlines_factor(color0, pix_fract.y);
     vec3 factor1 = get_half_scanlines_factor(color1, 1.0 - pix_fract.y);
 
-    return color0 * factor0 + color1 * factor1;
+    return apply_interlace(pix_coord, color0 * factor0, color1 * factor1);
 }
 
 vec3 blend_colors(vec3 raw_color, vec3 scanlines_color)
