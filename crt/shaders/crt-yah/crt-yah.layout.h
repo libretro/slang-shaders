@@ -12,6 +12,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float SCREEN_ORIENTATION;
     float SCREEN_SCALE;
     float SCREEN_FREQUENCY;
+    float SCREEN_INTERLACED;
 } global;
 
 layout (push_constant) uniform Push

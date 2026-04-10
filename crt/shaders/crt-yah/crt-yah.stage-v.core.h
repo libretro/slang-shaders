@@ -33,7 +33,7 @@
 // orientation-aware vec2 constructor
 vec2 vec2o(float x, float y)
 {
-    return INPUT_SCREEN_ORIENTATION == 0.0
+    return INPUT_SCREEN_ORIENTATION == 0
         ? vec2(x, y)
         : vec2(y, x);
 }
@@ -84,6 +84,11 @@ vec2 get_mask_profile()
 float get_brightness_compensation()
 {
     float brightness_compensation = 0.0;
+
+    float screen_interlace = normalized_sigmoid(PARAM_SCREEN_INTERLACED, 0.5);
+
+    // interlace compensation
+    brightness_compensation += (screen_interlace * 2.0);
 
     float scanlines_strength = normalized_sigmoid(PARAM_SCANLINES_STRENGTH, 0.5);
 

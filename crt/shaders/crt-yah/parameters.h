@@ -6,14 +6,15 @@
 #pragma parameter SCREEN_RESOLUTION_SCALE "  ⁵Screen > Resolution  (1-Native, 2/3-Low/+, 4/5-High/+)" 2.0 1.0 5.0 1.0
 #pragma parameter SCREEN_SCALE "   Screen > Scale⁵  (-Down / 0-Auto / +Up)" 0.0 -2.0 2.0 0.05
 #pragma parameter SCREEN_FREQUENCY "  ⁴Screen > Frequency  (30Hz .. 60Hz)" 60.0 30.0 60.0 10.0
+#pragma parameter SCREEN_INTERLACED "   Screen > Interlaced²⁴  (0-None .. 1-Full)" 0.0 0.0 1.0 0.05
 
 // Color parameters
 #pragma parameter COLOR_PROFILE "·  Color > Profile¹  (-NTSC .. +Trinitron)" 0.0 -1.0 1.0 0.1
 #pragma parameter COLOR_TEMPERATUE "   Color > Temperature¹  (-Colder .. +Warmer)" 0.0 -1.0 1.0 0.1
 #pragma parameter COLOR_SATURATION "   Color > Saturation¹  (0-Low .. 2-High)" 1.1 0.0 2.0 0.05
 #pragma parameter COLOR_CONTRAST "   Color > Contrast¹  (-Lower .. +Higher)" 0.1 -1.0 1.0 0.05
-#pragma parameter COLOR_BRIGHTNESS "   Color > Brightness¹  (-Darken .. +Lighten)" 0.30 -1.0 2.0 0.05
-#pragma parameter COLOR_BRIGHTNESS_FLICKER "   Color > Brightness Flicker¹⁴  (0-None .. 1-Full)" 0.2 0.0 1.0 0.05
+#pragma parameter COLOR_BRIGHTNESS "   Color > Brightness¹  (-Darken .. +Lighten)" 0.20 -1.0 2.0 0.05
+#pragma parameter COLOR_BRIGHTNESS_FLICKER "   Color > Brightness Flicker⁴  (0-None .. 1-Full)" 0.25 0.0 1.0 0.05
 #pragma parameter COLOR_OVERFLOW "   Color > Brightness Overflow¹  (0-None .. 1-Full / 2-More)" 1.0 0.0 2.0 0.25
 #pragma parameter COLOR_COMPENSATION "  ²Color > Brightness Compensation  (0-Off, 1-On)" 1.0 0.0 1.0 1.0
 #pragma parameter COLOR_BLACK_LIGHT "  ³Color > Black Lightening (0-None .. 1-Full / 2-More)" 0.5 0.0 2.0 0.1
@@ -26,7 +27,7 @@
 #pragma parameter BEAM_FILTER "   Scanlines > Beam Filter  (-Blocky .. +Blurry)" -0.25 -1.0 1.0 0.05
 #pragma parameter ANTI_RINGING "   Scanlines > Anti-Ringing  (0-None .. 1-Full)" 1.0 0.0 1.0 0.1
 #pragma parameter SCANLINES_COLOR_BURN "   Scanlines > Color Burn¹  (0-None .. 1-Full)" 1.0 0.0 1.0 0.25
-#pragma parameter SCANLINES_OFFSET "   Scanlines > Offset⁴  (-with .. +without Jitter)" -0.1 -1.0 1.0 0.05
+#pragma parameter SCANLINES_OFFSET "   Scanlines > Offset⁴  (-with .. +without Jitter)" -0.25 -1.0 1.0 0.05
 
 // Mask parameters
 #pragma parameter MASK_INTENSITY "·  Mask > Intensity¹²³  (0-None .. 1-Full)" 0.5 0.0 1.0 0.05
@@ -47,7 +48,7 @@
 
 // Halation parameters
 #pragma parameter HALATION_INTENSITY "·  Halation > Intensity¹  (0-None .. 1-Full)" 0.25 0.0 1.0 0.05
-#pragma parameter HALATION_DIFFUSION "   Halation > Diffusion  (0-Low .. 1-High)" 0.25 0.0 1.0 0.05
+#pragma parameter HALATION_DIFFUSION "   Halation > Diffusion  (0-Low .. 1-High)" 0.5 0.0 1.0 0.05
 
 // NTSC parameters
 #pragma parameter NTSC_PROFILE "·  NTSC > Profile  (0-Off, 1-Separate Y/C, 2-Composite, 3-RF)" 0.0 0.0 3.0 0.1

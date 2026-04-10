@@ -15,6 +15,15 @@ layout(location = 4) out float Phase;
 
 #include "common/screen-helper.h"
 
+// orientation-aware vec2 constructors
+vec2 vec2o(vec2 v)
+{
+    return mix(
+        v.xy,
+        v.yx,
+        ScreenOrientation);
+}
+
 void main()
 {
     gl_Position = global.MVP * Position;
@@ -26,9 +35,7 @@ void main()
     PixCoord = screen_scale < 1.0
         ? PixCoord * screen_scale
         : PixCoord;
-    PixCoord = ScreenOrientation == 0
-        ? PixCoord.xy
-        : PixCoord.yx;
+    PixCoord = vec2o(PixCoord.xy);
     PixCoord.x *= max(screen_scale, 1.0);
 
     // Profile:
@@ -44,7 +51,7 @@ void main()
     // 3 - Three Phase
     Phase = PARAM_NTSC_QUALITY < 1.5
         // auto
-        ? min(global.OriginalSize.x, global.OriginalSize.y) * screen_scale > 240.0 ? 2.0 : 3.0
+        ? (vec2o(global.OriginalSize.xy).x * screen_scale) > 300.0 ? 2.0 : 3.0
         // manual
         : PARAM_NTSC_QUALITY;
 }
