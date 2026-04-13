@@ -172,7 +172,11 @@ int nbr_cp_idx(int cx, int cy, int from_dir) {
         bool t_bnd_w = g(2 * cx - 1, 2 * cy) == 0u;
         uint t_count = (t_bnd_n ? 1u : 0u) + (t_bnd_e ? 1u : 0u)
                      + (t_bnd_s ? 1u : 0u) + (t_bnd_w ? 1u : 0u);
-        if (t_count >= 3u) {
+        if (t_count == 4u) {
+            // Valence-4 crossing: slot 0 = N-S, slot 1 = E-W
+            int target_side = from_dir ^ 2;
+            if (target_side != 0 && target_side != 2) return base + 1;
+        } else if (t_count == 3u) {
             // Collect the 3 boundary directions and select through-pair
             // using paper's shading/contour + angle heuristic.
             int dirs[3]; int di = 0;
@@ -182,7 +186,6 @@ int nbr_cp_idx(int cx, int cy, int from_dir) {
             if (t_bnd_w) dirs[di++] = 3;
             int pair0, pair1;
             select_tjunction_pair(cx, cy, dirs[0], dirs[1], dirs[2], pair0, pair1);
-            // Map from_dir to the boundary direction at the target corner
             int target_side = from_dir ^ 2;
             if (target_side != pair0 && target_side != pair1) return base + 1;
         }
