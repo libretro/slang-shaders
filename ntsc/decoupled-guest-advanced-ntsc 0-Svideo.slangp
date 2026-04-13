@@ -1,0 +1,113 @@
+shaders = 10
+
+shader0 = ../stock.slang
+filter_linear0 = false
+scale_type0 = source
+scale0 = 1.0
+alias0 = StockPass
+
+shader1 = shaders/decoupled-guest/advanced/afterglow0.slang
+filter_linear1 = true
+scale_type1 = source
+scale1 = 1.0
+alias1 = AfterglowPass
+
+shader2 = shaders/decoupled-guest/advanced/pre-shaders-afterglow-sega.slang
+filter_linear2 = true
+scale_type2 = source
+scale2 = 1.0
+alias2 = PrePass0 
+
+shader3 = "shaders/decoupled-guest/advanced/interlace-ntsc.slang"
+filter_linear3 = true
+float_framebuffer3 = true
+scale_type_x3 = source
+scale_type_y3 = source
+scale_x3 = 1.0
+scale_y3 = 1.0
+alias3 = InterlacePass
+
+textures = "SamplerLUT1;SamplerLUT2;SamplerLUT3;SamplerLUT4"
+SamplerLUT1 = shaders/decoupled-guest/advanced/lut/trinitron-lut.png
+SamplerLUT1_linear = true
+SamplerLUT2 = shaders/decoupled-guest/advanced/lut/inv-trinitron-lut.png
+SamplerLUT2_linear = true
+SamplerLUT3 = shaders/decoupled-guest/advanced/lut/nec-lut.png
+SamplerLUT3_linear = true
+SamplerLUT4 = shaders/decoupled-guest/advanced/lut/ntsc-lut.png
+SamplerLUT4_linear = true 
+
+# custom ntsc shaders
+
+shader4 = shaders/decoupled-guest/advanced/ntsc/ntsc-pass1.slang
+shader5 = shaders/decoupled-guest/advanced/ntsc/ntsc-pass2.slang
+
+alias4 = NPass1
+
+filter_linear4 = false
+filter_linear5 = true
+
+scale_type_x4 = source
+scale_type_y4 = source
+scale_x4 = 4.0
+scale_y4 = 1.0
+float_framebuffer4 = true
+float_framebuffer5 = true
+
+scale_type5 = source
+scale_x5 = 0.50
+scale_y5 = 1.00
+
+shader6 = shaders/decoupled-guest/advanced/ntsc/ntsc-pass3.slang
+filter_linear6 = true
+scale_type6 = source
+scale_x6 = 1.0
+scale_y6 = 1.0
+
+shader7 = shaders/decoupled-guest/advanced/custom-fast-sharpen.slang
+filter_linear7 = true
+scale_type7 = source
+scale_x7 = 1.0
+scale_y7 = 1.0
+alias7 = NtscPass
+
+shader8 = shaders/decoupled-guest/advanced/linearize-ntsc-new.slang
+filter_linear8 = true
+scale_type8 = source
+scale8 = 1.0
+alias8 = LinearizePass
+float_framebuffer8 = true
+
+shader9 = shaders/decoupled-guest/advanced/crt-guest-advanced-ntsc-pass1.slang
+filter_linear9 = true
+scale_type_x9 = viewport
+scale_x9 = 1.0
+scale_type_y9 = source
+scale_y9 = 1.0
+float_framebuffer9 = false
+alias9 = Pass1
+
+PR = "0.000000"
+PG = "0.000000"
+PB = "0.000000"
+AS = "0.000000"
+sat = "0.000000"
+CP = "-1.000000"
+ntsc_pseudo = "2.000000"
+cust_artifacting = "0.000000"
+cust_fringing = "0.000000"
+ntsc_cscale = "3.200001"
+ntsc_cscale0 = "1.00000"
+ntsc_ring = "0.000000"
+RFNOISE = "0.000000"
+CCONTR = "0.000000"
+CDETAILS = "0.000000"
+S_SHARP = "0.000000"
+HSHARP = "0.000000"
+MAXS = "0.000000"
+HARNG = "0.000000"
+GAMMA_INPUT = "1.000000"
+gamma_out = "1.000000"
+interm = "0.000000"
+iscan = "0.000000"
+iscans = "0.000000"
