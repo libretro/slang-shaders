@@ -65,6 +65,73 @@ uint g(int gx, int gy) {
     return uint(val.r + 0.5);
 }
 
+// Read pixel color from the graph (stored as normalized RGB at odd,odd coordinates).
+// Returns packed 0xRRGGBB.
+uint px_color(int px, int py) {
+    px = clamp(px, 0, IMG_W() - 1);
+    py = clamp(py, 0, IMG_H() - 1);
+    int gx = 2 * px + 1;
+    int gy = 2 * py + 1;
+    vec4 c = texelFetch(Source, ivec2(gx, gy), 0);
+    uint r = uint(c.r * 255.0 + 0.5);
+    uint g_ = uint(c.g * 255.0 + 0.5);
+    uint b = uint(c.b * 255.0 + 0.5);
+    return (r << 16u) | (g_ << 8u) | b;
+}
+
+// Get the two pixel colors separated by a boundary edge at corner (cx,cy) in direction dir.
+void bnd_colors(int cx, int cy, int dir, out uint ca, out uint cb) {
+    if (dir == 0)      { ca = px_color(cx - 1, cy - 1); cb = px_color(cx, cy - 1); } // N
+    else if (dir == 1) { ca = px_color(cx, cy - 1);      cb = px_color(cx, cy);     } // E
+    else if (dir == 2) { ca = px_color(cx, cy);           cb = px_color(cx - 1, cy); } // S
+    else               { ca = px_color(cx - 1, cy);       cb = px_color(cx - 1, cy - 1); } // W
+}
+
+// Classify an edge as shading (similar colors) per paper Section 3.3.
+// YUV Euclidean distance <= 100/255.
+bool is_shading_edge(uint ca, uint cb) {
+    if (ca == cb) return true;
+    float dr = float(int((ca >> 16u) & 0xFFu) - int((cb >> 16u) & 0xFFu));
+    float dg = float(int((ca >> 8u) & 0xFFu) - int((cb >> 8u) & 0xFFu));
+    float db = float(int(ca & 0xFFu) - int(cb & 0xFFu));
+    float dy = (0.299 * dr + 0.587 * dg + 0.114 * db) / 255.0;
+    float du = 0.493 * (db / 255.0 - dy);
+    float dv = 0.877 * (dr / 255.0 - dy);
+    float threshold = 100.0 / 255.0;
+    return (dy * dy + du * du + dv * dv) <= threshold * threshold;
+}
+
+// Select the through-pair at a 3-way T-junction (paper Section 3.3).
+// Returns the two through-pair directions in pair0/pair1.
+void select_tjunction_pair(int cx, int cy, int d0, int d1, int d2,
+                           out int pair0, out int pair1) {
+    // Step 1: Shading/contour classification.
+    uint ca0, cb0, ca1, cb1, ca2, cb2;
+    bnd_colors(cx, cy, d0, ca0, cb0);
+    bnd_colors(cx, cy, d1, ca1, cb1);
+    bnd_colors(cx, cy, d2, ca2, cb2);
+    bool s0 = is_shading_edge(ca0, cb0);
+    bool s1 = is_shading_edge(ca1, cb1);
+    bool s2 = is_shading_edge(ca2, cb2);
+    int shading_count = (s0 ? 1 : 0) + (s1 ? 1 : 0) + (s2 ? 1 : 0);
+
+    if (shading_count == 1) {
+        // 1 shading + 2 contour: connect the 2 contour edges.
+        if (s0) { pair0 = d1; pair1 = d2; }
+        else if (s1) { pair0 = d0; pair1 = d2; }
+        else { pair0 = d0; pair1 = d1; }
+        return;
+    }
+
+    // Step 2: Angle-based fallback — connect the pair closest to 180 degrees.
+    // At grid corners, opposite pairs (N-S=0^2, E-W=1^3) are 180 degrees;
+    // all other pairs are 90 degrees. With 3 of 4 cardinal directions,
+    // there is always exactly one opposite pair.
+    if ((d0 ^ d2) == 2) { pair0 = d0; pair1 = d2; }
+    else if ((d0 ^ d1) == 2) { pair0 = d0; pair1 = d1; }
+    else { pair0 = d1; pair1 = d2; }
+}
+
 // Check if two adjacent pixels are similar using the graph.
 bool similar(int px0, int py0, int px1, int py1) {
     int dx = px1 - px0;
@@ -106,14 +173,15 @@ int nbr_cp_idx(int cx, int cy, int from_dir) {
         uint t_count = (t_bnd_n ? 1u : 0u) + (t_bnd_e ? 1u : 0u)
                      + (t_bnd_s ? 1u : 0u) + (t_bnd_w ? 1u : 0u);
         if (t_count >= 3u) {
-            // Determine main pair (same priority order as compute_corner)
+            // Collect the 3 boundary directions and select through-pair
+            // using paper's shading/contour + angle heuristic.
+            int dirs[3]; int di = 0;
+            if (t_bnd_n) dirs[di++] = 0;
+            if (t_bnd_e) dirs[di++] = 1;
+            if (t_bnd_s) dirs[di++] = 2;
+            if (t_bnd_w) dirs[di++] = 3;
             int pair0, pair1;
-            if (t_bnd_n && t_bnd_s) { pair0 = 0; pair1 = 2; }
-            else if (t_bnd_e && t_bnd_w) { pair0 = 1; pair1 = 3; }
-            else if (t_bnd_n && t_bnd_e) { pair0 = 0; pair1 = 1; }
-            else if (t_bnd_n && t_bnd_w) { pair0 = 0; pair1 = 3; }
-            else if (t_bnd_s && t_bnd_e) { pair0 = 2; pair1 = 1; }
-            else { pair0 = 2; pair1 = 3; }
+            select_tjunction_pair(cx, cy, dirs[0], dirs[1], dirs[2], pair0, pair1);
             // Map from_dir to the boundary direction at the target corner
             int target_side = from_dir ^ 2;
             if (target_side != pair0 && target_side != pair1) return base + 1;
@@ -360,16 +428,18 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
         slot0 = CPData(pos, nbr, -1, 1u, nbr_dir, -1);
 
     } else if (bnd_count == 3u) {
-        // T-junction
-        int prev = -1, next = -1;
-        int t_prev_dir = -1, t_next_dir = -1;
+        // Paper Section 3.3: select through-pair via shading/contour + angle heuristic.
+        int dirs[3]; int di = 0;
+        if (bnd_n) dirs[di++] = 0;
+        if (bnd_e) dirs[di++] = 1;
+        if (bnd_s) dirs[di++] = 2;
+        if (bnd_w) dirs[di++] = 3;
+        int t_prev_dir, t_next_dir;
+        select_tjunction_pair(cx, cy, dirs[0], dirs[1], dirs[2], t_prev_dir, t_next_dir);
 
-        if (bnd_n && bnd_s) { prev = n_idx; next = s_idx; t_prev_dir = 0; t_next_dir = 2; }
-        else if (bnd_e && bnd_w) { prev = e_idx; next = w_idx; t_prev_dir = 1; t_next_dir = 3; }
-        else if (bnd_n && bnd_e) { prev = n_idx; next = e_idx; t_prev_dir = 0; t_next_dir = 1; }
-        else if (bnd_n && bnd_w) { prev = n_idx; next = w_idx; t_prev_dir = 0; t_next_dir = 3; }
-        else if (bnd_s && bnd_e) { prev = s_idx; next = e_idx; t_prev_dir = 2; t_next_dir = 1; }
-        else { prev = s_idx; next = w_idx; t_prev_dir = 2; t_next_dir = 3; }
+        int idx_arr[4] = int[4](n_idx, e_idx, s_idx, w_idx);
+        int prev = idx_arr[t_prev_dir];
+        int next = idx_arr[t_next_dir];
 
         // T-junction position correction approximation
         if (prev >= 0 && next >= 0) {
@@ -400,10 +470,10 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
     } else {
         // Valence 4 cross-junction: inverse-correct both CPs so their
         // B-spline curves pass through the grid corner at t=0.5.
-        // IS_CORNER prevents optimizer movement, IS_CROSSING triggers
-        // inverse correction in update_tjunction.
-        slot0 = CPData(pos, n_idx, s_idx, 2u | IS_CORNER | IS_CROSSING, 0, 2);
-        slot1 = CPData(pos, e_idx, w_idx, 2u | IS_CORNER | IS_CROSSING, 1, 3);
+        // IS_CROSSING: inverse correction in update_tjunction, combined
+        // curvature optimization in optimize_energy.
+        slot0 = CPData(pos, n_idx, s_idx, 2u | IS_CROSSING, 0, 2);
+        slot1 = CPData(pos, e_idx, w_idx, 2u | IS_CROSSING, 1, 3);
     }
 }
 
