@@ -53,6 +53,7 @@ int NUM_CPS()  { return CORNERS_W() * CORNERS_H() * 2; }
 
 const uint IS_CORNER = 16u;
 const uint IS_TJUNCTION = 32u;
+const uint IS_CROSSING = 64u;
 
 const float POSITIONAL_SCALE = 2.5;
 const int NEWTON_ITER = 3;
@@ -165,9 +166,9 @@ void main() {
         return;
     }
 
-    if ((flags & IS_CORNER) != 0u ||
-        (read_flags(prev_idx) & IS_CORNER) != 0u ||
-        (read_flags(next_idx) & IS_CORNER) != 0u) {
+    // Skip nodes adjacent to crossings.
+    if ((read_flags(prev_idx) & IS_CROSSING) != 0u ||
+        (read_flags(next_idx) & IS_CROSSING) != 0u) {
         FragColor = vec4(p.x, p.y, 0.0, 0.0);
         return;
     }
@@ -175,9 +176,23 @@ void main() {
     vec2 n0 = read_neighbor_pos(prev_idx);
     vec2 n1 = read_neighbor_pos(next_idx);
 
-    // 2D Newton-Raphson: minimize E = |n0-2p+n1|² + (2.5·||p-p_orig||)⁴
-    // Gradient: ∇E = 4(2p-n0-n1) + 4·s⁴·||d||²·d
-    // Hessian:   H = 8I + 4·s⁴·(2d⊗d + ||d||²·I)
+    // Crossings: optimize with combined curvature from both chains.
+    // Both slots independently compute the same result (same position,
+    // same 4 neighbors) so they converge to the same output.
+    bool is_crossing = (flags & IS_CROSSING) != 0u;
+    vec2 n2 = vec2(0.0);
+    vec2 n3 = vec2(0.0);
+    if (is_crossing) {
+        // The other slot is at i ± 1 (slot 0→1 or 1→0)
+        int other = (cp_slot == 0) ? i + 1 : i - 1;
+        ivec2 other_nbrs = read_neighbors(other);
+        if (other_nbrs.x >= 0) n2 = read_neighbor_pos(other_nbrs.x);
+        if (other_nbrs.y >= 0) n3 = read_neighbor_pos(other_nbrs.y);
+    }
+
+    // Corners: exclude curvature energy, keep positional energy only.
+    bool exclude_curvature = (flags & IS_CORNER) != 0u;
+
     float s4 = POSITIONAL_SCALE * POSITIONAL_SCALE;
     s4 *= s4; // 2.5⁴ = 39.0625
 
@@ -185,10 +200,16 @@ void main() {
         vec2 d = p - p_orig;
         float d2 = dot(d, d);
 
-        vec2 grad = 4.0 * (2.0 * p - n0 - n1) + 4.0 * s4 * d2 * d;
+        // Gradient: curvature + positional
+        vec2 grad_curv = 4.0 * (2.0 * p - n0 - n1);
+        if (is_crossing) grad_curv += 4.0 * (2.0 * p - n2 - n3);
+        vec2 grad_pos = 4.0 * s4 * d2 * d;
+        vec2 grad = exclude_curvature ? grad_pos : (grad_curv + grad_pos);
 
-        float h00 = 8.0 + 4.0 * s4 * (2.0 * d.x * d.x + d2);
-        float h11 = 8.0 + 4.0 * s4 * (2.0 * d.y * d.y + d2);
+        // Hessian
+        float curv_h = exclude_curvature ? 0.0 : (is_crossing ? 16.0 : 8.0);
+        float h00 = curv_h + 4.0 * s4 * (2.0 * d.x * d.x + d2);
+        float h11 = curv_h + 4.0 * s4 * (2.0 * d.y * d.y + d2);
         float h01 = 8.0 * s4 * d.x * d.y;
 
         float det = h00 * h11 - h01 * h01;
