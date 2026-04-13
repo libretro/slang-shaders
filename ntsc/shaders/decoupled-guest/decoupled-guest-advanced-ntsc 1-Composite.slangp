@@ -1,5 +1,5 @@
 shaders = "10"
-shader0 = "../stock.slang"
+shader0 = "../../../stock.slang"
 alias0 = "StockPass"
 wrap_mode0 = "clamp_to_border"
 mipmap_input0 = "false"
