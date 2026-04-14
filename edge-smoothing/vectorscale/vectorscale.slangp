@@ -3,7 +3,7 @@
 # Intermediate textures are over-allocated using source-relative scales:
 #   Cell graph: 2W x 7H (needs (W+1) x 6(H+1), works for H >= 6)
 #   Positions:  2W x 3.5H (needs (W+1) x 2(H+1), works for H >= 2)
-shaders = 8
+shaders = 10
 
 shader0 = shaders/similarity-graph.slang
 alias0 = SimilarityGraph
@@ -57,17 +57,36 @@ scale5 = 1.0
 wrap_mode5 = clamp_to_border
 float_framebuffer5 = true
 
+# T-junction/crossing correction: 3 iterations for convergence.
+# Each pass reads neighbor positions from Source (previous pass) and
+# original center positions from Opt2.
 shader6 = shaders/update-tjunction.slang
-alias6 = FinalPositions
+alias6 = TJunc1
 filter_linear6 = false
 scale_type6 = source
 scale6 = 1.0
 wrap_mode6 = clamp_to_border
 float_framebuffer6 = true
 
-shader7 = shaders/cell-rasterizer.slang
-alias7 = FinalOutput
-filter_linear7 = true
-scale_type7 = viewport
+shader7 = shaders/update-tjunction.slang
+alias7 = TJunc2
+filter_linear7 = false
+scale_type7 = source
 scale7 = 1.0
 wrap_mode7 = clamp_to_border
+float_framebuffer7 = true
+
+shader8 = shaders/update-tjunction.slang
+alias8 = FinalPositions
+filter_linear8 = false
+scale_type8 = source
+scale8 = 1.0
+wrap_mode8 = clamp_to_border
+float_framebuffer8 = true
+
+shader9 = shaders/cell-rasterizer.slang
+alias9 = FinalOutput
+filter_linear9 = true
+scale_type9 = viewport
+scale9 = 1.0
+wrap_mode9 = clamp_to_border

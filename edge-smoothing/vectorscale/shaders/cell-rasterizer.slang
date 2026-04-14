@@ -176,31 +176,78 @@ vec2 beval_deriv(vec2 p0, vec2 p1, vec2 p2, float t) {
     return (t - 1.0) * p0 + (1.0 - 2.0 * t) * p1 + t * p2;
 }
 
-// ---- Closest point on B-spline span ----
+// ---- Closest point on B-spline span (exact cubic solver) ----
+//
+// D(t) = |B(t)-pt|² is degree 4, D'(t) is cubic → closed-form roots.
+// Evaluates D at all real roots in [0,1] + endpoints, returns global min.
 
 vec2 closest_on_span(vec2 p0, vec2 p1, vec2 p2, vec2 pt) {
-    float best_d2 = 1e10;
-    float best_t = 0.0;
-    for (int s = 0; s <= 4; s++) {
-        float t = float(s) * 0.25;
-        vec2 bp = beval(p0, p1, p2, t);
-        float d2 = dot(pt - bp, pt - bp);
-        if (d2 < best_d2) { best_d2 = d2; best_t = t; }
+    // Polynomial form: B(t) = a*t² + b*t + c
+    vec2 a = 0.5 * (p0 - 2.0 * p1 + p2);
+    vec2 b = p1 - p0;
+    vec2 e = 0.5 * (p0 + p1) - pt;  // c - pt
+
+    // D'(t)/2 cubic coefficients
+    float c3 = 2.0 * dot(a, a);
+    float c2 = 3.0 * dot(a, b);
+    float c1 = 2.0 * dot(a, e) + dot(b, b);
+    float c0 = dot(b, e);
+
+    #define EVAL_D2(t) dot((a*(t)+b)*(t)+e, (a*(t)+b)*(t)+e)
+
+    // Start with endpoints
+    float d0 = EVAL_D2(0.0);
+    float d1 = EVAL_D2(1.0);
+    float best_d2 = d0; float best_t = 0.0;
+    if (d1 < best_d2) { best_d2 = d1; best_t = 1.0; }
+
+    if (abs(c3) < 1e-12) {
+        // Degenerate: quadratic or linear
+        if (abs(c2) > 1e-12) {
+            float disc = c1*c1 - 4.0*c2*c0;
+            if (disc >= 0.0) {
+                float sq = sqrt(disc);
+                float inv = 0.5 / c2;
+                float t1 = (-c1 + sq) * inv;
+                float t2 = (-c1 - sq) * inv;
+                if (t1 > 0.0 && t1 < 1.0) { float dd = EVAL_D2(t1); if (dd < best_d2) { best_d2 = dd; best_t = t1; } }
+                if (t2 > 0.0 && t2 < 1.0) { float dd = EVAL_D2(t2); if (dd < best_d2) { best_d2 = dd; best_t = t2; } }
+            }
+        } else if (abs(c1) > 1e-12) {
+            float t1 = -c0 / c1;
+            if (t1 > 0.0 && t1 < 1.0) { float dd = EVAL_D2(t1); if (dd < best_d2) { best_d2 = dd; best_t = t1; } }
+        }
+    } else {
+        // Full cubic: depressed form via t = u - c2/(3·c3)
+        float inv3a = 1.0 / (3.0 * c3);
+        float shift = -c2 * inv3a;
+        float p = (3.0*c3*c1 - c2*c2) / (3.0*c3*c3);
+        float q = (2.0*c2*c2*c2 - 9.0*c3*c2*c1 + 27.0*c3*c3*c0) / (27.0*c3*c3*c3);
+        float disc = q*q/4.0 + p*p*p/27.0;
+
+        if (disc > 1e-12) {
+            // One real root
+            float sq = sqrt(disc);
+            float hq = -q * 0.5;
+            float u1 = sign(hq+sq) * pow(abs(hq+sq), 1.0/3.0);
+            float u2 = sign(hq-sq) * pow(abs(hq-sq), 1.0/3.0);
+            float t1 = u1 + u2 + shift;
+            if (t1 > 0.0 && t1 < 1.0) { float dd = EVAL_D2(t1); if (dd < best_d2) { best_d2 = dd; best_t = t1; } }
+        } else {
+            // Three real roots (trigonometric)
+            float r = sqrt(max(-p*p*p/27.0, 0.0));
+            float phi = (r < 1e-15) ? 0.0 : acos(clamp(-q/(2.0*r), -1.0, 1.0));
+            float cube_r = 2.0 * sign(r) * pow(abs(r), 1.0/3.0);
+            const float TAU = 6.283185307;
+            for (int k = 0; k < 3; k++) {
+                float angle = (phi + TAU * float(k)) / 3.0;
+                float t1 = cube_r * cos(angle) + shift;
+                if (t1 > 0.0 && t1 < 1.0) { float dd = EVAL_D2(t1); if (dd < best_d2) { best_d2 = dd; best_t = t1; } }
+            }
+        }
     }
 
-    vec2 b2 = p0 - 2.0 * p1 + p2;
-    for (int i = 0; i < 4; i++) {
-        vec2 bt = beval(p0, p1, p2, best_t);
-        vec2 bt1 = beval_deriv(p0, p1, p2, best_t);
-        vec2 diff = bt - pt;
-        float f = dot(bt1, diff);
-        float g = dot(b2, diff) + dot(bt1, bt1);
-        if (abs(g) > 1e-10)
-            best_t = clamp(best_t - f / g, 0.0, 1.0);
-    }
-
-    vec2 bp = beval(p0, p1, p2, best_t);
-    best_d2 = dot(pt - bp, pt - bp);
+    #undef EVAL_D2
     return vec2(best_t, best_d2);
 }
 

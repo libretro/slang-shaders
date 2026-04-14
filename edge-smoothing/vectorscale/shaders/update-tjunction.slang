@@ -1,20 +1,21 @@
 #version 450
 #pragma format R32G32B32A32_SFLOAT
 
-// Pass: Post-optimization T-junction position correction.
+// Pass: Post-optimization junction position correction.
 //
-// Reads absolute positions from Source, applies T-junction correction,
-// stores corrected absolute positions.
+// Crossings: inverse B-spline correction (each slot independently)
+// T-junctions: forward B-spline correction + stem snapping
 //
-// For each CP with IS_TJUNCTION flag, recompute position as:
-//   pos = 0.125 * prev_pos + 0.75 * pos + 0.125 * next_pos
-//
-// Also updates the stem CP at the other slot (i ^ 1) so it terminates
-// exactly on the smooth curve.
+// Uses Opt2 (original optimizer output) for the center weight,
+// Source (previous pass) for neighbor positions. This allows
+// multi-pass iteration: dispatch this shader 3 times, each reading
+// the previous pass's corrected positions as neighbors while using
+// the fixed original center positions.
 //
 // Input textures:
-//   Source (previous pass): optimized absolute positions
-//   CellGraph: original positions + neighbors + flags
+//   Source (previous pass): current positions (neighbors)
+//   Opt2: original optimizer output (center weight)
+//   CellGraph: neighbors + flags
 //
 // Output: (R=pos.x, G=pos.y, B=0, A=0)
 
@@ -28,6 +29,7 @@ layout(push_constant) uniform Push {
 layout(std140, set = 0, binding = 0) uniform UBO {
     mat4 MVP;
     vec4 CellGraphSize;
+    vec4 Opt2Size;
 } global;
 
 #pragma stage vertex
@@ -44,8 +46,9 @@ void main() {
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 
-layout(set = 0, binding = 2) uniform sampler2D Source;    // optimized positions
+layout(set = 0, binding = 2) uniform sampler2D Source;    // current positions (neighbors)
 layout(set = 0, binding = 3) uniform sampler2D CellGraph; // pass 3 (neighbors + flags)
+layout(set = 0, binding = 4) uniform sampler2D Opt2;      // original optimizer output
 
 int IMG_W()    { return int(params.OriginalSize.x); }
 int IMG_H()    { return int(params.OriginalSize.y); }
@@ -69,6 +72,14 @@ vec2 read_pos(int cp_idx) {
     int cx, cy_slot;
     decode_cp(cp_idx, cx, cy_slot);
     vec4 val = texelFetch(Source, ivec2(cx, cy_slot), 0);
+    return vec2(val.r, val.g);
+}
+
+vec2 read_orig_pos(int cp_idx) {
+    if (cp_idx < 0 || cp_idx >= NUM_CPS()) return vec2(0.0);
+    int cx, cy_slot;
+    decode_cp(cp_idx, cx, cy_slot);
+    vec4 val = texelFetch(Opt2, ivec2(cx, cy_slot), 0);
     return vec2(val.r, val.g);
 }
 
@@ -113,14 +124,17 @@ void main() {
     int cp_slot = cy_slot % 2;
     int i = (cy * CORNERS_W() + col) * 2 + cp_slot;
 
-    vec2 curr_pos = read_pos(i);
     uint flags = read_flags(i);
+    vec2 curr_pos = read_pos(i);
+    vec2 orig_pos = read_orig_pos(i);
 
     int partner = i ^ 1;
     uint partner_flags = read_flags(partner);
 
-    // Valence-4 crossing: inverse B-spline correction so the curve
-    // passes through the grid corner (current position) at t=0.5.
+    // Valence-4 crossing: inverse B-spline correction.
+    // Both slots processed independently (different pp/np require
+    // different corrected positions for both curves to pass through
+    // the same grid_pos at t=0.5).
     if ((flags & IS_CROSSING) != 0u) {
         ivec2 nbrs = read_neighbors(i);
         int prev_idx = nbrs.x;
@@ -129,7 +143,7 @@ void main() {
         if (prev_idx >= 0 && next_idx >= 0) {
             vec2 prev_pos = read_pos(prev_idx);
             vec2 next_pos = read_pos(next_idx);
-            vec2 corrected = (curr_pos - 0.125 * prev_pos - 0.125 * next_pos) / 0.75;
+            vec2 corrected = (orig_pos - 0.125 * prev_pos - 0.125 * next_pos) / 0.75;
             FragColor = vec4(corrected.x, corrected.y, 0.0, 0.0);
             return;
         }
@@ -141,11 +155,12 @@ void main() {
         if (prev_idx >= 0 && next_idx >= 0) {
             vec2 prev_pos = read_pos(prev_idx);
             vec2 next_pos = read_pos(next_idx);
-            vec2 corrected = 0.125 * prev_pos + 0.75 * curr_pos + 0.125 * next_pos;
+            vec2 corrected = 0.125 * prev_pos + 0.75 * orig_pos + 0.125 * next_pos;
             FragColor = vec4(corrected.x, corrected.y, 0.0, 0.0);
             return;
         }
     } else if ((partner_flags & IS_TJUNCTION) != 0u && flags == 1u) {
+        // Stem: snap onto through curve
         ivec2 partner_nbrs = read_neighbors(partner);
         int prev_idx = partner_nbrs.x;
         int next_idx = partner_nbrs.y;

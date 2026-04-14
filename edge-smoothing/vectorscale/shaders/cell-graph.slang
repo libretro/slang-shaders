@@ -276,22 +276,30 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
     bool is_interior = cx > 0 && cy > 0 && cx < IMG_W() && cy < IMG_H();
 
     if (!is_interior) {
+        // Border CPs: pinned, connected back to interior neighbor via
+        // nbr_cp_idx (graph-only, no race). from_dir = direction at
+        // the border corner (not the interior corner).
         bool has_boundary = false;
-        if (cy == 0 && cx > 0 && cx < IMG_W()) {
+        if (cy == 0 && cx > 0 && cx < IMG_W())
             has_boundary = !similar(cx - 1, 0, cx, 0);
-        }
-        if (cy == IMG_H() && cx > 0 && cx < IMG_W()) {
+        if (cy == IMG_H() && cx > 0 && cx < IMG_W())
             has_boundary = has_boundary || !similar(cx - 1, IMG_H() - 1, cx, IMG_H() - 1);
-        }
-        if (cx == 0 && cy > 0 && cy < IMG_H()) {
+        if (cx == 0 && cy > 0 && cy < IMG_H())
             has_boundary = has_boundary || !similar(0, cy - 1, 0, cy);
-        }
-        if (cx == IMG_W() && cy > 0 && cy < IMG_H()) {
+        if (cx == IMG_W() && cy > 0 && cy < IMG_H())
             has_boundary = has_boundary || !similar(IMG_W() - 1, cy - 1, IMG_W() - 1, cy);
-        }
         if (has_boundary) {
+            int nbr = -1;
+            int our_dir = -1;
+            if (cy == IMG_H())      { nbr = nbr_cp_idx(cx, cy-1, 0); our_dir = 0; }
+            else if (cy == 0)       { nbr = nbr_cp_idx(cx, cy+1, 2); our_dir = 2; }
+            else if (cx == IMG_W()) { nbr = nbr_cp_idx(cx-1, cy, 3); our_dir = 3; }
+            else if (cx == 0)       { nbr = nbr_cp_idx(cx+1, cy, 1); our_dir = 1; }
+
             slot0.pos = vec2(float(cx), float(cy));
-            slot0.flag = 1u; // pinned border CP
+            slot0.flag = 1u;
+            slot0.next = nbr;
+            slot0.next_dir = our_dir;
         }
         return;
     }
