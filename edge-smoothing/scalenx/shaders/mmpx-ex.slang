@@ -1,11 +1,12 @@
 #version 450
+precision mediump float;
 
 // MMPX
 // by Morgan McGuire and Mara Gagiu
 // https://casual-effects.com/research/McGuire2021PixelArt/
 // License: MIT
 // adapted for slang by hunterk
-// 2025 Enhanced by CrashGG.
+// 2025-2026 Enhanced by CrashGG.
 
 layout(push_constant) uniform Push
 {
@@ -38,810 +39,626 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 
 float luma(vec3 col){
-   // Uses BT.601 standard from the CRT era
+   //Use BT.601 standard from the CRT era
    return dot(col, vec3(0.299, 0.587, 0.114));
-   // RGB average
-   //return dot(col, vec3(0.3333333));
 }
 
-
-/* Explanation of constants:
-0.145898	：			Double short golden ratio of 1.0
-0.0638587	：		Squared double short golden ratio of RGB Euclidean distance
-0.024391856	：		Squared (double short + single) golden ratio of RGB Euclidean distance
-0.00931686	：		Squared triple short golden ratio of RGB Euclidean distance
-0.001359312	：		Squared quadruple short golden ratio of RGB Euclidean distance
-0.4377		：		Squared single golden ratio of RGB Euclidean distance
-0.75			：		Squared half of RGB Euclidean distance
+/* Constant definitions:
+0.145898		:	Two short golden ratio subdivisions of 1.0
+0.0638587		:	Squared short golden ratio subdivision for RGB Euclidean distance
+0.4377		    :	Squared single golden ratio subdivision for RGB Euclidean distance
+0.75			    :	Squared half of RGB Euclidean distance
 */
-// Pixel Similarity Detection LV1
-// pin zz
-bool sim1(vec3 col1, vec3 col2) {
 
+bool simb(vec3 col1, vec3 col2) {
+
+	highp vec3 diff = col1 - col2;
+
+	float maxdiff = max(diff.r, max(diff.g, diff.b));
+	float mindiff = min(diff.r, min(diff.g, diff.b));
+
+	// Luminance weight floor: both colors must be > 0.078 (0.234÷3)
+	float weight = step(0.234, min(col1.r+col1.g+col1.b, col2.r+col2.g+col2.b));
+
+	// Find the most opposing channel: if one positive and one negative, take the smallest absolute value; 0 if same sign
+	// Filter same-sign cases using max(0.0, ...)
+	// Skip team_rebel if either pixel luminance < 0.078
+	float team_rebel = min(max(0.0, maxdiff), max(0.0, -mindiff)) * weight;
+	float finaldist = (maxdiff - mindiff) + team_rebel;
+
+	highp float dot_diff = dot(diff, diff);
+
+	// Equivalent to (finaldist ÷ 0.145898 )²
+	highp float factor = (finaldist * finaldist) * 46.9787;
+
+	return dot_diff < mix(0.0638587, 0.0, factor);
+}
+
+bool sim(vec3 col1, vec3 col2) {
+
+	highp vec3 diff = col1 - col2;
+
+	// RGB color difference range (max_diff - min_diff)
+	float delta_range = max(diff.r, max(diff.g, diff.b)) - min(diff.r, min(diff.g, diff.b));
+
+	highp float dot_diff = dot(diff, diff);
+
+	// Equivalent to (delta_range ÷ 0.382 )²
+	highp float factor = (delta_range * delta_range) * 6.8541;
+
+	return dot_diff < mix(0.0638587, 0.0, factor);
+}
+
+bool vi_sim(vec3 col1, uint uC1, uint uC2) {
+    if (uC1==uC2) return true;
+    vec3 col2 = unpackUnorm4x8(uC2).rgb;
+    return sim(col1, col2);
+}
+
+float mixGate(vec3 col1, vec3 col2) {
+
+	highp vec3 diff = col1 - col2;
+
+	// RGB color difference range (max_diff - min_diff)
+	float delta_range = max(diff.r, max(diff.g, diff.b)) - min(diff.r, min(diff.g, diff.b));
+
+	highp float dot_diff = dot(diff, diff);
+
+	// Equivalent to (delta_range ÷ 0.618 )²
+	highp float factor = (delta_range * delta_range) * 2.618034;
+
+	return step(dot_diff, mix(0.75, 0.0, factor));
+}
+
+bool fastcheck(vec3 col1, vec3 col2) {
     vec3 diff = col1 - col2;
-    vec3 absdiff = abs(diff);
-
-    // 1. Fast component difference check
-    if ( absdiff.r > 0.1 || absdiff.g > 0.1 || absdiff.b > 0.1 ) return false;
-
-    // 2. Fast squared distance check
-	float dot_diff = dot(diff, diff);
-    if (dot_diff < 0.001359312) return true;
-
-    // 3. Progressive pixel check
-    float min_diff = min(diff.r, min(diff.g, diff.b));
-    float max_diff = max(diff.r, max(diff.g, diff.b));
-    if ( max_diff-min_diff>0.096 ) return false;    // Exit if difference exceeds int24
-    if ( max_diff-min_diff<0.024 && dot_diff<0.024391856)  return true;  //  Classify as progressive pixel if difference ≤ int6. Relax threshold by one level.
-
-	// 4. Gray pixel check
-    float sum1 = dot(col1, vec3(1.0));  // Sum of three channels
-    float sum2 = dot(col2, vec3(1.0));
-    float avg1 = sum1 * 0.3333333;
-    float avg2 = sum2 * 0.3333333;
-
-	vec3 graydiff1 = col1 - vec3(avg1);
-	vec3 graydiff2 = col2 - vec3(avg2);
-	float dotgray1 = dot(graydiff1,graydiff1);
-	float dotgray2 = dot(graydiff2,graydiff2);
-    // 0.002: Allows max single-channel difference of int13 when avg=20. 0.0004: Allows max single-channel difference of int6, or int3+4 for dual channels
-	float tolerance1 = avg1<0.08 ? 0.002 : 0.0004;
-	float tolerance2 = avg2<0.08 ? 0.002 : 0.0004;
-    // 0.078 Limits max green channel value to 19, the perceptual threshold for human vision
-    bool Col1isGray = sum1<0.078||dotgray1<tolerance1;
-    bool Col2isGray = sum2<0.078||dotgray2<tolerance2;
-
-	// Relax to Lv2 if both are gray
-    if ( Col1isGray && Col2isGray && dot_diff<0.024391856 ) return true;
-
-	// Exit if only one is gray
-    if ( Col1isGray != Col2isGray ) return false;
-
-    // Accumulate positive/negative values separately using max/min
-    float team_pos = abs(dot(max(diff, 0.0), vec3(1.0)));
-    float team_neg = abs(dot(min(diff, 0.0), vec3(1.0)));
-    // Find opposing channels and add to squared distance for judgment
-    float team_rebel = min(team_pos, team_neg);
-    // Implementation note: At least 3x opposing channel value needs to be added. (+1x to break even, +2x to form increasing trend)
-    return dot_diff + team_rebel*team_rebel*3.0 < 0.00931686;
-
+	return dot(diff, diff) < 0.75;
 }
-
-// Pixel Similarity Detection LV2 and LV3
-bool sim2n3(vec3 col1, vec3 col2, int Lv) {
-
-    // 1. Clamp dark regions
-    vec3 clampCol1 = max(col1, vec3(0.078));
-    vec3 clampCol2 = max(col2, vec3(0.078));
-
-    vec3 clampdiff = clampCol1 - clampCol2;
-
-	// Euclidean distance between two points: (2 short + 1), double short golden ratio
-    float dotdist = Lv==2 ? 0.024391856 : 0.0638587;
-
-    return dot(clampdiff, clampdiff) < dotdist;
-}
-
-bool sim2(vec3 colC1, uint C1, uint C2) {
-    if (C1==C2) return true;
-    return sim2n3(colC1, unpackUnorm4x8(C2).rgb, 2);	// Note: Exclude alpha channel
-}
-
-bool sim3(vec3 col1, vec3 col2) {
-    return sim2n3(col1, col2, 3);
-}
-
-bool mixcheck(vec3 col1, vec3 col2) {
-
-    vec3 diff = col1 - col2;
-
-    // Progressive pixel check
-    float min_diff = min(diff.r, min(diff.g, diff.b));
-    float max_diff = max(diff.r, max(diff.g, diff.b));
-    if ( max_diff-min_diff>0.618034 ) return false;
-
-	float dot_diff = dot(diff, diff);
-    if( max_diff-min_diff<0.024 && dot_diff<0.75)  return true;  //  0.020 ≤ int5    0.024 ≤ int6
-
-    // Accumulate positive/negative values separately using max/min
-    float team_pos = abs(dot(max(diff, 0.0), vec3(1.0)));
-    float team_neg = abs(dot(min(diff, 0.0), vec3(1.0)));
-    // Find opposing channels and add to squared distance for judgment
-    float team_rebel = min(team_pos, team_neg);
-    // Implementation note: At least 3x opposing channel value needs to be added. (+1x to break even, +2x to form increasing trend)
-    return dot_diff + team_rebel*team_rebel*3.0 < 0.4377;
-}
-
-
 
 #define eq(a,b) (a==b)
-#define noteq(a,b) (a!=b)
-//    Note: Legacy approach allowed int1 difference per channel, which is less efficient and effective than total int2 across three channels
 
-#define vec_noteq(a,b) (dot(abs(a-b), vec3(1.0)) > 0.008)
-bool all_eq2(uint B, uint A0, uint A1) {
-    return ((B ^ A0) | (B ^ A1)) == 0u;
-}
+#define neq(a,b) (a!=b)
 
-bool any_eq2(uint B, uint A0, uint A1) {
-    return B == A0 || B == A1;
-}
+#define all_eq2(a, b1, b2) \
+	( eq(a,b1) && eq(a,b2))
 
-bool any_eq3(uint B, uint A0, uint A1, uint A2) {
-    return B == A0 || B == A1 || B == A2;
-}
+#define all_eq3(a, b1, b2, b3) \
+	( eq(a,b1) && eq(a,b2) && eq(a,b3))
 
-bool none_eq2(uint B, uint A0, uint A1) {
-    return (B != A0) && (B != A1);
-}
+#define all_eq4(a, b1, b2, b3, b4) \
+	( eq(a,b1) && eq(a,b2) && eq(a,b3) && eq(a,b4))
+
+#define any_eq2(a, b1, b2) (eq(a,b1)||eq(a,b2))
+#define any_eq3(a, b1, b2, b3) (eq(a,b1)||eq(a,b2)||eq(a,b3))
+// Better than a!=b1 && a!=b2
+#define none_eq2(a, b1, b2) !any_eq2(a, b1, b2)
+
+
+// 3-channel: total int2 difference allowed
+//#define vec_neq(a,b) (dot(abs(a-b), vec3(1.0)) > 0.01)
+// 3-channel: per-channel int2 difference allowed
+#define vec_eq(a,b) all(lessThan(abs(a-b), vec3(0.01)))
+#define vec_neq(a, b) any(greaterThan(abs(a-b), vec3(0.01)))
 
 
 // Pre-define
-//#define testcolor vec3(1.0, 0.0, 1.0)  // Magenta
-//#define testcolor2 vec3(0.0, 1.0, 1.0)  // Cyan
-//#define testcolor3 vec3(1.0, 1.0, 0.0)  // Yellow
-//#define testcolor4 vec3(1.0, 1.0, 1.0)  // White
+const vec3 testcolor  = vec3(1.0, 0.0, 1.0);  // Magenta
+const vec3 testcolor2 = vec3(0.0, 1.0, 1.0);  // Cyan
+const vec3 testcolor3 = vec3(1.0, 1.0, 0.0);  // Yellow
+const vec3 testcolor4 = vec3(1.0, 1.0, 1.0);  // White
+const vec3 slopOFF   = vec3(2.0);
+const vec3 slopeBAD  = vec3(4.0);
+const vec3 theEXIT   = vec3(8.0);
 
-#define slopeBAD vec3(2.0)
-#define theEXIT vec3(4.0)
-#define slopOFF vec3(8.0)
-#define Mix382 mix(colX,colE,0.381966)
-#define Mix618 mix(colX,colE,0.618034)
-#define Mix854 mix(colX,colE,0.8541)
-#define Mix382off Mix382+slopOFF
-#define Mix618off Mix618+slopOFF
-#define Mix854off Mix854+slopOFF
-#define Xoff colX+slopOFF
-#define checkblack(col) ((col).g < 0.078 && (col).r < 0.1 && (col).b < 0.1)
-#define diffEB abs(El-Bl)
-#define diffED abs(El-Dl)
+#define mixXE mix(vX,vE,mixFactor)
+#define mixXEoff mixXE+slopOFF
+#define Xoff vX+slopOFF
+//#define checkblack(col) ((col).g < 0.078 && (col).r < 0.1 && (col).b < 0.1)
+#define checkblack(col) all(lessThan((col).rgb, vec3(0.1, 0.078, 0.1)))
+
 
 //pin zz
-// "Concave + Cross" weak blending (weak blend / none)
-vec3 admixC(vec3 colX, vec3 colE) {
+// Concave + Cross pattern: weak blending (weak/none)
+vec3 admixC(vec3 vX, vec3 vE) {
+	// Weak blending. Blend? 0.618 else 1.0
+	float mixFactor = mixGate(vX, vE) * (-0.381966) + 1.0;
 
-	bool mixok = mixcheck(colX, colE);
-
-	return mixok ? Mix618 : colE;
-
+	return mixXE;
 }
 
-// K-shape forced weak blending (weak blend / weaker)
-vec3 admixK(vec3 colX, vec3 colE) {
-
-	bool mixok = mixcheck(colX, colE);
-
-	return mixok ? Mix618 : Mix854;
-
+// K-type: forced weak blending
+vec3 admixK(vec3 vX, vec3 vE) {
+    vec3 diff = vX - vE;
+	// mixFactor scales from 0.5-1.0, quadratic curve, steeper closer to 1.0
+	float mixFactor = dot(diff, diff) * 0.16666 + 0.5;
+	// mixFactor scales linearly from 0.5-1.0 based on Euclidean distance
+	//float mixFactor = distance(vX, vE) * 0.28867 + 0.5;
+	return mixXE;
 }
 
-// L-shape 2:1 slope  Main corner extension
-// Implementation note: This rule requires exactly identical 4 pixels on the slope. Otherwise various artifacts will appear!
-vec3 admixL(vec3 colX, vec3 colE, vec3 colS) {
+// L-type 2:1 slope: main corner extension
+// Practical rule: this requires 4 pixels on the exact slope to be identical. Artifacts appear otherwise!
+vec3 admixL(vec3 vX, vec3 vE, vec3 vS) {
 
-    // Judging eqX,E originally captured numerous duplicate pixels, now filtered by slopeok in main logic.
+    //If target X and reference S (sample) differ, blending already occurred; copy directly without re-blending
+	if (vec_neq(vX, vS)) return vX;
 
-	// Return colX directly if target X differs from reference S (sample), indicating already blended once
-	if (vec_noteq(colX, colS)) return colX;
+	float mixFactor = 0.381966 * mixGate(vX,vE);
 
-	bool mixok = mixcheck(colX, colE);
-
-    return mixok ? Mix382 : colX;
+    return mixXE;
 }
 
-/********************************************************************************************************************************************
- *               												main slope + X cross-processing mechanism					                *
- ************************************************************************************************************************************** zz  */
-vec3 admixX(uint A, uint B, uint C, uint D, uint E, uint F, uint G, uint H, uint I, uint P, uint PA, uint PC, uint Q, uint QA, uint QG, uint R, uint RC, uint RI, uint S, uint SG, uint SI, uint AA, uint CC, uint GG, float El, float Bl, float Dl, float Fl, float Hl, vec3 colE, vec3 colB, vec3 colD) {
+/**************************************************************************************************************************************
+ * 												main slope + X cross-processing mechanism						                *
+ ******************************************************************************************************************************** zz  */
+vec3 admixX( uint A, uint B, uint C, uint D, uint E, uint F, uint G, uint H, uint I
+		  , uint P, uint PA, uint PC, uint Q, uint QA, uint QG, uint R, uint RC, uint RI, uint S, uint SG, uint SI, uint AA, uint CC, uint GG
+		  , float El, float Bl, float Dl, float Fl, float Hl
+		  , vec3 vE, vec3 vB, vec3 vD, vec3 vC, vec3 vG
+		  ) {
 
-	//pre-cal
-	bool eq_B_C = eq(B, C);
-	bool eq_D_G = eq(D, G);
 
-    // Exit if sandwiched by double-sided straight walls
+	bool eq_B_C = eq(B,C);
+	bool eq_D_G = eq(D,G);
+
+    // Exit if enclosed by straight walls on both sides
     if (eq_B_C && eq_D_G) return slopeBAD;
 
+
 	//Pre-declare
-	bool eq_A_B;		bool eq_A_D;		bool eq_A_P;	bool eq_A_Q;
 	bool eq_B_P;		bool eq_B_PA;	bool eq_B_PC;
 	bool eq_D_Q;		bool eq_D_QA;	bool eq_D_QG;
-    bool eq_E_F;		bool eq_E_H;		bool eq_E_I;    bool En3;
-	bool B_slope;	bool B_tower;	bool B_wall;
-    bool D_slope;	bool D_tower;	bool D_wall;
-	vec3 colX;		bool Xisblack;
-    bool mixok;
+	bool eq_E_F;		bool eq_E_H;		bool eq_A_AA;
 
-	bool eq_B_D = eq(B,D);
-    bool eq_E_A = eq(E,A);
-	
-    #define comboA3  eq_A_P && eq_A_Q
-    #define En4square  En3 && eq_E_I
+	vec3 vX;
+	float mixFactor;
+
+	bool eq_E_C = eq(E,C);
+	bool eq_E_G = eq(E,G);
+    bool eq_A_P = eq(A,P);
+    bool eq_A_Q = eq(A,Q);
+    bool comboE3 = eq_E_C && eq_E_G;
+    bool comboA3 = eq_A_P && eq_A_Q;
 
 /*=========================================
                     B != D
   ==================================== zz */
-if (!eq_B_D){
+if (neq(B,D)){
 
-	// Exit if E-A match (violates preset logic)
-	if (eq_E_A) return slopeBAD;
+	// E == A violates logic, exit
+	if (eq(E,A)) return slopeBAD;
 
-	// Exit if B and D differ significantly, more than either's difference from center E
+	// B-D unconnected? Removed
+
+	// B and D differ significantly, greater than either to center E: exit
 	float diffBD = abs(Bl-Dl);
-	if (diffBD > diffEB || diffBD > diffED) return slopeBAD;
-
-	// Avoid single-pixel font edges squeezed by black background (luminance difference usually exceeds 0.5)
-	// Note: If BD differ, use dual black check instead of average
-	Xisblack = checkblack(colB) && checkblack(colD);
-	if ( Xisblack && El >0.5 && (Fl<0.078 || Hl<0.078) ) return theEXIT;
-
-// Exclusion rules before legacy logic (triangle vertices cannot be convex)
-	eq_A_B = eq(A,B);
-	if ( !Xisblack && eq_A_B && eq_D_G && eq(B,P) ) return slopeBAD;
-
-	eq_A_D = eq(A,D);
-	if ( !Xisblack && eq_A_D && eq_B_C && eq(D,Q) ) return slopeBAD;
-
-    // Are B and D unrelated? Not applicable here (eliminates some artifacts but loses shapes, especially non-native pixel art like Double Dragon attract mode sprites)
-	// Blend B and D for X
-	colX = mix(colB, colD, 0.5);
-
-	mixok = mixcheck(colX,colE);
-
-	eq_A_P = eq(A,P);
-	eq_A_Q = eq(A,Q);
-	// High priority for A-side triple consecutive pixels (eq_A_P && eq_A_Q)
-    if (comboA3) return mixok ? Mix382off : Xoff;
-
-    // Official legacy rule
-    if ( eq(E,C) || eq(E,G) ) return mixok ? Mix382off : Xoff;
-
-    // Enhanced legacy rule 1 (good for trend detection), but not rule 2 (wall bypass issue)
-    if ( !eq_D_G&&eq(E,QG)&&sim2(colE,E,G) || !eq_B_C&&eq(E,PC)&&sim2(colE,E,C) ) return mixok ? Mix382off : Xoff;
+	if (diffBD > El-Bl || diffBD > El-Dl) return slopeBAD;
 
 
-    // Exclude "3-pixel single-side wall" cases
-    if (!Xisblack){
-        if ( eq_A_B&&eq_B_C || eq_A_D&&eq_D_G ) return slopeBAD;
-    }
+	// X is blend of B and D
+	vX = mix(vB, vD, 0.5);
 
-    // F-H inline trend (including En3), placed after wall rules
-    if ( eq(F,H) ) return mixok ? Mix382off : Xoff;
-    // Abandon remaining "2-pixel single-side wall" and unpatterned single pixels
+	mixFactor = 0.381966 * mixGate(vX,vE);
+
+	eq_B_PC = eq(B,PC);
+	eq_D_QG = eq(D,QG);
+ 
+	// Strong trend collection
+    if (none_eq2(A,B,D)){
+		if (comboA3) return mixXEoff;
+		if ( eq_A_P && eq_B_PC && !eq_B_C ) return mixXEoff;
+		if ( eq_A_Q && eq_D_QG && !eq_D_G ) return mixXEoff;
+
+		// Double slope enclosing BD, respect direction
+		if ( eq_A_P && eq_E_G ) return mixXEoff;
+		if ( eq_A_Q && eq_E_C ) return mixXEoff;
+
+		// Hollow L inner corner
+		if ( eq_E_C && eq_D_G ) return mixXEoff;
+		if ( eq_E_G && eq_B_C ) return mixXEoff;
+
+}
+    // E-side triple match
+    if ( comboE3 ) return mixXEoff;
+
+	// Original rule with slope condition
+    if ( eq_E_C && eq_B_PC && neq(B,P)) return mixXEoff;
+	if ( eq_E_G && eq_D_QG && neq(D,Q)) return mixXEoff;
+
+	eq_E_F = eq(E,F);
+
+	// F == H
+	if (eq(F,H)) {
+
+		// Double slope (exclude C-enclosed single pixel, BD different, weak connection)
+		if ( eq_E_C && !eq_D_G && (!eq_E_F||neq(E,P)) ) return mixXEoff;
+		if ( eq_E_G && !eq_B_C && (!eq_E_F||neq(E,Q)) ) return mixXEoff;
+
+		// F+H extension
+		if ( !eq_E_F && eq_B_PC && eq(F,RC) ) return mixXEoff;
+		if ( !eq_E_F && eq_D_QG && eq(H,SG) ) return mixXEoff;
+	}
 
     return slopeBAD;
 } // B != D
 
-/*******  B == D prepare *******/
+
+						/*********  B == D  *********/
   
-	// Avoid single-pixel font edges squeezed by black background
-	Xisblack = checkblack(colB);
+	// Avoid font edges squeezed by black background on three sides
+	bool Xisblack = checkblack(vB);
 	if ( Xisblack && El >0.5 && (Fl<0.078 || Hl<0.078) ) return theEXIT;
 
-    colX = colB;
-    bool eq_E_C = eq(E,C);
-    bool eq_E_G = eq(E,G);
-	bool sim_EC = eq_E_C || sim2n3(colE,unpackUnorm4x8(C).rgb,2);	//Note: Exclude alpha channel
-	bool sim_EG = eq_E_G || sim2n3(colE,unpackUnorm4x8(G).rgb,2);	//Note: Exclude alpha channel
+    vX = vB;
+	mixFactor = 0.381966 * mixGate(vX,vE);
 
-	bool ThickBorder;
+	bool B_slope;	bool B_tower;	bool B_wall;
+    bool D_slope;	bool D_tower;	bool D_wall;
+	bool En3;
+    #define En4square En3&&eq(E,I)
 
+/*===================================================
+                    E - A 交叉
+  ============================================== zz */
+if (eq(E,A)) {
 
-/*===============================================
-                 Core legacy rule with sim2 enhancement
-  ========================================== zz */
-if ( (sim_EC || sim_EG) && !eq_E_A ){
+    // Special pattern: dithering
+    // Goal: force blending
 
-/* Logic:
-    1. Handle continuous border shapes without blending
-    2. Special handling for long slopes
-    3. Legacy rules
-    4. Handle E inline patterns (En4, En3, F-H), remaining single bars and pixels
-    5. Handle L-shaped inner single bar and outer single bar
-    5. Default fallback return
-*/
+	eq_E_F = eq(E,F);
+	eq_E_H = eq(E,H);
 
-	eq_A_B = eq(B,A);
-	eq_B_P = eq(B,P);
+	bool Eisblack = checkblack(vE);
+
+	// 1. Dither center
+    if ( comboE3 && !eq_E_F && !eq_E_H && eq(E,I) ) {
+
+		// Exit if center E is black (KOF 96 power gauge, Punisher belt) to avoid excessive contrast blending
+		if (Eisblack) return theEXIT;
+		// Blend? 0.381966 else 0.618034
+		mixFactor = 0.618034 * (1.0 - mixFactor);
+		return mixXEoff;
+	}
+
+	eq_A_AA = eq(A,AA);
+
+	// 2. Dither edge
+    if ( comboA3 && eq_A_AA && none_eq2(A,PA,QA) )  {	
+		if (Eisblack) return theEXIT;
+		// Blend? 0.381966 else 0.618034
+		mixFactor = 0.618034 * (1.0 - mixFactor);
+        // Layered gradient edges: strong blending
+		if ( neq(B,PA) && eq(PA,QA) ) return mixXEoff;
+        // Remaining perfect cross: dither edge, weak blending
+		// No special case needed for health bar borders
+        // Base weak blending. Blend? 0.618 else 0.854
+		// mixFactor already modified above
+		mixFactor += 0.236068;
+		return mixXEoff;
+	}
+
     eq_B_PC = eq(B,PC);
     eq_B_PA = eq(B,PA);
-	eq_D_Q = eq(D,Q);
     eq_D_QG = eq(D,QG);
     eq_D_QA = eq(D,QA);
-	B_slope = eq_B_PC && !eq_B_P && !eq_B_C;
+
+	// No Eisblack check for remaining patterns
+	// 3. Half-dither: usually silhouette shading, weak blending
+
+	if ( comboE3 && comboA3 &&
+		(eq_B_PC || eq_D_QG) && eq_D_QA && eq_B_PA) {
+        // Base weak blending. Blend? 0.618 else 0.854
+		mixFactor = mixFactor * (-0.618034) + 0.8541;
+        return mixXEoff;
+	}
+
+    // 4. Quarter-dither: avoids ugly "pinky" artifacts (SF2 Guile plane, Cadillacs and Dinosaurs character select)
+
+	if ( comboE3 && eq_A_P
+		 && eq_B_PA && eq_D_QA && eq_D_QG
+		 && eq_E_H
+		) {// Base weak blending. Blend? 0.618 else 0.854
+		mixFactor = mixFactor * (-0.618034) + 0.8541;
+        return mixXEoff;
+		}
+
+	if ( comboE3 && eq_A_Q
+		 && eq_B_PA && eq_D_QA && eq_B_PC
+		 && eq_E_F
+		) {// Base weak blending. Blend? 0.618 else 0.854
+		mixFactor = mixFactor * (-0.618034) + 0.8541;
+        return mixXEoff;
+		}
+
+
+    // A-side triple match: strong pattern, after dither checks
+	if (comboA3) return Xoff;
+
+    // E-side triple match (after comboA3)
+    if (comboE3) return mixXEoff;
+
+	eq_B_P = eq(B, P);
+	eq_D_Q = eq(D, Q);
+
+	B_slope = eq_B_PC && !eq_B_P && !eq_B_C && !eq_B_PA;
+	D_slope = eq_D_QG && !eq_D_Q && !eq_D_G && !eq_D_QA;
+
+	B_wall = eq_B_C && !eq_B_PC && !eq_B_P;	// Removed one misalignment check
+	D_wall = eq_D_G && !eq_D_QG && !eq_D_Q;	// Removed one misalignment check
+	
 	B_tower = eq_B_P && !eq_B_PC && !eq_B_C && !eq_B_PA;
-	D_slope = eq_D_QG && !eq_D_Q && !eq_D_G;
 	D_tower = eq_D_Q && !eq_D_QG && !eq_D_G && !eq_D_QA;
 
 
-    // Return Xoff for strong continuous B+ D+ shapes (no blending)
-    if ( (B_slope||B_tower) && (D_slope||D_tower) && !eq_A_B) return Xoff;
+	if ( B_slope && eq_E_G ) return mixXEoff;
+	if ( D_slope && eq_E_C ) return mixXEoff;
 
 
-	eq_A_P = eq(A, P);
-	eq_A_Q = eq(A, Q);
-	mixok = mixcheck(colX,colE);
-    ThickBorder = eq_A_B && (eq_A_P||eq_A_Q|| eq(A,AA)&&(eq_B_PA||eq_D_QA));
-	if (ThickBorder && !Xisblack) mixok=false;
+// E/B/D zone scoring rules
 
-    // A-side triple consecutive pixels (eq_A_P && eq_A_Q)
-    if (comboA3) {
-        if (!eq_A_B) return Xoff;
-        else mixok=false;
-    }
-
-    // XE_messL B-D-E L-shape with sim2 high similarity		WIP 
-    // bool XE_messL = (eq_B_C && !sim_EG || eq_D_G && !sim_EC) ;
-
-    eq_E_F = eq(E, F);
-	B_wall = eq_B_C && !eq_B_PC && !eq_B_P;
-
-    // Long clear slope (not thick solid edge. Strong trend!)
-    // Special condition for long slopes
-	if ( B_wall && D_tower ) {
-        if (eq_E_G || sim_EG&&eq(E,QG) ) {   // Legacy rule + enhanced legacy
-            if (eq_A_B) return mixok ? Mix382 : colX;    // With thickness
-            return colX;                               // Hollow
-        }
-        // Clear zigzag shape, exclude eq_A_B + XE_messL ???
-        //if (eq_A_B  && !XE_messL) return ; // Poor effect
-        if (eq_A_B) return slopeBAD;
-        // Double-pixel with subsequent long slope
-        if (eq_E_F ) return colX;
-        // Single-pixel without subsequent long slope
-        return Xoff;
-    }
-
-    eq_E_H = eq(E, H);
-	D_wall = eq_D_G && !eq_D_QG&& !eq_D_Q;
-
-	if ( B_tower && D_wall ) {
-        if (eq_E_C || sim_EC&&eq(E,PC) ) {   // Legacy rule + enhanced legacy
-            if (eq_A_B) return mixok ? Mix382 : colX;    // With thickness
-            return colX;                                           // Hollow
-        }
-        // Clear zigzag shape, exclude eq_A_B + XE_messL ???
-        //if (eq_A_B  && !XE_messL) return ; // Poor effect
-        if (eq_A_B) return slopeBAD;
-        // Double-pixel with subsequent long slope
-        if (eq_E_H ) return colX;
-        // Single-pixel without subsequent long slope
-        return Xoff;
-    }
-
-
-    // Official legacy rule (after special shapes which have explicit no-blending)
-    if (eq_E_C || eq_E_G) return mixok ? Mix382 : colX;
-
-    // Enhanced legacy rule 1
-    if (sim_EG&&!eq_D_G&&eq(E,QG) || sim_EC&&!eq_B_C&&eq(E,PC)) return mixok ? Mix382off : Xoff;
-
-    // Enhanced legacy rule 2
-    if (sim_EC && sim_EG) return mixok ? Mix382off : Xoff;
-
-
-    // F-H inline trend (skip En4, En3)
-    if ( eq(F,H) )  return mixok ? Mix382off : Xoff;
-
-	// Relaxed final cleanup for two long slopes (non-clear shapes)
-    // Implementation note: This section differs from F-H cleanup. Default to neutral unless cube shape
-	if (eq_B_C && eq_D_Q) {
-        // Exit for double cube shape
-		if (eq_B_P && eq_B_PC && eq_A_B && eq_D_QA && !eq_D_QG && eq_E_F && eq(H,I) ) return theEXIT;
-
-		return mixok ? Mix382off : Xoff;
-	}
-
-	if ( eq_D_G && eq_B_P) {
-        // Exit for double cube shape
-		if (eq_D_Q && eq_D_QG && eq_A_B && eq_B_PA && !eq_B_PC && eq_E_H && eq(F,I) ) return theEXIT;
-
-		return mixok ? Mix382off : Xoff;
-	}
-
-    eq_E_I = eq(E, I);
-
-    // Exit for clear L-turn with inner parallel single bar
-    if (eq_A_B && !ThickBorder && !eq_E_I ) {
-	    if (B_wall && eq_E_F) return theEXIT;
-	    if (D_wall && eq_E_H) return theEXIT;
-	}
-
-    // Early return if colors are similar
-    if (mixok) return Mix382off;
-
-    // Exit for hollow L-turn with outer single bar (fix font edge issues)
-    if ( !eq_A_B && (eq_E_F||eq_E_H) && !eq_E_I) {
-        if (B_tower && !eq_D_Q && !eq_D_QG) return theEXIT;
-        if (D_tower && !eq_B_P && !eq_B_PC) return theEXIT;
-    }
-
-    // Fallback handling
-    return mixok ? Mix382off : Xoff;
-
-} // sim2 base
-
-
-/*===================================================
-                    E - A cross
-  ============================================== zz */
-if (eq_E_A) {
-
-	// Cross ✕ judgment requires "region" and "trend" concepts - tighter conditions for different regions
-
-    // No need to exit for unrelated B/D!
-
-    eq_E_F = eq(E, F);
-    eq_E_H = eq(E, H);
-    eq_E_I = eq(E, I);
-
-    En3 = eq_E_F&&eq_E_H;
-
-	// Special shape: Square (En3 && eq_E_I)
-	if ( En4square ) {
-        if( noteq(G,H) && noteq(C,F)                      //  Independent clear 4-pixel square / 6-pixel rectangle (both sides)
-		&& (eq(H,S) == eq(I,SI) && eq(F,R) == eq(I,RI)) ) return theEXIT;
-        //else return mixok ? mix(X,E,0.381966) : X;    Note: Do not return directly. Need board decision rules as adjacent B/D may form bubbles with squares
-    }
-
-    //  Special shape: Dot pattern
-	//	Implementation 1: !eq_E_F, !eq_E_H (avoid !sim to prevent shape loss)
-    //  Implementation 2: Force blending to preserve shapes (Akuma from Gouketsuji Ichizoku, Saturday Night Slam Masters 2)
-
-	bool Eisblack = checkblack(colE);
-	mixok = mixcheck(colX,colE);
-
-	//  1. Dot pattern center
-    if ( eq_E_C && eq_E_G && eq_E_I && !eq_E_F && !eq_E_H ) {
-
-		// Exit if center E is black (KOF '96 power bar, Punisher's belt) to avoid high-contrast blending
-		if (Eisblack) return theEXIT;
-		// Implementation 1: Do not capture black B (normal logic entry)
-		// Implementation 2: No need for separate eq_F_H check (>95% probability) + layered progression in power bars, 0.5 fallback blend
-		return mixok ? Mix382off : Mix618off;
-	}
-
-	eq_A_P = eq(A,P);
-	eq_A_Q = eq(A,Q);
-    eq_B_PA = eq(B,PA);
-
-	//  2. Dot pattern edge
-    if ( eq_A_P && eq_A_Q && eq(A,AA) && noteq(A,PA) && noteq(A,QA) )  {
-		if (Eisblack) return theEXIT;
-
-        // Use strong blend for layered progressive edges
-		if ( !eq_B_PA && eq(PA,QA) ) return mixok ? Mix382off : Mix618off;
-        // Remaining perfect cross (definite dot edge) - use weak blend
-        // Fallback weak blend. No need for separate power bar border handling
-		return mixok ? Mix618off : Mix854off;
-	}
-
-    eq_D_QA = eq(D,QA);
-    eq_D_QG = eq(D,QG);
-    eq_B_PC = eq(B,PC);
-
-  //   3. Half dot pattern (usually shadow on contour edges) - use weak blend
-	if ( eq_E_C && eq_E_G && eq_A_P && eq_A_Q &&
-		(eq_B_PC || eq_D_QG) &&
-		 eq_D_QA && eq_B_PA) {
-		//if (Eisblack) return ; Unnecessary
-
-        return mixok ? Mix618off : Mix854off;
-		}
-
-    //   4. Quarter dot pattern (prone to unsightly pinky effect - Guile's Sonic Boom in SF2, Dino Crisis character select)
-
-	if ( eq_E_C && eq_E_G && eq_A_P
-		 && eq_B_PA &&eq_D_QA && eq_D_QG
-		 && eq_E_H
-		) return mixok ? Mix618off : Mix854off;
-
-	if ( eq_E_C && eq_E_G && eq_A_Q
-		 && eq_B_PA &&eq_D_QA && eq_B_PC
-		 && eq_E_F
-		) return mixok ? Mix618off : Mix854off;
-
-
-    // E-side triple consecutive pixels (must come after dot patterns)
-    if ( eq_E_C && eq_E_G ) return Xoff;
-
-    // A-side triple consecutive pixels (eq_A_P && eq_A_Q) - must come after dot patterns. Blend first since E-A match
-	if (comboA3) return mixok ? Mix382off : Xoff;
-
-
-    // B-D part of long slope
-	eq_B_P = eq(B,P);
-	eq_D_Q = eq(D,Q);
-	B_wall = eq_B_C && !eq_B_P;
-	B_tower = eq_B_P && !eq_B_C;
-	D_tower = eq_D_Q && !eq_D_G;
-	D_wall = eq_D_G && !eq_D_Q;
-
-    int scoreE = 0; int scoreB = 0; int scoreD = 0; int scoreZ = 0;
-
-
-// E B D region board scoring rules
+    float scoreE = 0.0; float scoreB = 0.0; float scoreD = 0.0; float scoreZ = 0.0;
 
 //	E Zone
-    if (En3) {
-        scoreE += 1;
-        if (B_wall || B_tower || D_tower || D_wall) scoreZ = 1;
-    }
-
     if (eq_E_C) {
-		scoreE += 1;
-		scoreE += int(eq_E_F);
+		scoreE += 1.0 +float(eq(F,H)) +float(B_slope);
+		scoreE -= float(all_eq2(E,P,PC)&&!D_wall);
 	}
 
     if (eq_E_G) {
-        scoreE += 1;
-		scoreE += int(eq_E_H);
-
+        scoreE += 1.0 +float(eq(F,H)) +float(D_slope);
+		scoreE -= float(all_eq2(E,Q,QG)&&!B_wall);
     }
 
-	if (scoreE==0) {
-        // Single bar
-        if (eq_E_F ||eq_E_H) return theEXIT;
+	// Higher priority than rectangles
+	scoreE += float(B_slope && eq_A_Q || D_slope && eq_A_P);
+
+    En3 = eq_E_F && eq_E_H;
+
+	// Clear 4/6 rectangle: early exit, skip long slope Z check
+	if ( scoreE<0.1 && mixFactor<0.1 && En4square && eq(E,S)==eq(E,SI) && eq(E,R)==eq(E,RI) ) return theEXIT;
+
+	// Single line
+	if ( scoreE<0.1 && !En3 && neq(E,I) ) {
+		if ( B_wall && eq_E_F ) return theEXIT;
+		if ( D_wall && eq_E_H ) return theEXIT;
     }
 
-    if ( eq(F,H) ) {
-		scoreE += 1;
-        if ( scoreZ==0 && B_wall && (eq(F,R) || eq(G,H) || eq(F,I)) ) scoreZ = 1;
-        if ( scoreZ==0 && D_wall && (eq(C,F) || eq(H,S) || eq(F,I)) ) scoreZ = 1;
+	// Lower priority than single line
+	scoreE += float(B_slope && eq_A_P || D_slope && eq_A_Q);
+
+    if ( !En3 && eq(F,H) ) {
+		if (Eisblack) return slopeBAD;		// Black single pixel
+		// slope + eq_F_H not used (causes bubbles with inner L in BD zone)
+		//scoreE += float(B_slope&&neq(C,F))+float(D_slope&&neq(G,H));
+
+		bool condZ1 = B_wall && (eq(F,R) || eq(F,RC) || eq(G,H) || eq(F,I));
+		bool condZ2 = D_wall && (eq(C,F) || eq(H,SG) || eq(H,S) || eq(F,I));
+		scoreZ = float(condZ1 || condZ2);
     }
 
-
-	#define Bn3  eq_B_P&&eq_B_C
-	#define Dn3  eq_D_G&&eq_D_Q
 
 //	B Zone
-	scoreB -= int(Bn3);
-	scoreB -= int(eq(C,P));
-    if (scoreB < 0) scoreZ = 0;
 
     if (eq_B_PA) {
-		scoreB -= 1;
-		scoreB -= int(eq_B_P);    //Replace eq(P,PA)
+		scoreB -= 1.0 +float(eq(P,C)) +float(eq_A_AA);
 	}
 
-//        D Zone
-	scoreD -= int(Dn3);
-	scoreD -= int(eq(G,Q));
-    if (scoreD < 0) scoreZ = 0;
+	if (eq(P,C)){
+		scoreB -= float(eq_A_AA); 
+		// Critical: prevents Z scoring on clone patterns when only F==H
+		// Equivalent: if (scoreE==0) scoreZ = 0;
+		scoreZ *= float(scoreE < 0.1);
+	}
+
+//  D Zone
 
     if (eq_D_QA) {
-		scoreD -= 1;
-		scoreD -= int(eq_D_Q);    //Replace eq(Q,QA)
+		scoreD -= 1.0 +float(eq(G,Q)) +float(eq_A_AA);
 	}
 
-    int scoreFinal = scoreE + scoreB + scoreD + scoreZ ;
+	if (eq(G,Q)){
+		scoreD -= float(eq_A_AA);
+		// Same logic as B zone
+		scoreZ *= float(scoreE < 0.1);
+	}
 
-    if (scoreE >= 1 && scoreB >= 0 && scoreD >=0) scoreFinal += 1;
+    float scoreFinal = scoreE + scoreB + scoreD + scoreZ ;
 
-    if (scoreFinal >= 2) return colX;
+	// Long slope: no penalty in B/D zones, forms gentle slope. Return vX without blending
+	scoreFinal += float(min(scoreB,scoreD) > -0.1 && (B_wall && D_tower || B_tower && D_wall)) *2.0;
 
-    if (scoreFinal == 1) return mixok ? Mix382 : colX;
+	// If scoreFinal >= 2, set mixFactor to 0, return vX without blending
+	mixFactor *= (1.0 - step(1.9, scoreFinal));
+	// Return mixXE if scoreFinal >=1, else slopeBAD
+	return mixXE + slopeBAD*(1.0 - step(0.9, scoreFinal));
 
-    // Final addition: Zero total score with no B/D penalties (forms long slope)
-    if (scoreB >= 0 && scoreD >=0) {
-        if (B_wall&&D_tower) return colX;
-        if (B_tower&&D_wall) return colX;
-    }
+}	// E == A
 
-    return slopeBAD;
+	
+/*===============================================
+                 Main rule: E - C - G 
+  ========================================== zz */
 
-}	// eq_E_A
+    if (eq_E_C ) {
+		if (comboA3) return vX;
+		if (comboE3) return mixXE;
+		if (all_eq2(B,A,PA) && all_eq3(E,F,P,PC)) return theEXIT;
+		return mixXE;
+	}
 
+	if (eq_E_G) {
+		if (comboA3) return vX;
+		if (comboE3) return mixXE;
+		if (all_eq2(D,A,QA) && all_eq3(E,H,Q,QG)) return theEXIT;
+		return mixXE;
+	}
 
 
 /*=========================================================
-                   F - H / B+ D+ extension new rules
+                   F - H / B+ D+ extension rules
   ==================================================== zz */
 
-// This section differs from sim section - natural wall isolation between center and En4square/BD logic
-// Different judgment rules from sim side
+	// This section handles remaining patterns after filtering; center En4square naturally walled off from BD logic
+	// Experience 1: Hollow L (1+2) smooths inner, not outer
+	// Experience 2: "厂" shape smooths outer, not inner
 
-	eq_B_P = eq(B, P);
-    eq_B_PC = eq(B, PC);
-	eq_D_Q = eq(D, Q);
-    eq_D_QG = eq(D, QG);
+    bool eq_A_B = eq(A,B);
+    bool eq_F_H = eq(F,H);
 
-    // Exit for unrelated B/D (Implementation note: Required for this branch)
-    if ( !eq_B_C && !eq_B_P && !eq_B_PC && !eq_D_G && !eq_D_Q && !eq_D_QG ) return slopeBAD;
-
-	mixok = mixcheck(colX,colE);
-    eq_E_I = eq(E, I);
-
-	// Exit if center E is single high-contrast pixel
-	// Tighter threshold for bright E
-	float E_lumDiff = El > 0.92 ? 0.145898 : 0.381966;
-	// High difference with surroundings
-    if ( !mixok && !eq_E_I && abs(El-Fl)>E_lumDiff && abs(El-Hl)>E_lumDiff ) return slopeBAD;
-
-
-    eq_A_B = eq(A, B);
-	eq_A_P = eq(A, P);
-	eq_A_Q = eq(A, Q);
-    eq_B_PA = eq(B,PA);
-    eq_D_QA = eq(D,QA);
-
-    ThickBorder = eq_A_B && (eq_A_P||eq_A_Q|| eq(A,AA)&&(eq_B_PA||eq_D_QA));
-
-	if (ThickBorder && !Xisblack) mixok=false;
+	eq_B_P  = eq(B,P);
+	eq_B_PC = eq(B,PC);
+	eq_B_PA = eq(B,PA);
+	eq_D_Q  = eq(D,Q);
+	eq_D_QG = eq(D,QG);
+	eq_D_QA = eq(D,QA);
 
 	B_slope = eq_B_PC && !eq_B_P && !eq_B_C;
-	B_tower = eq_B_P && !eq_B_PC && !eq_B_C && !eq_B_PA;
 	D_slope = eq_D_QG && !eq_D_Q && !eq_D_G;
+	B_tower = eq_B_P && !eq_B_PC && !eq_B_C && !eq_B_PA;
 	D_tower = eq_D_Q && !eq_D_QG && !eq_D_G && !eq_D_QA;
+	B_wall = eq_B_C && !eq_B_PC && !eq_B_P;
+	D_wall = eq_D_G && !eq_D_QG && !eq_D_Q;
 
+
+//	1. B-D hollow slope
     if (!eq_A_B) {
-        // B + D + respective extended shapes
-        // Implementation 1: Lenient for one side if other has clear shape
-        // Implementation 2: Flat outer edge, inner edge can be tower (not wall) for "厂" shape
-        if ( (B_slope||B_tower) && (eq_D_QG&&!eq_D_G||D_tower) ) return Xoff;
-        if ( (D_slope||D_tower) && (eq_B_PC&&!eq_B_C||B_tower) ) return Xoff;
 
-        // High priority A-side triple consecutive pixels (eq_A_P && eq_A_Q)
+        // A-side triple match: high priority
+		// comboA3 only valid when A!=B in this section
         if (comboA3) return Xoff;
 
-        // 2x2 combo as supplement
-        if ( B_slope && eq_A_P ) return mixok ? Mix382off : Xoff;
-        if ( D_slope && eq_A_Q ) return mixok ? Mix382off : Xoff;
-    }
+        if ( (B_slope||B_tower) && (D_slope||D_tower) ) return Xoff;
 
-    eq_E_F = eq(E, F);
-	B_wall = eq_B_C && !eq_B_PC && !eq_B_P;
+        if ( B_slope && eq_A_P ) return mixXEoff;
+        if ( D_slope && eq_A_Q ) return mixXEoff;
 
-    // Long clear slope (not solid edge. Strong trend!)
-    // Special condition for long slopes
-	if ( B_wall && D_tower ) {
-        if (eq_A_B ) return slopeBAD;
-        if (eq_E_F ) return colX;  //wip: Test direct X no blend
-        return mixok ? Mix382off : Xoff;
-    }
+        if ( (B_slope || D_slope) && eq_F_H ) return mixXEoff;
 
-    eq_E_H = eq(E, H);
-	D_wall = eq_D_G && !eq_D_QG&& !eq_D_Q;
+        if ( B_slope && eq(H,SG) ) return mixXEoff;
+        if ( D_slope && eq(F,RC) ) return mixXEoff;
 
-	if ( B_tower && D_wall ) {
-        if (eq_A_B ) return slopeBAD;
-        if (eq_E_H ) return colX;
-        return mixok ? Mix382off : Xoff;
+        if ( B_slope && eq_A_Q && eq(Q,QG) ) return mixXEoff;
+        if ( D_slope && eq_A_P && eq(P,PC) ) return mixXEoff;
+
     }
 
 
-    bool sim_X_E = sim3(colX,colE);
-    bool eq_G_H = eq(G, H);
-    bool eq_C_F = eq(C, F);
-    bool eq_H_S = eq(H, S);
-    bool eq_F_R = eq(F, R);
 
-    En3 = eq_E_F&&eq_E_H;
+	bool sim_EC = sim(vE, vC);
+	bool sim_EG = sim(vE, vG);
 
-    // 4-pixel rectangle inside wall (En3 && eq_E_I)
-	if ( En4square ) {  // This square check must come after previous rule
-		if (sim_X_E) return mixok ? Mix382off : Xoff;
-        // Exit for solid L inner shape (fix font edge corners and non-round building corners - Mega Man 7)
-        if ( (eq_B_C || eq_D_G) && eq_A_B ) return theEXIT;
-        //if (eq_H_S && eq_F_R) return theEXIT; // Extended on both sides
-        //  L inner (hollow corner) / high-contrast independent clear 4-pixel square / 6-pixel rectangle (check rectangle edges)
-        if ( ( eq_B_C&&!eq_G_H || eq_D_G&&!eq_C_F || !eq_G_H&&!eq_C_F&&diffEB>0.5) && (eq_H_S == eq(I, SI) && eq_F_R == eq(I, RI)) ) return theEXIT;
+	// Exit if center E is isolated high-contrast pixel
+	// Tighten threshold for bright E
+	float E_lumDiff = mix(0.381966, 0.145898, max((El - 0.8541),0.0) * 6.8541);
 
-        return mixok ? Mix382off : Xoff;
-    }
+	// Large difference to neighbors (lower priority than slope checks)
+    if ( mixFactor<0.1 && !sim_EC && !sim_EG && neq(E,I) && abs(El-Fl)>E_lumDiff && abs(El-Hl)>E_lumDiff ) return slopeBAD;
 
-    // Triangle inside wall
- 	if ( En3 ) {
-		if (sim_X_E) return mixok ? Mix382off : Xoff;
-        if (eq_H_S && eq_F_R) return theEXIT; // Extended on both sides (building edges)
-       // Inner curve
-        if (eq_B_C || eq_D_G) return mixok ? Mix382off : Xoff;
-		// Direct return for thick shapes (zigzag can flatten outer curve below)
-        if (eq_A_B) return mixok ? Mix382off : Xoff;
-        // Outer curve
-        if (eq_B_P || eq_D_Q) return theEXIT;
 
-        return mixok ? Mix382off : Xoff;
-        // Final two rules based on experience: Connect inner L curves, not outer (Jimmy's eyebrows in Double Dragon)
+	eq_E_F = eq(E,F);
+	eq_E_H = eq(E,H);
+
+    // Long gentle slope special trend
+    // Preserve squares for later En4square check
+	if ( eq_B_C && eq_D_Q ) {
+		if ( eq(P,PC) && eq(A,QA) && !eq_D_QG && eq_E_F && !eq_E_H && eq(H,I)) return theEXIT;
+		if ( eq_A_B ) return slopeBAD;
+		if ( B_wall && D_tower && eq_E_F) return vX;
+		return mixXEoff;
 	}
+
+	if ( eq(D,G) && eq(B,P)) {
+		if ( eq(Q,QG) && eq(A,PA) && !eq_B_PC && eq_E_H && !eq_E_F && eq(F,I)) return theEXIT;
+		if ( eq_A_B ) return slopeBAD;
+		if ( B_tower && D_wall && eq_E_H) return vX;
+		return mixXEoff;
+	}
+
+
+    En3 = eq_E_F && eq_E_H;
+
+    // Wall-enclosed 4-square (En3 && eq(E,I))
+	if ( En4square ) {  // Must come after previous rule
+        // Exit for solid L-enclosed (font edges, building corners)
+        // Solid L corner / high-contrast clear 4-square / 6-rectangle
+        if ( ( eq_B_C || eq_D_G) && eq_A_B) return theEXIT;
+        if ( ( eq_B_C || eq_D_G || mixFactor<0.1) && (eq(E,S) == eq(E, SI) && eq(E,R) == eq(E, RI)) ) return theEXIT;
+        return mixXEoff;
+    }
+
+	// BD non-wall patterns
+	if (!eq_B_C && !eq_D_G ) {
+		 // B/D semi-solid 1: requires F-H
+		if ( comboA3 && eq_F_H ) return Xoff;
+
+		// B/D semi-solid 2 (with confirmed rounding trend)
+		if ( comboA3&&eq_B_PC&&eq(C,CC) ) return Xoff;
+		if ( comboA3&&eq_D_QG&&eq(G,GG) ) return Xoff;
+
+		// B/D unconnected and not En3: exit (required in practice)
+		if ( !eq_B_P && !eq_B_PC && !eq_D_Q && !eq_D_QG && !En3 ) return slopeBAD;
+
+		// 3 diagonal gradients after filtering
+		if (eq_A_Q&&sim_EC) return mixXEoff;
+		if (eq_A_P&&sim_EG) return mixXEoff;
+		if (sim_EC&&sim_EG ) return mixXEoff;
+	}
+	
+    // Wall-enclosed triangle (remove solid corner, pass to next rule)
+ 	if ( En3 && eq_A_B) return theEXIT;
 
     // F - H
-	// Principle: Connect inner L curves, not outer
-	if ( eq(F,H) ) {
-    	if (sim_X_E) return mixok ? Mix382off : Xoff;
-        // Solid L inner shape - avoid single pixel squeezed by symmetric double enclosure
-		if ( eq_B_C && eq_A_B && (eq_G_H||!eq_F_R) &&eq(F, I) ) return slopeBAD;
-		if ( eq_D_G && eq_A_B && (eq_C_F||!eq_H_S) &&eq(F, I) ) return slopeBAD;
+	// Rule: connect inner L corner, not outer
+	if (eq_F_H) {
 
-		//Inner curve
-        if (eq_B_C && (eq_F_R||eq_G_H||eq(F, I))) return mixok ? Mix382off : Xoff;
-        if (eq_D_G && (eq_C_F||eq_H_S||eq(F, I))) return mixok ? Mix382off : Xoff;
-		// E-I F-H cross breaks trend
-		if (eq_E_I) return slopeBAD;
-        // Outer zigzag
-		if (eq_B_P && eq_A_B) return mixok ? Mix382off : Xoff;
-        if (eq_D_Q && eq_A_B) return mixok ? Mix382off : Xoff;
-		// Outer curve - unless opposite side forms long L trend
-		if (eq_B_P && (eq_C_F&&eq_H_S)) return mixok ? Mix382off : Xoff;
-        if (eq_D_Q && (eq_F_R&&eq_G_H)) return mixok ? Mix382off : Xoff;
+		// F-H triple pattern: huge priority, before A==B
+		if ( eq_B_PC&&eq(F,RC) || eq_D_QG&&eq(H,SG) ) return mixXEoff;
 
-        return slopeBAD;
+		if (eq_A_B) return slopeBAD;
+
+		if ( eq_B_C || eq_D_G) return mixXEoff;
+		if ( eq_B_PC || eq_D_QG) return mixXEoff;
+
 	}
 
-
-	// Relaxed final cleanup for two long slopes (non-clear shapes)
-    // Note: Differs from sim2 cleanup - exit for solid corners
-	if ( eq_B_C && eq_D_Q || eq_D_G && eq_B_P) {
-        // Clear eq_A_B first to avoid edge pixel excavation (Eternal Secret)
-		if (eq_A_B) return theEXIT;
-		return mixok ? Mix382off : Xoff;
-	}
-
-
-    //	A-side triple consecutive pixels - NEVER use without !eq_A_B !!!!!!!!!!!
-    //  if (comboA3) return X+slopeOFF;
-
-
-	// One more B + D bidirectional extension check (higher priority than L inner/outer bars)
-        if ( (B_slope||B_tower) && (eq_D_QG&&!eq_D_G||D_tower) ) return Xoff;
-        if ( (D_slope||D_tower) && (eq_B_PC&&!eq_B_C||B_tower) ) return Xoff;
-
-
-    // Exit for clear L-turn with inner single bar (even sim_X_E can't override)
-    if (eq_A_B && !ThickBorder && !eq_E_I ) {
-
-	    if (B_wall && eq_E_F) return theEXIT;
-	    if (D_wall && eq_E_H) return theEXIT;
-	}
-
-if (sim_X_E) return mixok ? Mix382off : Xoff;
-    // Exit for hollow L-turn with outer single bar (connect inner corners only)
-	// Implementation note: Prevents font edge erosion (Captain Commando)
-	if ( (B_tower || D_tower) && (eq_E_F||eq_E_H) && !eq_A_B && !eq_E_I) return theEXIT;
-
-    // Final B or D individual extension check
-
-    // Maximum reachable distance for slopes
-    if ( B_slope && !eq_A_B && eq(PC,CC) && noteq(PC,RC)) return mixok ? Mix382off : Xoff;
-    if ( D_slope && !eq_A_B && eq(QG,GG) && noteq(QG,SG)) return mixok ? Mix382off : Xoff;
-
-    // Fewer check points for slopes when X-E are close, with internal restrictions
-  	if ( mixok && !eq_A_B ) {
-        if ( B_slope && (!eq_C_F||eq(F,RC)) ) return Mix382off;
-        if ( D_slope && (!eq_G_H||eq(H,SG)) ) return Mix382off;
-    }
-
-    // Pre-exclude single bars for zigzag below (necessary)
-    if ((eq_E_F||eq_E_H) && !eq_E_I ) return theEXIT;
-
-    // Zigzag shape (eq_A_B with thickness, one side tower (or wall/slope) but other side cannot be tower/wall (naturally prohibited))
-    if ( eq_B_P && !eq_B_PA && !eq_D_Q && eq_A_B) return mixok ? Mix382off : Xoff;
-    if ( eq_D_Q && !eq_D_QA && !eq_B_P && eq_A_B) return mixok ? Mix382off : Xoff;
-
-	return theEXIT;
+	return slopeBAD;
 
 }	// admixX
 
-vec3 admixS(uint A, uint B, uint C, uint D, uint E, uint F, uint G, uint H, uint I, uint R, uint RC, uint RI, uint S, uint SG, uint SI, uint II, bool eq_B_D, bool eq_E_D, float El, float Bl, vec3 colE, vec3 colF) {
 
-			//                                    ＡＢＣ  .
-			//                                  ＱＤ🄴 🅵 🆁       Zone 4
-			//					                  🅶 🅷 Ｉ
-			//					                  Ｓ
-    // Implementation 1: sim E B(C) aligns with original logic - prevents jarring saw insertion for single-pixel E in practice
-    // Implementation 2: Can E equal I? Yes!
+vec3 admixS( uint A, uint B, uint C, uint D, uint E, uint F, uint G, uint H, uint I
+		   , uint R, uint RC, uint RI, uint S, uint SG, uint SI, uint II
+		   , vec3 vE, vec3 vF, vec3 vC
+		   ) {
 
-    if (any_eq2(F,C,I)) return colE;
-    //if (any_eq3(F,A,C,I)) return colE;
+			//                                   Ａ B Ｃ .
+			//                                 ＱＤ 🄴 🅵 🆁       Zone 4
+			//                                   🅶 🅷 Ｉ
+			//                                      S
+    // Practice 1: sim E B(C) matches original logic; prevents harsh insertion on single E pixels
+    // Practice 2: E can equal I
 
-    if (eq(R, RI) && noteq(R,I)) return colE;
-    if (eq(H, S) && noteq(H,I)) return colE;
 
-    if ( eq(R, RC) || eq(G,SG) ) return colE;
+    if (any_eq2(F,C,I)) return vE;
 
-    if ( ( eq_B_D&&eq(B,C)&&diffEB<0.381966 || eq_E_D&&sim2(colE,E,C) ) &&
-    (any_eq3(I,H,S,RI) || eq(SI,RI)&&noteq(I,II)) ) return colF;
+    if (eq(R, RI) && neq(R,I)) return vE;
+    if (eq(H, S) && neq(H,SI)) return vE;
+    if (eq(I, SI) && neq(I,S) ) return vE;
 
-    return colE;
+    if ( eq(R, RC) || eq(G,SG) ) return vE;
+	// Required trend check for opposite side
+	if ( none_eq2(I,H,S) && (neq(SI,RI) || eq(I,II)) ) return vE;
+
+	#define vX vF
+	float mixFactor = 0.381966 * mixGate(vX,vE);
+
+	if ( eq(E,C) && (eq(E,D)||eq(B,D)) ) return mixXE;
+
+	if ( eq(E,D) && eq(B,C) && sim(vE,vC) ) return mixXE;
+
+	if ( all_eq2(B,C,D) && fastcheck(vE, vC) ) return mixXE;
+
+    return vE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////// zz
@@ -850,360 +667,420 @@ void main()
 {
 #define srcf(c,d) texture(Source, vTexCoord + vec2(c,d) * params.SourceSize.zw).rgb
 #define src(c,d) packUnorm4x8(vec4(srcf(c,d), 1.0))
-#define finalExit FragColor.rgb = (a.x < 0.5) ? (a.y < 0.5 ? J : L) : (a.y < 0.5 ? K : M);return
-    vec3 colE = srcf(0, 0);
-    vec3 colB = srcf(+0, -1);
-    vec3 colD = srcf(-1, +0);
-    vec3 colF = srcf(+1, +0);
-    vec3 colH = srcf(+0, +1);
 
-    // Preset for quick return
-    FragColor = vec4(colE, 1.0);
+	vec3 vE = srcf(0.0, 0.0);
+	vec3 vB = srcf(0.0, -1.0);
+	vec3 vD = srcf(-1.0, 0.0);
+	vec3 vF = srcf(+1.0, 0.0);
+	vec3 vH = srcf(0.0, +1.0);
 
-    uint E = packUnorm4x8(vec4(colE, 1.0));
-    uint B = packUnorm4x8(vec4(colB, 1.0));
-    uint D = packUnorm4x8(vec4(colD, 1.0));
-    uint F = packUnorm4x8(vec4(colF, 1.0));
-    uint H = packUnorm4x8(vec4(colH, 1.0));
+    // Default for fast return
+    FragColor = vec4(vE, 1.0);
+
+    uint E = packUnorm4x8(vec4(vE, 1.0));
+    uint B = packUnorm4x8(vec4(vB, 1.0));
+    uint D = packUnorm4x8(vec4(vD, 1.0));
+    uint F = packUnorm4x8(vec4(vF, 1.0));
+    uint H = packUnorm4x8(vec4(vH, 1.0));
 
 
     bool eq_E_D = eq(E,D);
     bool eq_E_F = eq(E,F);
     bool eq_E_B = eq(E,B);
     bool eq_E_H = eq(E,H);
-
-
-// Skip horizontal/vertical 3x1
-if (eq_E_D && eq_E_F) return;
-if (eq_E_B && eq_E_H) return;
-
     bool eq_B_H = eq(B,H);
     bool eq_D_F = eq(D,F);
-// Skip mirror blocks surrounding center
-if ( eq_B_H && eq_D_F ) return;
+
+// Skip horizontal/vertical 3x1 lines
+bool skiprest = (eq_E_D && eq_E_F) || (eq_E_B && eq_E_H) || (eq_B_H && eq_D_F);
+if (!skiprest) {
 
 
-    //Capture 5x5 area
-    uint A = src(-1, -1);
-    uint C = src(+1, -1);
-    uint G = src(-1, +1);
-    uint I = src(+1, +1);
 
-    uint P  = src(+0, -2);
-    uint Q  = src(-2, +0);
-    uint R  = src(+2, +0);
-    uint S  = src(+0, +2);
+    //Sample 5x5 neighborhood
+	vec3 vA = srcf(-1.0, -1.0);
+	vec3 vC = srcf(+1.0, -1.0);
+	vec3 vG = srcf(-1.0, +1.0);
+	vec3 vI = srcf(+1.0, +1.0);
 
-    uint PA = src(-1, -2);
-    uint PC = src(+1, -2);
-    uint QA = src(-2, -1);
-    uint QG = src(-2, +1); //             AA    PA    [P]   PC    CC
-    uint RC = src(+2, -1); //                ┌──┬──┬──┐
-    uint RI = src(+2, +1); //             QA │  A │  B │ C  │ RC
-    uint SG = src(-1, +2); //                ├──┼──┼──┤
-    uint SI = src(+1, +2); //            [Q] │  D │  E │ F  │ [R]
-    uint AA = src(-2, -2); //                ├──┼──┼──┤
-    uint CC = src(+2, -2); //             QG │  G │  H │ I  │ RI
-    uint GG = src(-2, +2); //                └──┴──┴──┘
-    uint II = src(+2, +2); //             GG    SG    [S]   SI    II
+    uint A = packUnorm4x8(vec4(vA, 1.0));
+    uint C = packUnorm4x8(vec4(vC, 1.0));
+    uint G = packUnorm4x8(vec4(vG, 1.0));
+    uint I = packUnorm4x8(vec4(vI, 1.0));
 
-    // Default to nearest-neighbor scaling
-    vec3 J = colE;    vec3 K = colE;    vec3 L = colE;    vec3 M = colE;
+	uint P  = src( 0.0, -2.0);
+	uint Q  = src(-2.0,  0.0);
+	uint R  = src(+2.0,  0.0);
+	uint S  = src( 0.0, +2.0);
 
-    // ------------------------ Boundary Detection --------------------------
-    // Define impossible fake pixel
+	uint PA = src(-1.0, -2.0);
+	uint PC = src(+1.0, -2.0);
+	uint QA = src(-2.0, -1.0);
+	uint QG = src(-2.0, +1.0); //             AA    PA    [P]   PC    CC
+	uint RC = src(+2.0, -1.0); //                ┌──┬──┬──┐
+	uint RI = src(+2.0, +1.0); //             QA │  A │  B │ C  │ RC
+	uint SG = src(-1.0, +2.0); //                ├──┼──┼──┤
+	uint SI = src(+1.0, +2.0); //            [Q] │  D │  E │ F  │ [R]
+	uint AA = src(-2.0, -2.0); //                ├──┼──┼──┤
+	uint CC = src(+2.0, -2.0); //             QG │  G │  H │ I  │ RI
+	uint GG = src(-2.0, +2.0); //                └──┴──┴──┘
+	uint II = src(+2.0, +2.0); //             GG    SG    [S]   SI    II
+
+    // Default: nearest-neighbor upscale
+    vec3 J = vE;    vec3 K = vE;    vec3 L = vE;    vec3 M = vE;
+
+    // ------------------------ Boundary check --- Libretro -----------------------
+    // Define dummy color that cannot exist naturally
     #define fakeColor vec3(1.234)
-    // 1. Precompute integer coordinates of current pixel (uv → pixel coords, floor for index)
+    // 1. Precompute integer pixel coordinates (uv → pixel pos, floor for index)
     vec2 pixelPos = vTexCoord * params.SourceSize.xy;
-    ivec2 currPixel = ivec2(floor(pixelPos)); // Integer coords of current pixel (0-based)
+    ivec2 currPixel = ivec2(floor(pixelPos)); // Current integer pixel (0-based)
     ivec2 texSize = ivec2(params.SourceSize.xy); // Actual texture pixel dimensions
 
-    // 3. Check out-of-bounds in four directions, set alpha to transparent (integer check, no float error)
-    if (currPixel.y - 1 < 0) colB = fakeColor;          // Out-of-bounds above (y-1 < 0)
-    if (currPixel.x - 1 < 0) colD = fakeColor;          // Out-of-bounds left (x-1 < 0)
-    if (currPixel.x + 1 >= texSize.x) colF = fakeColor; // Out-of-bounds right (x+1 >= width)
-    if (currPixel.y + 1 >= texSize.y) colH = fakeColor; // Out-of-bounds below (y+1 >= height)
+    // 3. Check edge overflow; use dummy color to bias luminance logic
+    if (currPixel.y - 1 < 0) vB = fakeColor;          // Top pixel overflow (y-1 < 0)
+    if (currPixel.x - 1 < 0) vD = fakeColor;          // Left pixel overflow (x-1 < 0)
+    if (currPixel.x + 1 >= texSize.x) vF = fakeColor; // Right pixel overflow (x+1 >= width)
+    if (currPixel.y + 1 >= texSize.y) vH = fakeColor; // Bottom pixel overflow (y+1 >= height)
     // ----------------------------------------------------------------------
 
 // Precompute luminance
-   float Bl = luma(colB);
-   float Dl = luma(colD);
-   float El = luma(colE);
-   float Fl = luma(colF);
-   float Hl = luma(colH);
+    float Bl = luma(vB);
+    float Dl = luma(vD);
+    float El = luma(vE);
+    float Fl = luma(vF);
+    float Hl = luma(vH);
 
 
-// 1:1 slope rules (P95)
+// 	Pre-comparisons
     bool eq_B_D = eq(B,D);
     bool eq_B_F = eq(B,F);
     bool eq_D_H = eq(D,H);
     bool eq_F_H = eq(F,H);
 
-    // Any mirror blocks surrounding center
+    // Any opposite pair encloses center
     bool oppoPix =  eq_B_H || eq_D_F;
-	// Flag for admixX entry via 1:1 slope rules
+	// Flag if caught by 1:1 slope rule and entered admixX
     bool slope1 = false;    bool slope2 = false;    bool slope3 = false;    bool slope4 = false;
-	// Valid pixel returned via 1:1 slope rules
+	// Valid standard pixel returned from 1:1 slope rule
     bool slope1ok = false;  bool slope2ok = false;  bool slope3ok = false;  bool slope4ok = false;
-	// slopeBAD: Entered admixX but returned E for (at least one of) JKLM
-    // slopOFF: Returned with OFF flag - no long slope calculation
+	// slopeBAD: entered admixX but returns E (for at least one JKLM)
+    // slopOFF: returns with OFF flag, skips long slope processing
 
-    // B - D
-	if ( (!eq_E_B&&!eq_E_D&&!oppoPix) && (!eq_D_H&&!eq_B_F) && (El>=Dl&&El>=Bl || eq(E,A)) && ( (El<Dl&&El<Bl) || none_eq2(A,B,D) || noteq(E,P) || noteq(E,Q) ) && ( eq_B_D&&(eq_F_H||eq(E,A)||eq(B,PC)||eq(D,QG)) || sim1(colB,colD)&&(sim2(colE,E,C)||sim2(colE,E,G)) ) ) {
-		J=admixX(A,B,C,D,E,F,G,H,I,P,PA,PC,Q,QA,QG,R,RC,RI,S,SG,SI,AA,CC,GG, El,Bl,Dl,Fl,Hl,colE,colB,colD);
-		slope1 = true;
-		if (J.b > 1.0 ) {
-            if (J.b > 7.0 ) J=J-8.0; 	//slopOFF
-			if (J.b == 4.0 ) return;
-			if (J.b == 2.0 ) J=colE;		//slopeBAD
-		} else slope1ok = true;
+
+// B - D
+	if (
+		(!eq_E_B && !eq_E_D && !oppoPix) && (!eq_D_H && !eq_B_F)
+	 && (eq(E,A) || El>=Dl&&El>=Bl) && ( (El<Dl&&El<Bl) || none_eq2(A,B,D) || neq(E,P) || neq(E,Q) )
+	 && ( eq_B_D &&(eq(E,A)||eq(B,PC)||eq(D,QG)||sim(vE,vC)||sim(vE,vG)) || simb(vB,vD)&&(eq_F_H||eq(E,C)||eq(E,G)) )
+		) {
+		J=admixX(A,B,C,D,E,F,G,H,I
+				,P,PA,PC,Q,QA,QG,R,RC,RI,S,SG,SI,AA,CC,GG
+				,El, Bl, Dl, Fl, Hl
+				,vE, vB, vD, vC, vG
+				);
+		slope1 = true;			// Mark on entry
+		slope1ok = (J.b < 1.1);	// Valid pixel
+		skiprest = (J.b > 7.1);	// theEXIT
+		J = (J.b > 3.1) ? vE :		// Restore vE for slopeBAD/theEXIT
+			(J.b > 1.1) ? (J - 2.0) :// slopeoff
+			J;					// Normal pixel [0-1.0]
 	}
-    // B - F
-	if ( !slope1 && (!eq_E_B&&!eq_E_F&&!oppoPix) && (!eq_B_D&&!eq_F_H) && (El>=Bl&&El>=Fl || eq(E,C)) && ( (El<Bl&&El<Fl) || none_eq2(C,B,F) || noteq(E,P) || noteq(E,R) ) && ( eq_B_F&&(eq_D_H||eq(E,C)||eq(B,PA)||eq(F,RI)) || sim1(colB,colF)&&(sim2(colE,E,A)||sim2(colE,E,I)) ) )  {
-		K=admixX(C,F,I,B,E,H,A,D,G,R,RC,RI,P,PC,PA,S,SI,SG,Q,QA,QG,CC,II,AA, El,Fl,Bl,Hl,Dl,colE,colF,colB);
+// B - F
+	if ( !slope1
+	 && (!eq_E_B && !eq_E_F && !oppoPix) && (!eq_B_D && !eq_F_H)
+	 && (eq(E,C) || El>=Bl&&El>=Fl) && ( (El<Bl&&El<Fl) || none_eq2(C,B,F) || neq(E,P) || neq(E,R) )
+	 && ( eq_B_F &&(eq(E,C)||eq(B,PA)||eq(F,RI)||sim(vE,vA)||sim(vE,vI)) || simb(vB,vF)&&(eq_D_H||eq(E,A)||eq(E,I)) ) 
+	 ) {
+		K=admixX(C,F,I,B,E,H,A,D,G
+				,R,RC,RI,P,PC,PA,S,SI,SG,Q,QA,QG,CC,II,AA
+				,El,Fl,Bl,Hl,Dl
+				,vE,vF,vB,vI,vA
+				);
 		slope2 = true;
-		if (K.b > 1.0 ) {
-            if (K.b > 7.0 ) K=K-8.0;
-			if (K.b == 4.0 ) return;
-			if (K.b == 2.0 ) K=colE;
-		} else {slope2ok = true;}
+		slope2ok = (K.b < 1.1);
+		skiprest = (K.b > 7.1);
+		K = (K.b > 3.1) ? vE :	
+			(K.b > 1.1) ? (K - 2.0) :
+			K;
 	}
-    // D - H
-	if ( !slope1 && (!eq_E_D&&!eq_E_H&&!oppoPix) && (!eq_F_H&&!eq_B_D) && (El>=Hl&&El>=Dl || eq(E,G))  &&  ((El<Hl&&El<Dl) || none_eq2(G,D,H) || noteq(E,S) || noteq(E,Q))  &&  ( eq_D_H&&(eq_B_F||eq(E,G)||eq(D,QA)||eq(H,SI)) || sim1(colD,colH) && (sim2(colE,E,A)||sim2(colE,E,I)) ) )  {
-		L=admixX(G,D,A,H,E,B,I,F,C,Q,QG,QA,S,SG,SI,P,PA,PC,R,RI,RC,GG,AA,II, El,Dl,Hl,Bl,Fl,colE,colD,colH);
+// D - H
+	if ( !slope1 && !skiprest
+	 && (!eq_E_D && !eq_E_H && !oppoPix) && (!eq_F_H && !eq_B_D)
+	 && (eq(E,G) || El>=Hl&&El>=Dl)  &&  ((El<Hl&&El<Dl) || none_eq2(G,D,H) || neq(E,S) || neq(E,Q))
+	 &&	( eq_D_H &&(eq(E,G)||eq(D,QA)||eq(H,SI)||sim(vE,vA)||sim(vE,vI)) || simb(vD,vH)&&(eq_B_F||eq(E,A)||eq(E,I)) )
+	 ) {
+		L=admixX(G,D,A,H,E,B,I,F,C
+				,Q,QG,QA,S,SG,SI,P,PA,PC,R,RI,RC,GG,AA,II
+				,El,Dl,Hl,Bl,Fl
+				,vE,vD,vH,vA,vI
+				);
 		slope3 = true;
-		if (L.b > 1.0 ) {
-            if (L.b > 7.0 ) L=L-8.0;
-			if (L.b == 4.0 ) return;
-			if (L.b == 2.0 ) L=colE;
-		} else {slope3ok = true;}
+		slope3ok = (L.b < 1.1);
+		skiprest = (L.b > 7.1);
+		L = (L.b > 3.1) ? vE :	
+			(L.b > 1.1) ? (L - 2.0) :
+			L;
 	}
-    // F - H
-	if ( !slope2 && !slope3 && (!eq_E_F&&!eq_E_H&&!oppoPix) && (!eq_B_F&&!eq_D_H) && (El>=Fl&&El>=Hl || eq(E,I))  &&  ((El<Fl&&El<Hl) || none_eq2(I,F,H) || noteq(E,R) || noteq(E,S))  &&  ( eq_F_H&&(eq_B_D||eq(E,I)||eq(F,RC)||eq(H,SG)) || sim1(colF,colH) && (sim2(colE,E,C)||sim2(colE,E,G)) ) )  {
-		M=admixX(I,H,G,F,E,D,C,B,A,S,SI,SG,R,RI,RC,Q,QG,QA,P,PC,PA,II,GG,CC, El,Hl,Fl,Dl,Bl,colE,colH,colF);
+// F - H
+	if ( !slope2 && !slope3 && !skiprest
+	 && (!eq_E_F && !eq_E_H && !oppoPix) && (!eq_B_F && !eq_D_H)
+	 && (eq(E,I) || El>=Fl&&El>=Hl)  &&  ((El<Fl&&El<Hl) || none_eq2(I,F,H) || neq(E,R) || neq(E,S))
+	 && ( eq_F_H &&(eq(E,I)||eq(F,RC)||eq(H,SG)||sim(vE,vC)||sim(vE,vG)) || simb(vF,vH)&&(eq_B_D||eq(E,C)||eq(E,G)) )
+	  ) {
+		M=admixX(I,H,G,F,E,D,C,B,A
+				,S,SI,SG,R,RI,RC,Q,QG,QA,P,PC,PA,II,GG,CC
+				,El,Hl,Fl,Dl,Bl
+				,vE,vH,vF,vG,vC
+				);
 		slope4 = true;
-		if (M.b > 1.0 ) {
-            if (M.b > 7.0 ) M=M-8.0;
-			if (M.b == 4.0 ) return;
-			if (M.b == 2.0 ) M=colE;
-		} else {slope4ok = true;}
+		slope4ok = (M.b < 1.1);
+		skiprest = (M.b > 7.1);
+		M = (M.b > 3.1) ? vE :	
+			(M.b > 1.1) ? (M - 2.0) :
+			M;
 	}
 
 
-//  long gentle 2:1 slope  (P100)
+//  Long gentle 2:1 slope  (P100)
 
-	bool longslope = false;
+	if (slope4ok) { //zone4 long slope
+		// Original ext 1: pass neighbor to admixL to prevent double-blending
+		// Original ext 2: no L pattern on opposite gap unless walled
+		if (all_eq2(R,F,G) && neq(R, RC) && (neq(Q,G)||eq(Q, QA))) {L=admixL(M,L,vH); skiprest = true;}
+		// vertical
+		if (all_eq2(S,H,C) && neq(S, SG) && (neq(P,C)||eq(P, PA))) {K=admixL(M,K,vF); skiprest = true;}
+	}
 
-    if (slope4ok && eq_F_H) { //zone4 long slope
-        // Enhanced legacy rule 1: Pass adjacent pixel to admixL third param to prevent double blending
-        // Enhanced legacy rule 2: No L-shape in opposite pixel interval unless wall formed
-        if (eq(G,H) && eq(F,R) && noteq(R, RC) && (noteq(Q,G)||eq(Q, QA))) {L=admixL(M,L,colH); longslope = true;}
-        // vertical
-		if (eq(C,F) && eq(H,S) && noteq(S, SG) && (noteq(P,C)||eq(P, PA))) {K=admixL(M,K,colF); longslope = true;}
-    }
+	if (slope3ok) { //zone3 long slope
+		// horizontal
+		if (all_eq2(Q,D,I) && neq(Q, QA) && (neq(R,I)||eq(R, RC))) {M=admixL(L,M,vH); skiprest = true;}
+		// vertical
+		if (all_eq2(S,H,A) && neq(S, SI) && (neq(A,P)||eq(P, PC))) {J=admixL(L,J,vD); skiprest = true;}
+	}
 
+	if (slope2ok) { //zone2 long slope
+		// horizontal
+		if (all_eq2(R,F,A) && neq(R, RI) && (neq(A,Q)||eq(Q, QG))) {J=admixL(K,J,vB); skiprest = true;}
+		// vertical
+		if (all_eq2(P,B,I) && neq(P, PA) && (neq(I,S)||eq(S, SG))) {M=admixL(K,M,vF); skiprest = true;}
+	}
 
-    if (slope3ok && eq_D_H) { //zone3 long slope
-        // horizontal
-        if (eq(D,Q) && eq(H,I) && noteq(Q, QA) && (noteq(R,I)||eq(R, RC))) {M=admixL(L,M,colH); longslope = true;}
-        // vertical
-		if (eq(A,D) && eq(H,S) && noteq(S, SI) && (noteq(A,P)||eq(P, PC))) {J=admixL(L,J,colD); longslope = true;}
-    }
+	if (slope1ok) { //zone1 long slope
+		// horizontal
+		if (all_eq2(Q,D,C) && neq(Q, QG) && (neq(C,R)||eq(R, RI))) {K=admixL(J,K,vB); skiprest = true;}
+		// vertical
+		if (all_eq2(P,B,G) && neq(P, PC) && (neq(G,S)||eq(S, SI))) {L=admixL(J,L,vD); skiprest = true;}
+	}
 
-    if (slope2ok && eq_B_F) { //zone2 long slope
-        // horizontal
-        if (eq(A,B) && eq(F,R) && noteq(R, RI) && (noteq(A,Q)||eq(Q, QG))) {J=admixL(K,J,colB); longslope = true;}
-        // vertical
-		if (eq(F,I) && eq(B,P) && noteq(P, PA) && (noteq(I,S)||eq(S, SG))) {M=admixL(K,M,colF); longslope = true;}
-    }
-
-    if (slope1ok && eq_B_D) { //zone1 long slope
-        // horizontal
-        if (eq(B,C) && eq(D,Q) && noteq(Q, QG) && (noteq(C,R)||eq(R, RI))) {K=admixL(J,K,colB); longslope = true;}
-        // vertical
-		if (eq(D,G) && eq(B,P) && noteq(P, PC) && (noteq(G,S)||eq(S, SI))) {L=admixL(J,L,colD); longslope = true;}
-    }
-
-// Exit if longslope formed (rare diagonal sawslope)
-bool skiprest = longslope;
-
-bool slopeok = slope1ok||slope2ok||slope3ok||slope4ok;
-
-
-// Note: sawslope cannot exclude slopeOFF (few) and slopeBAD (very rare), but can exclude slopeok (strong shapes)
-if (!skiprest && !oppoPix && !slopeok) {
+// Longslope exits early; no sawslope on diagonals
+// Note: sawslope cannot exclude slopeOFF (rare) and slopeBAD (very rare), but can exclude slopeok (strong patterns)
+if (!skiprest && !oppoPix && !slope1ok && !slope2ok && !slope3ok && !slope4ok) {
 
 
         // horizontal bottom
-		if (!eq_E_H && none_eq2(H,A,C)) {
+    if (!eq_E_H && none_eq2(H,A,C)) {
 
-			//                                    A B Ｃ ・
-			//                                  Q D 🄴 🅵 🆁       Zone 4
-			//					                  🅶 🅷 I
-			//					                  Ｓ
-			// (!slope3 && !eq_D_H) good combination
-			if ( (!slope2 && !eq_B_F) && (!slope3 && !eq_D_H)  && !eq_F_H &&
-                !eq_E_F && (eq_B_D || eq_E_D) && eq(R,H) && eq(F,G) ) {
-                M = admixS(A,B,C,D,E,F,G,H,I,R,RC,RI,S,SG,SI,II,eq_B_D,eq_E_D,El,Bl,colE,colF);
-                skiprest = true;}
+        //                                    A B Ｃ ・
+        //                                  Q D 🄴 🅵 🆁       Zone 4
+        //					                🅶🅷 I
+        //					                  Ｓ
+        // (!slope3 && neq(D,H)) is a clever combination
+        if ( (!slope2 && !eq_B_F) && (!slope3 && !eq_D_H) && !eq_F_H &&
+            !eq_E_F && eq(R,H) && eq(F,G) ) {
+            M = admixS( A, B, C, D, E, F, G, H, I
+                      , R, RC, RI, S, SG, SI, II
+                      , vE, vF, vC
+                      );
+            skiprest = true;}
 
-			//                                  ・  A Ｂ C
-			//                                  🆀 🅳 🄴 Ｆ R       Zone 3
-			//                                     G 🅷 🅸
-			//					                   Ｓ
-			if ( !skiprest && (!slope1 && !eq_B_D) && (!slope4 && !eq_F_H) && !eq_D_H &&
-                 !eq_E_D && (eq_B_F || eq_E_F) && eq(Q,H) && eq(D,I) ) {
-                L = admixS(C,B,A,F,E,D,I,H,G,Q,QA,QG,S,SI,SG,GG,eq_B_F,eq_E_F,El,Bl,colE,colD);
-                skiprest = true;}
-		}
+        //                                  ・  A Ｂ C
+        //                                  🆀 🅳 🄴 Ｆ R       Zone 3
+        //                                     G 🅷 🅸
+        //					                   Ｓ
+        if ( !skiprest && (!slope1 && !eq_B_D) && (!slope4 && !eq_F_H) && !eq_D_H &&
+             !eq_E_D && eq(Q,H) && eq(D,I) ) {
+            L = admixS( C, B, A, F, E, D, I, H, G
+                      , Q, QA, QG, S, SI, SG, GG
+                      , vE, vD, vA
+                      );
+            skiprest = true;}
+    }
 
-        // horizontal up
-		if ( !skiprest && !eq_E_B && none_eq2(B,G,I)) {
+    // horizontal up
+    if ( !skiprest && !eq_E_B && none_eq2(B,G,I)) {
 
-			//					                   Ｐ
-			//                                    🅐 🅑 Ｃ
-			//                                  ＱＤ 🄴 🅵 🆁       Zone 2
-			//                                    Ｇ H  I  .
-			if ( (!slope1 && !eq_B_D)  && (!slope4 && !eq_F_H) && !eq_B_F &&
-				  !eq_E_F && (eq_D_H || eq_E_D) && eq(B,R) && eq(A,F) ) {
-                K = admixS(G,H,I,D,E,F,A,B,C,R,RI,RC,P,PA,PC,CC,eq_D_H,eq_E_D,El,Hl,colE,colF);
-                skiprest = true;}
+        //					                   Ｐ
+        //                                    🅐 🅑 Ｃ
+        //                                  ＱＤ 🄴 🅵 🆁       Zone 2
+        //                                    Ｇ H  I  .
+        if ( (!slope1 && !eq_B_D)  && (!slope4 && !eq_F_H) && !eq_B_F &&
+              !eq_E_F && eq(B,R) && eq(A,F) ) {
+            K = admixS( G, H, I, D, E, F, A, B, C
+                      , R, RI, RC, P, PA, PC, CC
+                      , vE, vF, vI
+                      );
+            skiprest = true;}
 
-			//					                  Ｐ
-			//                                    A 🅑 🅲
-			//                                 🆀 🅳 🄴 Ｆ R        Zone 1
-			//                                  . G Ｈ I
-			if ( !skiprest && (!slope2 && !eq_B_F) && (!slope3 && !eq_D_H) && !eq_B_D &&
-				 !eq_E_D && (eq_F_H || eq_E_F) && eq(B,Q) && eq(C,D) ) {
-                J = admixS(I,H,G,F,E,D,C,B,A,Q,QG,QA,P,PC,PA,AA,eq_F_H,eq_E_F,El,Hl,colE,colD);
-                skiprest = true;}
+        //					                  Ｐ
+        //                                    A 🅑 🅲
+        //                                 🆀 🅳 🄴 Ｆ R        Zone 1
+        //                                  . G Ｈ I
+        if ( !skiprest && (!slope2 && !eq_B_F) && (!slope3 && !eq_D_H) && !eq_B_D &&
+             !eq_E_D && eq(B,Q) && eq(C,D) ) {
+            J = admixS( I, H, G, F, E, D, C, B, A
+                      , Q, QG, QA, P, PC, PA, AA
+                      , vE, vD, vG
+                      );
+            skiprest = true;}
 
-		}
+    }
 
-        // vertical left
-        if ( !skiprest && !eq_E_D && none_eq2(D,C,I) ) {
+    // vertical left
+    if ( !skiprest && !eq_E_D && none_eq2(D,C,I) ) {
 
-			//                                    🅐 B Ｃ
-			//                                  Q 🅳 🄴 Ｆ R
-			//                                    Ｇ 🅷 I        Zone 3
-			//                                       🆂 ・
-            if ( (!slope1 && !eq_B_D) && (!slope4 && !eq_F_H) && !eq_D_H &&
-				  !eq_E_H && (eq_B_F || eq_E_B) && eq(D,S) && eq(A,H) ) {
-                L = admixS(C,F,I,B,E,H,A,D,G,S,SI,SG,Q,QA,QG,GG,eq_B_F,eq_E_B,El,Fl,colE,colH);
-                skiprest = true;}
+        //                                    🅐 B Ｃ
+        //                                  Q 🅳 🄴 Ｆ R
+        //                                    Ｇ 🅷 I        Zone 3
+        //                                       🆂 ・
+        if ( (!slope1 && !eq_B_D) && (!slope4 && !eq_F_H) && !eq_D_H &&
+              !eq_E_H && eq(D,S) && eq(A,H) ) {
+            L = admixS( C, F, I, B, E, H, A, D, G
+                      , S, SI, SG, Q, QA, QG, GG
+                      , vE, vH, vI
+                      );
+            skiprest = true;}
 
-			//                                      🅟 ・
-			//                                    A 🅑 C
-			//                                  Q 🅳 🄴 F R       Zone 1
-			//                                    🅶 ＨＩ
-			if ( !skiprest && (!slope3 && !eq_D_H) && (!slope2 && !eq_B_F) && !eq_B_D &&
-				  !eq_E_B && (eq_F_H || eq_E_H) && eq(P,D) && eq(B,G) ) {
-                J = admixS(I,F,C,H,E,B,G,D,A,P,PC,PA,Q,QG,QA,AA,eq_F_H,eq_E_H,El,Fl,colE,colB);
-                skiprest = true;}
+        //                                      🅟 ・
+        //                                    A 🅑 C
+        //                                  Q 🅳 🄴 F R       Zone 1
+        //                                    🅶 ＨＩ
+        if ( !skiprest && (!slope3 && !eq_D_H) && (!slope2 && !eq_B_F) && !eq_B_D &&
+              !eq_E_B && eq(P,D) && eq(B,G) ) {
+            J = admixS( I, F, C, H, E, B, G, D, A
+                      , P, PC, PA, Q, QG, QA, AA
+                      , vE, vB, vC
+                      );
+            skiprest = true;}
 
-		}
+    }
 
-        // vertical right
-		if ( !skiprest && !eq_E_F && none_eq2(F,A,G) ) { // right
+    // vertical right
+    if ( !skiprest && !eq_E_F && none_eq2(F,A,G) ) { // right
 
-			//                                    A B 🅲
-			//                                  Q D 🄴 🅵 R
-			//                                    G 🅷 I        Zone 4
-			//                                    . 🆂
-			if ( (!slope2 && !eq_B_F) && (!slope3 && !eq_D_H) && !eq_F_H &&
-				  !eq_E_H && (eq_B_D || eq_E_B) && eq(S,F) && eq(H,C) ) {
-                M = admixS(A,D,G,B,E,H,C,F,I,S,SG,SI,R,RC,RI,II,eq_B_D,eq_E_B,El,Dl,colE,colH);
-                skiprest = true;}
+        //                                    A B 🅲
+        //                                  Q D 🄴 🅵 R
+        //                                    G 🅷 I        Zone 4
+        //                                    . 🆂
+        if ( (!slope2 && !eq_B_F) && (!slope3 && !eq_D_H) && !eq_F_H &&
+              !eq_E_H && eq(S,F) && eq(H,C) ) {
+            M = admixS( A, D, G, B, E, H, C, F
+                      , I, S, SG, SI, R, RC, RI, II
+                      , vE, vH, vG
+                      );
+            skiprest = true;}
 
-			//                                    ・ 🅟
-			//                                    A 🅑 C
-			//                                  Q D 🄴 🅵 R        Zone 2
-			//                                    G H 🅸
-			if ( !skiprest && (!slope1 && !eq_B_D) && (!slope4 && !eq_F_H) && !eq_B_F &&
-				 !eq_E_B && (eq_D_H || eq_E_H) && eq(P,F) && eq(B,I) ) {
-                K = admixS(G,D,A,H,E,B,I,F,C,P,PA,PC,R,RI,RC,CC,eq_D_H,eq_E_H,El,Dl,colE,colB);
-                skiprest = true;}
+        //                                    ・ 🅟
+        //                                    A 🅑 C
+        //                                  Q D 🄴 🅵 R        Zone 2
+        //                                    G H 🅸
+        if ( !skiprest && (!slope1 && !eq_B_D) && (!slope4 && !eq_F_H) && !eq_B_F &&
+             !eq_E_B && eq(P,F) && eq(B,I) ) {
+            K = admixS( G, D, A, H, E, B, I, F, C
+                      , P, PA, PC, R, RI, RC, CC
+                      , vE, vB, vA
+                      );
+            skiprest = true;}
 
-		} // vertical right
+    } // vertical right
 } // sawslope
 
-// Exit if sawslope formed. Legacy: skiprest||slopeBAD (also uses slopeOFF (weak) and slopok (strong) - poor effect)
+// sawslope exits early; legacy: skiprest||slopeBAD (still uses slopeOFF (weak) and slopeok (strong) with mediocre results)
 skiprest = skiprest||slope1||slope2||slope3||slope4;
 
 /**************************************************
-       "Concave + Cross" shape	（P100）	   
+       Concave + Cross pattern	（P100）	   
  *************************************************/
-//  Use approximate pixels for cross far ends - useful for line+zigzag and layered gradient shapes (e.g. glowing text in SFIII:N2 intro, Japanese houses in SFZ3 Mix, Fatal Fury: Wild Ambition intro)
+// Use approximate pixels for cross distant edges: helps horizontal lines + aliasing and gradients
+// e.g., Street Fighter III 3rd Strike intro glow text, SFZ3 Mix Japanese houses, Fatal Fury Wolf Mark intro
 
-	vec3 colX;		//Define temp X
+vec3 vT;		// Temp T
 
-    if (!skiprest &&
-        Bl<El && !eq_E_D && !eq_E_F && eq_E_H && none_eq2(E,A,C) && all_eq2(G,H,I) && sim2(colE,E,S) ) { // TOP
+if (!skiprest &&
+    Bl<El && !eq_E_D && !eq_E_F && eq_E_H && none_eq2(E,A,C) && all_eq2(G,H,I) && vi_sim(vE,E,S) ) { // TOP
 
-        if (eq_B_D||eq_B_F) { J=admixK(colB,J);    K=J;
-            if (eq_D_F) { L=mix(J,L, 0.61804);   M=L; }
-        } else { colX = El-Bl < abs(El-Dl) ? colB : colD;  J=admixC(colX,J);
-			if (eq_D_F) { K=J;  L=mix(J,L, 0.61804);    M=L; }
-			else {colX = El-Bl < abs(El-Fl) ? colB : colF; 		K=admixC(colX,K); }
-            }
+    if (eq_B_D||eq_B_F) { J=admixC(vB,J);    K=J;
+        if (eq_D_F) { L=mix(J,L, 0.61804);   M=L; }
+    } else { vT = El-Bl < abs(El-Dl) ? vB : vD;  J=admixC(vT,J);
+            if (eq_D_F) { K=J;  L=mix(J,L, 0.61804);    M=L; }
+            else {vT = El-Bl < abs(El-Fl) ? vB : vF; 		K=admixC(vT,K); }
+           }
 
-	   skiprest = true;
-	}
+   skiprest = true;
+}
 
-    if (!skiprest &&
-		Hl<El && !eq_E_D && !eq_E_F && eq_E_B && none_eq2(E,G,I) && all_eq2(A,B,C) && sim2(colE,E,P) ) { // BOTTOM
+if (!skiprest &&
+    Hl<El && !eq_E_D && !eq_E_F && eq_E_B && none_eq2(E,G,I) && all_eq2(A,B,C) && vi_sim(vE,E,P) ) { // BOTTOM
 
-        if (eq_D_H||eq_F_H) { L=admixK(colH,L);    M=L;
-            if (eq_D_F) { J=mix(L,J, 0.61804);   K=J; }
-        } else { colX = El-Hl < abs(El-Dl) ? colH : colD;  L=admixC(colX,L);
-			if (eq_D_F) { M=L;  J=mix(L,J, 0.61804);    K=J; }
-			else { colX = El-Hl < abs(El-Fl) ? colH : colF;    M=admixC(colX,M); }
-            }
+    if (eq_D_H||eq_F_H) { L=admixC(vH,L);    M=L;
+        if (eq_D_F) { J=mix(L,J, 0.61804);   K=J; }
+    } else { vT = El-Hl < abs(El-Dl) ? vH : vD;  L=admixC(vT,L);
+            if (eq_D_F) { M=L;  J=mix(L,J, 0.61804);    K=J; }
+            else { vT = El-Hl < abs(El-Fl) ? vH : vF;    M=admixC(vT,M); }
+           }
 
-	   skiprest = true;
-	}
+   skiprest = true;
+}
 
-   if (!skiprest &&
-		Fl<El && !eq_E_B && !eq_E_H && eq_E_D && none_eq2(E,C,I) && all_eq2(A,D,G) && sim2(colE,E,Q) ) { // RIGHT
+if (!skiprest &&
+    Fl<El && !eq_E_B && !eq_E_H && eq_E_D && none_eq2(E,C,I) && all_eq2(A,D,G) && vi_sim(vE,E,Q) ) { // RIGHT
 
-        if (eq_B_F||eq_F_H) { K=admixK(colF,K);    M=K;
-            if (eq_B_H) { J=mix(K,J, 0.61804);   L=J; }
-        } else { colX = El-Fl < abs(El-Bl) ? colF : colB;  K=admixC(colX,K);
-			if (eq_B_H) { M=K;  J=mix(K,J, 0.61804);    L=J; }
-			else { colX = El-Fl < abs(El-Hl) ? colF : colH;    M=admixC(colX,M); }
-            }
+    if (eq_B_F||eq_F_H) { K=admixC(vF,K);    M=K;
+        if (eq_B_H) { J=mix(K,J, 0.61804);   L=J; }
+    } else { vT = El-Fl < abs(El-Bl) ? vF : vB;  K=admixC(vT,K);
+            if (eq_B_H) { M=K;  J=mix(K,J, 0.61804);    L=J; }
+            else { vT = El-Fl < abs(El-Hl) ? vF : vH;    M=admixC(vT,M); }
+           }
 
-	   skiprest = true;
-	}
+   skiprest = true;
+}
 
-    if (!skiprest &&
-		Dl<El && !eq_E_B && !eq_E_H && eq_E_F && none_eq2(E,A,G) && all_eq2(C,F,I) && sim2(colE,E,R) ) { // LEFT
+if (!skiprest &&
+    Dl<El && !eq_E_B && !eq_E_H && eq_E_F && none_eq2(E,A,G) && all_eq2(C,F,I) && vi_sim(vE,E,R) ) { // LEFT
 
-        if (eq_B_D||eq_D_H) { J=admixK(colD,J);    L=J;
-            if (eq_B_H) { K=mix(J,K, 0.61804);   M=K; }
-        } else { colX = El-Dl < abs(El-Bl) ? colD : colB;  J=admixC(colX,J);
-			if (eq_B_H) { L=J;   K=mix(J,K, 0.61804);    M=K; }
-			else { colX = El-Dl < abs(El-Hl) ? colD : colH;    L=admixC(colX,L); }
-            }
+    if (eq_B_D||eq_D_H) { J=admixC(vD,J);    L=J;
+        if (eq_B_H) { K=mix(J,K, 0.61804);   M=K; }
+    } else { vT = El-Dl < abs(El-Bl) ? vD : vB;  J=admixC(vT,J);
+            if (eq_B_H) { L=J;   K=mix(J,K, 0.61804);    M=K; }
+            else { vT = El-Dl < abs(El-Hl) ? vD : vH;    L=admixC(vT,L); }
+           }
 
-	   skiprest = true;
-	}
+   skiprest = true;
+}
 
 /*
-	   ✕О
-     ООО✕
-	   ✕О    Scorpion shape (P99). Resembles Sentinel bug from The Matrix. Flattens regular staggered pixels.
+     ✕О
+ ООО✕
+     ✕О    Scorpion pattern (P99). Resembles Matrix sentinels. Smooths regular staggered pixels.
 */
-// Implementation notes: 1. Approximate scorpion pincers? Prone to artifacts
-// Implementation notes: 2. Remove one segment from scorpion tail to capture more shapes
-// Scorpion is exclusive - won't trigger if previous rules matched
+// Practice: 1. Do NOT use approximate pixels (causes artifacts)
+// Practice: 2. Brighter center E, shorten tail by 1 to catch more patterns
+// Exclusive pattern: only triggers if NO prior rules matched
 
-   if (!skiprest && !eq_E_F &&eq_E_D&&eq_B_F&&eq_F_H && all_eq2(E,C,I) && noteq(F,src(+3, 0)) ) {K=admixK(colF,K); M=K;J=mix(K,J, 0.61804); L=J;skiprest=true;}	// RIGHT
-   if (!skiprest && !eq_E_D &&eq_E_F&&eq_B_D&&eq_D_H && all_eq2(E,A,G) && noteq(D,src(-3, 0)) ) {J=admixK(colD,J); L=J;K=mix(J,K, 0.61804); M=K;skiprest=true;}	// LEFT
-   if (!skiprest && !eq_E_H &&eq_E_B&&eq_D_H&&eq_F_H && all_eq2(E,G,I) && noteq(H,src(0, +3)) ) {L=admixK(colH,L); M=L;J=mix(L,J, 0.61804); K=J;skiprest=true;}	// BOTTOM
-   if (!skiprest && !eq_E_B &&eq_E_H&&eq_B_D&&eq_B_F && all_eq2(E,A,C) && noteq(B,src(0, -3)) ) {J=admixK(colB,J); K=J;L=mix(J,L, 0.61804); M=L;}				// TOP
+if (!skiprest && !eq_E_F&&eq_E_D&&eq_B_F&&eq_F_H && all_eq2(E,C,I) && (eq(E,Q)||El>Fl) && neq(F,src(+3.0, 0.0)) ) {K=admixK(vF,K); M=K;skiprest=true;}	// RIGHT
+if (!skiprest && !eq_E_D&&eq_E_F&&eq_B_D&&eq_D_H && all_eq2(E,A,G) && (eq(E,R)||El>Dl) && neq(D,src(-3.0, 0.0)) ) {J=admixK(vD,J); L=J;skiprest=true;}	// LEFT
+if (!skiprest && !eq_E_H&&eq_E_B&&eq_D_H&&eq_F_H && all_eq2(E,G,I) && (eq(E,P)||El>Hl) && neq(H,src(0.0, +3.0)) ) {L=admixK(vH,L); M=L;skiprest=true;}	// BOTTOM
+if (!skiprest && !eq_E_B&&eq_E_H&&eq_B_D&&eq_B_F && all_eq2(E,A,C) && (eq(E,S)||El>Bl) && neq(B,src(0.0, -3.0)) ) {J=admixK(vB,J); K=J;}				// TOP
 
-	// final Exit
-	vec2 a = fract(pixelPos);
+	//Final write
+	vec2 a = fract(pixelPos);	// pixelPos defined in edge check
+
 	FragColor.rgb = (a.x < 0.5) ? (a.y < 0.5 ? J : L) : (a.y < 0.5 ? K : M);
+
+	//float fx = step(0.5, a.x);
+	//float fy = step(0.5, a.y);
+
+	//FragColor.rgb = mix(mix(J, L, fy), mix(K, M, fy), fx);
+	
+}	
 }
