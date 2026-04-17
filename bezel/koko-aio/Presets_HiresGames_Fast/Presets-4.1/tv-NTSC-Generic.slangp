@@ -1,4 +1,4 @@
-#reference "tv-NTSC-1.slangp"
+#reference "tv-NTSC-Megadrive-Genesis.slangp"
 	NTSC_MIX = "0.700001"
 	NTSC_FILTER_WIDTH = "5.000000"
 	NTSC_PHASE_SHIFT = "1.0"
@@ -6,3 +6,5 @@
 	NTSC_FILTER_FC = "0.000000"
 	NTSC_ARTF_TRSH = "0.670000"
 	NTSC_ARTF_ZAP = "1.000000"
+
+	DO_WTFL = "0.000000"

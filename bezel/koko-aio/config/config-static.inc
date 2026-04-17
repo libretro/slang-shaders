@@ -85,11 +85,7 @@
 // AMBIENT LIGHT STATIC CONFIG ##########################################################################################
 
 	// 0.0-1.0: sensitivity to scene change (ambilike stuff), 0.0 changes more
-#define AMBI_SCENE_CHG_THRSHLD 0.07  
-	// The following will allow to sample at reduced interval
-	// The scene change detection logic will take advantage of it
-	// So that quick fades will still be treated as scene changes
-#define AMBI_AVGLUM_DIVIDER 3
+#define AMBI_SCENE_CHG_THRSHLD 0.3  
 
 	// The following defines the speed of the color fades 
 	// when changing scene. (range 0..1)
@@ -135,8 +131,13 @@
 //which coords holds the autocrop zoom value
 #define AUTOCROP_SAMPLING_POINT vec2(0.125)
 
+	// temporal smoothed sampling point without color correction
+#define TSMOOTH_NOCC_SAMPLING_POINT vec2(0.5)
+
 	// Luminosity tied zoom sampling point
 #define DYN_ZOOM_SAMPLING_POINT vec2(0.75)
+	
+
 	
 	//Sampling points from test pass
 #define SMP_RANGE1 vec4(0.24,0.24  ,  0.26,0.26)
@@ -153,7 +154,7 @@
 	//How much the resolution have to change for shake to be activated (in relation to the old size).
 #define RESSWITCH_GLITCH_TRESHOLD 0.1
 	//How fast is the shake [0.01 -> 1]
-#define RESSWITCH_SHAKE_SPEED 0.3
+#define RESSWITCH_SHAKE_SPEED 0.4
 
 
 
@@ -179,5 +180,10 @@
 
 //We want at least that screen lines per single scanline; this is also used to trigger fake integer scanlines
 #define MIN_SCREEN_CORE_RATIO 3.5 
+
+
+// Dot matrix related
+#define DOT_M_SHARP_AUTO_MIN 0.01
+#define DOT_M_SHARP_AUTO_MAX 16.0
 
 // STATIC CONFIG ENDS HERE ##########################################################################################
