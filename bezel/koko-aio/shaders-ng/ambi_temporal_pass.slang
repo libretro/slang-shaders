@@ -14,19 +14,19 @@
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
-layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out float vLedBorder_min;
-layout(location = 2) out float vLedBorder_max;
-layout(location = 3) out float vLed_step;
-layout(location = 4) out float lod;
-layout(location = 5) out vec2 pre_pass_coords;
-layout(location = 6) out float vIs_rotated;
-layout(location = 7) out float vAMBI_STRETCH;
-layout(location = 8) out float vAMBI_POWER;
-layout(location = 9) out float vSmpBorder_min;
-layout(location = 10) out float vSmpBorder_max;
-layout(location = 11) out float vSmp_step;
-layout(location = 12) out float vMod_FrameCount_FrameDivider;
+layout(location = 0) noperspective out vec2 vTexCoord;
+layout(location = 1) flat out float vLedBorder_min;
+layout(location = 2) flat out float vLedBorder_max;
+layout(location = 3) flat out float vLed_step;
+layout(location = 4) flat out float lod;
+layout(location = 5) noperspective out vec2 pre_pass_coords;
+layout(location = 6) flat out float vIs_rotated;
+layout(location = 7) flat out float vAMBI_STRETCH;
+
+layout(location = 9) flat out float vSmpBorder_min;
+layout(location = 10) flat out float vSmpBorder_max;
+layout(location = 11) flat out float vSmp_step;
+
 
 void main() {
     gl_Position = global.MVP * Position;
@@ -97,34 +97,24 @@ void main() {
     
     if (bNeed_NO_integer_scale) {
         if (DO_GAME_GEOM_OVERRIDE > 0.5)
-            pre_pass_coords = content_geom_override_zoom(pre_pass_coords, GAME_GEOM_ASPECT, get_in_aspect(), GAME_GEOM_VSHIFT, GAME_GEOM_HSHIFT, GAME_GEOM_ZOOM);
+            pre_pass_coords = content_geom_override_zoom(pre_pass_coords, GAME_GEOM_ASPECT, in_aspect, GAME_GEOM_VSHIFT, GAME_GEOM_HSHIFT, GAME_GEOM_ZOOM);
     }
 
-
-    //Every cycle counts!
-        vAMBI_POWER = AMBI_POWER -1;
-
-        
-    //3.0 makes scene detection not working.
-        #define FRAME_DIVIDER 2.0
-        vMod_FrameCount_FrameDivider = mod(params.FrameCount, FRAME_DIVIDER);
-        
 }
 
 #pragma stage fragment
-layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in float vLedBorder_min;
-layout(location = 2) in float vLedBorder_max;
-layout(location = 3) in float vLed_step;
-layout(location = 4) in float lod;
-layout(location = 5) in vec2 pre_pass_coords;
-layout(location = 6) in float vIs_rotated;
-layout(location = 7) in float vAMBI_STRETCH;
-layout(location = 8) in float vAMBI_POWER;
-layout(location = 9) in float vSmpBorder_min;
-layout(location = 10) in float vSmpBorder_max;
-layout(location = 11) in float vSmp_step;
-layout(location = 12) in float vMod_FrameCount_FrameDivider;
+layout(location = 0) noperspective in vec2 vTexCoord;
+layout(location = 1) flat in float vLedBorder_min;
+layout(location = 2) flat in float vLedBorder_max;
+layout(location = 3) flat in float vLed_step;
+layout(location = 4) flat in float lod;
+layout(location = 5) noperspective in vec2 pre_pass_coords;
+layout(location = 6) flat in float vIs_rotated;
+layout(location = 7) flat in float vAMBI_STRETCH;
+
+layout(location = 9) flat in float vSmpBorder_min;
+layout(location = 10) flat in float vSmpBorder_max;
+layout(location = 11) flat in float vSmp_step;
 
 layout(location = 0) out vec4 FragColor;
 
@@ -132,7 +122,8 @@ layout(set = 0, binding = 1) uniform sampler2D PastSampler;
 layout(set = 0, binding = 2) uniform sampler2D avglum_pass;
 layout(set = 0, binding = 3) uniform sampler2D avglum_passFeedback;
 layout(set = 0, binding = 4) uniform sampler2D colortools_and_ntsc_pass;
-
+layout(set = 0, binding = 5) uniform sampler2D colortools_and_ntsc_passFeedback;
+layout(set = 0, binding = 6) uniform sampler2D backdrop;
 
 
 vec3 ambi_push_pass(vec2 coords, float f_lod) {
@@ -143,9 +134,16 @@ vec3 ambi_push_pass(vec2 coords, float f_lod) {
     }
     
     vec3 pixel_out = textureLod(colortools_and_ntsc_pass, smp_coords, f_lod).rgb;
+
+    if (DO_BACKDROP * BACKDROP_JUST_TUBE > 0.0) {
+        vec4 backdrop_img = pixel_overlay_image_stretch(backdrop, coords);
+        vec3 blended = (pixel_out.rgb + DO_BACKDROP) * backdrop_img.rgb;
+        pixel_out = mix( pixel_out.rgb, blended, backdrop_img.a );
+    }
+
     pixel_out = pow(pixel_out, vec3(AMBI_GAMMA)); 
 
-    pixel_out = pixel_push_luminance(pixel_out, vAMBI_POWER);
+    pixel_out = pixel_push_luminance(pixel_out, AMBI_POWER - 1);
     return pixel_out;
 }
 
@@ -260,10 +258,58 @@ vec3 ambi_step_rgb(vec3 s,vec3 d, vec3 mystep){
 }
 
 
+vec3 pixel_sanitize(vec3 color_in) {
+    return clamp(color_in, vec3(0), vec3(10.0));
+    //return max(color_in.rgb, vec3(0.0));
+}
+
+vec4 pixel_sanitize(vec4 color_in) {
+    return clamp(color_in, vec4(0), vec4(10.0,10.0,10.0,1.0));
+    //return max(color_in, vec4(0.0));
+}
+
+
+bool scene_changed() {
+    vec3 present_color = textureLod(colortools_and_ntsc_pass, vec2(0.5), 20.0).rgb;
+    vec3 past_color    = textureLod(colortools_and_ntsc_passFeedback, vec2(0.5), 20.0).rgb;
+    float past_lum = rgb_to_gray(past_color);
+    float present_lum = rgb_to_gray(present_color);
+    float diff_lum = abs(past_lum - present_lum);
+    return (diff_lum >= AMBI_SCENE_CHG_THRSHLD );
+}
+
+
+bool scene_changed_test() {
+    vec3 present_color = textureLod(colortools_and_ntsc_pass, vec2(0.5), 20.0).rgb;
+    vec3 past_color    = textureLod(colortools_and_ntsc_passFeedback, vec2(0.5), 20.0).rgb;
+    
+    float past_lum = rgb_to_gray(past_color);
+    float present_lum = rgb_to_gray(present_color);
+    
+    float past_hue = rgb2hsv(past_color).x;
+    float present_hue = rgb2hsv(present_color).x;
+    float diff_hue = abs(past_hue - present_hue);
+    float diff_lum = abs(past_lum - present_lum);
+    
+    float lum_weight = 1.0;
+    float hue_weight = 0.0;
+        
+    float diff = diff_hue * hue_weight + diff_lum * lum_weight;
+    
+    
+    float t = AMBI_SCENE_CHG_THRSHLD*(lum_weight+hue_weight);
+    
+    t=0.25;
+    
+    return (diff >= t );
+}
+
 vec4 pixel_ambilight(vec2 local_pre_pass_coords) {
 
     vec3 present_pixel =  ambi_pre_pass(local_pre_pass_coords).rgb;
 
+    present_pixel.rgb = pixel_sanitize(present_pixel.rgb);
+    
     if ( dot(global.colortools_and_ntsc_passSize.xy, vec2(1.0)) != dot(global.colortools_and_ntsc_passFeedbackSize.xy, vec2(1.0) ) ) {
         // Under vulkan, when the framebuffer chain is reconfigured (due to the source resolution changed?)
         // Feeedback status is unrlieble, so to avoid glitches, return current color.
@@ -274,14 +320,8 @@ vec4 pixel_ambilight(vec2 local_pre_pass_coords) {
     float scene_change_remaining = past_pixel.a;
 
 
-    #ifndef D3D_WORKAROUND
-        float past_avg_lum    = texture(avglum_passFeedback,vec2(0.25,0.25)).a;
-        float present_avg_lum = texture(avglum_pass        ,vec2(0.25,0.25)).a;
-        float diff_avg_lum = abs(past_avg_lum - present_avg_lum);
-
-        if (diff_avg_lum >= AMBI_SCENE_CHG_THRSHLD) {
-            scene_change_remaining = 1/AMBI_FAST_STEP;
-        }
+    #ifndef D3D_WORKAROUND        
+        if (scene_changed()) scene_change_remaining = 1/AMBI_FAST_STEP;
     #endif 
     
     // Are we changing scene?
@@ -303,23 +343,6 @@ void main() {
         FragColor = vec4(0,0,0,1);
         return;
     }
-    
-    //Nvidia + flycast core + glcore goes crazy with modulo operation and instead of returning 0,1,2 0,1,2 they returns 1,2,3 1,2,3 and so on.
-    //Don't check for != 0.0 here, but use != 1.0.
-    //Also this particular bug does not seem to happen in the last pass.
-    
-    if ( vMod_FrameCount_FrameDivider != 1.0 ) { 
-        vec4 past_sampler = texture(PastSampler, vTexCoord);
-        FragColor = past_sampler;
-        return;
-    }
 
-    /*vec2 dx = dFdx(pre_pass_coords);
-    vec2 dy = dFdy(pre_pass_coords);
-    float mylod = 0.5 * log2(max(dot(dx, dx), dot(dy, dy)));
-
-    FragColor.rgb = textureLod(colortools_and_ntsc_pass, pre_pass_coords, mylod).rgb;
-    return;*/
-    
     FragColor = pixel_ambilight(pre_pass_coords);
 }

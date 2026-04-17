@@ -5,8 +5,8 @@
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
-layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out float vHALO_UNGAIN_FACTOR;
+layout(location = 0) noperspective out vec2 vTexCoord;
+layout(location = 1) flat out float vHALO_UNGAIN_FACTOR;
 
 void main() {
     gl_Position = global.MVP * Position;
@@ -24,8 +24,8 @@ void main() {
 }
 
 #pragma stage fragment
-layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in float vHALO_UNGAIN_FACTOR;
+layout(location = 0) noperspective in vec2 vTexCoord;
+layout(location = 1) flat in float vHALO_UNGAIN_FACTOR;
 
 layout(location = 0) out vec4 FragColor;
 
@@ -33,7 +33,7 @@ layout(set = 0, binding = 4) uniform sampler2D in_glow_pass;
 
 #ifndef D3D_WORKAROUND
     #ifdef _HAS_FRAMETIME_UNIFORMS
-        #ifndef ORIGINAL_FPS_TRUSTED
+        #ifdef ORIGINAL_FPS_UNTRUSTED
             layout(set = 0, binding = 5) uniform sampler2D halo_pre_gamma_passFeedback;
         #endif
     #endif
@@ -43,7 +43,7 @@ void main() {
     
     #ifndef D3D_WORKAROUND
         #ifdef _HAS_FRAMETIME_UNIFORMS
-            #ifndef ORIGINAL_FPS_TRUSTED
+            #ifdef ORIGINAL_FPS_UNTRUSTED
                 if (global.OriginalFPS < 35.0) {
                     //always trust cores that reports under 35fps (30,25).
                     FragColor.a = global.OriginalFPS;

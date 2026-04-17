@@ -1,0 +1,6 @@
+DECON_RX = "0.0"
+DECON_RY = "-0.8"
+DECON_GX = "0.5"
+DECON_GY = "0.0"
+DECON_BX = "0.0"
+DECON_BY = "0.8"

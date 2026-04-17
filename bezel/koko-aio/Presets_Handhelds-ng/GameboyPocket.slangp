@@ -1,4 +1,4 @@
-#reference GameboyMono.slangp
+#reference "GameboyMono.slangp"
 
 DO_CCORRECTION = "1.000000"
 	BRIGHTNESS = " -0.10"

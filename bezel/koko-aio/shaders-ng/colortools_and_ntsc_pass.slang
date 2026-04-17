@@ -1,7 +1,6 @@
 #version 450
 
 //#pragma format R32G32B32A32_SFLOAT
-
 #define CWHITE  vec3(1.0)
 #define CGRAY   vec3(0.5)
 #define CBLACK  vec3(0.0)
@@ -53,13 +52,14 @@
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 
-layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out vec3 vTemperature_rgb;
-layout(location = 2) out float vNTSC_FILTER_FC;
-layout(location = 3) out float vPixelgrid_intr_gamma_adj;
-layout(location = 4) out vec3 vDebug;
-layout(location = 5) out vec2 vTexCoord_unshifted;
-layout(location = 6) out float vNTSC_weights[NTSC_FILTER_WIDTH_MAX];
+layout(location = 0) noperspective out vec2 vTexCoord;
+layout(location = 1) flat out vec3 vTemperature_rgb;
+layout(location = 2) flat out float vNTSC_FILTER_FC;
+layout(location = 3) flat out float vPixelgrid_intr_gamma_adj;
+layout(location = 4) noperspective out vec3 vDebug;
+layout(location = 5) noperspective out vec2 vTexCoord_unshifted;
+layout(location = 6) noperspective out float vShake_sin_arg;
+layout(location = 7) flat out float vNTSC_weights[NTSC_FILTER_WIDTH_MAX];
 
 
 #include "includes/functions.include.slang"
@@ -95,7 +95,7 @@ void main() {
    //Let's hope this will not break anything (classic diagonally broken screen).
    vTexCoord = TexCoord;
    vTexCoord_unshifted = TexCoord;
-
+   
    if (DO_GAME_GEOM_OVERRIDE > 0.5) {
       vec2 shift = vec2(GAME_GEOM_HSHIFT,GAME_GEOM_VSHIFT);
       vTexCoord = content_geom_override_shift(vTexCoord, GAME_GEOM_ASPECT, get_in_aspect(), shift.y, shift.x, GAME_GEOM_ZOOM);
@@ -129,6 +129,15 @@ void main() {
       vPixelgrid_intr_gamma_adj = 1.0;
       if (pixelgrid_h_needed() && scanlines_will_alternate(is_interlaced()))
           vPixelgrid_intr_gamma_adj = PIXELGRID_INTR_GAMMA_ADJ;
+   
+   //For screen shaking:
+      #define Y_SHAKE_SPEED 1.5
+      #define X_SHAKE_NUM_WAVES 1.0
+      float wobbly_freq = mod(params.FrameCount,pi*100);
+      //vShake_sin_arg =  vec2( wobbly_freq * Y_SHAKE_SPEED, vTexCoord.y * X_SHAKE_NUM_WAVES + wobbly_freq);
+      vShake_sin_arg =  vTexCoord.y * X_SHAKE_NUM_WAVES + wobbly_freq;
+      if (params.FrameCount == 0.0) vShake_sin_arg = pi; //skip first frame
+   
    
    vDebug = vec3(0.0); //need to initialize to something.
    
@@ -201,13 +210,14 @@ void main() {
 
 #include "includes/functions.include.slang"
 
-layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in vec3 vTemperature_rgb;
-layout(location = 2) in float vNTSC_FILTER_FC;
-layout(location = 3) in float vPixelgrid_intr_gamma_adj;
-layout(location = 4) in vec3 vDebug;
-layout(location = 5) in vec2 vTexCoord_unshifted;
-layout(location = 6) in float vNTSC_weights[NTSC_FILTER_WIDTH_MAX];
+layout(location = 0) noperspective in vec2 vTexCoord;
+layout(location = 1) flat in vec3 vTemperature_rgb;
+layout(location = 2) flat in float vNTSC_FILTER_FC;
+layout(location = 3) flat in float vPixelgrid_intr_gamma_adj;
+layout(location = 4) noperspective in vec3 vDebug;
+layout(location = 5) noperspective in vec2 vTexCoord_unshifted;
+layout(location = 6) noperspective in float vShake_sin_arg;
+layout(location = 7) flat in float vNTSC_weights[NTSC_FILTER_WIDTH_MAX];
 
 layout(location = 0) out vec4 FragColor;
 
@@ -217,6 +227,7 @@ layout(set = 0, binding = 3) uniform sampler2D colortools_and_ntsc_passFeedback;
 layout(set = 0, binding = 4) uniform sampler2D avglum_passFeedback;
 #endif
 layout(set = 0, binding = 5) uniform sampler2D FPS_ESTIMATE_PASS;
+
 
 vec3 colorwheel(vec2 uv){
    float timeoffset = params.FrameCount / 120.0;
@@ -654,10 +665,13 @@ void main() {
       co = clamp(co,  params.OriginalSize.zw * AUTOCROP_MIN, 
                     1-params.OriginalSize.zw * AUTOCROP_MIN );
    
+   // screen shake/glitch:
    #ifndef D3D_WORKAROUND
-      float shake = texture(avglum_passFeedback, RESSWITCH_SAMPLING_POINT).a;
-      //co.y += sin(shake * 2 * pi) * RESSWITCH_GLITCH_SIZE;
-      co.y = co.y + (sin(shake * 2 * pi) * RESSWITCH_GLITCH_SIZE);
+      if (RESSWITCH_SYNC_SPEED < 1.0) {
+            float fadeout = texture(avglum_passFeedback, RESSWITCH_SAMPLING_POINT).a;
+            float shake = sin( vShake_sin_arg );
+            co.y += shake * fadeout;
+      }
    #endif
 
    vec3 pixel_in = texture(Source, co).rgb;
@@ -670,18 +684,19 @@ void main() {
    
    vec3 pixel_out = pixel_in;
 
-   float artifact_mask = 0.0;
    if (DO_NTSC_ARTIFACTS > 0.5) {
       //Get ntsc picture
          vec4 ntsc_decoded = ntscdec(co * 1.0001, pixel_in);
          ntsc_decoded = clamp(ntsc_decoded, vec4(0.0), vec4(1.0));
 
       //apply the minimum treshold to artifact mask
-         artifact_mask = smoothstep_fast(NTSC_ARTF_TRSH , 1.0, ntsc_decoded.a);
+         float artifact_mask = smoothstep_fast(NTSC_ARTF_TRSH , 1.0, ntsc_decoded.a);
 
       //Optionally completely cut-off artifacts under treshold:
          ntsc_decoded = mix(ntsc_decoded, vec4(pixel_in, 0.0) , (1-artifact_mask)*NTSC_ARTF_ZAP );
-      //Update the artifact mask if something has been cancelled
+
+         //ntsc_decoded = mix(ntsc_decoded, vec4(pixel_in, 0.0) , step(0.99, 1-artifact_mask)*NTSC_ARTF_ZAP );//<--this respects an hard treshold.
+         //Update the artifact mask if something has been cancelled
          artifact_mask = min(artifact_mask, ntsc_decoded.a);
          
 
@@ -715,7 +730,7 @@ void main() {
       //pixel_out = color_tools(pixel_out, vec3(1.0));
       #ifndef D3D_WORKAROUND
          if (ADAPTIVE_BLACK != 0.0) {
-            float avglum = texture(avglum_passFeedback, vec2(0.5,0.5)).a ;
+            float avglum = texture(avglum_passFeedback, TSMOOTH_NOCC_SAMPLING_POINT).a ;
             pixel_out = adaptive_black(pixel_out,  avglum, abs(ADAPTIVE_BLACK), ADAPTIVE_BLACK > 0.0);
          }
       #endif
@@ -787,7 +802,7 @@ void main() {
    
    if (DO_PPERSISTENCE == 1.0) {
       if (params.OutputSize.xy == global.colortools_and_ntsc_passFeedbackSize.xy) {
-         vec3 feedback = texture(colortools_and_ntsc_passFeedback, co).rgb;
+         vec3 feedback = texture(colortools_and_ntsc_passFeedback, vTexCoord_unshifted).rgb;
          float motion_blur_cancel = 2.5;
          vec3 early_decay      = vec3(PPERSISTENCE_START) / vec3(PPERSISTENCE_MUL_R,PPERSISTENCE_MUL_G,1);
          vec3 late_persistance = vec3(PPERSISTENCE_END)   * vec3(PPERSISTENCE_MUL_R,PPERSISTENCE_MUL_G,1);
@@ -806,6 +821,13 @@ void main() {
    
 
    //if (low_fps(FPS_ESTIMATE_PASS) && vTexCoord.y < 0.05) { pixel_out = vec3(1,0,0); }
+
+ /*  
+   pixel_out = RGB2YIQ*pixel_out;
+   pixel_out *= mix( vec3(1.0) ,     (vec3(4.2, 1.5, 0.5) / 4.2) , SERVICE1);
+   pixel_out = YIQ2RGB*pixel_out;
+   pixel_out = saturation_set_gain(pixel_out, mix(1.0, 3.0, SERVICE1));
+   */
 
    FragColor = vec4(pixel_out, waterfall);
 }

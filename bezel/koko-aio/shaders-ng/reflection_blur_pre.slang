@@ -5,10 +5,11 @@
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 
-layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out vec2 vCoordsAdapted;
-layout(location = 2) out vec2 vCoords_shade;
-layout(location = 5) out float vIn_Aspect;
+layout(location = 0) noperspective out vec2 vTexCoord;
+layout(location = 1) noperspective out vec2 vCoordsAdapted;
+layout(location = 2) noperspective out vec2 vCoords_shade;
+layout(location = 3) noperspective out vec2 vCoordsBackdrop;
+layout(location = 5) flat out float vIn_Aspect;
 
 #include "includes/functions.include.slang"
 
@@ -25,19 +26,26 @@ void main() {
    vCoordsAdapted = zoomout_coords( vCoordsAdapted, BEZEL_RFL_ZOOM*0.1);
 
    vCoords_shade = zoom(vTexCoord,1.05);
+   
+   
+   vCoordsBackdrop = vCoordsAdapted;
+   if (DO_BACKDROP * BACKDROP_JUST_TUBE  > 0.0) 
+      vCoordsBackdrop = overlay_image_coords(vCoordsAdapted);
+   
 }
 
 #pragma stage fragment
-layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in vec2 vCoordsAdapted;
-layout(location = 2) in vec2 vCoords_shade;
-layout(location = 5) in float vIn_Aspect;
+layout(location = 0) noperspective in vec2 vTexCoord;
+layout(location = 1) noperspective in vec2 vCoordsAdapted;
+layout(location = 2) noperspective in vec2 vCoords_shade;
+layout(location = 3) noperspective in vec2 vCoordsBackdrop;
+layout(location = 5) flat in float vIn_Aspect;
 
 layout(location = 0) out vec4 FragColor;
 
 layout(set = 0, binding = 1) uniform sampler2D shift_and_bleed_pass;
 layout(set = 0, binding = 2) uniform sampler2D avglum_pass;
-
+layout(set = 0, binding = 3) uniform sampler2D backdrop;
 #include "includes/functions.include.slang"
 #include "includes/blooms.include.slang"
 
@@ -80,13 +88,14 @@ void main() {
    if (AUTOCROP_MAX > 0.0)
       coords = zoom(coords, get_autocrop_zoom(avglum_pass));
    
-   //eventually return black pixel
+   //eventually return black pixel when both content and overlay/backdrop do not need reflection
    #define tol 0.001
    #define RECT01 vec4( vec2(0.0-tol), vec2(1.0+tol) )
    if (is_first_outside_rect(coords, RECT01)) {
-   //if (coords.y < 0.0-tol || coords.y > 1.0+tol || coords.x < 0.0-tol || coords.x > 1.0+tol) {
-      FragColor = vec4(0.0);
-      return;
+      if ( is_first_outside_rect(vCoordsBackdrop, RECT01) ) {
+         FragColor = vec4(0.0);
+         return;
+      }
    }
 
    
@@ -103,7 +112,16 @@ void main() {
       
       
       vec3 pixel_out = bloom(shift_and_bleed_pass, coords, global.FinalViewportSize, blur_radius_adpt, 1.0, 0.0, 1.0) ;
-
+      
+      //pixel_out.rgb = pow(pixel_out.rgb, vec3(0.5)); //seems to improve reflections (counteracted by the next pass)
+      
+      
+      if (DO_BACKDROP * BACKDROP_JUST_TUBE  > 0.0) {
+         vec4 backdrop_img = texture(backdrop, vCoordsBackdrop);
+         vec3 blended = (pixel_out.rgb + DO_BACKDROP) * backdrop_img.rgb;
+         pixel_out.rgb = mix( pixel_out.rgb, blended, backdrop_img.a );
+      }
+      
    FragColor = vec4(pixel_out,shade_sharp_blur );
 //FragColor = vec4(shade_sharp_blur );
    

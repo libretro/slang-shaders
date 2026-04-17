@@ -1,5 +1,6 @@
 #reference "../koko-aio-ng.slangp"
 #reference "../refs/bezel-dark.slangp"
+#reference "../refs/deconvergence-std.slangp"
 
 DO_CCORRECTION = "1.000000"
 	IN_GLOW_POWER = "1.500000"
@@ -14,16 +15,9 @@ DO_RF_NOISE = "0.0"
 
 DO_NTSC_ARTIFACTS = "0.0"
 
-DO_SAT_BLEED = "0.0"
+DO_CVBS_BLEED = "0.0"
 
 DO_SHIFT_RGB = "1.000000"
-	OFFSET_STRENGTH = "0.300000"
-	DECON_RX = "0.0"
-	DECON_RY = "-1.6"
-	DECON_GX = "0.0"
-	DECON_GY = "0.0"
-	DECON_BX = "0.0"
-	DECON_BY = "1.6"
 
 DO_IN_GLOW = "1.000000"
 	IN_GLOW_W = "-0.80000"
@@ -77,7 +71,7 @@ DO_CURVATURE = "1.000000"
 DO_PIXELGRID = "1.0"
 	
 
-DO_DYNZOOM = "0.015"
+DO_DYNZOOM = "0.02"
 
 DO_SPOT = "1.0"
     S_POSITION_X = "-0.5"

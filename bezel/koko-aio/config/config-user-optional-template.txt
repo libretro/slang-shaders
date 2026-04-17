@@ -47,13 +47,10 @@
 
 ////////////////////////////////////////////////////////////////////////////
 //
-// SPECIFIC SYSTEM PARAMETERS:
-//   There yoy have a chance to boost your FPS, or tune koko-aio for your specific
-//   the more lines you insert (or uncomment), the more your FPS will be high.
-//   
-//   The downside of using this method is that every setting
-//   you will write here, will be static and so that 
-//   you will NOT BE ABLE RO MODIFY it "on-the-fly" in Retroarch anymore.
+// SPECIFIC HOST SYSTEM PARAMETERS:
+// There you can configure parameters that are specific to your machine
+// Like the need for an antiburn strategy, or acivatinc D3D workarounds
+// or mitigating ghosting due to your monitor and so on.
 //
 ////////////////////////////////////////////////////////////////////////////
 
@@ -136,10 +133,9 @@
 // possibly heavier banding when using the spot feature.
 // #define SKIP_RANDOM
 
-// Uncommenting this is the only way to statically disable Warped Glow (X) and
+// Uncommenting this is the only way to statically disable Warped Glow
 // spare a lookup in the final pass;
-// When the screen is rotated, skipping SKIP_WARPEDGLOW_X means skipping SKIP_WARPEDGLOW_Y
-// #define SKIP_WARPEDGLOW_X
+// #define SKIP_WARPEDGLOW
 
 // Uncomment this is the only way to statically disable Warped Glow (Y)
 // When the screen is rotated, skipping SKIP_WARPEDGLOW_Y means skipping SKIP_WARPEDGLOW_X
@@ -154,11 +150,25 @@
 // and avoid performance hits.
 // #define RENDER_BOGUS_FRAMES
 
-// Cores may or not update OriginalFps uniform. So you may trust it or not.
-// In case you don't, it is derived by averaging frametimes.
-// The latter is less reliable depending on the video driver behaviour, and slower.
-// if D3D_WORKAROUND is defined, OriginalFps is always used.
-// #define ORIGINAL_FPS_TRUSTED
+// Temporal based features need to know the source fps to have a fixed duration
+// across multiple input refresh rates (25,30,50,60...).
+// But since some cores do not report it correctly, you may trust them, or not.
+// In case you don't, koko-aio derives the information by averaging frametimes.
+// Such estimation is activated by enabling ORIGINAL_FPS_UNTRUSTED.
+// however it is slower and on some video drivers isn't reliable either.
+// if D3D_WORKAROUND is defined, Core reported fps value is always trusted.
+// #define ORIGINAL_FPS_UNTRUSTED
+
+
+////////////////////////////////////////////////////////////////////////////
+//
+// Hacks that are very specific and generally not of public interest.
+//
+////////////////////////////////////////////////////////////////////////////
+
+// NEC PC-88 and NEC PC-98 Have a 200p output mode that Core outputs as 400p
+// By using the following (set it t 0.5) you can effectively halve scnalines density.
+// #define SCANLINES_FREQUENCY_MULTIPLIER_OVERRIDE 0.5
 
 ////////////////////////////////////////////////////////////////////////////
 //
@@ -220,11 +230,12 @@
 // #define NTSC_ARTF_ZAP  0.0           //         . Cancel artifacts under the treshold"
 // #define NTSC_SHOW_ARTF_MASK  0.0     //         . Show the mask of selected artifacts (debug)
 
-// #define DO_SAT_BLEED  0.0            // ★ CVBS: Bandwidth limited chroma enable?
-// #define SAT_BLEED_PAL  0.0           //         Colorspace (NTSC, PAL)
-// #define SAT_BLEED_STRENGTH  1.0      //         Strength
-// #define SAT_BLEED_SIZE  5.0          //         Size/Quality (capped to 5.0 in d3d)
-// #define SAT_BLEED_FALLOFF  1.7       //         Sharpness
+// #define DO_CVBS_BLEED  0.0             // ★ CVBS: Bandwidth limited chroma enable?
+// #define CVBS_BLEED_PAL  0.0            //         Bandwidth distribution (NTSC, PAL)
+// #define CVBS_BLEED_ADJUST   1.0       //         Bandwidth multiplier
+// #define CVBS_BLEED_SAMPLES  5.0       //         Quality (capped to 5.0 in d3d)
+// #define CVBS_BLEED_COARSE  1.0        //         Use coarse sampling
+// #define CVBS_UNSHARP_COMPENSATION 0.0 //         Post sharpness filter
 
 // #define DOT_C 0.0                    // ★ CVBS: Dot crawl
 // #define DOT_C_SPEED 8.0				//         Speed
@@ -235,10 +246,7 @@
 // #define PPERSISTENCE_MUL_R           //         Red decay time multiplier
 // #define PPERSISTENCE_MUL_G           //         Green decay time multiplier
 
-// #define DO_SHIFT_RGB  1.0           // ★ Deconvergence enable?
-// #define OFFSET_STRENGTH  0.3        //         Strength
-
-
+// #define DO_SHIFT_RGB  1.0              // ★ Deconvergence enable?
 // #define DECON_RX 0.0                   // Red x offset
 // #define DECON_RY -1.0                  // Red y offset
 // #define DECON_GX 1.0                   // Green x offset
@@ -269,7 +277,7 @@
 // #define TATE  1.0                   // ★ Tate mode (0:disabled 1:auto 2:forced)
 
 
-// #define RESSWITCH_GLITCH_SIZE 0.1   // ★ Glitch amount if vertical resolution changes
+// #define RESSWITCH_SYNC_SPEED 0.8   // ★ Resync speed when core resolution changes
 
 
 // #define MIN_LINES_INTERLACED  380.0     //     . Consider Hi-Resolution above # lines (0=never):
@@ -399,6 +407,7 @@
 
 // #define DO_BACKDROP  0.0           // ★ Backdrop mirrored image enable?
 // #define BACKDROP_JUST_TUBE 1.0     //         Display only on content
+// #define BACKDROP_BLEND_MODE 0.0    //         Backdrop blend mode (0=add, 1=multiply)
 // #define BACKDROP_OFFX  0.0         //         Shift backdrop over X axis
 // #define BACKDROP_OFFY  0.0         //         Shift backdrop over Y axis
 // #define BACKDROP_ZOOM  1.0         //         Zoom backdrop
@@ -460,7 +469,6 @@
 // #define GAME_GEOM_VSHIFT  0.0   //         Vertical position
 // #define GAME_GEOM_HSHIFT  0.0   //         Horizontal position	
 // #define GAME_GEOM_ZOOM  1.0     //         Zoom	
-// #define GAME_GEOM_OFF_FIX  0.0  //         Sharp hack through offset (0.0=disable)
 
 // LCD Antighosting 
 // #define LCD_ANTIGHOSTING            0.5 //    Strength

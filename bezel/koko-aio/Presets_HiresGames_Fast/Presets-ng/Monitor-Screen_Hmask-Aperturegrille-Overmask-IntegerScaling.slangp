@@ -1,0 +1,4 @@
+#reference "Monitor-Screen_Hmask-Aperturegrille-Overmask.slangp"
+GEOM_WARP_Y = "0.000000"
+DO_GAME_GEOM_OVERRIDE = "1.000000"
+GAME_GEOM_INT_SCALE = "1.000000"

@@ -36,18 +36,20 @@ float get_lod(vec2 smp_size, vec2 out_size) {
 }
 
 float get_fps(sampler2D estimatesampler) {
+	//No way to get core fps? return 60.0
 	#ifndef _HAS_FRAMETIME_UNIFORMS
 		return 60.0;
 	#endif
 
 	//No need to estimate if we trust frametime uniforms.
-	#ifdef ORIGINAL_FPS_TRUSTED
+	#ifndef ORIGINAL_FPS_UNTRUSTED
 		return global.OriginalFPS;
 	#endif
 
+	//user does not trust OriginalFPS? estimate it.
 	#ifndef D3D_WORKAROUND
-	//To estimate we need to poll an alpha from a future
-	//pass feedback, so no D3D support.
+		//To estimate we need to poll an alpha from a future
+		//pass feedback, so no D3D support.
 		return texture(estimatesampler, vec2(0.5)).a;
 	#else
 		return global.OriginalFPS;
@@ -88,11 +90,11 @@ vec2 _unpack_21(float f){
  */
 
 float max3(vec3 v){
-	return max((v.x,v.y),v.z);
+	return max(max(v.x,v.y),v.z);
 }
 
 float min3(vec3 v){
-	return max((v.x,v.y),v.z);
+	return min(min(v.x,v.y),v.z);
 }
 
 
@@ -1604,19 +1606,7 @@ vec3 color_tools(vec3 pixel_out, vec3 Temperature_rgb) {
 		pixel_out.rgb = vibrance_set(pixel_out.rgb, VIBRANCE);
 	}
 
-	//Modify composite chroma
-	/*	if (DO_SAT_BLEED > 0.0) {
-	 *		mat3 mat3_in = RGB2YIQ;
-	 *		mat3 mat3_out = YIQ2RGB;
-	 *		if (SAT_BLEED_PAL == 1.0){
-	 *			mat3_in = RGB2YUV;
-	 *			mat3_out = YUV2RGB;
-}
-vec3 composite = mat3_in * pixel_out.rgb;
-composite.yz *= vec2(CVBS_SAT);
-pixel_out = mat3_out * composite;
-}
-*/
+
 	//Modify saturation
 	if (SATURATION != 1.0) {
 		vec3 intensity = vec3(dot(pixel_out.rgb, W_C_TO_GRAY));
@@ -1718,6 +1708,8 @@ vec3 adaptive_strobe(vec3 c, float osc) {
 	}
 
 	vec3 room = (0.5 - abs(0.5-c));
+	room = min(room, vec3(ADPT_STROBE_CEIL));
+		
 	c += room * osc3 * ADPT_STROBE_STR ;
 
 	float gamma_adj = mix(1.0, ADPT_STROBE_GAMMA_ADJ, ADPT_STROBE_STR);
@@ -1725,6 +1717,7 @@ vec3 adaptive_strobe(vec3 c, float osc) {
 
 	return c;
 }
+
 
 vec3 adaptive_strobe_old( vec3 c) {
 	#define STRENGTH 0.1375; //effect strength
@@ -1896,7 +1889,7 @@ vec3 adaptive_black(vec3 c, float lum_in, float range, bool dark_crush) {
 	return scale_to_range_vec3(c, -lum_in*range,1.0);
 }
 
-vec2 get_zooms_modifier(float do_tate, bool bNeed_NO_integer_scale, bool isrotated, float in_aspect) {
+vec2 get_zooms_modifier(float do_tate, bool bNeed_NO_integer_scale, bool isrotated, float in_aspect, vec2 out_size_xy) {
 	// This function is meant to live in vertex shader; its purpose is to
 	// give the final scale factor by taking in consideration various zoom modifiers.
 	//It works by calculating the new 0.0 and 1.0 coords then measuring the new distance between them
@@ -1933,31 +1926,48 @@ vec2 get_zooms_modifier(float do_tate, bool bNeed_NO_integer_scale, bool isrotat
 	}
 
 
+	vec2 zoom_modifier_raw = 1 / vec2(co_scaled_max.x - co_scaled_min.x,
+					   co_scaled_max.y - co_scaled_min.y );
 
-	//vfprintvalue = 1/(co_scaled_max.y - co_scaled_min.y);
-	return 1 / vec2(co_scaled_max.x - co_scaled_min.x,
-					co_scaled_max.y - co_scaled_min.y );
+	return (out_size_xy * zoom_modifier_raw) / params.OriginalSize.xy ;
 
 }
 
 
-bool fn_very_lowres_y (vec2 out_size_xy, vec4 ori_size, float do_tate, bool bIsRotated, bool bInteger_scaled, float in_aspect, float scanline_period) {
+bool fn_very_lowres_y (vec2 out_size_xy, vec4 ori_size, float do_tate, bool bIsRotated, bool bInteger_scaled, float in_aspect, float scanline_period_multiplier) {
 	bool very_lowres_y = false;
 	if ( !bInteger_scaled ) {
-		vec2 zoom_modifier = get_zooms_modifier(do_tate, bInteger_scaled, bIsRotated, in_aspect);
+		vec2 zoom_modifier = get_zooms_modifier(do_tate, !bInteger_scaled, bIsRotated, in_aspect, out_size_xy);
 		if (do_tate == 1.0) {
-			out_size_xy.xy = out_size_xy.yx;
-			ori_size.xyzw = ori_size.yxwz;
 			zoom_modifier.xy = zoom_modifier.yx;
 		}
-		if (need_doublescan()) ori_size.yw*=vec2(2.0, 1/2.0); //double period?
-		ori_size.y*=scanline_period; //helve period?
-		float OutputHeightZoomed = out_size_xy.y*zoom_modifier.y;
-		float screen_core_ratio = OutputHeightZoomed / ori_size.y;
-		if (screen_core_ratio < MIN_SCREEN_CORE_RATIO)
+
+		zoom_modifier.y /= scanline_period_multiplier;
+        
+        //this shouldnt' stay here, as we already check for need_doublescan() in final pass's vertex shader.
+        //ideally, need_doublescan() would have to modify scanline_period_multiplier itself.
+		if (need_doublescan())
+            zoom_modifier.y *=0.5;
+		
+		if (zoom_modifier.y < MIN_SCREEN_CORE_RATIO)
 			very_lowres_y = true;
 	}
 	return very_lowres_y;
+}
+
+bool fake_scanlines_needed(bool very_lowres_y, bool bIs_Interlaced) {
+    //Conditions for fake scanlines are: 
+    // - user wants fake/faker integer scanlines when content is interlaced (*1)
+    //   or
+    // - user always wants fake integer scanlines. (*2)
+    //   or
+    // - user wants automatic fake integer scanlines managment and screen is too low res (*3)
+    //   or
+    // - user wants fake integer scanlines when content is double-scanned (*4) // <-- edit, ditched as it seems useless to me.
+	return (PIXELGRID_INTR_DISABLE_Y <= -1.0 && bIs_Interlaced) || //(*1)
+                                  (PIXELGRID_COREY_FAKE_SCAN == 1.0) ||                   //(*2)
+                                  (PIXELGRID_COREY_FAKE_SCAN == -1.0 && very_lowres_y);    //(*3)
+                                  //(PIXELGRID_COREY_FAKE_SCAN == 2.0 &&  need_doublescan() ); //(*4)
 }
 
 float antiburn_flip_even(float toflip){
@@ -2005,3 +2015,101 @@ vec2 antiburn_screen(vec2 coords) {
 
 	return coords;
 }
+
+float warpedglow_x_allowed( float in_glow_warpsharp_x ) {
+	if (in_glow_warpsharp_x >= 0.0)
+		return 1.0;
+		
+	bool bIsRotated = is_rotated();
+	float do_tate = need_tate(bIsRotated);
+	float vScanlinePeriod = 1.0;
+	bool bIs_Interlaced = is_interlaced();
+	if (scanlines_will_alternate(bIs_Interlaced))
+		vScanlinePeriod = 0.5;
+
+	bool lowres_y = fn_very_lowres_y(global.final_passFeedbackSize.xy, 
+										params.OriginalSize.xyzw, 
+										do_tate, 
+										bIsRotated, 
+										need_integer_scale(), 
+										get_in_aspect(), 
+										vScanlinePeriod);
+
+	if (fake_scanlines_needed( lowres_y, bIs_Interlaced ))
+		return 0.0;
+	if (scanlines_will_alternate( bIs_Interlaced ))
+		return 0.0;
+	
+	return 1.0;
+}
+
+float get_dotmat_auto_sharpness(float do_tate, bool no_integer_scale, bool rotated, float aspect) {
+    vec2 zooms_modifier_xy = get_zooms_modifier(do_tate, no_integer_scale, rotated, aspect, global.FinalViewportSize.xy);
+    float z = min(zooms_modifier_xy.x, zooms_modifier_xy.y);
+
+    // Control nodes
+	const int NUM_STEPS = 6;
+    float  zoom_steps[NUM_STEPS] = float[](1.0,                   2.7, 3.0, 4.0, 7.0,  10.0);
+	float sharp_steps[NUM_STEPS] = float[](DOT_M_SHARP_AUTO_MIN, 0.05, 1.4, 3.0, 10.0, DOT_M_SHARP_AUTO_MAX);
+
+
+    float s = sharp_steps[0];
+
+    // Sequential mixing: each condition overwrites 's' based on the current zoom level.
+	/*
+	    if (z > zoom_steps[0]) s = mix(sharp_steps[0], sharp_steps[1], (z - zoom_steps[0]) / (zoom_steps[1] - zoom_steps[0]));
+		if (z > zoom_steps[1]) s = mix(sharp_steps[1], sharp_steps[2], (z - zoom_steps[1]) / (zoom_steps[2] - zoom_steps[1]));
+		if (z > zoom_steps[2]) s = mix(sharp_steps[2], sharp_steps[3], (z - zoom_steps[2]) / (zoom_steps[3] - zoom_steps[2]));
+	*/
+
+	for (int i = NUM_STEPS - 2; i >= 0; i--) {
+        if (z > zoom_steps[i]) {
+            s = mix(sharp_steps[i], sharp_steps[i+1], (z - zoom_steps[i]) / (zoom_steps[i+1] - zoom_steps[i]));
+            break;
+        }
+    }
+
+    float grid_sharpness = clamp(s, sharp_steps[0], sharp_steps[NUM_STEPS-1]);
+	//increase sharpness if grid strength is low:
+	grid_sharpness = mix(grid_sharpness*1.5+0.1, grid_sharpness, DOT_M_G_STR);
+	return grid_sharpness;
+}
+
+
+vec3 pixel_backdrop_image(sampler2D tex, vec2 unrotated_coords, vec4 output_size) {
+    vec2 backdrop_offset=vec2(BACKDROP_OFFX,BACKDROP_OFFY);
+
+    vec2 backdrop_tex_size = textureSize(tex, 0);
+    //float backdrop_lod = log2(backdrop_tex_size.y * global.FinalViewportSize.w);
+
+    vec2 backdrop_coords =  get_scaled_coords_aspect(
+                            unrotated_coords+backdrop_offset,
+                            output_size,
+                            backdrop_tex_size.x/backdrop_tex_size.y,
+                            false);
+
+    backdrop_coords=zoom(backdrop_coords, BACKDROP_ZOOM);
+    //return textureLod(tex, backdrop_coords, backdrop_lod).rgb;
+    return texture(tex, backdrop_coords).rgb;
+}
+
+vec3 pixel_overlay_image_keep_aspect(sampler2D tex, vec2 co, float aspect_overlay, float rotated) {
+	float content_aspect = get_in_aspect();
+	float aspect_adj = content_aspect/aspect_overlay;
+	vec2 aspect_correction = vec2(1,aspect_adj);
+	if (rotated == 1.0) aspect_correction.xy=aspect_correction.yx;
+	co = zoomxy( co + vec2(BACKDROP_OFFX,BACKDROP_OFFY), aspect_correction*BACKDROP_ZOOM);
+	return texture(tex, co).rgb;
+}
+
+vec2 overlay_image_coords(vec2 co) {
+	//over-abstracting because stretched coords are useful to get the correct
+	//skip size on reflections.
+	return zoom( co + vec2(BACKDROP_OFFX,BACKDROP_OFFY), BACKDROP_ZOOM);
+}
+
+vec4 pixel_overlay_image_stretch(sampler2D tex, vec2 co) {
+	co = overlay_image_coords(co);
+	return texture(tex, co);
+}
+

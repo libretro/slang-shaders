@@ -50,7 +50,7 @@
 
                 backdrop = "textures/backdrop.jpg"
          backdrop_linear = "true"
-      backdrop_wrap_mode = "mirrored_repeat"
+      backdrop_wrap_mode = "clamp_to_border"
          backdrop_mipmap = "false"
          
                 sideshade = "textures/side_shade-helper.png"

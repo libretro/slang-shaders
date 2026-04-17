@@ -1,59 +1,53 @@
 #version 450
 #include "config.inc"
 
-#define RGB_SHIFT_RANGE 20
+float CVBS_get_bleed_size() {
+    // This will be called by Fragment and vertex shader
+    #ifdef D3D_WORKAROUND
+        // d3d11 compiler complains it is unable to unroll the loop because it is
+        // clueless about the maximum pragma value; d3d12 hangs somewhere.
+        return min(5.0,CVBS_BLEED_SAMPLES);
+    #else
+        return min(20.0,CVBS_BLEED_SAMPLES);
+    #endif
+}
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
-layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out vec2 vR_offset;
-layout(location = 2) out vec2 vG_offset;
-layout(location = 3) out vec2 vB_offset;
-layout(location = 4) out float vDo_shadow_mode;
-layout(location = 5) out float vDecon_or_JustShadow;
-layout(location = 6) out vec3 vCVBS_bandwidths;
+layout(location = 0) noperspective out vec2 vTexCoord;
+layout(location = 6) flat out vec3 vCVBS_blur_weights;
 
-layout(location = 9) out float vDotCrawlShift;
-layout(location = 10) out vec4 vDotCrawlCoords_and_period;
+layout(location = 9) flat out float vDotCrawlShift;
+layout(location = 10) noperspective out vec4 vDotCrawlCoords_and_period;
 #include "includes/functions.include.slang"
 
 void main()
 {
    gl_Position = global.MVP * Position;
    vTexCoord = TexCoord ;  
-   
-   //...to tell fragment shader if dot matrix feature requests shadows.
-      vDo_shadow_mode = float(DOT_M_SHADOW_STR + DO_DOT_MATRIX > 1 + eps);
-   
-   //Shadow mode disables deconvergence, they do not coexist in real life.
-   if (vDo_shadow_mode == 1.0) {
-      vR_offset = vec2(DOT_M_SHADOW_OFF, abs(DOT_M_SHADOW_OFF));
-      vG_offset = vR_offset;
-      vB_offset = vR_offset;
-      vec2 d = -params.OutputSize.zw * 0.5;
-      vR_offset *= d;
-      vG_offset *= d;
-      vB_offset *= d;
-   } else if (DO_SHIFT_RGB == 1.0) {
-      // divide y by pi/2.0 to sync with sin() period in pixelgrid code in final pass.
-      vR_offset=-(vec2(DECON_RX, DECON_RY) * vec2(NEW_SCALEMOD_X, NEW_SCALEMOD_Y) / global.upscale_passSize.xy) / vec2(pi/2.0);
-      vG_offset=-(vec2(DECON_GX, DECON_GY) * vec2(NEW_SCALEMOD_X, NEW_SCALEMOD_Y) / global.upscale_passSize.xy) / vec2(pi/2.0);
-      vB_offset=-(vec2(DECON_BX, DECON_BY) * vec2(NEW_SCALEMOD_X, NEW_SCALEMOD_Y) / global.upscale_passSize.xy) / vec2(pi/2.0);
-   }   
+
 
    
-   //Precalc some conditions:
-   bool do_shadow = (DO_DOT_MATRIX == 1.0 && DOT_M_SHADOW_STR > 0.0);
-   vDecon_or_JustShadow =  float(DO_SHIFT_RGB > 0.0 || do_shadow    );
+    // Help CVBS blur:
+    //https://www.sciencedirect.com/topics/computer-science/color-subcarrier
+    //YIQ/YUV Ntsc/Pal bandwidths
+        vec3 composite_mhz = vec3(0.0);
+        if (CVBS_BLEED_PAL == 1.0)
+            composite_mhz = vec3(5.0, 1.3, 1.3); //pal YUV
+        else
+            composite_mhz = vec3(4.2, 1.5, 0.5);  //ntsc YIQ
+            
+        //composite_mhz.yz /= vec2(2.0);
+    
+        //0.5 because it is the minimum bandwidth present (Q in ntsc)
+        vCVBS_blur_weights = 0.5/composite_mhz;
 
-   //https://www.sciencedirect.com/topics/computer-science/color-subcarrier
-   //YIQ/YUV Ntsc/Pal bandwidths
-   if (SAT_BLEED_PAL == 0.0)
-      vCVBS_bandwidths = vec3(4.2, 1.5, 0.5); //NTSC
-   else
-      vCVBS_bandwidths = vec3(5.0, 1.3, 1.3); //PAL
-   
+        vCVBS_blur_weights *= CVBS_get_bleed_size()+1;
+  
+        vCVBS_blur_weights /= (CVBS_BLEED_ADJUST+eps); //modulate bandwidths via parameter
+        
+                
    //Mod framecount for animating dot crawl (needed to avoid precision errors)   
       float dot_c_steps = 6.0; // frames needed to reach sin period; higher = slower;
       dot_c_steps = 22-( abs(DOT_C_SPEED) *2)+0.0001;
@@ -71,56 +65,22 @@ void main()
 
 #pragma stage fragment
 #include "includes/functions.include.slang"
-layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in vec2 vR_offset;
-layout(location = 2) in vec2 vG_offset;
-layout(location = 3) in vec2 vB_offset;
-layout(location = 4) in float vDo_shadow_mode;
-layout(location = 5) in float vDecon_or_JustShadow;
-layout(location = 6) in vec3 vCVBS_bandwidths;
+layout(location = 0) noperspective in vec2 vTexCoord;
+layout(location = 6) flat in vec3 vCVBS_blur_weights;
 
-layout(location = 9) in float vDotCrawlShift;
-layout(location = 10) in vec4 vDotCrawlCoords_and_period;
+layout(location = 9) flat in float vDotCrawlShift;
+layout(location = 10) noperspective in vec4 vDotCrawlCoords_and_period;
 
 layout(location = 0) out vec4 FragColor;
 
 layout(set = 0, binding = 1) uniform sampler2D upscale_pass;
 
 
-vec3 deconvergence_shadow(vec2 coords, sampler2D in_texture, vec3 source_pixel) {
-      //Emulates deconvergence or shadowing for dot matrix screens like Gameboy.
-      //Since both effects should not coexist in real life, we use a singe function for both.
-      //The function stays more or less the same, but rgb offsets calculated in vertex shader
-      //will be the same for shadow mode. Hopefully shader texture cache will take care of
-      //multiple sampling for the same tex coords.
-   
-      vec3 pixel_offsetted;
-      //Since we are sampling from a "clamp-to-border" texture, ensure we've no black bleeding
-      //by clamping the texture coords
-      //Removed, since shader chain changed, and this is now useless (?) WARNING <----
-      //coords = clamp(coords,params.SourceSize.zw*1 ,1.0-params.SourceSize.zw);
-
-      vec2 R_offset=vR_offset;
-      vec2 G_offset=vG_offset;
-      vec2 B_offset=vB_offset;
-
-      if (DOT_M_SHADOW_STR == 0.0) {
-         // Edge defocus:
-         float dist_from_edge = distance_from_edge_linear(coords, EDGE_DEFOCUS_AREA_INV);
-         float offset_multiplier = mix(EDGE_DEFOCUS, 1.0, dist_from_edge);
-         R_offset *= offset_multiplier;
-         G_offset *= offset_multiplier;
-         B_offset *= offset_multiplier;
-      }
-
-      pixel_offsetted.r=texture(in_texture,coords + R_offset).r;
-      pixel_offsetted.g=texture(in_texture,coords + G_offset).g;
-      pixel_offsetted.b=texture(in_texture,coords + B_offset).b;
-     
-      vec3 deconvergence_mode = mix(source_pixel.rgb, pixel_offsetted, OFFSET_STRENGTH);
-      vec3 shadow_mode = source_pixel.rgb - max( (source_pixel.rgb - pixel_offsetted), vec3(0.0) ) * DOT_M_SHADOW_STR;
-     
-      return mix_step(deconvergence_mode, shadow_mode, vDo_shadow_mode);
+vec3 shadow(vec2 coords, sampler2D in_texture, vec3 source_pixel) {
+    //Emulates shadowing for dot matrix screens like Gameboy.
+    vec2 off = vec2(DOT_M_SHADOW_OFF, abs(DOT_M_SHADOW_OFF)) * -params.OutputSize.zw * 0.5;
+    vec3 pixel_shadow = texture(in_texture,coords + off).rgb;
+    return source_pixel.rgb - max( (source_pixel.rgb - pixel_shadow), vec3(0.0) ) * DOT_M_SHADOW_STR;
 }
 
 float dotc_carrier(vec2 co, vec2 OriginalSize) {  
@@ -165,55 +125,48 @@ vec3 dotc(sampler2D in_texture, vec3 pixel_in, vec2 co, vec4 tex_size){
    return yiq2rgb( pixel_in );
 }
 
-vec4 pixel_bleed(vec4 pixel_in, vec2 co, sampler2D in_texture, float sourcesize_z) { //FIXME pixelin.a è passante, non serve vec4
-   //sometimes first frame has 0x0 size, that makes gpu mad in a way or another.
-   //hopefully fixes: https://github.com/kokoko3k/koko-aio-slang/issues/28   
+vec3 pixel_bleed(vec3 pixel_in, vec2 co, sampler2D in_texture, float sourcesize_z) { 
+   //Sometimes first frame has 0x0 size, that makes gpu mad in a way or another.
+   //Fixes: https://github.com/kokoko3k/koko-aio-slang/issues/28
    if (sourcesize_z > 1.0) return pixel_in;
-      
    mat3 colorspace_out;
    mat3 colorspace_rgb;
-
    //https://www.sciencedirect.com/topics/computer-science/color-subcarrier
-   if (SAT_BLEED_PAL > 0.5) {
+   if (CVBS_BLEED_PAL > 0.5) {
       colorspace_out = RGB2YUV;
       colorspace_rgb = YUV2RGB;
    } else {
       colorspace_out = RGB2YIQ;
       colorspace_rgb = YIQ2RGB;
    }
-   
-   #ifdef D3D_WORKAROUND
-      // d3d11 compiler complains it is unable to unroll the loop because it is
-      // clueless about the maximum pragma value; d3d12 hangs somewhere.
-      float size = min(5.0,SAT_BLEED_SIZE) ;
-   #else
-      float size = min(20.0,SAT_BLEED_SIZE) ;
-   #endif
-   
-   //Initial mix strength.
-   float w = SAT_BLEED_STRENGTH;
-
-   //Initial color in yiq space
-   vec3 out_YIQ = colorspace_out * ( pixel_in.rgb );
-   
-   for ( float off = sourcesize_z ; off <= sourcesize_z*size ; off+=sourcesize_z ){
-      //float new_offset = i*initial_offset;
-      vec3 smp_YIQ  = colorspace_out * ( texture(in_texture, co - vec2(off,0.0) ).rgb) * 0.5; //sample left
-           smp_YIQ += colorspace_out * ( texture(in_texture, co + vec2(off,0.0) ).rgb) * 0.5; //sample right
-
-      //Blur Y,I,Q
-      w=w/SAT_BLEED_FALLOFF;  //w = w * exp(i*i*(1-SAT_BLEED_FALLOFF)*0.1);
-      //out_YIQ = mix(out_YIQ.xyz, smp_YIQ.xyz, w/vCVBS_bandwidths);
-      out_YIQ = mix(out_YIQ.xyz,smp_YIQ.xyz, clamp(w/vCVBS_bandwidths, 0.0, 1.0));
-     
-   }
-   vec3 pixel_bleeded = colorspace_rgb * ( out_YIQ ); //return to RGB colorspace
-
-   // Clamping min to 0.0 is needed for nvidia to avoid bad graphical glitches, why?
-   pixel_bleeded = clamp(pixel_bleeded, 0.0, 1.0);
-   
-   return vec4( pixel_bleeded, pixel_in.a);
+      //Initial color in yiq or yuv space
+      vec3 pixel_YIQ = colorspace_out * pixel_in.rgb;
+      float size = CVBS_get_bleed_size(); //number of samples.
+      vec3 sum_color = pixel_YIQ * vCVBS_blur_weights;
+      vec3 total_weight = vCVBS_blur_weights;
+      for (float i = 1.0; i <= size; i++) {
+          
+         float offset = sourcesize_z * (i + i*i*CVBS_BLEED_COARSE); //optional use coarse sampling
+      
+         vec3 smp_RGB = (texture(in_texture, vTexCoord + vec2(offset, 0.0)).rgb +
+                        texture(in_texture, vTexCoord - vec2(offset, 0.0)).rgb) * 0.5;
+         vec3 smp_YIQ = colorspace_out * smp_RGB;
+         
+         vec3 current_weight = max(2.0 * (vCVBS_blur_weights - vec3(i)), vec3(0.0));
+         
+         sum_color += smp_YIQ * current_weight;
+         total_weight += current_weight;
+      }
+      // Normalizzazione finale
+      pixel_YIQ = sum_color / total_weight;
+      vec3 pixel_RGB = colorspace_rgb * pixel_YIQ;
+      
+      return pixel_RGB;
 }
+
+
+
+
 
 void main() {
    #ifndef D3D_WORKAROUND
@@ -230,15 +183,16 @@ void main() {
    // between the two.
    
    //bleed
-   if (DO_SAT_BLEED > 0.5)
-      pixel_out = pixel_bleed(pixel_out, vTexCoord, upscale_pass, params.OriginalSize.z*0.5);
+   if (DO_CVBS_BLEED > 0.5)
+      // do not use upscale_pass size, but params.OriginalSize.z*0.5 so that hiresgames presets will look the same
+      pixel_out.rgb = pixel_bleed(pixel_out.rgb, vTexCoord, upscale_pass, params.OriginalSize.z*0.5);
 
    if (DOT_C > 0.0)
       pixel_out.rgb = dotc(upscale_pass, pixel_out.rgb, vTexCoord, params.OriginalSize);
 
    //... and shift
-   if (vDecon_or_JustShadow > 0.0 )
-      pixel_out.rgb = deconvergence_shadow(vTexCoord, upscale_pass, pixel_out.rgb);
+    if (DO_DOT_MATRIX == 1.0)
+        pixel_out.rgb = shadow(vTexCoord, upscale_pass, pixel_out.rgb);
 
    pixel_out.rgb = max(vec3(0.0), pixel_out.rgb);  //make sure everything is over 0.0
 

@@ -7,12 +7,12 @@
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
-layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out float vIn_aspect;
-layout(location = 2) out vec2 vTexCoord_rotated_maybe;
-layout(location = 3) out float vUniformity_return_current; //or feedback
-layout(location = 4) out float vIsRotated;
-layout(location = 5) out float vEnough_res_y;
+layout(location = 0) noperspective out vec2 vTexCoord;
+layout(location = 1) flat out float vIn_aspect;
+layout(location = 2) noperspective out vec2 vTexCoord_rotated_maybe;
+layout(location = 3) flat out float vUniformity_return_current; //or feedback
+layout(location = 4) flat out float vIsRotated;
+layout(location = 5) flat out float vEnough_res_y;
 
 void main() {
 	gl_Position = global.MVP * Position;
@@ -55,12 +55,12 @@ void main() {
 
 #pragma stage fragment
 
-layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in float vIn_aspect;
-layout(location = 2) in vec2 vTexCoord_rotated_maybe;
-layout(location = 3) in float vUniformity_return_current; //or feedback
-layout(location = 4) in float vIsRotated;
-layout(location = 5) in float vEnough_res_y;
+layout(location = 0) noperspective in vec2 vTexCoord;
+layout(location = 1) flat in float vIn_aspect;
+layout(location = 2) noperspective in vec2 vTexCoord_rotated_maybe;
+layout(location = 3) flat in float vUniformity_return_current; //or feedback
+layout(location = 4) flat in float vIsRotated;
+layout(location = 5) flat in float vEnough_res_y;
 
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D monitor_body_curved;
