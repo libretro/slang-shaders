@@ -40,6 +40,7 @@ layout(push_constant) uniform Push
 	float JINC2_WINDOW_SINC;
 	float JINC2_SINC;
 	float JINC2_AR_STRENGTH;
+	float NNEDI_CSHIFT_PIXELS;
 } params;
 
 #pragma parameter JINC2_WINDOW_SINC "Window Sinc Param" 0.44 0.0 1.0 0.01
@@ -48,6 +49,11 @@ layout(push_constant) uniform Push
 #define JINC2_SINC params.JINC2_SINC
 #pragma parameter JINC2_AR_STRENGTH "Anti-ringing Strength" 0.5 0.0 1.0 0.1
 #define JINC2_AR_STRENGTH params.JINC2_AR_STRENGTH
+
+//Deferred NNEDI doublings accumulate an output-space offset at the final stage.
+//Use 0.5 for 2x, 1.5 for 4x, and 3.5 for 8x.
+#pragma parameter NNEDI_CSHIFT_PIXELS "NNEDI Center Shift" 0.5 0.0 8.0 0.25
+#define NNEDI_CSHIFT_PIXELS params.NNEDI_CSHIFT_PIXELS
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -113,7 +119,10 @@ void main()
 	  vec2 dy = vec2(0.0, 1.0);
 
 	  //Correct NNEDI3's center shift
-	  vec2 pc = vec2(((vTexCoord.x / params.SourceSize.z) - 0.5), ((vTexCoord.y / params.SourceSize.w) - 0.5));
+	  vec2 pc = vec2(
+         (vTexCoord.x / params.SourceSize.z) - NNEDI_CSHIFT_PIXELS,
+         (vTexCoord.y / params.SourceSize.w) - NNEDI_CSHIFT_PIXELS
+      );
 	  
 	  vec2 tc = (floor(pc-vec2(0.5,0.5))+vec2(0.5,0.5));
 	 
