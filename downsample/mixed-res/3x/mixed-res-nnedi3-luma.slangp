@@ -46,7 +46,7 @@ scale6 = 1.0
 shader7 = "../../../edge-smoothing/nnedi3/shaders/rgb-to-yuv.slang"
 filter_linear7 = false
 wrap_mode7 = "clamp_to_edge"
-alias7 = "PassOutput0"
+alias7 = "nnediPass0"
 scale_type7 = source
 scale7 = 1.0
 
@@ -68,7 +68,7 @@ scale_y9 =  1.0
 
 shader10 =  "../../../edge-smoothing/nnedi3/shaders/jinc2-cshift-luma.slang"
 filter_linear10 =  false
-alias10 = "PassOutput3"
+alias10 = "nnediPass3"
 wrap_mode10 =  "clamp_to_edge"
 srgb_framebuffer10 =  "true"
 scale_type10 =  source
