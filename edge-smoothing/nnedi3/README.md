@@ -1,10 +1,6 @@
 NNEDI3 is a neural network based image doubler. This is a port of [MPV's GLSL implementation](https://github.com/bjin/mpv-prescalers/tree/master) for use with the emulator front-end Retroarch.
 
-[Some examples of NNEDI3 scaling to 4x using 32 neurons in RGB](http://screenshotcomparison.com/comparison/204717/)
-
 # Usage
-
-Place the files in a folder in Retroarch\shaders\shaders_slang\. Make sure you are using the vulkan renderer in the Retroarch config.
 
 The slangp files are only examples. You can configure them hundreds of different ways to try and find the right balance between image quality and performance. 
 
@@ -20,7 +16,7 @@ What various suffixes in the filenames mean:
 * -rgb: Triggered on the red, green, and blue channels (or y, u, and v if a conversion has been done).
 * -#x: The amount of upscaling being done.
 * -nns###: The amount of neurons being used for scaling (16, 32, 64, 128, or 256).
-* -cshift: Used to correct the 0.5 pixel center shift introduced by NNEDI3.
+* -cshift: Used to correct the pixel center shift introduced by NNEDI3.
 * -win8x4: Uses a local sampling window size of 8x4.
 * -pass#: NNEDI3 requires two passes to double an image. Pass 1 performs vertical scaling, and pass 2 does horizontal scaling.
 
@@ -32,6 +28,6 @@ For example:
 # Notes
 
 * Shaders with larger numbers of neurons will be slower to compile since all the neural network's floating point weights are baked into the code.
-* NNEDI3 causes a slight 0.5 pixel center shift in the image that needs to be corrected after every doubling. jinc2-cshift-luma.slang and jinc2-cshift-rgb.slang correct this slight shift.
-* Clamp_to_edge is needed while scaling in YUV or there will be annoying border artifacts after scaling.
+* The example presets defer NNEDI3's center-shift correction to the end of the NNEDI3 chain. Use "NNEDI_CSHIFT_PIXELS = 0.5" for 2x, "1.5" for 4x, and "3.5" for 8x.
+* The example presets set 'wrap_mode = "clamp_to_edge"' on every pass to avoid border artifacts, especially in YUV pipelines.
 * I didn't port the 8x6 windowed versions of NNEDI3 since they don't seem to offer any real quality increase.

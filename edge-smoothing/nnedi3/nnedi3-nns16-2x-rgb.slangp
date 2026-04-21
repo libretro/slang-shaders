@@ -1,3 +1,6 @@
+parameters = "NNEDI_CSHIFT_PIXELS"
+NNEDI_CSHIFT_PIXELS = "0.5"
+
 shaders = 4
 
 shader0 = shaders/nnedi3-nns16-win8x4-pass1-rgb.slang
@@ -5,19 +8,23 @@ filter_linear0 = false
 scale_type0 = source
 scale_x0 = 1.0
 scale_y0 = 2.0
+wrap_mode0 = "clamp_to_edge"
 
 shader1 = shaders/nnedi3-nns16-win8x4-pass2-rgb.slang
 filter_linear1 = false
 scale_type1 = source
 scale_x1 = 2.0
 scale_y1 = 1.0
+wrap_mode1 = "clamp_to_edge"
 
 shader2 = shaders/jinc2-cshift-rgb.slang
 filter_linear2 = false
 scale_type2 = source
 scale_x2 = 1.0
 scale_y2 = 1.0
+wrap_mode2 = "clamp_to_edge"
 
 shader3 = ../../interpolation/shaders/jinc2.slang
 filter_linear3 = false
 scale_type3 = viewport
+wrap_mode3 = "clamp_to_edge"
