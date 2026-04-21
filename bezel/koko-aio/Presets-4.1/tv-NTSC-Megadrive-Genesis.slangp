@@ -5,8 +5,12 @@ GAMMA_OUT = "0.56"
 
 DO_NTSC_ARTIFACTS = "1.0"
 
+DO_RF_NOISE = "1.0"
+    RF_NOISE_STRENGTH = "0.07"
+    RF_NOISE_SPARK = "0.09"
 
 DOT_C = "1.0"
+    DOT_C_SPEED = "9.0"
 
 DO_SHIFT_RGB = "0.0"
 	

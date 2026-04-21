@@ -256,7 +256,7 @@ void main() {
     }
    
    
-   if (DO_IN_GLOW == 0.0 && WTFL_SHARPNESS_Y == 3.0 ) {
+   if (DO_IN_GLOW == 0.0 && vDo_wtfl == 0.0 ) {
       passthrough *= vGlow_Gain;
       passthrough = clip_to_white_maybe(passthrough.rgb);      
       if (DO_RF_NOISE < -0.5)

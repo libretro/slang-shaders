@@ -418,7 +418,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 
 
 #pragma parameter DOT_C      "★ CVBS: Dot crawl ==>"		0.0 	 0.0 3.0 0.02
-#pragma parameter DOT_C_SPEED "        Speed (<0.0 = vertical)"		10.0 	  -10.0 10.0 0.5 
+#pragma parameter DOT_C_SPEED "        Speed (<0.0 = vertical)"		9.0 	  -10.0 10.0 0.5 
 #pragma parameter LABEL0056 " " 0 0 0 1
 
 
@@ -455,8 +455,8 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 
 // RF Noise
 #pragma parameter DO_RF_NOISE	 "★ RF Noise? (Post glow, Off, Pre glow)  ==>"			0.0 	-1.0  1.0     1.0
-#pragma parameter RF_NOISE_STRENGTH "        Uniform noise"				0.05	0.0 1.0 0.01
-#pragma parameter RF_NOISE_SPARK    "        Snow noise"				0.07		0.0 1.0 0.01
+#pragma parameter RF_NOISE_STRENGTH "        Uniform noise"				0.07	0.0 1.0 0.01
+#pragma parameter RF_NOISE_SPARK    "        Snow noise"				0.09	0.0 1.0 0.01
 #pragma parameter LABEL0005 " " 0 0 0 1
 
 
