@@ -1,10 +1,6 @@
 NNEDI3 is a neural network based image doubler. This is a port of [MPV's GLSL implementation](https://github.com/bjin/mpv-prescalers/tree/master) for use with the emulator front-end Retroarch.
 
-[Some examples of NNEDI3 scaling to 4x using 32 neurons in RGB](http://screenshotcomparison.com/comparison/204717/)
-
 # Usage
-
-Place the files in a folder in Retroarch\shaders\shaders_slang\. Make sure you are using the vulkan renderer in the Retroarch config.
 
 The slangp files are only examples. You can configure them hundreds of different ways to try and find the right balance between image quality and performance. 
 
@@ -20,7 +16,7 @@ What various suffixes in the filenames mean:
 * -rgb: Triggered on the red, green, and blue channels (or y, u, and v if a conversion has been done).
 * -#x: The amount of upscaling being done.
 * -nns###: The amount of neurons being used for scaling (16, 32, 64, 128, or 256).
-* -cshift: Used to correct the 0.5 pixel center shift introduced by NNEDI3.
+* -cshift: Used to correct the pixel center shift introduced by NNEDI3.
 * -win8x4: Uses a local sampling window size of 8x4.
 * -pass#: NNEDI3 requires two passes to double an image. Pass 1 performs vertical scaling, and pass 2 does horizontal scaling.
 
