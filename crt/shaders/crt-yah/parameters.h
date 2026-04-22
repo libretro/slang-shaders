@@ -27,7 +27,7 @@
 #pragma parameter BEAM_FILTER "   Scanlines > Beam Filter  (-Blocky .. +Blurry)" -0.25 -1.0 1.0 0.05
 #pragma parameter ANTI_RINGING "   Scanlines > Anti-Ringing  (0-None .. 1-Full)" 1.0 0.0 1.0 0.1
 #pragma parameter SCANLINES_COLOR_BURN "   Scanlines > Color Burn¹  (0-None .. 1-Full)" 1.0 0.0 1.0 0.25
-#pragma parameter SCANLINES_OFFSET "   Scanlines > Offset⁴  (-with .. +without Jitter)" -0.25 -1.0 1.0 0.05
+#pragma parameter SCANLINES_OFFSET "   Scanlines > Offset⁴  (-Static / 0-None / +Jitter)" 0.25 -1.0 1.0 0.05
 
 // Mask parameters
 #pragma parameter MASK_INTENSITY "·  Mask > Intensity¹²³  (0-None .. 1-Full)" 0.5 0.0 1.0 0.05
