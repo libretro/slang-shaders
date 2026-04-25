@@ -10,7 +10,7 @@
 
 layout(push_constant) uniform Push {
   uint FrameCount, CurrentSubFrame, TotalSubFrames;
-  float _ADPT_STROBE_STR, _ADPT_STROBE_GAIN_ADJ, _ADPT_STROBE_GAMMA_ADJ;
+  float _ADPT_STROBE_STR, _ADPT_STROBE_GAIN_ADJ, _ADPT_STROBE_GAMMA_ADJ, _ADPT_STROBE_ADAPTIVE;
   float _ADPT_LCD_RETENTION_FIX, _ADPT_STROBE_GAIN_ADJ_NODARK, _ADPT_DEBUG_ONOFF,_ADPT_STROBE_CEIL;
 } params;
 
@@ -21,6 +21,7 @@ layout(push_constant) uniform Push {
 #pragma parameter _ADPT_STROBE_GAIN_ADJ_NODARK   "          Less gain on dark colors"    1.0   0.0  1.0  0.05
 #pragma parameter _ADPT_STROBE_GAMMA_ADJ         "   .   Post Gamma adjustment"   0.9   0.5  4.0  0.05
 #pragma parameter _ADPT_LCD_RETENTION_FIX        "   .   LCD Retention workaround cadence (frames)"    3600  0.0  300000.0  50.0
+#pragma parameter _ADPT_STROBE_ADAPTIVE          "   .   Only apply to moving areas"                   0.0   0.0  1.0       1.0
 #pragma parameter _ADPT_DEBUG_ONOFF              "   .   Debug: Flip effect ON/OFF every (frames)"     0.0   0.0  100000.0  10.0
 
 
@@ -43,63 +44,67 @@ layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out float vOsc;
 
 void main() {
-  gl_Position = global.MVP * Position;
-  vTexCoord = TexCoord;
-  float iFrameMod = 0.0;
-  //+1 should take care of oscillator invertion to avoid voltage accumuation in IPS panels (?)
-  if (params._ADPT_LCD_RETENTION_FIX > 0.0)
-    iFrameMod = mod(frame_subframe(), params.TotalSubFrames * params._ADPT_LCD_RETENTION_FIX + 1) ;
-  else
-    iFrameMod = mod(frame_subframe(), params.TotalSubFrames * 300.0); //mod needed to avoid drifting sin precision errors
-  
-  vOsc = cos(iFrameMod * pi);
-  
-  
+    gl_Position = global.MVP * Position;
+    vTexCoord = TexCoord;
+    float iFrameMod = 0.0;
+    //+1 should take care of oscillator invertion to avoid voltage accumuation in IPS panels (?)
+    if (params._ADPT_LCD_RETENTION_FIX > 0.0)
+        iFrameMod = mod(frame_subframe(), params.TotalSubFrames * params._ADPT_LCD_RETENTION_FIX + 1) ;
+    else
+        iFrameMod = mod(frame_subframe(), params.TotalSubFrames * 300.0); //mod needed to avoid drifting sin precision errors
+
+    vOsc = cos(iFrameMod * pi);
 }
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in float vOsc;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Source;
-
+layout(set = 0, binding = 2) uniform sampler2D adaptive_strobe_pass0;
+layout(set = 0, binding = 3) uniform sampler2D adaptive_strobe_pass0Feedback;
 
 
 vec3 adaptive_strobe(vec3 c) {
 
-  //Debug/Test
+    //Debug/Test
     if (params._ADPT_DEBUG_ONOFF!=0.0)
-      if (mod(params.FrameCount, params._ADPT_DEBUG_ONOFF*2) > params._ADPT_DEBUG_ONOFF)
+        if (mod(params.FrameCount, params._ADPT_DEBUG_ONOFF*2) > params._ADPT_DEBUG_ONOFF)
         return c;
 
-  c = clamp(c, vec3(0.0), vec3(1.0));
-  
-  vec3 osc = vec3(vOsc);
-  float gain_adj =  mix(1.0, params._ADPT_STROBE_GAIN_ADJ,  params._ADPT_STROBE_STR);
-  
-  // less gain on dark colors
-  // On my oled LG-C2, the gain needs to be higher(lower) when the image is brighter(darker), not sure why. (?)
-    if (vOsc > 0.0) {
-      osc = mix(osc*gain_adj, osc * gain_adj * c, params._ADPT_STROBE_GAIN_ADJ_NODARK) ;
+    c = clamp(c, vec3(0.0), vec3(1.0));
+
+    //apply just to moving areas? modulate strength:
+    float str_adjusted = params._ADPT_STROBE_STR;
+    if (params._ADPT_STROBE_ADAPTIVE == 1.0) {
+        vec3 f = texture(adaptive_strobe_pass0Feedback, vTexCoord).rgb;
+        float diff= dot( abs(f - c)  , vec3(1.0));
+        str_adjusted *= diff;
+        str_adjusted = clamp(str_adjusted, 0, 1);
     }
 
-  vec3 room = (0.5 - abs(0.5-c));
-  room = min(room, params._ADPT_STROBE_CEIL);
-  c += room * osc * params._ADPT_STROBE_STR ;
 
-  //post gamma
-  float gamma_adj = mix(1.0, params._ADPT_STROBE_GAMMA_ADJ, params._ADPT_STROBE_STR);
-  c = pow(c, vec3(gamma_adj));
-  
-  return c;
+    float gain_adj =  mix(1.0, params._ADPT_STROBE_GAIN_ADJ,  str_adjusted);
+    vec3 osc = vec3(vOsc);
+
+    // less gain on dark colors
+    // On my oled LG-C2, the gain needs to be higher(lower) when the image is brighter(darker), not sure why. (?)
+    if (vOsc > 0.0) {
+        osc = mix(osc*gain_adj, osc * gain_adj * c, params._ADPT_STROBE_GAIN_ADJ_NODARK) ;
+    }
+
+    vec3 room = (0.5 - abs(0.5-c));
+    room = min(room, params._ADPT_STROBE_CEIL);
+    c += room * osc * str_adjusted ;
+
+    //post gamma
+    float gamma_adj = mix(1.0, params._ADPT_STROBE_GAMMA_ADJ, str_adjusted);
+    c = pow(c, vec3(gamma_adj));
+
+    return c;
 }
 
 
 void main() {
-  vec3 c = texture(Source, vTexCoord).rgb;
-
-  //c = vec3(  (sin( vTexCoord.x*50.0 +frame_subframe()*0.5   ))  );
-  //c=step(0.0  , c)*vec3(0.5,1,1);
-
-  FragColor.rgb = adaptive_strobe(c);
+    vec3 c = texture(adaptive_strobe_pass0, vTexCoord).rgb;
+    FragColor.rgb = adaptive_strobe(c);
 }

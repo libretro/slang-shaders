@@ -1,5 +1,8 @@
-shaders = 1
+shaders = 2
 
-shader0 = shaders/adaptive_strobe-koko.slang
+shader0 =../stock.slang
+alias0 = "adaptive_strobe_pass0"
 
-wrap_mode0 = "repeat"
+shader1 = shaders/adaptive_strobe-koko.slang
+alias1 = "adaptive_strobe_pass1"
+wrap_mode1 = "repeat"
