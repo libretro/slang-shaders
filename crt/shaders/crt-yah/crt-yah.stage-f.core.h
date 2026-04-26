@@ -290,7 +290,7 @@ vec3 get_raw_color(sampler2D source, vec2 tex_coord)
     vec2 pix_coord = tex_coord * tex_size;
 
     vec3 color0 = vec3(0.0);
-    vec3 color1 =  INPUT(texture(source, tex_coord).rgb);
+    vec3 color1 = INPUT(texture(source, tex_coord).rgb);
 
     return apply_interlace(pix_coord, color0, color1);
 }
@@ -324,6 +324,41 @@ vec3 get_scanlines_color(sampler2D source, vec2 tex_coord)
     vec3 factor1 = get_half_scanlines_factor(color1, 1.0 - pix_fract.y);
 
     return apply_interlace(pix_coord, color0 * factor0, color1 * factor1);
+}
+
+vec3 apply_details(vec3 scanlines_color, sampler2D base_samler, vec2 base_coord, sampler2D blur_sampler, vec2 blur_coord)
+{
+    if (PARAM_SHARP_AMOUNT == 0.0)
+    {
+        return scanlines_color;
+    }
+
+    vec3 base_color = texture(base_samler, base_coord).rgb;
+    vec3 blur_color = texture(blur_sampler, blur_coord).rgb;
+
+    // when automatic down-scaled
+    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
+    {
+        // apply full texel x-offset (to sample a neighbor pixel)
+        base_coord += vec2o(-1.0, 0.0) / global.OriginalSize.xy;
+
+        base_color += texture(base_samler, base_coord).rgb;
+        base_color *= 0.5;
+    }
+
+    base_color = INPUT(base_color);
+    blur_color = INPUT(blur_color);
+
+    vec3 difference_color = base_color - blur_color;
+    vec3 normalized_color = base_color / max(blur_color, EPSILON);
+
+    vec3 brighten = clamp(PARAM_SHARP_AMOUNT * difference_color, 0.0, 1.0);
+    vec3 darken = clamp(PARAM_SHARP_AMOUNT * (normalized_color - 1.0) + 1.0, 0.0, 1.0);
+
+    return mix(
+        scanlines_color + brighten,
+        scanlines_color * darken,
+        0.5);
 }
 
 vec3 blend_colors(vec3 raw_color, vec3 scanlines_color)
@@ -417,6 +452,11 @@ vec3 apply_color_overflow(vec3 color)
 
 vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord)
 {
+    if (PARAM_HALATION_INTENSITY == 0.0)
+    {
+        return color;
+    }
+
     vec3 halation = INPUT(texture(halation_source, tex_coord).rgb);
 
     // weight halation by its luminance based on diffusion amount

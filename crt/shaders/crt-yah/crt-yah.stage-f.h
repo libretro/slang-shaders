@@ -19,10 +19,12 @@ layout(location = 0) out vec4 FragColor;
 #else
 
     layout(set = 0, binding = 2) uniform sampler2D PhosphorPass;
-    layout(set = 0, binding = 3) uniform sampler2D BlurVPass;
+    layout(set = 0, binding = 3) uniform sampler2D HalationBlurVPass;
+    layout(set = 0, binding = 4) uniform sampler2D SharpBlurVPass;
 
     #define TextureSource PhosphorPass
-    #define HalationSource BlurVPass
+    #define HalationSource HalationBlurVPass
+    #define BlurSource SharpBlurVPass
 
 #endif
 
@@ -46,10 +48,14 @@ void main()
     vec2 scan_coord_curved = apply_cubic_lens_distortion(scan_coord);
     vec2 scan_coord_curved_sharpened = apply_sharp_bilinear_filtering(scan_coord_curved);
 
-    vec3 raw_color_sharpened = get_raw_color(TextureSource, tex_coord_curved_sharpened);
+    vec3 raw_color = get_raw_color(TextureSource, tex_coord_curved_sharpened);
     vec3 scanlines_color = get_scanlines_color(TextureSource, scan_coord_curved);
 
-    vec3 color = blend_colors(raw_color_sharpened, scanlines_color);
+#ifndef IS_SINGLE_PASS
+    scanlines_color = apply_details(scanlines_color, TextureSource, scan_coord_curved, BlurSource, tex_coord_curved);
+#endif
+
+    vec3 color = blend_colors(raw_color, scanlines_color);
     float color_luma = get_luminance(color);
 
     color = apply_noise(color, color_luma, tex_coord); // use un-curved coordinates to avoid Moire-artifacts

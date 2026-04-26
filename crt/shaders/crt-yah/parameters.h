@@ -19,7 +19,7 @@
 #pragma parameter COLOR_COMPENSATION "  ²Color > Brightness Compensation  (0-Off, 1-On)" 1.0 0.0 1.0 1.0
 #pragma parameter COLOR_BLACK_LIGHT "  ³Color > Black Lightening (0-None .. 1-Full / 2-More)" 0.5 0.0 2.0 0.1
 
-// Scanline/beam parameters
+// Scanlines/beam parameters
 #pragma parameter SCANLINES_STRENGTH "·  Scanlines > Strength¹²³  (0-None .. 1-Full)" 0.5 0.0 1.0 0.05
 #pragma parameter BEAM_WIDTH_MIN "   Scanlines > Beam Min. Width  (less-Shrink .. 1-Full)" 0.25 -1.0 1.0 0.05
 #pragma parameter BEAM_WIDTH_MAX "   Scanlines > Beam Max. Width  (1-Full .. more-Grow)" 1.25 1.0 2.0 0.05
@@ -38,7 +38,7 @@
 #pragma parameter MASK_COLOR_BLEED "   Mask > Color Bleed¹²  (0-None .. 1-Full)" 0.25 0.0 1.0 0.25
 #pragma parameter MASK_SCALE "   Mask > Scale⁵  (-1 Down / 0-Auto / +½ Up)" 0.0 -2.0 2.0 0.5
 
-// Converge parameters
+// Deconverge parameters
 #pragma parameter DECONVERGE_LINEAR "·  Deconverge > Linear Amount¹  (0-None .. -/+ 1-Full)" 0.25 -2.0 2.0 0.05
 #pragma parameter DECONVERGE_RADIAL "   Deconverge > Radial Amount¹  (0-None .. -/+ 1-Full)" 0.0 -2.0 2.0 0.05
 
@@ -63,6 +63,9 @@
 #pragma parameter CRT_NOISE_AMOUNT "   CRT > Noise¹³  (0-None .. 1-Full)" 0.25 0.0 1.0 0.05
 #pragma parameter CRT_CORNER_RAIDUS "   CRT > Corner Radius¹  (0-None .. 25%)" 0.0 0.0 0.25 0.01
 #pragma parameter CRT_CORNER_SMOOTHNESS "   CRT > Corner Smoothness  (0-None .. 1-Full)" 0.0 0.0 1.0 0.05
+
+// Sharpness parameters
+#pragma parameter SHARP_AMOUNT "·  Sharpen > Amount¹  (0-None .. 1-Full)" 0.0 0.0 2.0 0.25
 
 #pragma parameter INFO1 " ¹ Reduces marked effects" 0.0 0.0 0.0 0.0
 #pragma parameter INFO2 " ² Compensates brightness changes of marked effects" 0.0 0.0 0.0 0.0
