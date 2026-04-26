@@ -7,7 +7,8 @@ layout(location = 4) in float ScreenMultipleAuto;
 layout(location = 5) in float BrightnessCompensation;
 layout(location = 6) in vec2 MaskProfile;
 layout(location = 7) in vec4 BeamProfile;
-layout(location = 8) in mat4x4 BeamFilter;
+layout(location = 8) in float AntiRining;
+layout(location = 9) in mat4x4 BeamFilter;
 layout(location = 0) out vec4 FragColor;
 
 #ifdef IS_SINGLE_PASS
@@ -36,6 +37,7 @@ layout(location = 0) out vec4 FragColor;
 #define INPUT_MASK_PROFILE MaskProfile
 #define INPUT_BEAM_PROFILE BeamProfile
 #define INPUT_BEAM_FILTER BeamFilter
+#define INPUT_ANTI_RINGING AntiRining
 
 #include "crt-yah.stage-f.core.h"
 

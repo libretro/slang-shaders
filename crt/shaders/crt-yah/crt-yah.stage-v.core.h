@@ -296,3 +296,12 @@ vec4 get_beam_profile()
 
     return vec4(beam_min_width, beam_max_width, beam_slope, scanlines_strength);
 }
+
+float get_anti_ringing_amount()
+{
+    // map filter range [-1.0, 1.0] to anti-ringing factor [0.5, 0.0]
+    float anti_ringing_auto = 1.0 - smoothstep(1.5, 2.0, PARAM_BEAM_FILTER + 1.0);
+    float anti_ringing_manual = PARAM_ANTI_RINGING;
+
+    return anti_ringing_auto * anti_ringing_manual;
+}

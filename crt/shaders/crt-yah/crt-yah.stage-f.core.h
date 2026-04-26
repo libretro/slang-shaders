@@ -200,17 +200,13 @@ vec3 get_half_beam_color(sampler2D source, vec2 tex_coord, vec2 delta_x, vec2 de
     // get color from spline
     vec3 color = mat4x3(x, y, z, w) * beam_filter;
 
-    // map filter range [-1.0, 1.0] to anti-ringing factor [0.5, 0.0]
-    float anti_ringing_auto = 1.0 - smoothstep(1.5, 2.0, PARAM_BEAM_FILTER + 1.0);
-    float anti_ringing_manual = PARAM_ANTI_RINGING;
-
     // apply anti-ringing
     vec3 color_step = step(0.0, abs(x - y) * abs(z - w));
     vec3 color_clamp = clamp(color, min(y, z), max(y, z));
     color = mix(
         color,
         color_clamp,
-        color_step * anti_ringing_auto * anti_ringing_manual);
+        color_step * INPUT_ANTI_RINGING);
 
     return color;
 }
