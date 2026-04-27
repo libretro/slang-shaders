@@ -52,6 +52,9 @@ int CORNERS_W() { return IMG_W() + 1; }
 int CORNERS_H() { return IMG_H() + 1; }
 int NUM_CPS()  { return CORNERS_W() * CORNERS_H() * 2; }
 
+// Chain endpoint flag — see cell-graph.slang.
+const uint IS_ENDPOINT = 128u;
+
 // ---- Texture reading helpers ----
 
 void decode_cp(int cp_idx, out int cx, out int cy_slot) {
@@ -273,7 +276,11 @@ void main() {
 
     // Collect nearest boundary hits from CPs in a 5x5 neighborhood.
     // Positions and neighbors are cached in the Hit struct to avoid
-    // re-fetching them during color resolution.
+    // re-fetching them during color resolution. prev_pos/next_pos may be
+    // *ghost* positions (2*real - cp) when the corresponding neighbor
+    // carries IS_ENDPOINT — the ghost makes B(t=0|1) of the same
+    // polynomial form land exactly on the real endpoint position, giving
+    // a clamped Bezier without changing the eval API.
     struct Hit {
         float d2;
         float t;
@@ -283,6 +290,11 @@ void main() {
         vec2 cp_pos;
         vec2 prev_pos;
         vec2 next_pos;
+        // Branch threshold for prev_dir vs next_dir during color resolve.
+        // 0.5 for non-clamped (interior) spans; for clamped spans, the
+        // clamped curve's t at the physical position the equivalent
+        // interior B-spline would reach at t=0.5.
+        float t_branch;
     };
 
     Hit hits[4];
@@ -306,15 +318,39 @@ void main() {
                 ivec2 nbrs = read_neighbors(ci);
                 int prev_ci = nbrs.x;
                 int next_ci = nbrs.y;
+                // Skip fully-isolated CPs.
                 if (prev_ci < 0 && next_ci < 0) continue;
+                // Endpoint CPs (one neighbor missing) don't own a span when
+                // their interior neighbor will clamp through them; their
+                // span is implicitly drawn as the interior CP's clamped
+                // Bezier ending at this CP's position. Only render an
+                // endpoint here when the OTHER side is also an endpoint
+                // (2-CP chain) — falls back to the degenerate straight tail.
+                bool i_am_endpoint = (prev_ci < 0 || next_ci < 0);
+                if (i_am_endpoint) {
+                    int other = (prev_ci < 0) ? next_ci : prev_ci;
+                    bool other_is_end = (read_flags(other) & IS_ENDPOINT) != 0u;
+                    if (!other_is_end) continue;
+                }
 
                 vec2 cp = read_pos(ci);
-                vec2 pp = (prev_ci >= 0) ? read_pos(prev_ci) : cp;
-                vec2 np = (next_ci >= 0) ? read_pos(next_ci) : cp;
+                vec2 prev_pos = (prev_ci >= 0) ? read_pos(prev_ci) : cp;
+                vec2 next_pos = (next_ci >= 0) ? read_pos(next_ci) : cp;
 
-                // Bounding box early out
-                vec2 bb_min = min(min(pp, cp), np) - vec2(1.0);
-                vec2 bb_max = max(max(pp, cp), np) + vec2(1.0);
+                // If a neighbor is an endpoint, replace its position with a
+                // virtual ghost = 2*real - cp so that beval(...,t=0|1) of
+                // the resulting polynomial form lands exactly on the real
+                // endpoint position. For interior neighbors, ghost = real.
+                bool prev_is_end = (prev_ci >= 0) && ((read_flags(prev_ci) & IS_ENDPOINT) != 0u);
+                bool next_is_end = (next_ci >= 0) && ((read_flags(next_ci) & IS_ENDPOINT) != 0u);
+                vec2 pp = prev_is_end ? (2.0 * prev_pos - cp) : prev_pos;
+                vec2 np = next_is_end ? (2.0 * next_pos - cp) : next_pos;
+
+                // Bbox uses the real (not ghost) positions to keep the
+                // rejection bound tight; ghosts can extend well past the
+                // curve's actual extent.
+                vec2 bb_min = min(min(prev_pos, cp), next_pos) - vec2(1.0);
+                vec2 bb_max = max(max(prev_pos, cp), next_pos) + vec2(1.0);
                 if (center.x < bb_min.x || center.x > bb_max.x ||
                     center.y < bb_min.y || center.y > bb_max.y)
                     continue;
@@ -324,6 +360,22 @@ void main() {
                 float span_d2 = result.y;
 
                 if (span_d2 < 1.0) {
+                    // Compute t_branch: branch threshold for prev_dir vs
+                    // next_dir. For non-clamped spans the interior B-spline
+                    // passes through cp at t=0.5 so the threshold is 0.5;
+                    // for clamped spans the parameterization is shifted
+                    // and t_branch is the clamped curve's t at the
+                    // interior B-spline's t=0.5 physical position.
+                    float t_branch;
+                    if (prev_is_end || next_is_end) {
+                        vec2 interior_mid =
+                            0.125 * prev_pos + 0.75 * cp + 0.125 * next_pos;
+                        t_branch =
+                            closest_on_span(pp, cp, np, interior_mid).x;
+                    } else {
+                        t_branch = 0.5;
+                    }
+
                     // Insert into sorted top-4 list
                     for (int h = 0; h < 4; h++) {
                         if (span_d2 < hits[h].d2) {
@@ -336,6 +388,7 @@ void main() {
                             hits[h].cp_pos = cp;
                             hits[h].prev_pos = pp;
                             hits[h].next_pos = np;
+                            hits[h].t_branch = t_branch;
                             if (num_hits < 4) num_hits++;
                             break;
                         }
@@ -363,13 +416,17 @@ void main() {
         vec2 pp = hits[h].prev_pos;
         vec2 np = hits[h].next_pos;
 
-        // Single-neighbor rejection: skip if pixel is on the wrong side of endpoint
-        if (prev_ci < 0) {
-            vec2 toward = np - cp;
-            if (dot(center - cp, toward) < 0.0) continue;
-        } else if (next_ci < 0) {
-            vec2 toward = pp - cp;
-            if (dot(center - cp, toward) < 0.0) continue;
+        // Endpoint defer: when this CP's curve has its closest point exactly
+        // at an endpoint that's structurally co-located with another CP's
+        // curve (degenerate stem at t=1, clamped Bezier extension at t=0),
+        // the local edges describe a different region. Defer to the next-
+        // closest candidate so the local CP wins.
+        bool prev_extends =
+            (prev_ci < 0) || ((read_flags(prev_ci) & IS_ENDPOINT) != 0u);
+        bool next_extends =
+            (next_ci < 0) || ((read_flags(next_ci) & IS_ENDPOINT) != 0u);
+        if ((prev_extends && hit_t == 0.0) || (next_extends && hit_t == 1.0)) {
+            continue;
         }
 
         // Compute edge colors on-the-fly from grid position + boundary direction
@@ -383,6 +440,8 @@ void main() {
         if (next_dir >= 0) get_edge_colors(grid.x, grid.y, next_dir, nl, nr);
 
         // Pick edge colors. Next edge SWAPPED (tangent at t=1 reverses normal).
+        // Threshold uses t_branch (= 0.5 for non-clamped, shifted otherwise)
+        // so the prev/next classification is parameterization-invariant.
         vec3 c_left, c_right;
         float ref_t;
         bool prev_valid = any(notEqual(pl, pr));
@@ -394,7 +453,7 @@ void main() {
         } else if (next_ci < 0) {
             if (prev_valid) { c_left = pl; c_right = pr; ref_t = 0.0; }
             else continue;
-        } else if (hit_t < 0.5) {
+        } else if (hit_t < hits[h].t_branch) {
             if (prev_valid) { c_left = pl; c_right = pr; ref_t = 0.0; }
             else if (next_valid) { c_left = nr; c_right = nl; ref_t = 1.0; }
             else continue;

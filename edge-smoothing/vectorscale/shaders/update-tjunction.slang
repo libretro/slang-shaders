@@ -58,6 +58,7 @@ int NUM_CPS()  { return CORNERS_W() * CORNERS_H() * 2; }
 
 const uint IS_TJUNCTION = 32u;
 const uint IS_CROSSING  = 64u;
+const uint IS_ENDPOINT  = 128u;
 
 void decode_cp(int cp_idx, out int cx, out int cy_slot) {
     int cp_half = cp_idx / 2;
@@ -159,7 +160,9 @@ void main() {
             FragColor = vec4(corrected.x, corrected.y, 0.0, 0.0);
             return;
         }
-    } else if ((partner_flags & IS_TJUNCTION) != 0u && flags == 1u) {
+    } else if ((partner_flags & IS_TJUNCTION) != 0u && (flags & ~IS_ENDPOINT) == 1u) {
+        // Stem CPs carry flags = IS_USED | IS_ENDPOINT (= 129); mask
+        // IS_ENDPOINT before testing that this slot is a plain stem.
         // Stem: snap onto through curve
         ivec2 partner_nbrs = read_neighbors(partner);
         int prev_idx = partner_nbrs.x;
