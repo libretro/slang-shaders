@@ -361,15 +361,17 @@ void main() {
 
                 if (span_d2 < 1.0) {
                     // Compute t_branch: branch threshold for prev_dir vs
-                    // next_dir. For non-clamped spans the interior B-spline
-                    // passes through cp at t=0.5 so the threshold is 0.5;
-                    // for clamped spans the parameterization is shifted
-                    // and t_branch is the clamped curve's t at the
-                    // interior B-spline's t=0.5 physical position.
+                    // next_dir. For non-clamped spans the curve passes
+                    // through cp at t=0.5 trivially. For clamped spans,
+                    // project the rendered curve's B(0.5) (= 0.125*pp +
+                    // 0.75*cp + 0.125*np with ghost adjustment) back onto
+                    // itself to find t. This aligns t_branch with the
+                    // algebraic ghost-aware stem snap and crossing inverse
+                    // correction performed by update-tjunction.
                     float t_branch;
                     if (prev_is_end || next_is_end) {
                         vec2 interior_mid =
-                            0.125 * prev_pos + 0.75 * cp + 0.125 * next_pos;
+                            0.125 * pp + 0.75 * cp + 0.125 * np;
                         t_branch =
                             closest_on_span(pp, cp, np, interior_mid).x;
                     } else {

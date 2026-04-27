@@ -166,18 +166,6 @@ void main() {
         return;
     }
 
-    // Skip non-crossing nodes adjacent to crossings (crossing position
-    // depends on all 4 neighbors; optimizing one side without the other
-    // would break symmetry). Crossing nodes themselves must not be
-    // skipped — they handle their own combined-curvature optimization.
-    if ((flags & IS_CROSSING) == 0u) {
-        if ((read_flags(prev_idx) & IS_CROSSING) != 0u ||
-            (read_flags(next_idx) & IS_CROSSING) != 0u) {
-            FragColor = vec4(p.x, p.y, 0.0, 0.0);
-            return;
-        }
-    }
-
     vec2 n0 = read_neighbor_pos(prev_idx);
     vec2 n1 = read_neighbor_pos(next_idx);
 

@@ -3,14 +3,18 @@
 
 // Pass: Post-optimization junction position correction.
 //
-// Crossings: inverse B-spline correction (each slot independently)
-// T-junctions: forward B-spline correction + stem snapping
+// Crossings: ghost-aware inverse B-spline correction (each slot
+//   independently). Coefficients depend on whether prev/next is a
+//   chain endpoint, which causes the rasterizer to ghost-adjust
+//   that side of the clamped Bezier.
+// T-junctions: through-CP is left at the optimizer's value (not
+//   overwritten). Stem CPs snap onto the rendered through-curve
+//   via the ghost-aware algebraic B(0.5) formula.
 //
-// Uses Opt2 (original optimizer output) for the center weight,
-// Source (previous pass) for neighbor positions. This allows
-// multi-pass iteration: dispatch this shader 3 times, each reading
-// the previous pass's corrected positions as neighbors while using
-// the fixed original center positions.
+// Uses Opt2 (original optimizer output) for the crossing-correction
+// grid target, Source (previous pass) for neighbor positions. Multi-
+// pass iteration: dispatch a few times so junction CPs whose neighbors
+// are themselves junctions converge.
 //
 // Input textures:
 //   Source (previous pass): current positions (neighbors)
@@ -132,10 +136,11 @@ void main() {
     int partner = i ^ 1;
     uint partner_flags = read_flags(partner);
 
-    // Valence-4 crossing: inverse B-spline correction.
-    // Both slots processed independently (different pp/np require
-    // different corrected positions for both curves to pass through
-    // the same grid_pos at t=0.5).
+    // Valence-4 crossing: ghost-aware inverse B-spline correction.
+    // Each slot processed independently (different pp/np). The
+    // coefficients (a, bp, bn) solve B_rendered(0.5) = grid for cp,
+    // accounting for the rasterizer's ghost extension of any endpoint
+    // neighbor on this slot's chain.
     if ((flags & IS_CROSSING) != 0u) {
         ivec2 nbrs = read_neighbors(i);
         int prev_idx = nbrs.x;
@@ -144,26 +149,25 @@ void main() {
         if (prev_idx >= 0 && next_idx >= 0) {
             vec2 prev_pos = read_pos(prev_idx);
             vec2 next_pos = read_pos(next_idx);
-            vec2 corrected = (orig_pos - 0.125 * prev_pos - 0.125 * next_pos) / 0.75;
+            bool prev_is_end = (read_flags(prev_idx) & IS_ENDPOINT) != 0u;
+            bool next_is_end = (read_flags(next_idx) & IS_ENDPOINT) != 0u;
+            float a, bp, bn;
+            if (!prev_is_end && !next_is_end) { a = 0.75; bp = 0.125; bn = 0.125; }
+            else if (prev_is_end && !next_is_end) { a = 0.625; bp = 0.25; bn = 0.125; }
+            else if (!prev_is_end && next_is_end) { a = 0.625; bp = 0.125; bn = 0.25; }
+            else { a = 0.5; bp = 0.25; bn = 0.25; }
+            vec2 corrected = (orig_pos - bp * prev_pos - bn * next_pos) / a;
             FragColor = vec4(corrected.x, corrected.y, 0.0, 0.0);
             return;
         }
     } else if ((flags & IS_TJUNCTION) != 0u) {
-        ivec2 nbrs = read_neighbors(i);
-        int prev_idx = nbrs.x;
-        int next_idx = nbrs.y;
-
-        if (prev_idx >= 0 && next_idx >= 0) {
-            vec2 prev_pos = read_pos(prev_idx);
-            vec2 next_pos = read_pos(next_idx);
-            vec2 corrected = 0.125 * prev_pos + 0.75 * orig_pos + 0.125 * next_pos;
-            FragColor = vec4(corrected.x, corrected.y, 0.0, 0.0);
-            return;
-        }
+        // T-junction through-CP: leave at the optimizer's position.
+        FragColor = vec4(curr_pos.x, curr_pos.y, 0.0, 0.0);
+        return;
     } else if ((partner_flags & IS_TJUNCTION) != 0u && (flags & ~IS_ENDPOINT) == 1u) {
         // Stem CPs carry flags = IS_USED | IS_ENDPOINT (= 129); mask
         // IS_ENDPOINT before testing that this slot is a plain stem.
-        // Stem: snap onto through curve
+        // Stem: snap onto the rendered through-curve via ghost-aware B(0.5).
         ivec2 partner_nbrs = read_neighbors(partner);
         int prev_idx = partner_nbrs.x;
         int next_idx = partner_nbrs.y;
@@ -172,8 +176,14 @@ void main() {
             vec2 prev_pos = read_pos(prev_idx);
             vec2 partner_pos = read_pos(partner);
             vec2 next_pos = read_pos(next_idx);
-            vec2 corrected = 0.125 * prev_pos + 0.75 * partner_pos + 0.125 * next_pos;
-            vec2 on_curve = 0.125 * prev_pos + 0.75 * corrected + 0.125 * next_pos;
+            bool prev_is_end = (read_flags(prev_idx) & IS_ENDPOINT) != 0u;
+            bool next_is_end = (read_flags(next_idx) & IS_ENDPOINT) != 0u;
+            float sp, st, sn;
+            if (!prev_is_end && !next_is_end) { sp = 0.125; st = 0.75;  sn = 0.125; }
+            else if (prev_is_end && !next_is_end) { sp = 0.25;  st = 0.625; sn = 0.125; }
+            else if (!prev_is_end && next_is_end) { sp = 0.125; st = 0.625; sn = 0.25; }
+            else { sp = 0.25;  st = 0.5;   sn = 0.25; }
+            vec2 on_curve = sp * prev_pos + st * partner_pos + sn * next_pos;
             FragColor = vec4(on_curve.x, on_curve.y, 0.0, 0.0);
             return;
         }
