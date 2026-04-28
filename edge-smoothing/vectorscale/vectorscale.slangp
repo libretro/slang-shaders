@@ -3,6 +3,12 @@
 # Intermediate textures are over-allocated using source-relative scales:
 #   Cell graph: 2W x 7H (needs (W+1) x 6(H+1), works for H >= 6)
 #   Positions:  2W x 3.5H (needs (W+1) x 2(H+1), works for H >= 2)
+#
+# Framebuffer formats are set per-shader via `#pragma format` (FP32 for
+# position-storing passes). DO NOT add `float_framebuffer<N> = true` here
+# — it forces RGBA16F on some backends and silently overrides the pragma,
+# causing sub-pixel position rounding visible as hairline misalignment
+# at the rasterizer.
 shaders = 10
 
 shader0 = shaders/similarity-graph.slang
@@ -11,7 +17,6 @@ filter_linear0 = false
 scale_type0 = source
 scale0 = 2.0
 wrap_mode0 = clamp_to_border
-float_framebuffer0 = true
 
 shader1 = shaders/resolve-crossings.slang
 alias1 = ResolvedGraph
@@ -19,7 +24,6 @@ filter_linear1 = false
 scale_type1 = source
 scale1 = 1.0
 wrap_mode1 = clamp_to_border
-float_framebuffer1 = true
 
 shader2 = shaders/cell-graph.slang
 alias2 = CellGraph
@@ -29,7 +33,6 @@ scale_x2 = 1.0
 scale_type_y2 = source
 scale_y2 = 3.5
 wrap_mode2 = clamp_to_border
-float_framebuffer2 = true
 
 shader3 = shaders/init-positions.slang
 alias3 = InitPos
@@ -39,7 +42,6 @@ scale_x3 = 1.0
 scale_type_y3 = source
 scale_y3 = 0.5
 wrap_mode3 = clamp_to_border
-float_framebuffer3 = true
 
 shader4 = shaders/optimize-energy.slang
 alias4 = Opt1
@@ -47,7 +49,6 @@ filter_linear4 = false
 scale_type4 = source
 scale4 = 1.0
 wrap_mode4 = clamp_to_border
-float_framebuffer4 = true
 
 shader5 = shaders/optimize-energy.slang
 alias5 = Opt2
@@ -55,7 +56,6 @@ filter_linear5 = false
 scale_type5 = source
 scale5 = 1.0
 wrap_mode5 = clamp_to_border
-float_framebuffer5 = true
 
 # T-junction/crossing correction: 3 iterations for convergence.
 # Each pass reads neighbor positions from Source (previous pass) and
@@ -66,7 +66,6 @@ filter_linear6 = false
 scale_type6 = source
 scale6 = 1.0
 wrap_mode6 = clamp_to_border
-float_framebuffer6 = true
 
 shader7 = shaders/update-tjunction.slang
 alias7 = TJunc2
@@ -74,7 +73,6 @@ filter_linear7 = false
 scale_type7 = source
 scale7 = 1.0
 wrap_mode7 = clamp_to_border
-float_framebuffer7 = true
 
 shader8 = shaders/update-tjunction.slang
 alias8 = FinalPositions
@@ -82,7 +80,6 @@ filter_linear8 = false
 scale_type8 = source
 scale8 = 1.0
 wrap_mode8 = clamp_to_border
-float_framebuffer8 = true
 
 shader9 = shaders/cell-rasterizer.slang
 alias9 = FinalOutput

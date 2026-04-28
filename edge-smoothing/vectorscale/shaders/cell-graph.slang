@@ -56,6 +56,11 @@ int CORNERS_H() { return IMG_H() + 1; }
 const uint IS_CORNER = 16u;
 const uint IS_TJUNCTION = 32u;
 const uint IS_CROSSING  = 64u;
+// Chain endpoint (prev or next neighbor is -1). Set on active CPs only —
+// inactive default-init slots have flag=0 and stay that way. The rasterizer
+// and update_tjunction key off this bit to apply clamped-Bezier termination
+// (curve ends exactly at the endpoint position) and mask the stem-snap test.
+const uint IS_ENDPOINT  = 128u;
 
 // Read edge/diagonal flag from the resolved graph texture.
 uint g(int gx, int gy) {
@@ -522,6 +527,11 @@ void main() {
     compute_corner(cx, cy, s0, s1);
 
     CPData cp = (slot == 0) ? s0 : s1;
+
+    // Mark active chain endpoints so the rasterizer knows to apply clamped
+    // Bezier termination at adjacent spans. Gated on flag != 0 so that
+    // default-init inactive slots stay at flag=0.
+    if (cp.flag != 0u && (cp.prev < 0 || cp.next < 0)) cp.flag |= IS_ENDPOINT;
 
     if (cp.flag == 0u) {
         // Inactive CP: sentinels for all sub-rows
