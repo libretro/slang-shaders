@@ -202,8 +202,8 @@ struct Hit {
 
 // ---- Linear approximation of a curve at a hit's closest_t ----
 //
-// Used by the multi-curve wedge AA path to partition a pixel by multiple
-// curves; each wedge's color is then resampled via classify_at.
+// Tangent line used by the wedge AA partition (cpt = junction J), and
+// by the dual-curve AA path (cpt = closest point on the curve).
 struct AaLine {
     vec2 cpt;
     vec2 normal;       // Unit normal. Side test: dot(p - cpt, normal).
@@ -306,45 +306,54 @@ vec2 closest_on_span(vec2 p0, vec2 p1, vec2 p2, vec2 pt) {
     return vec2(best_t, best_d2);
 }
 
-// ---- AA-line builder ----
+// ---- sRGB ↔ linear conversion (gamma 2.2 approximation) ----
+vec3 srgb_to_linear(vec3 c) { return pow(c, vec3(2.2)); }
+vec3 linear_to_srgb(vec3 c) { return pow(c, vec3(1.0 / 2.2)); }
+
+// ---- Single-line pixel coverage (closed-form) ----
 //
-// Builds a tangent-line classifier at the hit's closest_t. Returns invalid
-// when the CP has no usable edge (no color discontinuity to either side via
-// prev_dir/next_dir).
-AaLine build_aa_line(Hit hit) {
-    AaLine result;
-    result.cpt = vec2(0.0);
-    result.normal = vec2(0.0);
-    result.valid = false;
-
-    vec2 tang = beval_deriv(hit.prev_pos, hit.cp_pos, hit.next_pos, hit.t);
-    float tl = length(tang);
-    if (tl < 1e-4) return result;
-    vec2 normal = vec2(-tang.y, tang.x) / tl;
-
-    ivec2 grid = cp_grid_corner(hit.cp_idx);
-    ivec2 dirs = read_dirs(hit.cp_idx);
-    int prev_dir = dirs.x;
-    int next_dir = dirs.y;
-
-    bool prev_split = false;
-    bool next_split = false;
-    if (prev_dir >= 0) {
-        vec3 pl, pr;
-        get_edge_colors(grid.x, grid.y, prev_dir, pl, pr);
-        prev_split = any(notEqual(pl, pr));
+// Exact coverage of a pixel by a tangent line. d_p is the line's signed
+// perpendicular distance from pixel center in pixel-side units. Returns
+// the area on the line's positive side, in [0, 1].
+//   |d_p| <= (a-b)/2     → linear regime (line crosses parallel edges)
+//   (a-b)/2 < |d_p| < (a+b)/2 → corner-cut quadratic
+//   |d_p| >= (a+b)/2     → saturated
+float line_coverage_pos(vec2 normal, float d_p) {
+    float nx = abs(normal.x);
+    float ny = abs(normal.y);
+    float a = max(nx, ny);
+    float b = min(nx, ny);
+    float half_ext = (a + b) * 0.5;
+    float lin_ext = (a - b) * 0.5;
+    if (d_p >= half_ext) return 1.0;
+    if (d_p <= -half_ext) return 0.0;
+    if (abs(d_p) <= lin_ext) return 0.5 + d_p / a;
+    if (d_p > 0.0) {
+        float t = half_ext - d_p;
+        return 1.0 - 0.5 * t * t / (a * b);
     }
-    if (next_dir >= 0) {
-        vec3 nl, nr;
-        get_edge_colors(grid.x, grid.y, next_dir, nl, nr);
-        next_split = any(notEqual(nl, nr));
-    }
-    if (!prev_split && !next_split) return result;
+    float t = half_ext + d_p;
+    return 0.5 * t * t / (a * b);
+}
 
-    result.cpt = beval(hit.prev_pos, hit.cp_pos, hit.next_pos, hit.t);
-    result.normal = normal;
-    result.valid = true;
-    return result;
+// ---- Structural junction detection ----
+//
+// Returns the t value on sc_b's curve (in {0.0, 1.0}) at which it
+// passes through the junction at sc_a's corner, or -1.0 if sc_b isn't
+// the stem-side curve. Caller pre-filters on (flags(ci_a) & IS_TJUNCTION).
+//   case (a): sc_b IS slot 1 of sc_a's corner — 2-CP chain stem, t=1.0.
+//   case (b): sc_b is slot 1's neighbor — t=0.0 if its prev_ci is
+//             IS_ENDPOINT, t=1.0 if its next_ci is.
+//   else: -1 (no match).
+float slot1_t_case(int ci_a, int ci_b) {
+    int slot1_ci_a = (ci_a / 2) * 2 + 1;
+    if (ci_b == slot1_ci_a) return 1.0;  // case (a)
+    ivec2 slot1_n = read_neighbors(slot1_ci_a);
+    if (slot1_n.x != ci_b && slot1_n.y != ci_b) return -1.0;
+    ivec2 nb = read_neighbors(ci_b);
+    if (nb.x >= 0 && (read_flags(nb.x) & IS_ENDPOINT) != 0u) return 0.0;
+    if (nb.y >= 0 && (read_flags(nb.y) & IS_ENDPOINT) != 0u) return 1.0;
+    return -1.0;
 }
 
 // ---- Junction-anchored AA-line builder ----
@@ -783,47 +792,17 @@ void main() {
         int ci1 = hits[1].cp_idx;
         uint f0 = read_flags(ci0);
         uint f1 = read_flags(ci1);
-        int slot1_ci_0 = (ci0 / 2) * 2 + 1;
-        int slot1_ci_1 = (ci1 / 2) * 2 + 1;
-        ivec2 slot1_n_0 = read_neighbors(slot1_ci_0);
-        ivec2 slot1_n_1 = read_neighbors(slot1_ci_1);
 
-        // Returns -1 if no match, 0 = t=0, 1 = t=1 for case (a) or (b).
-        int cp0_t_case = -1;
-        if ((f0 & IS_TJUNCTION) != 0u) {
-            if (ci1 == slot1_ci_0) {
-                cp0_t_case = 1;  // case (a)
-            } else if (slot1_n_0.x == ci1 || slot1_n_0.y == ci1) {
-                // case (b): junction side is sc_b's IS_ENDPOINT neighbor.
-                ivec2 nb = read_neighbors(ci1);
-                bool prev_is_end = nb.x >= 0 && (read_flags(nb.x) & IS_ENDPOINT) != 0u;
-                bool next_is_end = nb.y >= 0 && (read_flags(nb.y) & IS_ENDPOINT) != 0u;
-                if (prev_is_end) cp0_t_case = 0;
-                else if (next_is_end) cp0_t_case = 1;
-            }
-        }
-        int cp1_t_case = -1;
-        if ((f1 & IS_TJUNCTION) != 0u) {
-            if (ci0 == slot1_ci_1) {
-                cp1_t_case = 1;
-            } else if (slot1_n_1.x == ci0 || slot1_n_1.y == ci0) {
-                ivec2 nb = read_neighbors(ci0);
-                bool prev_is_end = nb.x >= 0 && (read_flags(nb.x) & IS_ENDPOINT) != 0u;
-                bool next_is_end = nb.y >= 0 && (read_flags(nb.y) & IS_ENDPOINT) != 0u;
-                if (prev_is_end) cp1_t_case = 0;
-                else if (next_is_end) cp1_t_case = 1;
-            }
-        }
+        float cp0_t = ((f0 & IS_TJUNCTION) != 0u) ? slot1_t_case(ci0, ci1) : -1.0;
+        float cp1_t = ((f1 & IS_TJUNCTION) != 0u) ? slot1_t_case(ci1, ci0) : -1.0;
         bool both_x_same =
             ((f0 & IS_CROSSING) != 0u)
             && ((f1 & IS_CROSSING) != 0u)
             && (ci0 / 2) == (ci1 / 2);
-        if (cp0_t_case >= 0) {
-            through_h = 0; stem_h = 1;
-            t_b_eval = (cp0_t_case == 0) ? 0.0 : 1.0;
-        } else if (cp1_t_case >= 0) {
-            through_h = 1; stem_h = 0;
-            t_b_eval = (cp1_t_case == 0) ? 0.0 : 1.0;
+        if (cp0_t >= 0.0) {
+            through_h = 0; stem_h = 1; t_b_eval = cp0_t;
+        } else if (cp1_t >= 0.0) {
+            through_h = 1; stem_h = 0; t_b_eval = cp1_t;
         } else if (both_x_same) {
             through_h = 0; stem_h = 1;
             t_b_eval = hits[1].t_branch;
@@ -921,10 +900,10 @@ void main() {
             // LUT decoded once. Indexed by (sa>0) | ((sb>0) << 1):
             //   0 = neg0, 1 = pos0, 2 = neg1, 3 = pos1.
             vec3 lut_lin[4];
-            lut_lin[0] = pow(neg0, vec3(2.2));
-            lut_lin[1] = pow(pos0, vec3(2.2));
-            lut_lin[2] = pow(neg1, vec3(2.2));
-            lut_lin[3] = pow(pos1, vec3(2.2));
+            lut_lin[0] = srgb_to_linear(neg0);
+            lut_lin[1] = srgb_to_linear(pos0);
+            lut_lin[2] = srgb_to_linear(neg1);
+            lut_lin[3] = srgb_to_linear(pos1);
 
             // Boundary-sweep area accumulation. Walk the pixel boundary
             // CCW; on each edge find up to 2 line crossings (line_a and
@@ -1005,43 +984,92 @@ void main() {
             }
 
             if (total_area > 0.0) {
-                center_color = pow(sum_lin / total_area, vec3(1.0 / 2.2));
+                center_color = linear_to_srgb(sum_lin / total_area);
                 wedge_handled = true;
             }
         }
     }
 
-    // Single-curve AA: exact pixel coverage from the resolved hit's tangent
-    // line. Only fires when wedge AA didn't handle this pixel.
-    if (!wedge_handled && resolved_h >= 0 && hits[resolved_h].d2 < aa_threshold &&
-        any(notEqual(res.pos_side, res.neg_side))) {
-        // Linear when |d_p| <= (a-b)/2 (line crosses two parallel edges),
-        // quadratic in (a-b)/2 < |d_p| < (a+b)/2 (line cuts a corner triangle),
-        // saturates outside.
-        float nx = abs(res.opt_normal.x);
-        float ny = abs(res.opt_normal.y);
-        float a = max(nx, ny);
-        float b = min(nx, ny);
-        float half_ext = (a + b) * 0.5;
-        float lin_ext = (a - b) * 0.5;
-        float d_p = res.d / inv_scale;
-        float frac;
-        if (d_p >= half_ext) {
-            frac = 1.0;
-        } else if (d_p <= -half_ext) {
-            frac = 0.0;
-        } else if (abs(d_p) <= lin_ext) {
-            frac = 0.5 + d_p / a;
-        } else if (d_p > 0.0) {
-            float t = half_ext - d_p;
-            frac = 1.0 - 0.5 * t * t / (a * b);
-        } else {
-            float t = half_ext + d_p;
-            frac = 0.5 * t * t / (a * b);
+    // Dual-curve AA: two distinct-chain curves passing through the pixel
+    // without an actual junction inside it (typical of thin strokes where
+    // two boundary curves graze the same pixel). Partitions the pixel
+    // into 3 stripes via two single-line coverages — closed-form, no
+    // boundary sweep. Skips when wedge AA fired, or when no second non-
+    // chain hit is within threshold, or when the LUT model breaks down
+    // (inner-color mismatch / lines cross inside pixel).
+    bool dual_handled = false;
+    if (!wedge_handled && resolved_h >= 0 && hits[resolved_h].d2 < aa_threshold) {
+        Hit hit_a = hits[resolved_h];
+        // Find sc_b: first cached hit not on hit_a's chain (1-step
+        // neighbor test) and within aa_threshold.
+        int sec_h = -1;
+        for (int s = 0; s < 4; s++) {
+            if (s >= num_hits) break;
+            if (s == resolved_h) continue;
+            if (hits[s].d2 >= aa_threshold) break;
+            int b_ci = hits[s].cp_idx;
+            if (b_ci < 0) continue;
+            bool same_chain = (hit_a.cp_idx == b_ci)
+                || (hit_a.cp_idx == hits[s].prev_ci)
+                || (hit_a.cp_idx == hits[s].next_ci)
+                || (b_ci == hit_a.prev_ci)
+                || (b_ci == hit_a.next_ci);
+            if (!same_chain) { sec_h = s; break; }
         }
-        vec3 lin0 = pow(res.pos_side, vec3(2.2));
-        vec3 lin1 = pow(res.neg_side, vec3(2.2));
-        center_color = pow(frac * lin0 + (1.0 - frac) * lin1, vec3(1.0 / 2.2));
+        if (sec_h >= 0
+            && any(notEqual(res.pos_side, res.neg_side))) {
+            Hit hit_b = hits[sec_h];
+            ResolveResult res_b = resolve_hit(hit_b, center);
+            if (res_b.resolved && any(notEqual(res_b.pos_side, res_b.neg_side))) {
+                vec2 cpt_a = beval(hit_a.prev_pos, hit_a.cp_pos, hit_a.next_pos, hit_a.t);
+                vec2 cpt_b = beval(hit_b.prev_pos, hit_b.cp_pos, hit_b.next_pos, hit_b.t);
+                vec2 na = res.opt_normal;
+                vec2 nb = res_b.opt_normal;
+
+                // Inner-side: which side of curve A faces curve B?
+                vec2 delta_ba = cpt_b - cpt_a;
+                bool inner_a_pos = dot(delta_ba, na) > 0.0;
+                bool inner_b_pos = dot(-delta_ba, nb) > 0.0;
+                vec3 a_inner = inner_a_pos ? res.pos_side  : res.neg_side;
+                vec3 b_inner = inner_b_pos ? res_b.pos_side: res_b.neg_side;
+
+                // Dual-curve assumes a shared middle region. If inner
+                // colors disagree, geometry has 3 distinct colors (a
+                // junction missed by structural detection). Defer.
+                if (all(equal(a_inner, b_inner))) {
+                    float d_a = dot(center - cpt_a, na) / inv_scale;
+                    float d_b = dot(center - cpt_b, nb) / inv_scale;
+                    float fa_pos = line_coverage_pos(na, d_a);
+                    float fb_pos = line_coverage_pos(nb, d_b);
+                    float fa_outer = inner_a_pos ? (1.0 - fa_pos) : fa_pos;
+                    float fb_outer = inner_b_pos ? (1.0 - fb_pos) : fb_pos;
+                    // Lines crossing inside pixel → A_outer ∩ B_outer
+                    // overlaps → fractions sum > 1. Defer.
+                    if (fa_outer + fb_outer <= 1.0 + 1e-4) {
+                        float fm = max(0.0, 1.0 - fa_outer - fb_outer);
+                        vec3 a_outer = inner_a_pos ? res.neg_side  : res.pos_side;
+                        vec3 b_outer = inner_b_pos ? res_b.neg_side: res_b.pos_side;
+                        vec3 lin = srgb_to_linear(a_outer) * fa_outer
+                                 + srgb_to_linear(b_outer) * fb_outer
+                                 + srgb_to_linear(a_inner) * fm;
+                        center_color = linear_to_srgb(lin);
+                        dual_handled = true;
+                    }
+                }
+            }
+        }
+    }
+
+    // Single-curve AA: exact pixel coverage from the resolved hit's tangent
+    // line. Only fires when neither wedge AA nor dual-curve AA handled it.
+    if (!wedge_handled && !dual_handled
+        && resolved_h >= 0 && hits[resolved_h].d2 < aa_threshold
+        && any(notEqual(res.pos_side, res.neg_side))) {
+        float d_p = res.d / inv_scale;
+        float frac = line_coverage_pos(res.opt_normal, d_p);
+        vec3 lin0 = srgb_to_linear(res.pos_side);
+        vec3 lin1 = srgb_to_linear(res.neg_side);
+        center_color = linear_to_srgb(frac * lin0 + (1.0 - frac) * lin1);
     }
 
     FragColor = vec4(center_color, 1.0);
