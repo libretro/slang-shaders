@@ -353,6 +353,46 @@ AaLine build_aa_line(Hit hit) {
     return result;
 }
 
+// ---- Junction-anchored AA-line builder ----
+//
+// Builds a tangent-line classifier with cpt = J (junction position), and
+// tangent evaluated at `t_eval` on the curve. Used by wedge AA so both
+// line_a and line_b literally pass through J. Returns the unit tangent
+// alongside the line so caller can align line_b's normal to line_a's
+// tangent direction (so sb > 0 = post-junction along line_a).
+AaLine build_junction_aa_line(Hit hit, vec2 J, float t_eval, out vec2 out_tang_unit) {
+    AaLine result;
+    result.cpt = J;
+    result.normal = vec2(0.0);
+    result.valid = false;
+    out_tang_unit = vec2(0.0);
+
+    vec2 tang = beval_deriv(hit.prev_pos, hit.cp_pos, hit.next_pos, t_eval);
+    float tl = length(tang);
+    if (tl < 1e-4) return result;
+    vec2 tu = tang / tl;
+    out_tang_unit = tu;
+
+    ivec2 grid = cp_grid_corner(hit.cp_idx);
+    ivec2 dirs = read_dirs(hit.cp_idx);
+    bool prev_split = false, next_split = false;
+    if (dirs.x >= 0) {
+        vec3 pl, pr;
+        get_edge_colors(grid.x, grid.y, dirs.x, pl, pr);
+        prev_split = any(notEqual(pl, pr));
+    }
+    if (dirs.y >= 0) {
+        vec3 nl, nr;
+        get_edge_colors(grid.x, grid.y, dirs.y, nl, nr);
+        next_split = any(notEqual(nl, nr));
+    }
+    if (!prev_split && !next_split) return result;
+
+    result.normal = vec2(-tu.y, tu.x);
+    result.valid = true;
+    return result;
+}
+
 // ---- Sutherland-Hodgman: clip a convex polygon against a half-plane ----
 //
 // keep_pos selects which side of the line: dot(p - cpt, normal) > 0 if true.
@@ -777,9 +817,32 @@ void main() {
     // a pixel without their junction being in it (e.g. consecutive chain
     // CPs along a smooth diagonal), the local geometry is 2-color and
     // wedge AA's LUT mixes a third color that isn't actually present.
+    // Multi-curve wedge AA fires only at a structural junction whose
+    // geometric location lies inside the pixel.
+    //
+    // Structural cases (each pinned by how the cell graph constructs the
+    // relevant CPs — no closest_t computation needed for line_b):
+    //   (a) sc_b IS slot 1 of sc_a's corner — 2-CP-chain stem. Cell graph
+    //       creates slot 1 with next_ci = -1, so the rasterizer's 2-CP
+    //       construction puts a1 = slot1.pos = junction-side endpoint at
+    //       t = 1.
+    //   (b) sc_b is slot 1's surviving non-(-1) neighbor — slot 1 was
+    //       filtered, sc_b is the chain CP at the dropped-boundary corner
+    //       and ghost-extends through slot 1.pos at whichever of its
+    //       prev/next neighbors is IS_ENDPOINT-flagged (t = 0 for prev,
+    //       t = 1 for next).
+    //   Crossings (valence-4): both hits IS_CROSSING at same corner; sc_b's
+    //   curve passes through J at sc_b.t_branch.
+    //
+    // Junction-in-pixel: J = beval(sc_a, t_branch) — point on the rendered
+    // curve at the junction parameter (NOT cp_pos, the polynomial control
+    // point, which can differ for non-ghost-extended CPs). For multi-curve
+    // pixels where curves graze without an in-pixel junction, fall back to
+    // single-curve AA.
     bool wedge_handled = false;
     int through_h = -1;
     int stem_h = -1;
+    float t_b_eval = 0.0;
     if (num_hits >= 2 && hits[0].cp_idx >= 0 && hits[1].cp_idx >= 0
         && hits[1].d2 < aa_threshold) {
         int ci0 = hits[0].cp_idx;
@@ -790,23 +853,54 @@ void main() {
         int slot1_ci_1 = (ci1 / 2) * 2 + 1;
         ivec2 slot1_n_0 = read_neighbors(slot1_ci_0);
         ivec2 slot1_n_1 = read_neighbors(slot1_ci_1);
-        bool cp0_t = ((f0 & IS_TJUNCTION) != 0u)
-            && (ci1 == slot1_ci_0 || slot1_n_0.x == ci1 || slot1_n_0.y == ci1);
-        bool cp1_t = ((f1 & IS_TJUNCTION) != 0u)
-            && (ci0 == slot1_ci_1 || slot1_n_1.x == ci0 || slot1_n_1.y == ci0);
+
+        // Returns -1 if no match, 0 = t=0, 1 = t=1 for case (a) or (b).
+        int cp0_t_case = -1;
+        if ((f0 & IS_TJUNCTION) != 0u) {
+            if (ci1 == slot1_ci_0) {
+                cp0_t_case = 1;  // case (a)
+            } else if (slot1_n_0.x == ci1 || slot1_n_0.y == ci1) {
+                // case (b): junction side is sc_b's IS_ENDPOINT neighbor.
+                ivec2 nb = read_neighbors(ci1);
+                bool prev_is_end = nb.x >= 0 && (read_flags(nb.x) & IS_ENDPOINT) != 0u;
+                bool next_is_end = nb.y >= 0 && (read_flags(nb.y) & IS_ENDPOINT) != 0u;
+                if (prev_is_end) cp0_t_case = 0;
+                else if (next_is_end) cp0_t_case = 1;
+            }
+        }
+        int cp1_t_case = -1;
+        if ((f1 & IS_TJUNCTION) != 0u) {
+            if (ci0 == slot1_ci_1) {
+                cp1_t_case = 1;
+            } else if (slot1_n_1.x == ci0 || slot1_n_1.y == ci0) {
+                ivec2 nb = read_neighbors(ci0);
+                bool prev_is_end = nb.x >= 0 && (read_flags(nb.x) & IS_ENDPOINT) != 0u;
+                bool next_is_end = nb.y >= 0 && (read_flags(nb.y) & IS_ENDPOINT) != 0u;
+                if (prev_is_end) cp1_t_case = 0;
+                else if (next_is_end) cp1_t_case = 1;
+            }
+        }
         bool both_x_same =
             ((f0 & IS_CROSSING) != 0u)
             && ((f1 & IS_CROSSING) != 0u)
             && (ci0 / 2) == (ci1 / 2);
-        if (cp0_t) { through_h = 0; stem_h = 1; }
-        else if (cp1_t) { through_h = 1; stem_h = 0; }
-        else if (both_x_same) { through_h = 0; stem_h = 1; }
+        if (cp0_t_case >= 0) {
+            through_h = 0; stem_h = 1;
+            t_b_eval = (cp0_t_case == 0) ? 0.0 : 1.0;
+        } else if (cp1_t_case >= 0) {
+            through_h = 1; stem_h = 0;
+            t_b_eval = (cp1_t_case == 0) ? 0.0 : 1.0;
+        } else if (both_x_same) {
+            through_h = 0; stem_h = 1;
+            t_b_eval = hits[1].t_branch;
+        }
 
-        // Junction-in-pixel: through CP's pos must lie inside the pixel.
+        // Junction-in-pixel.
         if (through_h >= 0) {
-            vec2 jp = hits[through_h].cp_pos;
+            Hit th = hits[through_h];
+            vec2 J = beval(th.prev_pos, th.cp_pos, th.next_pos, th.t_branch);
             float pix_half = inv_scale * 0.5;
-            if (abs(jp.x - center.x) > pix_half || abs(jp.y - center.y) > pix_half) {
+            if (abs(J.x - center.x) > pix_half || abs(J.y - center.y) > pix_half) {
                 through_h = -1;
                 stem_h = -1;
             }
@@ -815,8 +909,26 @@ void main() {
     bool need_wedge_aa = resolved_h >= 0 && hits[resolved_h].d2 < aa_threshold
                         && through_h >= 0;
     if (need_wedge_aa) {
-        AaLine line_a = build_aa_line(hits[through_h]);
-        AaLine line_b = build_aa_line(hits[stem_h]);
+        Hit through_hit = hits[through_h];
+        Hit stem_hit = hits[stem_h];
+
+        // J = beval(through, t_branch). Both lines anchored at J.
+        vec2 J = beval(through_hit.prev_pos, through_hit.cp_pos, through_hit.next_pos,
+                        through_hit.t_branch);
+
+        // line_a: through tangent at t_branch.
+        vec2 tang_a_unit;
+        AaLine line_a = build_junction_aa_line(through_hit, J, through_hit.t_branch, tang_a_unit);
+
+        // line_b: stem tangent at the junction. t_b_eval was determined
+        // structurally by the gate above (no closest_t needed).
+        vec2 tang_b_unit;
+        AaLine line_b = build_junction_aa_line(stem_hit, J, t_b_eval, tang_b_unit);
+
+        // Align line_b.normal so sb > 0 = post-junction along line_a.
+        if (line_b.valid && dot(line_b.normal, tang_a_unit) < 0.0) {
+            line_b.normal = -line_b.normal;
+        }
 
         if (line_a.valid && line_b.valid) {
             float pix_h = inv_scale * 0.5;
@@ -839,29 +951,24 @@ void main() {
             float total_area = 0.0;
 
             // Through-curve color LUT: at a T-junction the through curve
-            // (= hits[through_h]) carries all three colors via its two
-            // edge segments split at t_branch — pre-junction edge gives
-            // the (pos, neg) for t < t_branch, post-junction edge gives
-            // them for t > t_branch.
+            // (= through_hit) carries all three colors via its two edge
+            // segments split at t_branch — pre-junction edge gives the
+            // (pos, neg) for t < t_branch, post-junction edge gives them
+            // for t > t_branch.
             //
-            // For each wedge centroid we use sidedness against line_a (which
-            // side of the through curve) and against line_b (which segment
-            // of the through curve, since line_b ≈ stem tangent crosses
-            // line_a at the t_branch projection). This replaces the per-
-            // wedge closest_on_span sweep + resolve_hit with two dot
-            // products and a 2x2 LUT lookup.
-            Hit through_hit = hits[through_h];
+            // line_b's normal is aligned to line_a's tangent direction,
+            // so sb > 0 = post-junction (seg 1) and sb < 0 = pre-junction
+            // (seg 0). Maps (sa-sign, sb-sign) directly to LUT entries.
 
             // Resolve the through hit at center to get its pos/neg/normal.
-            // If through_h == resolved_h we could reuse `res`, but the
-            // resolve is cheap and avoids special-casing.
             ResolveResult through_res = resolve_hit(through_hit, center);
 
             // Build pos/neg colors for each segment, aligned to line_a.normal
             // (so a single sidedness test against line_a applies to both
-            // segments). One segment is covered by through_res; resolve
-            // the other. For 2-CP chains both halves are identical so we
-            // skip the second resolve.
+            // segments). One segment is covered by through_res at the
+            // pixel center; resolve the other at the OTHER segment's mid.
+            // For 2-CP chains both halves are identical so we skip the
+            // second resolve.
             vec3 pos0 = fallback, neg0 = fallback;
             vec3 pos1 = fallback, neg1 = fallback;
 
@@ -879,7 +986,7 @@ void main() {
                 other_seg.t = res_in_seg1
                     ? (through_hit.t_branch * 0.5)
                     : (0.5 * (through_hit.t_branch + 1.0));
-                ResolveResult res_other = resolve_hit(other_seg, line_a.cpt);
+                ResolveResult res_other = resolve_hit(other_seg, J);
                 if (res_other.resolved) {
                     bool flip_o = dot(res_other.opt_normal, line_a.normal) < 0.0;
                     vec3 op = flip_o ? res_other.neg_side : res_other.pos_side;
@@ -896,39 +1003,13 @@ void main() {
                 pos1 = res_pos; neg1 = res_neg;
             }
 
-            // Segment selection: line_b only separates seg 0 from seg 1
-            // when it crosses line_a's curve in [0, 1] — i.e., the mid-
-            // seg-0 and mid-seg-1 points lie on opposite sides of line_b.
-            // When line_b is geometrically outside line_a's curve range
-            // (e.g., a stem at an adjacent corner), both segments fall
-            // on the same side and sb-sidedness is meaningless. In that
-            // case all wedges share one segment, picked from through_hit.t.
-            float seg1_side = 1.0;
-            bool b_separates = false;
-            if (!through_hit.is_line) {
-                float t_pre = through_hit.t_branch * 0.5;
-                float t_post = (through_hit.t_branch + 1.0) * 0.5;
-                vec2 p_pre  = beval(through_hit.prev_pos, through_hit.cp_pos, through_hit.next_pos, t_pre);
-                vec2 p_post = beval(through_hit.prev_pos, through_hit.cp_pos, through_hit.next_pos, t_post);
-                float s0 = dot(p_pre  - line_b.cpt, line_b.normal);
-                float s1 = dot(p_post - line_b.cpt, line_b.normal);
-                seg1_side = s1;
-                b_separates = (s0 * s1) < 0.0;
-            }
-            bool center_in_seg1 = through_hit.t >= through_hit.t_branch;
-
             for (int wi = 0; wi < 4; wi++) {
                 float area = polygon_area(wedges[wi]);
                 if (area <= 1e-9) continue;
                 vec2 cq = polygon_centroid(wedges[wi]);
                 float sign_a = dot(cq - line_a.cpt, line_a.normal);
-                bool in_seg1;
-                if (b_separates) {
-                    float sign_b = dot(cq - line_b.cpt, line_b.normal);
-                    in_seg1 = (sign_b * seg1_side) > 0.0;
-                } else {
-                    in_seg1 = center_in_seg1;
-                }
+                float sign_b = dot(cq - line_b.cpt, line_b.normal);
+                bool in_seg1 = sign_b > 0.0;
                 vec3 color = in_seg1
                     ? ((sign_a > 0.0) ? pos1 : neg1)
                     : ((sign_a > 0.0) ? pos0 : neg0);
