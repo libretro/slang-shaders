@@ -210,12 +210,6 @@ struct AaLine {
     bool valid;
 };
 
-// ---- Convex polygon (max 8 verts, enough for a 4-vert pixel clipped twice) ----
-struct Polygon {
-    vec2 v[8];
-    int n;
-};
-
 // ---- Closest point on a line segment (closed-form) ----
 //
 // Used for 2-CP-chain spans (degenerate stems with both ends being endpoint
@@ -391,66 +385,6 @@ AaLine build_junction_aa_line(Hit hit, vec2 J, float t_eval, out vec2 out_tang_u
     result.normal = vec2(-tu.y, tu.x);
     result.valid = true;
     return result;
-}
-
-// ---- Sutherland-Hodgman: clip a convex polygon against a half-plane ----
-//
-// keep_pos selects which side of the line: dot(p - cpt, normal) > 0 if true.
-Polygon clip_polygon(Polygon poly, AaLine line, bool keep_pos) {
-    Polygon out_poly;
-    out_poly.n = 0;
-    if (poly.n == 0) return out_poly;
-
-    vec2 prev = poly.v[poly.n - 1];
-    float prev_s = dot(prev - line.cpt, line.normal);
-
-    for (int i = 0; i < poly.n; i++) {
-        vec2 curr = poly.v[i];
-        float curr_s = dot(curr - line.cpt, line.normal);
-        bool curr_in = keep_pos ? (curr_s > 0.0) : (curr_s < 0.0);
-        bool prev_in = keep_pos ? (prev_s > 0.0) : (prev_s < 0.0);
-        if (curr_in) {
-            if (!prev_in) {
-                float denom = prev_s - curr_s;
-                if (abs(denom) > 1e-12 && out_poly.n < 8) {
-                    float tt = prev_s / denom;
-                    out_poly.v[out_poly.n] = prev + tt * (curr - prev);
-                    out_poly.n++;
-                }
-            }
-            if (out_poly.n < 8) {
-                out_poly.v[out_poly.n] = curr;
-                out_poly.n++;
-            }
-        } else if (prev_in) {
-            float denom = prev_s - curr_s;
-            if (abs(denom) > 1e-12 && out_poly.n < 8) {
-                float tt = prev_s / denom;
-                out_poly.v[out_poly.n] = prev + tt * (curr - prev);
-                out_poly.n++;
-            }
-        }
-        prev = curr;
-        prev_s = curr_s;
-    }
-    return out_poly;
-}
-
-float polygon_area(Polygon p) {
-    if (p.n < 3) return 0.0;
-    float a = 0.0;
-    for (int i = 0; i < p.n; i++) {
-        int j = (i + 1) % p.n;
-        a += p.v[i].x * p.v[j].y - p.v[j].x * p.v[i].y;
-    }
-    return abs(a) * 0.5;
-}
-
-vec2 polygon_centroid(Polygon p) {
-    if (p.n == 0) return vec2(0.0);
-    vec2 s = vec2(0.0);
-    for (int i = 0; i < p.n; i++) s += p.v[i];
-    return s / float(p.n);
 }
 
 // ---- ResolveResult: solid color + AA components from one hit ----
@@ -931,25 +865,6 @@ void main() {
         }
 
         if (line_a.valid && line_b.valid) {
-            float pix_h = inv_scale * 0.5;
-            Polygon pixel;
-            pixel.v[0] = vec2(center.x - pix_h, center.y - pix_h);
-            pixel.v[1] = vec2(center.x + pix_h, center.y - pix_h);
-            pixel.v[2] = vec2(center.x + pix_h, center.y + pix_h);
-            pixel.v[3] = vec2(center.x - pix_h, center.y + pix_h);
-            pixel.n = 4;
-
-            Polygon above_a = clip_polygon(pixel, line_a, true);
-            Polygon below_a = clip_polygon(pixel, line_a, false);
-            Polygon wedges[4];
-            wedges[0] = clip_polygon(above_a, line_b, true);
-            wedges[1] = clip_polygon(above_a, line_b, false);
-            wedges[2] = clip_polygon(below_a, line_b, true);
-            wedges[3] = clip_polygon(below_a, line_b, false);
-
-            vec3 sum_lin = vec3(0.0);
-            float total_area = 0.0;
-
             // Through-curve color LUT: at a T-junction the through curve
             // (= through_hit) carries all three colors via its two edge
             // segments split at t_branch — pre-junction edge gives the
@@ -1003,18 +918,90 @@ void main() {
                 pos1 = res_pos; neg1 = res_neg;
             }
 
-            for (int wi = 0; wi < 4; wi++) {
-                float area = polygon_area(wedges[wi]);
-                if (area <= 1e-9) continue;
-                vec2 cq = polygon_centroid(wedges[wi]);
-                float sign_a = dot(cq - line_a.cpt, line_a.normal);
-                float sign_b = dot(cq - line_b.cpt, line_b.normal);
-                bool in_seg1 = sign_b > 0.0;
-                vec3 color = in_seg1
-                    ? ((sign_a > 0.0) ? pos1 : neg1)
-                    : ((sign_a > 0.0) ? pos0 : neg0);
-                sum_lin += pow(color, vec3(2.2)) * area;
-                total_area += area;
+            // LUT decoded once. Indexed by (sa>0) | ((sb>0) << 1):
+            //   0 = neg0, 1 = pos0, 2 = neg1, 3 = pos1.
+            vec3 lut_lin[4];
+            lut_lin[0] = pow(neg0, vec3(2.2));
+            lut_lin[1] = pow(pos0, vec3(2.2));
+            lut_lin[2] = pow(neg1, vec3(2.2));
+            lut_lin[3] = pow(pos1, vec3(2.2));
+
+            // Boundary-sweep area accumulation. Walk the pixel boundary
+            // CCW; on each edge find up to 2 line crossings (line_a and
+            // line_b), split the edge into <=3 sub-segments, classify
+            // each by (sa, sb)-sign at its midpoint, and add a signed-
+            // triangle area (J as origin) to the matching wedge bucket.
+            // J interior + consistent walk direction => |cross| gives the
+            // wedge area directly. No polygon storage, no centroid pass.
+            float pix_h = inv_scale * 0.5;
+            vec2 corners[4];
+            corners[0] = vec2(center.x - pix_h, center.y - pix_h);
+            corners[1] = vec2(center.x + pix_h, center.y - pix_h);
+            corners[2] = vec2(center.x + pix_h, center.y + pix_h);
+            corners[3] = vec2(center.x - pix_h, center.y + pix_h);
+
+            vec3 sum_lin = vec3(0.0);
+            float total_area = 0.0;
+
+            for (int ei = 0; ei < 4; ei++) {
+                vec2 p = corners[ei];
+                vec2 q = corners[(ei + 1) & 3];
+                float sa_p = dot(p - line_a.cpt, line_a.normal);
+                float sa_q = dot(q - line_a.cpt, line_a.normal);
+                float sb_p = dot(p - line_b.cpt, line_b.normal);
+                float sb_q = dot(q - line_b.cpt, line_b.normal);
+
+                float splits[2];
+                splits[0] = 0.0;
+                splits[1] = 0.0;
+                int nsplit = 0;
+                if (sa_p * sa_q < 0.0) {
+                    splits[nsplit] = sa_p / (sa_p - sa_q);
+                    nsplit++;
+                }
+                if (sb_p * sb_q < 0.0) {
+                    splits[nsplit] = sb_p / (sb_p - sb_q);
+                    nsplit++;
+                }
+                if (nsplit == 2 && splits[0] > splits[1]) {
+                    float tmp = splits[0]; splits[0] = splits[1]; splits[1] = tmp;
+                }
+
+                float t_prev = 0.0;
+                vec2 u = p;
+                for (int k = 0; k < 2; k++) {
+                    if (k >= nsplit) break;
+                    float t_curr = splits[k];
+                    if (t_curr > t_prev + 1e-9) {
+                        vec2 v = p + t_curr * (q - p);
+                        vec2 m = p + (0.5 * (t_prev + t_curr)) * (q - p);
+                        float sa_m = dot(m - line_a.cpt, line_a.normal);
+                        float sb_m = dot(m - line_b.cpt, line_b.normal);
+                        vec2 uj = u - J;
+                        vec2 vj = v - J;
+                        float area = abs(uj.x * vj.y - uj.y * vj.x) * 0.5;
+                        if (area >= 1e-9) {
+                            int idx = (sa_m > 0.0 ? 1 : 0) | (sb_m > 0.0 ? 2 : 0);
+                            sum_lin += lut_lin[idx] * area;
+                            total_area += area;
+                        }
+                        u = v;
+                    }
+                    t_prev = t_curr;
+                }
+                if (t_prev < 1.0 - 1e-9) {
+                    vec2 m = p + (0.5 * (t_prev + 1.0)) * (q - p);
+                    float sa_m = dot(m - line_a.cpt, line_a.normal);
+                    float sb_m = dot(m - line_b.cpt, line_b.normal);
+                    vec2 uj = u - J;
+                    vec2 vj = q - J;
+                    float area = abs(uj.x * vj.y - uj.y * vj.x) * 0.5;
+                    if (area >= 1e-9) {
+                        int idx = (sa_m > 0.0 ? 1 : 0) | (sb_m > 0.0 ? 2 : 0);
+                        sum_lin += lut_lin[idx] * area;
+                        total_area += area;
+                    }
+                }
             }
 
             if (total_area > 0.0) {
