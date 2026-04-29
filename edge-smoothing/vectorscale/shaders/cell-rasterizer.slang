@@ -2,12 +2,13 @@
 
 // Cell rasterizer — renders optimized B-spline curves at viewport scale.
 //
-// For each output pixel, scans a 5x5 CP neighborhood, finds the nearest
-// B-spline boundary via Newton-Raphson, resolves color from edge data,
-// and applies analytical anti-aliasing at boundary edges.
+// For each output pixel, walks the cell's 4 corners (with a T-junction
+// stem fan-out for stems pointing outside the 4-corner walk), finds the
+// nearest B-spline boundary via the closed-form cubic solver, resolves
+// color from edge data, and applies analytical anti-aliasing along
+// boundary edges (single-curve / wedge / dual-curve paths).
 //
-// Multi-hit resolution: tries up to 4 nearest CPs with single-neighbor
-// endpoint rejection.
+// Multi-hit resolution: top-3 nearest CPs with endpoint-defer rejection.
 //
 // Input textures:
 //   FinalPositions: optimized absolute positions
@@ -406,148 +407,174 @@ struct ResolveResult {
     bool resolved;
 };
 
-// ---- Tile-cache lookup: produce top-4 hits sorted by d² for `query` ----
-//
-// Replaces per-pixel cell scan with a read from the tile-cache texture.
-// The tile-cache pass identified up to 50 CPs whose bbox can affect any
-// pixel in this 2×2 source-pixel tile and stored their indices. We just
-// iterate those, doing the same per-CP work (ghost adjustment, bbox
-// check, closest-point) as before.
-//
-// Each cached CP is split into (cx, cy_slot) — small ints exact in fp16.
-// 2 CPs per RGBA texel (cx0, cy_slot0, cx1, cy_slot1); 25 texels per tile;
-// 50 CPs total. Sentinel: cx < 0.
-int find_hits(vec2 query, out Hit hits[4]) {
-    int num_hits = 0;
-    for (int h = 0; h < 4; h++) {
-        hits[h].d2 = 1e10; hits[h].t = 0.0; hits[h].cp_idx = -1;
-        hits[h].prev_ci = -1; hits[h].next_ci = -1;
-        hits[h].cp_pos = vec2(0.0); hits[h].prev_pos = vec2(0.0); hits[h].next_pos = vec2(0.0);
-        hits[h].t_branch = 0.5; hits[h].is_line = false;
+// Test one CP and (if it passes) insert into the top-3 hits array.
+// Returns the tested CP's flag bits (0u for inactive), so the caller
+// can gate follow-up work like the T-junction stem fan-out without
+// re-fetching CellGraph row 0.
+uint test_one_cp(int ci, vec2 query, inout Hit hits[3], inout int num_hits) {
+    if (ci < 0 || ci >= NUM_CPS()) return 0u;
+
+    uint flag = read_flags(ci);
+    if (flag == 0u) return 0u;
+
+    ivec2 nbrs = read_neighbors(ci);
+    int prev_ci = nbrs.x;
+    int next_ci = nbrs.y;
+    if (prev_ci < 0 && next_ci < 0) return flag;
+
+    bool i_am_endpoint = (prev_ci < 0 || next_ci < 0);
+    bool two_cp_chain = false;
+    if (i_am_endpoint) {
+        int other = (prev_ci < 0) ? next_ci : prev_ci;
+        bool other_is_end = (read_flags(other) & IS_ENDPOINT) != 0u;
+        if (!other_is_end) return flag;
+        if (ci > other) return flag;
+        two_cp_chain = true;
     }
 
-    // 5x5 cell scan around the query pixel. The cheap flag==0 rejection
-    // skips the ~half of grid corners with no active CP before any
-    // expensive work — much faster than iterating a fixed-size tile
-    // cache where every slot must be processed.
+    vec2 cp_real = read_pos(ci);
+    vec2 prev_pos = (prev_ci >= 0) ? read_pos(prev_ci) : cp_real;
+    vec2 next_pos = (next_ci >= 0) ? read_pos(next_ci) : cp_real;
+
+    bool prev_is_end = (prev_ci >= 0) && ((read_flags(prev_ci) & IS_ENDPOINT) != 0u);
+    bool next_is_end = (next_ci >= 0) && ((read_flags(next_ci) & IS_ENDPOINT) != 0u);
+
+    vec2 cp, pp, np;
+    if (two_cp_chain) {
+        int other = (prev_ci < 0) ? next_ci : prev_ci;
+        vec2 other_pos = read_pos(other);
+        vec2 a0 = (prev_ci < 0) ? cp_real : other_pos;
+        vec2 a1 = (next_ci < 0) ? cp_real : other_pos;
+        pp = 1.5 * a0 - 0.5 * a1;
+        cp = 0.5 * (a0 + a1);
+        np = 1.5 * a1 - 0.5 * a0;
+    } else {
+        cp = cp_real;
+        pp = prev_is_end ? (2.0 * prev_pos - cp) : prev_pos;
+        np = next_is_end ? (2.0 * next_pos - cp) : next_pos;
+    }
+
+    // Quick screen: 3-sample distance² reject. Evaluating beval at
+    // t=0, 1/2, 1 with the ghost-extended pp/cp/np gives the real
+    // curve start, midpoint-ish, end. > 2.0 means the curve can't
+    // possibly come within 1 source unit of the fragment.
+    vec2 b0 = 0.5 * (pp + cp);
+    vec2 bm = 0.125 * pp + 0.75 * cp + 0.125 * np;
+    vec2 b1 = 0.5 * (cp + np);
+    vec2 dq0 = query - b0;
+    vec2 dqm = query - bm;
+    vec2 dq1 = query - b1;
+    float quick_d2 = min(min(dot(dq0, dq0), dot(dqm, dqm)), dot(dq1, dq1));
+    if (quick_d2 > 2.0) return flag;
+
+    vec2 result;
+    if (two_cp_chain) {
+        vec2 a0 = 0.5 * (pp + cp);
+        vec2 a1 = 0.5 * (cp + np);
+        result = closest_on_segment(a0, a1, query);
+    } else {
+        result = closest_on_span(pp, cp, np, query);
+    }
+    float span_t = result.x;
+    float span_d2 = result.y;
+    if (span_d2 >= 1.0) return flag;
+
+    float t_branch;
+    if (two_cp_chain) {
+        t_branch = 0.5;
+    } else if (prev_is_end || next_is_end) {
+        vec2 interior_mid = 0.125 * pp + 0.75 * cp + 0.125 * np;
+        t_branch = closest_on_span(pp, cp, np, interior_mid).x;
+    } else {
+        t_branch = 0.5;
+    }
+
+    // Build candidate Hit and insert via explicit if/else over constant
+    // indices — keeps hits[] register-allocated.
+    Hit cand;
+    cand.d2 = span_d2; cand.t = span_t; cand.cp_idx = ci;
+    cand.prev_ci = prev_ci; cand.next_ci = next_ci;
+    cand.cp_pos = cp; cand.prev_pos = pp; cand.next_pos = np;
+    cand.t_branch = t_branch; cand.is_line = two_cp_chain;
+
+    if (span_d2 < hits[0].d2) {
+        hits[2] = hits[1];
+        hits[1] = hits[0];
+        hits[0] = cand;
+        if (num_hits < 3) num_hits++;
+    } else if (span_d2 < hits[1].d2) {
+        hits[2] = hits[1];
+        hits[1] = cand;
+        if (num_hits < 3) num_hits++;
+    } else if (span_d2 < hits[2].d2) {
+        hits[2] = cand;
+        if (num_hits < 3) num_hits++;
+    }
+    return flag;
+}
+
+int find_hits(vec2 query, out Hit hits[3]) {
+    int num_hits = 0;
+    // Init via constant indices — keeps hits[] in registers vs spilling
+    // to local memory (dynamic-indexed loop would force the latter on
+    // most GPU compilers).
+    hits[0].d2 = 1e10; hits[0].t = 0.0; hits[0].cp_idx = -1;
+    hits[0].prev_ci = -1; hits[0].next_ci = -1;
+    hits[0].cp_pos = vec2(0.0); hits[0].prev_pos = vec2(0.0); hits[0].next_pos = vec2(0.0);
+    hits[0].t_branch = 0.5; hits[0].is_line = false;
+    hits[1].d2 = 1e10; hits[1].t = 0.0; hits[1].cp_idx = -1;
+    hits[1].prev_ci = -1; hits[1].next_ci = -1;
+    hits[1].cp_pos = vec2(0.0); hits[1].prev_pos = vec2(0.0); hits[1].next_pos = vec2(0.0);
+    hits[1].t_branch = 0.5; hits[1].is_line = false;
+    hits[2].d2 = 1e10; hits[2].t = 0.0; hits[2].cp_idx = -1;
+    hits[2].prev_ci = -1; hits[2].next_ci = -1;
+    hits[2].cp_pos = vec2(0.0); hits[2].prev_pos = vec2(0.0); hits[2].next_pos = vec2(0.0);
+    hits[2].t_branch = 0.5; hits[2].is_line = false;
+
     int cell_cx = int(floor(query.x));
     int cell_cy = int(floor(query.y));
+    if (cell_cx < 0 || cell_cy < 0 || cell_cx >= IMG_W() || cell_cy >= IMG_H()) {
+        return num_hits;
+    }
 
-    for (int dy = -2; dy <= 2; dy++) {
-        for (int dx = -2; dx <= 2; dx++) {
-            int cx = cell_cx + dx;
-            int cy = cell_cy + dy;
-            if (cx < 0 || cy < 0 || cx >= CORNERS_W() || cy >= CORNERS_H()) continue;
+    // Walk the cell's 4 corners, both slots each. A quadratic B-spline
+    // bows ≤0.5 units from chord, so a span centered at a corner extends
+    // at most 0.5 units beyond — only spans centered at the cell's own
+    // 4 corners can geometrically overlap the cell's interior.
+    const ivec2 corner_offsets[4] = ivec2[4](
+        ivec2(0, 0),  // SW
+        ivec2(1, 0),  // SE
+        ivec2(0, 1),  // NW
+        ivec2(1, 1)   // NE
+    );
 
-            for (int slot = 0; slot < 2; slot++) {
-                int ci = (cy * CORNERS_W() + cx) * 2 + slot;
-                if (ci < 0 || ci >= NUM_CPS()) continue;
+    for (int oi = 0; oi < 4; oi++) {
+        int cx = cell_cx + corner_offsets[oi].x;
+        int cy = cell_cy + corner_offsets[oi].y;
+        if (cx < 0 || cy < 0 || cx >= CORNERS_W() || cy >= CORNERS_H()) continue;
+        int base = (cy * CORNERS_W() + cx) * 2;
 
-                uint flag = read_flags(ci);
-                if (flag == 0u) continue;
+        // Test slot 0 and slot 1 at this corner.
+        uint slot0_flag = test_one_cp(base,     query, hits, num_hits);
+        test_one_cp(base + 1, query, hits, num_hits);
 
-                ivec2 nbrs = read_neighbors(ci);
-                int prev_ci = nbrs.x;
-                int next_ci = nbrs.y;
-                if (prev_ci < 0 && next_ci < 0) continue;
-
-                // Endpoint CPs (one neighbor missing) don't own a span
-                // when their interior neighbor will clamp through them;
-                // their span is implicitly drawn as the interior CP's
-                // clamped Bezier ending at this CP's position. Only
-                // render an endpoint here when the OTHER side is also an
-                // endpoint (2-CP chain) — degenerate straight tail.
-                bool i_am_endpoint = (prev_ci < 0 || next_ci < 0);
-                bool two_cp_chain = false;
-                if (i_am_endpoint) {
-                    int other = (prev_ci < 0) ? next_ci : prev_ci;
-                    bool other_is_end = (read_flags(other) & IS_ENDPOINT) != 0u;
-                    if (!other_is_end) continue;
-                    // 2-CP chain de-dup: only the lower-indexed endpoint
-                    // owns the span (otherwise both endpoints render the
-                    // same physical line with opposite ghost bowing).
-                    if (ci > other) continue;
-                    two_cp_chain = true;
-                }
-
-                vec2 cp_real = read_pos(ci);
-                vec2 prev_pos = (prev_ci >= 0) ? read_pos(prev_ci) : cp_real;
-                vec2 next_pos = (next_ci >= 0) ? read_pos(next_ci) : cp_real;
-
-                // Ghost extension for clamped Bezier endpoints. Ghost =
-                // 2*real - cp lands beval(...,t=0|1) exactly on the real
-                // endpoint position.
-                bool prev_is_end = (prev_ci >= 0) && ((read_flags(prev_ci) & IS_ENDPOINT) != 0u);
-                bool next_is_end = (next_ci >= 0) && ((read_flags(next_ci) & IS_ENDPOINT) != 0u);
-
-                vec2 cp, pp, np;
-                if (two_cp_chain) {
-                    int other = (prev_ci < 0) ? next_ci : prev_ci;
-                    vec2 other_pos = read_pos(other);
-                    vec2 a0 = (prev_ci < 0) ? cp_real : other_pos;
-                    vec2 a1 = (next_ci < 0) ? cp_real : other_pos;
-                    pp = 1.5 * a0 - 0.5 * a1;
-                    cp = 0.5 * (a0 + a1);
-                    np = 1.5 * a1 - 0.5 * a0;
-                } else {
-                    cp = cp_real;
-                    pp = prev_is_end ? (2.0 * prev_pos - cp) : prev_pos;
-                    np = next_is_end ? (2.0 * next_pos - cp) : next_pos;
-                }
-
-                // Bbox uses the real positions (not ghosts) for a tight
-                // rejection bound — ghosts can extend well past the
-                // curve's actual extent.
-                vec2 bb_min = min(min(prev_pos, cp_real), next_pos) - vec2(1.0);
-                vec2 bb_max = max(max(prev_pos, cp_real), next_pos) + vec2(1.0);
-                if (query.x < bb_min.x || query.x > bb_max.x ||
-                    query.y < bb_min.y || query.y > bb_max.y)
-                    continue;
-
-                vec2 result;
-                if (two_cp_chain) {
-                    vec2 a0 = 0.5 * (pp + cp);
-                    vec2 a1 = 0.5 * (cp + np);
-                    result = closest_on_segment(a0, a1, query);
-                } else {
-                    result = closest_on_span(pp, cp, np, query);
-                }
-                float span_t = result.x;
-                float span_d2 = result.y;
-                if (span_d2 >= 1.0) continue;
-
-                // t_branch: for clamped spans, find the t at which the
-                // rendered curve reaches the algebraic "before/after sc"
-                // pivot (= interior B-spline's t=0.5). Used by the
-                // through-curve LUT to color-split on the right side of
-                // the junction.
-                float t_branch;
-                if (two_cp_chain) {
-                    t_branch = 0.5;
-                } else if (prev_is_end || next_is_end) {
-                    vec2 interior_mid = 0.125 * pp + 0.75 * cp + 0.125 * np;
-                    t_branch = closest_on_span(pp, cp, np, interior_mid).x;
-                } else {
-                    t_branch = 0.5;
-                }
-
-                for (int h = 0; h < 4; h++) {
-                    if (span_d2 < hits[h].d2) {
-                        for (int j = 3; j > h; j--) hits[j] = hits[j-1];
-                        hits[h].d2 = span_d2;
-                        hits[h].t = span_t;
-                        hits[h].cp_idx = ci;
-                        hits[h].prev_ci = prev_ci;
-                        hits[h].next_ci = next_ci;
-                        hits[h].cp_pos = cp;
-                        hits[h].prev_pos = pp;
-                        hits[h].next_pos = np;
-                        hits[h].t_branch = t_branch;
-                        hits[h].is_line = two_cp_chain;
-                        if (num_hits < 4) num_hits++;
-                        break;
-                    }
-                }
+        // T-junction stem fan-out: when slot 0 carries IS_TJUNCTION, the
+        // stem-bottom CP can sit at offset (+2, +1) etc. — outside the
+        // 4-cell-corner walk — so look it up via slot 1's chain neighbor
+        // and test its span. Slot 1 itself is a stem CP filtered out by
+        // test_one_cp's endpoint dedup; its chain link still points to
+        // the renderable stem-bottom. Skipped when stem-bottom is already
+        // one of the 4 cell corners we walk anyway.
+        if ((slot0_flag & IS_TJUNCTION) != 0u) {
+            ivec2 slot1_n = read_neighbors(base + 1);
+            int sci = slot1_n.x >= 0 ? slot1_n.x : slot1_n.y;
+            if (sci >= 0) {
+                int s_cx = (sci / 2) % CORNERS_W();
+                int s_cy = (sci / 2) / CORNERS_W();
+                bool already_walked =
+                    s_cx >= cell_cx && s_cx <= cell_cx + 1
+                 && s_cy >= cell_cy && s_cy <= cell_cy + 1;
+                if (!already_walked) test_one_cp(sci, query, hits, num_hits);
             }
         }
     }
@@ -682,10 +709,18 @@ ResolveResult resolve_hit(Hit hit, vec2 query) {
 // classify_at — solid color (no AA) for a wedge centroid query. Does its
 // own scan + resolve at the query point.
 vec3 classify_at(vec2 query, vec3 fallback) {
-    Hit hits[4];
+    Hit hits[3];
     int num_hits = find_hits(query, hits);
-    for (int h = 0; h < num_hits; h++) {
-        ResolveResult r = resolve_hit(hits[h], query);
+    if (num_hits >= 1) {
+        ResolveResult r = resolve_hit(hits[0], query);
+        if (r.resolved) return r.solid_color;
+    }
+    if (num_hits >= 2) {
+        ResolveResult r = resolve_hit(hits[1], query);
+        if (r.resolved) return r.solid_color;
+    }
+    if (num_hits >= 3) {
+        ResolveResult r = resolve_hit(hits[2], query);
         if (r.resolved) return r.solid_color;
     }
     return fallback;
@@ -708,7 +743,7 @@ void main() {
     vec3 fallback = read_pixel(fb_x, fb_y);
 
     // Scan + collect nearest 4 hits.
-    Hit hits[4];
+    Hit hits[3];
     int num_hits = find_hits(center, hits);
 
     // Resolve color from first hit that resolves. Save AA state from the
@@ -722,14 +757,17 @@ void main() {
     res.opt_normal = vec2(0.0);
     res.d = 0.0;
     res.resolved = false;
-    for (int h = 0; h < num_hits; h++) {
-        ResolveResult rr = resolve_hit(hits[h], center);
-        if (rr.resolved) {
-            res = rr;
-            center_color = rr.solid_color;
-            resolved_h = h;
-            break;
-        }
+    if (num_hits >= 1 && resolved_h < 0) {
+        ResolveResult rr = resolve_hit(hits[0], center);
+        if (rr.resolved) { res = rr; center_color = rr.solid_color; resolved_h = 0; }
+    }
+    if (num_hits >= 2 && resolved_h < 0) {
+        ResolveResult rr = resolve_hit(hits[1], center);
+        if (rr.resolved) { res = rr; center_color = rr.solid_color; resolved_h = 1; }
+    }
+    if (num_hits >= 3 && resolved_h < 0) {
+        ResolveResult rr = resolve_hit(hits[2], center);
+        if (rr.resolved) { res = rr; center_color = rr.solid_color; resolved_h = 2; }
     }
 
     // AA threshold: a pixel's half-diagonal² in source units is
@@ -810,7 +848,8 @@ void main() {
 
         // Junction-in-pixel.
         if (through_h >= 0) {
-            Hit th = hits[through_h];
+            // through_h ∈ {0, 1}; explicit selection avoids dynamic indexing.
+            Hit th = (through_h == 0) ? hits[0] : hits[1];
             vec2 J = beval(th.prev_pos, th.cp_pos, th.next_pos, th.t_branch);
             float pix_half = inv_scale * 0.5;
             if (abs(J.x - center.x) > pix_half || abs(J.y - center.y) > pix_half) {
@@ -819,11 +858,17 @@ void main() {
             }
         }
     }
-    bool need_wedge_aa = resolved_h >= 0 && hits[resolved_h].d2 < aa_threshold
+    // resolved_h ∈ {0, 1, 2}; pick d2 by explicit selection to keep
+    // hits[] register-allocated (dynamic-indexed read would force spill).
+    float resolved_d2 = (resolved_h == 0) ? hits[0].d2
+                      : (resolved_h == 1) ? hits[1].d2
+                      : (resolved_h == 2) ? hits[2].d2 : 1e10;
+    bool need_wedge_aa = resolved_h >= 0 && resolved_d2 < aa_threshold
                         && through_h >= 0;
     if (need_wedge_aa) {
-        Hit through_hit = hits[through_h];
-        Hit stem_hit = hits[stem_h];
+        // through_h, stem_h ∈ {0, 1}; explicit selection.
+        Hit through_hit = (through_h == 0) ? hits[0] : hits[1];
+        Hit stem_hit    = (stem_h    == 0) ? hits[0] : hits[1];
 
         // J = beval(through, t_branch). Both lines anchored at J.
         vec2 J = beval(through_hit.prev_pos, through_hit.cp_pos, through_hit.next_pos,
@@ -855,7 +900,11 @@ void main() {
             // (seg 0). Maps (sa-sign, sb-sign) directly to LUT entries.
 
             // Resolve the through hit at center to get its pos/neg/normal.
-            ResolveResult through_res = resolve_hit(through_hit, center);
+            // If through_hit IS the already-resolved hit, reuse `res` to
+            // skip a redundant resolve_hit call (~3 fewer CellGraph reads).
+            ResolveResult through_res = (through_h == resolved_h)
+                ? res
+                : resolve_hit(through_hit, center);
 
             // Build pos/neg colors for each segment, aligned to line_a.normal
             // (so a single sidedness test against line_a applies to both
@@ -998,27 +1047,32 @@ void main() {
     // chain hit is within threshold, or when the LUT model breaks down
     // (inner-color mismatch / lines cross inside pixel).
     bool dual_handled = false;
-    if (!wedge_handled && resolved_h >= 0 && hits[resolved_h].d2 < aa_threshold) {
-        Hit hit_a = hits[resolved_h];
+    if (!wedge_handled && resolved_h >= 0 && resolved_d2 < aa_threshold) {
+        // resolved_h ∈ {0, 1, 2}; explicit selection.
+        Hit hit_a = (resolved_h == 0) ? hits[0]
+                  : (resolved_h == 1) ? hits[1]
+                                      : hits[2];
         // Find sc_b: first cached hit not on hit_a's chain (1-step
-        // neighbor test) and within aa_threshold.
+        // neighbor test) and within aa_threshold. Unrolled across
+        // s ∈ {0, 1, 2} on constant indices to keep hits[] in registers.
         int sec_h = -1;
-        for (int s = 0; s < 4; s++) {
-            if (s >= num_hits) break;
-            if (s == resolved_h) continue;
-            if (hits[s].d2 >= aa_threshold) break;
-            int b_ci = hits[s].cp_idx;
-            if (b_ci < 0) continue;
-            bool same_chain = (hit_a.cp_idx == b_ci)
-                || (hit_a.cp_idx == hits[s].prev_ci)
-                || (hit_a.cp_idx == hits[s].next_ci)
-                || (b_ci == hit_a.prev_ci)
-                || (b_ci == hit_a.next_ci);
-            if (!same_chain) { sec_h = s; break; }
-        }
+        Hit hit_b;
+        #define TRY_SEC(s, hs) \
+            if (sec_h < 0 && (s) < num_hits && (s) != resolved_h \
+                && (hs).d2 < aa_threshold && (hs).cp_idx >= 0) { \
+                bool same_chain = (hit_a.cp_idx == (hs).cp_idx) \
+                    || (hit_a.cp_idx == (hs).prev_ci) \
+                    || (hit_a.cp_idx == (hs).next_ci) \
+                    || ((hs).cp_idx == hit_a.prev_ci) \
+                    || ((hs).cp_idx == hit_a.next_ci); \
+                if (!same_chain) { sec_h = (s); hit_b = (hs); } \
+            }
+        TRY_SEC(0, hits[0])
+        TRY_SEC(1, hits[1])
+        TRY_SEC(2, hits[2])
+        #undef TRY_SEC
         if (sec_h >= 0
             && any(notEqual(res.pos_side, res.neg_side))) {
-            Hit hit_b = hits[sec_h];
             ResolveResult res_b = resolve_hit(hit_b, center);
             if (res_b.resolved && any(notEqual(res_b.pos_side, res_b.neg_side))) {
                 vec2 cpt_a = beval(hit_a.prev_pos, hit_a.cp_pos, hit_a.next_pos, hit_a.t);
@@ -1063,7 +1117,7 @@ void main() {
     // Single-curve AA: exact pixel coverage from the resolved hit's tangent
     // line. Only fires when neither wedge AA nor dual-curve AA handled it.
     if (!wedge_handled && !dual_handled
-        && resolved_h >= 0 && hits[resolved_h].d2 < aa_threshold
+        && resolved_h >= 0 && resolved_d2 < aa_threshold
         && any(notEqual(res.pos_side, res.neg_side))) {
         float d_p = res.d / inv_scale;
         float frac = line_coverage_pos(res.opt_normal, d_p);
