@@ -38,7 +38,8 @@ void main()
     // when automatic down-scaled
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
     {
-        // compensate half texel x-offset (applied in fragment shader)
+        // compensate half texel x-offset (to sample between two pixel along scanlines)
+        //   see fragment stage
         ScanTexCoord += vec2o(0.5, 0.0) / global.OriginalSize.xy;
     }
 }

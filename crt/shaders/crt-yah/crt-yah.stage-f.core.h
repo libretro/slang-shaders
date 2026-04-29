@@ -231,7 +231,8 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size)
     // when manual down-scaled
     if (INPUT_SCREEN_MULTIPLE > 1.0)
     {
-        // apply half texel offset scaled by absolute amount of multiple
+        // apply half texel offset
+        //   scaled by absolute amount of multiple
         tex_coord += vec2o(-0.5, 0.5) / multiple;
     }
     // when manual up-scaled
@@ -245,12 +246,15 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size)
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
     {
         // apply half texel x-offset (to sample between two pixel along scanlines)
+        //   see vertex stage
         tex_coord += vec2o(-0.5, 0.0);
     }
-    // when not automatic but manual down-scaled
-    else if (INPUT_SCREEN_MULTIPLE > 1.0)
+
+    // when manual or automatic down-scaled
+    if (INPUT_SCREEN_MULTIPLE > 1.0)
     {
-        // apply half texel y-offset scaled by relative amount of multiple (to sample between two pixel between scanlines)
+        // apply half texel y-offset (to sample between two pixel between scanlines)
+        //   scaled by relative amount of multiple
         tex_coord += vec2o(0.0, 0.5) / multiple * (INPUT_SCREEN_MULTIPLE - 1.0);
     }
 
