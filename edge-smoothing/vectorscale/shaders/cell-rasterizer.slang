@@ -11,8 +11,11 @@
 // Multi-hit resolution: top-3 nearest CPs with endpoint-defer rejection.
 //
 // Input textures:
-//   FinalPositions: optimized absolute positions
+//   PackedPositions: per-CP denormalized geometry (pp, cp, np with ghosts
+//                    pre-applied + t_branch + neighbor indices + is_line)
+//                    written by pack-positions.slang.
 //   CellGraph: original positions + neighbors + flags + packed directions
+//              (resolve_hit still uses neighbors for color resolution).
 //   Original: input pixel art image
 //
 // Output: viewport-sized final image
@@ -43,8 +46,8 @@ void main() {
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 
-layout(set = 0, binding = 2) uniform sampler2D FinalPositions;  // optimized CP absolute positions
-layout(set = 0, binding = 3) uniform sampler2D CellGraph;       // positions + neighbors + flags + directions
+layout(set = 0, binding = 2) uniform sampler2D PackedPositions; // pack-positions output: (pp, cp, np, t_branch, prev_ci, next_ci, validity, is_line) per CP across 3 horizontal texels
+layout(set = 0, binding = 3) uniform sampler2D CellGraph;       // flags + directions (and neighbor indices, now redundant for test_one_cp)
 layout(set = 0, binding = 4) uniform sampler2D Original;        // input pixel art image
 
 int IMG_W()    { return int(params.OriginalSize.x); }
@@ -79,13 +82,48 @@ vec2 read_orig(int cp_idx) {
     return vec2(val.r, val.g);
 }
 
-// Read optimized absolute position from FinalPositions.
-vec2 read_pos(int cp_idx) {
-    if (cp_idx < 0 || cp_idx >= NUM_CPS()) return vec2(-1e10);
+// Per-CP packed render geometry from pack-positions. 3 horizontal texels:
+//   col 0 = (pp.x, pp.y, prev_ci_or_-1, _)
+//   col 1 = (cp.x, cp.y, t_branch, validity 0=skip 1=normal 2=2cp-chain)
+//   col 2 = (np.x, np.y, next_ci_or_-1, _)
+struct PackedCp {
+    vec2 pp;
+    vec2 cp;
+    vec2 np;
+    float t_branch;
+    int prev_ci;
+    int next_ci;
+    bool is_line;
+    bool valid;
+};
+
+PackedCp read_packed_cp(int cp_idx) {
+    PackedCp r;
+    r.valid = false;
+    r.is_line = false;
+    r.t_branch = 0.5;
+    r.prev_ci = -1; r.next_ci = -1;
+    r.pp = vec2(0.0); r.cp = vec2(0.0); r.np = vec2(0.0);
+
+    if (cp_idx < 0 || cp_idx >= NUM_CPS()) return r;
     int cx, cy_slot;
     decode_cp(cp_idx, cx, cy_slot);
-    vec4 val = texelFetch(FinalPositions, ivec2(cx, cy_slot), 0);
-    return vec2(val.r, val.g);
+
+    vec4 t1 = texelFetch(PackedPositions, ivec2(cx*3 + 1, cy_slot), 0);
+    if (t1.a < 0.5) return r;  // pack-positions wrote skip/inactive
+
+    vec4 t0 = texelFetch(PackedPositions, ivec2(cx*3,     cy_slot), 0);
+    vec4 t2 = texelFetch(PackedPositions, ivec2(cx*3 + 2, cy_slot), 0);
+
+    r.pp = t0.rg;
+    r.cp = t1.rg;
+    r.np = t2.rg;
+    r.t_branch = t1.b;
+    r.is_line = t1.a > 1.5;
+    r.prev_ci = (t0.b < -0.5) ? -1 : int(t0.b + 0.5);
+    r.next_ci = (t2.b < -0.5) ? -1 : int(t2.b + 0.5);
+    r.valid = true;
+    return r;
 }
 
 // Decode a neighbor CP index from component encoding.
@@ -417,42 +455,16 @@ uint test_one_cp(int ci, vec2 query, inout Hit hits[3], inout int num_hits) {
     uint flag = read_flags(ci);
     if (flag == 0u) return 0u;
 
-    ivec2 nbrs = read_neighbors(ci);
-    int prev_ci = nbrs.x;
-    int next_ci = nbrs.y;
-    if (prev_ci < 0 && next_ci < 0) return flag;
+    // Per-CP geometry — denormalized by pack-positions. Replaces the
+    // read_neighbors + 3 read_pos chain + ghost-extension dance with 3
+    // texel reads. valid=false means pack-positions wrote skip
+    // (inactive, isolated, or non-owner of a 2-CP chain).
+    PackedCp pcp = read_packed_cp(ci);
+    if (!pcp.valid) return flag;
 
-    bool i_am_endpoint = (prev_ci < 0 || next_ci < 0);
-    bool two_cp_chain = false;
-    if (i_am_endpoint) {
-        int other = (prev_ci < 0) ? next_ci : prev_ci;
-        bool other_is_end = (read_flags(other) & IS_ENDPOINT) != 0u;
-        if (!other_is_end) return flag;
-        if (ci > other) return flag;
-        two_cp_chain = true;
-    }
-
-    vec2 cp_real = read_pos(ci);
-    vec2 prev_pos = (prev_ci >= 0) ? read_pos(prev_ci) : cp_real;
-    vec2 next_pos = (next_ci >= 0) ? read_pos(next_ci) : cp_real;
-
-    bool prev_is_end = (prev_ci >= 0) && ((read_flags(prev_ci) & IS_ENDPOINT) != 0u);
-    bool next_is_end = (next_ci >= 0) && ((read_flags(next_ci) & IS_ENDPOINT) != 0u);
-
-    vec2 cp, pp, np;
-    if (two_cp_chain) {
-        int other = (prev_ci < 0) ? next_ci : prev_ci;
-        vec2 other_pos = read_pos(other);
-        vec2 a0 = (prev_ci < 0) ? cp_real : other_pos;
-        vec2 a1 = (next_ci < 0) ? cp_real : other_pos;
-        pp = 1.5 * a0 - 0.5 * a1;
-        cp = 0.5 * (a0 + a1);
-        np = 1.5 * a1 - 0.5 * a0;
-    } else {
-        cp = cp_real;
-        pp = prev_is_end ? (2.0 * prev_pos - cp) : prev_pos;
-        np = next_is_end ? (2.0 * next_pos - cp) : next_pos;
-    }
+    vec2 pp = pcp.pp;
+    vec2 cp = pcp.cp;
+    vec2 np = pcp.np;
 
     // Quick screen: 3-sample distance² reject. Evaluating beval at
     // t=0, 1/2, 1 with the ghost-extended pp/cp/np gives the real
@@ -468,7 +480,7 @@ uint test_one_cp(int ci, vec2 query, inout Hit hits[3], inout int num_hits) {
     if (quick_d2 > 2.0) return flag;
 
     vec2 result;
-    if (two_cp_chain) {
+    if (pcp.is_line) {
         vec2 a0 = 0.5 * (pp + cp);
         vec2 a1 = 0.5 * (cp + np);
         result = closest_on_segment(a0, a1, query);
@@ -479,23 +491,13 @@ uint test_one_cp(int ci, vec2 query, inout Hit hits[3], inout int num_hits) {
     float span_d2 = result.y;
     if (span_d2 >= 1.0) return flag;
 
-    float t_branch;
-    if (two_cp_chain) {
-        t_branch = 0.5;
-    } else if (prev_is_end || next_is_end) {
-        vec2 interior_mid = 0.125 * pp + 0.75 * cp + 0.125 * np;
-        t_branch = closest_on_span(pp, cp, np, interior_mid).x;
-    } else {
-        t_branch = 0.5;
-    }
-
     // Build candidate Hit and insert via explicit if/else over constant
     // indices — keeps hits[] register-allocated.
     Hit cand;
     cand.d2 = span_d2; cand.t = span_t; cand.cp_idx = ci;
-    cand.prev_ci = prev_ci; cand.next_ci = next_ci;
+    cand.prev_ci = pcp.prev_ci; cand.next_ci = pcp.next_ci;
     cand.cp_pos = cp; cand.prev_pos = pp; cand.next_pos = np;
-    cand.t_branch = t_branch; cand.is_line = two_cp_chain;
+    cand.t_branch = pcp.t_branch; cand.is_line = pcp.is_line;
 
     if (span_d2 < hits[0].d2) {
         hits[2] = hits[1];
