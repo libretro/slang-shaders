@@ -5,6 +5,7 @@
 #define PARAM_SCREEN_SCALE global.SCREEN_SCALE
 #define PARAM_SCREEN_FREQUENCY global.SCREEN_FREQUENCY
 #define PARAM_SCREEN_INTERLACED global.SCREEN_INTERLACED
+#define PARAM_SHARP_AMOUNT mix_master(global.SHARP_AMOUNT, 0.0, 0.0, 2.0)
 
 float mix_master(float value, float off_value, float min_value, float max_value)
 {

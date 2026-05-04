@@ -1,4 +1,4 @@
-shaders = 11
+shaders = 13
 
 shader0 = "lut.slang"
 filter_linear0 = true
@@ -45,11 +45,17 @@ filter_linear6 = true // required: sample offset-output linear (factional de-con
 shader7 = "phosphor.slang"
 filter_linear7 = true
 
-shader8 = "blur-horizontal.slang"
+shader8 = "halation-blur-horizontal.slang"
 filter_linear8 = true
 
-shader9 = "blur-vertical.slang"
+shader9 = "halation-blur-vertical.slang"
 filter_linear9 = true
 
-shader10 = "crt-yah.slang"
-filter_linear10 = true // required: sample blur-output linear
+shader10 = "sharp-blur-horizontal.slang"
+filter_linear10 = true
+
+shader11 = "sharp-blur-vertical.slang"
+filter_linear11 = true
+
+shader12 = "crt-yah.slang"
+filter_linear12 = true // required: sample blur-output linear

@@ -9,7 +9,8 @@ layout(location = 4) out float ScreenMultipleAuto;
 layout(location = 5) out float BrightnessCompensation;
 layout(location = 6) out vec2 MaskProfile;
 layout(location = 7) out vec4 BeamProfile;
-layout(location = 8) out mat4x4 BeamFilter;
+layout(location = 8) out float AntiRining;
+layout(location = 9) out mat4x4 BeamFilter;
 
 // required by crt-yah.stage-v.core.h
 #define INPUT_SCREEN_ORIENTATION ScreenOrientation
@@ -32,11 +33,13 @@ void main()
     BeamProfile = get_beam_profile();
     BeamFilter = get_beam_filter();
     BrightnessCompensation = get_brightness_compensation();
+    AntiRining = get_anti_ringing_amount();
 
     // when automatic down-scaled
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
     {
-        // compensate coordinate shift due half texel x-offset applied in fragment shader
+        // compensate half texel x-offset (to sample between two pixel along scanlines)
+        //   see fragment stage
         ScanTexCoord += vec2o(0.5, 0.0) / global.OriginalSize.xy;
     }
 }

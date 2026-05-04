@@ -8,7 +8,7 @@ layout(location = 3) out float Multiple;
 
 #include "common/screen-helper.h"
 
-const float OneO16 = 1.0 / 16.0;
+#define INVERSE_MAX_TABS (1.0 / MAX_TABS)
 
 void main()
 {
@@ -16,13 +16,13 @@ void main()
     TexCoord = Coord;
 
     // square parameter and avoid 1
-    Diffusion = sqrt(PARAM_HALATION_DIFFUSION) * (1.0 - OneO16);
+    Diffusion = sqrt(BLUR_RADIUS) * (1.0 - INVERSE_MAX_TABS);
     // invert parameter and avoid 0
-    Diffusion = max(OneO16, 1.0 - Diffusion);
+    Diffusion = max(INVERSE_MAX_TABS, 1.0 - Diffusion);
 
-    // 4 to 16 tabs
-    Tabs = PARAM_HALATION_DIFFUSION * PARAM_HALATION_DIFFUSION * 16.0;
-    Tabs = max(4.0, round(Tabs));
+    // limit tabs
+    Tabs = BLUR_RADIUS * BLUR_RADIUS * MAX_TABS;
+    Tabs = max(MIN_TABS, round(Tabs));
 
     Multiple = get_multiple(global.SourceSize.xy);
     Multiple = max(1.0, round(Multiple));

@@ -97,11 +97,11 @@ float get_luminance_corrected(vec3 color)
 
 vec3 get_color(sampler2D source, vec2 tex_coord)
 {
+    // offset scaled by multiple
     vec2 texel_size = global.SourceSize.zw * INPUT_SCREEN_MULTIPLE * vec2o(0.0, 1.0);
 
-    // offset scaled by multiple
-    float scanlines_offset = PARAM_SCANLINES_OFFSET;
-    if (scanlines_offset < 0.0)
+    float scanlines_offset = 0.0;
+    if (PARAM_SCANLINES_OFFSET > 0.0)
     {
         float offset_amount = 0.5;
 
@@ -124,7 +124,11 @@ vec3 get_color(sampler2D source, vec2 tex_coord)
         float luma = get_luminance_corrected(color);
 
         // scale offset by color luma to avoid too much offset in dark areas
-        scanlines_offset *= luma * abs(PARAM_SCANLINES_OFFSET * offset_amount);
+        scanlines_offset *= luma * offset_amount * PARAM_SCANLINES_OFFSET;
+    }
+    else
+    {
+        scanlines_offset = abs(PARAM_SCANLINES_OFFSET);
     }
 
     // fade out for lower scanlines strength

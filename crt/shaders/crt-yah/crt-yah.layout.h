@@ -13,6 +13,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float SCREEN_SCALE;
     float SCREEN_FREQUENCY;
     float SCREEN_INTERLACED;
+    float SHARP_AMOUNT;
 } global;
 
 layout (push_constant) uniform Push
