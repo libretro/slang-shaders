@@ -1,4 +1,8 @@
-# VectorScale shader preset
+# VectorScale shader preset (single-curve AA variant)
+# Uses cell-rasterizer-single-aa.slang as the final pass: single-hit,
+# single-curve AA only (no wedge AA or dual-curve AA). Faster than the
+# default preset on register-constrained GPUs at the cost of jaggy edges
+# at T-junctions and dual-curve crossings.
 # Works with any input resolution (not just Game Boy 160x144).
 # Intermediate textures are over-allocated using source-relative scales:
 #   Cell graph:   2W x 7H   (needs (W+1) x 6(H+1), works for H >= 6)
@@ -10,7 +14,7 @@
 # — it forces RGBA16F on some backends and silently overrides the pragma,
 # causing sub-pixel position rounding visible as hairline misalignment
 # at the rasterizer.
-shaders = 12
+shaders = 11
 
 shader0 = shaders/similarity-graph.slang
 alias0 = SimilarityGraph
@@ -100,15 +104,8 @@ scale_y9 = 1.0
 wrap_mode9 = clamp_to_border
 
 shader10 = shaders/cell-rasterizer-single-aa.slang
-alias10 = SingleAA
-filter_linear10 = false
+alias10 = FinalOutput
+filter_linear10 = true
 scale_type10 = viewport
 scale10 = 1.0
 wrap_mode10 = clamp_to_border
-
-shader11 = shaders/cell-rasterizer-multi-aa.slang
-alias11 = FinalOutput
-filter_linear11 = true
-scale_type11 = viewport
-scale11 = 1.0
-wrap_mode11 = clamp_to_border

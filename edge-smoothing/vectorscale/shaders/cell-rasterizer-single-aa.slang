@@ -1,24 +1,26 @@
 #version 450
 
-// Cell rasterizer — renders optimized B-spline curves at viewport scale.
+// Cell rasterizer (single-curve AA) — renders single-curve AA at viewport
+// scale and writes a sentinel signaling whether a multi-curve AA pass
+// could refine the result for this pixel.
 //
-// For each output pixel, walks the cell's 4 corners (with a T-junction
-// stem fan-out for stems pointing outside the 4-corner walk), finds the
-// nearest B-spline boundary via the closed-form cubic solver, resolves
-// color from edge data, and applies analytical anti-aliasing along
-// boundary edges (single-curve / wedge / dual-curve paths).
+// Tracks the single best hit + the second-best hit's distance² (no full
+// 2nd hit data — the sentinel only needs to know "is there a 2nd hit
+// within aa_threshold"; the multi-AA pass redoes find_hits if it fires).
 //
-// Multi-hit resolution: top-3 nearest CPs with endpoint-defer rejection.
+// Output:
+//   RGB = single-curve AA color (or fallback for non-AA pixels)
+//   A   = 1.0 if a multi-curve AA refinement might fire (sentinel),
+//         0.0 otherwise. The optional cell-rasterizer-multi-aa.slang pass
+//         reads this to decide whether to do the expensive wedge/dual-
+//         curve AA work; standalone use ignores the alpha at display.
 //
 // Input textures:
 //   PackedPositions: per-CP denormalized geometry (pp, cp, np with ghosts
 //                    pre-applied + t_branch + neighbor indices + is_line)
 //                    written by pack-positions.slang.
-//   CellGraph: original positions + neighbors + flags + packed directions
-//              (resolve_hit still uses neighbors for color resolution).
-//   Original: input pixel art image
-//
-// Output: viewport-sized final image
+//   CellGraph: original positions + neighbors + flags + packed directions.
+//   Original: input pixel art image.
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -257,15 +259,6 @@ struct AaLine {
 // would leave ~1e-6 of float noise in the t² coefficient, making c3 ≈ 4e-12
 // and pushing the cubic solver into its numerically-unstable regime. The
 // closed form below sidesteps the cubic entirely.
-vec2 closest_on_segment(vec2 a0, vec2 a1, vec2 pt) {
-    vec2 v = a1 - a0;
-    float vv = dot(v, v);
-    float t = (vv > 0.0) ? clamp(dot(pt - a0, v) / vv, 0.0, 1.0) : 0.0;
-    vec2 closest = a0 + t * v;
-    vec2 d = pt - closest;
-    return vec2(t, dot(d, d));
-}
-
 // One Newton step on a cubic D'(t) = c3·t³+c2·t²+c1·t+c0. Polishes a
 // closed-form root (Cardano/trig) to ~1 ULP. Skips when D''(t) is small
 // or the step would diverge. Safe for the quadratic case (c3 ≈ 0).
@@ -277,6 +270,15 @@ float polish_root_c(float t, float c3, float c2, float c1, float c0) {
         if (abs(step) < 0.5) t -= step;
     }
     return t;
+}
+
+vec2 closest_on_segment(vec2 a0, vec2 a1, vec2 pt) {
+    vec2 v = a1 - a0;
+    float vv = dot(v, v);
+    float t = (vv > 0.0) ? clamp(dot(pt - a0, v) / vv, 0.0, 1.0) : 0.0;
+    vec2 closest = a0 + t * v;
+    vec2 d = pt - closest;
+    return vec2(t, dot(d, d));
 }
 
 // ---- Closest point on B-spline span (exact cubic solver) ----
@@ -464,20 +466,17 @@ struct ResolveResult {
     bool resolved;
 };
 
-// Test one CP and (if it passes) insert into the top-3 hits array.
+// Test one CP and (if closer than current best) replace it.
+// Single-AA variant: tracks one best hit, no insertion sort.
 // Returns the tested CP's flag bits (0u for inactive), so the caller
 // can gate follow-up work like the T-junction stem fan-out without
 // re-fetching CellGraph row 0.
-uint test_one_cp(int ci, vec2 query, inout Hit hits[3], inout int num_hits) {
+uint test_one_cp(int ci, vec2 query, inout Hit hit, inout float second_d2) {
     if (ci < 0 || ci >= NUM_CPS()) return 0u;
 
     uint flag = read_flags(ci);
     if (flag == 0u) return 0u;
 
-    // Per-CP geometry — denormalized by pack-positions. Replaces the
-    // read_neighbors + 3 read_pos chain + ghost-extension dance with 3
-    // texel reads. valid=false means pack-positions wrote skip
-    // (inactive, isolated, or non-owner of a 2-CP chain).
     PackedCp pcp = read_packed_cp(ci);
     if (!pcp.valid) return flag;
 
@@ -485,10 +484,7 @@ uint test_one_cp(int ci, vec2 query, inout Hit hits[3], inout int num_hits) {
     vec2 cp = pcp.cp;
     vec2 np = pcp.np;
 
-    // Quick screen: 3-sample distance² reject. Evaluating beval at
-    // t=0, 1/2, 1 with the ghost-extended pp/cp/np gives the real
-    // curve start, midpoint-ish, end. > 2.0 means the curve can't
-    // possibly come within 1 source unit of the fragment.
+    // Quick screen: 3-sample distance² reject.
     vec2 b0 = 0.5 * (pp + cp);
     vec2 bm = 0.125 * pp + 0.75 * cp + 0.125 * np;
     vec2 b1 = 0.5 * (cp + np);
@@ -510,52 +506,30 @@ uint test_one_cp(int ci, vec2 query, inout Hit hits[3], inout int num_hits) {
     float span_d2 = result.y;
     if (span_d2 >= 1.0) return flag;
 
-    // Build candidate Hit and insert via explicit if/else over constant
-    // indices — keeps hits[] register-allocated.
-    Hit cand;
-    cand.d2 = span_d2; cand.t = span_t; cand.cp_idx = ci;
-    cand.prev_ci = pcp.prev_ci; cand.next_ci = pcp.next_ci;
-    cand.cp_pos = cp; cand.prev_pos = pp; cand.next_pos = np;
-    cand.t_branch = pcp.t_branch; cand.is_line = pcp.is_line;
-
-    if (span_d2 < hits[0].d2) {
-        hits[2] = hits[1];
-        hits[1] = hits[0];
-        hits[0] = cand;
-        if (num_hits < 3) num_hits++;
-    } else if (span_d2 < hits[1].d2) {
-        hits[2] = hits[1];
-        hits[1] = cand;
-        if (num_hits < 3) num_hits++;
-    } else if (span_d2 < hits[2].d2) {
-        hits[2] = cand;
-        if (num_hits < 3) num_hits++;
+    if (span_d2 < hit.d2) {
+        // New best — demote previous best's d2 into second_d2.
+        second_d2 = hit.d2;
+        hit.d2 = span_d2; hit.t = span_t; hit.cp_idx = ci;
+        hit.prev_ci = pcp.prev_ci; hit.next_ci = pcp.next_ci;
+        hit.cp_pos = cp; hit.prev_pos = pp; hit.next_pos = np;
+        hit.t_branch = pcp.t_branch; hit.is_line = pcp.is_line;
+    } else if (span_d2 < second_d2) {
+        second_d2 = span_d2;
     }
     return flag;
 }
 
-int find_hits(vec2 query, out Hit hits[3]) {
-    int num_hits = 0;
-    // Init via constant indices — keeps hits[] in registers vs spilling
-    // to local memory (dynamic-indexed loop would force the latter on
-    // most GPU compilers).
-    hits[0].d2 = 1e10; hits[0].t = 0.0; hits[0].cp_idx = -1;
-    hits[0].prev_ci = -1; hits[0].next_ci = -1;
-    hits[0].cp_pos = vec2(0.0); hits[0].prev_pos = vec2(0.0); hits[0].next_pos = vec2(0.0);
-    hits[0].t_branch = 0.5; hits[0].is_line = false;
-    hits[1].d2 = 1e10; hits[1].t = 0.0; hits[1].cp_idx = -1;
-    hits[1].prev_ci = -1; hits[1].next_ci = -1;
-    hits[1].cp_pos = vec2(0.0); hits[1].prev_pos = vec2(0.0); hits[1].next_pos = vec2(0.0);
-    hits[1].t_branch = 0.5; hits[1].is_line = false;
-    hits[2].d2 = 1e10; hits[2].t = 0.0; hits[2].cp_idx = -1;
-    hits[2].prev_ci = -1; hits[2].next_ci = -1;
-    hits[2].cp_pos = vec2(0.0); hits[2].prev_pos = vec2(0.0); hits[2].next_pos = vec2(0.0);
-    hits[2].t_branch = 0.5; hits[2].is_line = false;
+bool find_hits(vec2 query, out Hit hit, out float second_d2) {
+    hit.d2 = 1e10; hit.t = 0.0; hit.cp_idx = -1;
+    hit.prev_ci = -1; hit.next_ci = -1;
+    hit.cp_pos = vec2(0.0); hit.prev_pos = vec2(0.0); hit.next_pos = vec2(0.0);
+    hit.t_branch = 0.5; hit.is_line = false;
+    second_d2 = 1e10;
 
     int cell_cx = int(floor(query.x));
     int cell_cy = int(floor(query.y));
     if (cell_cx < 0 || cell_cy < 0 || cell_cx >= IMG_W() || cell_cy >= IMG_H()) {
-        return num_hits;
+        return false;
     }
 
     // Walk the cell's 4 corners, both slots each. A quadratic B-spline
@@ -576,16 +550,13 @@ int find_hits(vec2 query, out Hit hits[3]) {
         int base = (cy * CORNERS_W() + cx) * 2;
 
         // Test slot 0 and slot 1 at this corner.
-        uint slot0_flag = test_one_cp(base,     query, hits, num_hits);
-        test_one_cp(base + 1, query, hits, num_hits);
+        uint slot0_flag = test_one_cp(base,     query, hit, second_d2);
+        test_one_cp(base + 1, query, hit, second_d2);
 
         // T-junction stem fan-out: when slot 0 carries IS_TJUNCTION, the
         // stem-bottom CP can sit at offset (+2, +1) etc. — outside the
         // 4-cell-corner walk — so look it up via slot 1's chain neighbor
-        // and test its span. Slot 1 itself is a stem CP filtered out by
-        // test_one_cp's endpoint dedup; its chain link still points to
-        // the renderable stem-bottom. Skipped when stem-bottom is already
-        // one of the 4 cell corners we walk anyway.
+        // and test its span.
         if ((slot0_flag & IS_TJUNCTION) != 0u) {
             ivec2 slot1_n = read_neighbors(base + 1);
             int sci = slot1_n.x >= 0 ? slot1_n.x : slot1_n.y;
@@ -595,11 +566,11 @@ int find_hits(vec2 query, out Hit hits[3]) {
                 bool already_walked =
                     s_cx >= cell_cx && s_cx <= cell_cx + 1
                  && s_cy >= cell_cy && s_cy <= cell_cy + 1;
-                if (!already_walked) test_one_cp(sci, query, hits, num_hits);
+                if (!already_walked) test_one_cp(sci, query, hit, second_d2);
             }
         }
     }
-    return num_hits;
+    return hit.cp_idx >= 0;
 }
 
 // ---- Resolve solid color + AA components from one hit ----
@@ -727,26 +698,6 @@ ResolveResult resolve_hit(Hit hit, vec2 query) {
     return r;
 }
 
-// classify_at — solid color (no AA) for a wedge centroid query. Does its
-// own scan + resolve at the query point.
-vec3 classify_at(vec2 query, vec3 fallback) {
-    Hit hits[3];
-    int num_hits = find_hits(query, hits);
-    if (num_hits >= 1) {
-        ResolveResult r = resolve_hit(hits[0], query);
-        if (r.resolved) return r.solid_color;
-    }
-    if (num_hits >= 2) {
-        ResolveResult r = resolve_hit(hits[1], query);
-        if (r.resolved) return r.solid_color;
-    }
-    if (num_hits >= 3) {
-        ResolveResult r = resolve_hit(hits[2], query);
-        if (r.resolved) return r.solid_color;
-    }
-    return fallback;
-}
-
 // ---- Main rasterizer ----
 
 void main() {
@@ -763,14 +714,13 @@ void main() {
     int fb_y = clamp(int(floor(center.y)), 0, IMG_H() - 1);
     vec3 fallback = read_pixel(fb_x, fb_y);
 
-    // Scan + collect nearest 4 hits.
-    Hit hits[3];
-    int num_hits = find_hits(center, hits);
+    // Tier 1: track best hit + second-best d² (just the distance, not
+    // full Hit data — Tier 2 redoes find_hits when the sentinel fires).
+    Hit hit;
+    float second_d2;
+    bool found = find_hits(center, hit, second_d2);
 
-    // Resolve color from first hit that resolves. Save AA state from the
-    // resolved hit for the AA paths below.
     vec3 center_color = fallback;
-    int resolved_h = -1;
     ResolveResult res;
     res.solid_color = fallback;
     res.pos_side = vec3(0.0);
@@ -778,367 +728,19 @@ void main() {
     res.opt_normal = vec2(0.0);
     res.d = 0.0;
     res.resolved = false;
-    if (num_hits >= 1 && resolved_h < 0) {
-        ResolveResult rr = resolve_hit(hits[0], center);
-        if (rr.resolved) { res = rr; center_color = rr.solid_color; resolved_h = 0; }
-    }
-    if (num_hits >= 2 && resolved_h < 0) {
-        ResolveResult rr = resolve_hit(hits[1], center);
-        if (rr.resolved) { res = rr; center_color = rr.solid_color; resolved_h = 1; }
-    }
-    if (num_hits >= 3 && resolved_h < 0) {
-        ResolveResult rr = resolve_hit(hits[2], center);
-        if (rr.resolved) { res = rr; center_color = rr.solid_color; resolved_h = 2; }
+    if (found) {
+        ResolveResult rr = resolve_hit(hit, center);
+        if (rr.resolved) { res = rr; center_color = rr.solid_color; }
     }
 
-    // AA threshold: a pixel's half-diagonal² in source units is
-    // 0.5/scale². Beyond that, the curve passes outside the pixel and
-    // the analytical pixel-coverage formula saturates to a solid color
-    // anyway, so AA work would be wasted. The same tight bound applies
-    // to single-curve AA and the wedge AA gate so each fires only on
-    // pixels the curve(s) pass through.
+    // AA threshold: a pixel's half-diagonal² in source units is 0.5/scale².
+    // Beyond that, the curve passes outside the pixel and the analytical
+    // pixel-coverage formula saturates anyway, so AA work would be wasted.
     float aa_threshold = 0.5 / (scale * scale);
 
-    // Multi-curve wedge AA fires only when the structural junction
-    // relationship holds AND the geometric junction lies inside the pixel.
-    //
-    // At a T-junction corner, slot 0 holds the through curve and slot 1
-    // holds the original stem CP. Slot 1's render span — when present — is
-    // owned either by an adjacent chain CP (regular case: slot 1 filtered,
-    // its surviving non-(-1) neighbor IS the stem render CP) or by slot 1
-    // itself (2-CP-chain case: both stem endpoints are markers, slot 1
-    // survives and renders as a straight-line span). Candidate A is the
-    // through-curve at the junction iff
-    //   (a) A is IS_TJUNCTION-flagged, AND
-    //   (b) slot 1 at A's corner either equals B's ci (2-CP-chain) or
-    //       has B's ci as one of its neighbors (regular).
-    // Crossings (valence-4): both hits IS_CROSSING at the same corner.
-    //
-    // Junction-in-pixel: the through CP's pos (= junction location post-
-    // correction) must lie inside the pixel square. When two curves graze
-    // a pixel without their junction being in it (e.g. consecutive chain
-    // CPs along a smooth diagonal), the local geometry is 2-color and
-    // wedge AA's LUT mixes a third color that isn't actually present.
-    // Multi-curve wedge AA fires only at a structural junction whose
-    // geometric location lies inside the pixel.
-    //
-    // Structural cases (each pinned by how the cell graph constructs the
-    // relevant CPs — no closest_t computation needed for line_b):
-    //   (a) sc_b IS slot 1 of sc_a's corner — 2-CP-chain stem. Cell graph
-    //       creates slot 1 with next_ci = -1, so the rasterizer's 2-CP
-    //       construction puts a1 = slot1.pos = junction-side endpoint at
-    //       t = 1.
-    //   (b) sc_b is slot 1's surviving non-(-1) neighbor — slot 1 was
-    //       filtered, sc_b is the chain CP at the dropped-boundary corner
-    //       and ghost-extends through slot 1.pos at whichever of its
-    //       prev/next neighbors is IS_ENDPOINT-flagged (t = 0 for prev,
-    //       t = 1 for next).
-    //   Crossings (valence-4): both hits IS_CROSSING at same corner; sc_b's
-    //   curve passes through J at sc_b.t_branch.
-    //
-    // Junction-in-pixel: J = beval(sc_a, t_branch) — point on the rendered
-    // curve at the junction parameter (NOT cp_pos, the polynomial control
-    // point, which can differ for non-ghost-extended CPs). For multi-curve
-    // pixels where curves graze without an in-pixel junction, fall back to
-    // single-curve AA.
-    bool wedge_handled = false;
-    int through_h = -1;
-    int stem_h = -1;
-    float t_b_eval = 0.0;
-    if (num_hits >= 2 && hits[0].cp_idx >= 0 && hits[1].cp_idx >= 0
-        && hits[1].d2 < aa_threshold) {
-        int ci0 = hits[0].cp_idx;
-        int ci1 = hits[1].cp_idx;
-        uint f0 = read_flags(ci0);
-        uint f1 = read_flags(ci1);
-
-        float cp0_t = ((f0 & IS_TJUNCTION) != 0u) ? slot1_t_case(ci0, ci1) : -1.0;
-        float cp1_t = ((f1 & IS_TJUNCTION) != 0u) ? slot1_t_case(ci1, ci0) : -1.0;
-        bool both_x_same =
-            ((f0 & IS_CROSSING) != 0u)
-            && ((f1 & IS_CROSSING) != 0u)
-            && (ci0 / 2) == (ci1 / 2);
-        if (cp0_t >= 0.0) {
-            through_h = 0; stem_h = 1; t_b_eval = cp0_t;
-        } else if (cp1_t >= 0.0) {
-            through_h = 1; stem_h = 0; t_b_eval = cp1_t;
-        } else if (both_x_same) {
-            through_h = 0; stem_h = 1;
-            t_b_eval = hits[1].t_branch;
-        }
-
-        // Junction-in-pixel.
-        if (through_h >= 0) {
-            // through_h ∈ {0, 1}; explicit selection avoids dynamic indexing.
-            Hit th = (through_h == 0) ? hits[0] : hits[1];
-            vec2 J = beval(th.prev_pos, th.cp_pos, th.next_pos, th.t_branch);
-            float pix_half = inv_scale * 0.5;
-            if (abs(J.x - center.x) > pix_half || abs(J.y - center.y) > pix_half) {
-                through_h = -1;
-                stem_h = -1;
-            }
-        }
-    }
-    // resolved_h ∈ {0, 1, 2}; pick d2 by explicit selection to keep
-    // hits[] register-allocated (dynamic-indexed read would force spill).
-    float resolved_d2 = (resolved_h == 0) ? hits[0].d2
-                      : (resolved_h == 1) ? hits[1].d2
-                      : (resolved_h == 2) ? hits[2].d2 : 1e10;
-    bool need_wedge_aa = resolved_h >= 0 && resolved_d2 < aa_threshold
-                        && through_h >= 0;
-    if (need_wedge_aa) {
-        // through_h, stem_h ∈ {0, 1}; explicit selection.
-        Hit through_hit = (through_h == 0) ? hits[0] : hits[1];
-        Hit stem_hit    = (stem_h    == 0) ? hits[0] : hits[1];
-
-        // J = beval(through, t_branch). Both lines anchored at J.
-        vec2 J = beval(through_hit.prev_pos, through_hit.cp_pos, through_hit.next_pos,
-                        through_hit.t_branch);
-
-        // line_a: through tangent at t_branch.
-        vec2 tang_a_unit;
-        AaLine line_a = build_junction_aa_line(through_hit, J, through_hit.t_branch, tang_a_unit);
-
-        // line_b: stem tangent at the junction. t_b_eval was determined
-        // structurally by the gate above (no closest_t needed).
-        vec2 tang_b_unit;
-        AaLine line_b = build_junction_aa_line(stem_hit, J, t_b_eval, tang_b_unit);
-
-        // Align line_b.normal so sb > 0 = post-junction along line_a.
-        if (line_b.valid && dot(line_b.normal, tang_a_unit) < 0.0) {
-            line_b.normal = -line_b.normal;
-        }
-
-        if (line_a.valid && line_b.valid) {
-            // Through-curve color LUT: at a T-junction the through curve
-            // (= through_hit) carries all three colors via its two edge
-            // segments split at t_branch — pre-junction edge gives the
-            // (pos, neg) for t < t_branch, post-junction edge gives them
-            // for t > t_branch.
-            //
-            // line_b's normal is aligned to line_a's tangent direction,
-            // so sb > 0 = post-junction (seg 1) and sb < 0 = pre-junction
-            // (seg 0). Maps (sa-sign, sb-sign) directly to LUT entries.
-
-            // Resolve the through hit at center to get its pos/neg/normal.
-            // If through_hit IS the already-resolved hit, reuse `res` to
-            // skip a redundant resolve_hit call (~3 fewer CellGraph reads).
-            ResolveResult through_res = (through_h == resolved_h)
-                ? res
-                : resolve_hit(through_hit, center);
-
-            // Build pos/neg colors for each segment, aligned to line_a.normal
-            // (so a single sidedness test against line_a applies to both
-            // segments). One segment is covered by through_res at the
-            // pixel center; resolve the other at the OTHER segment's mid.
-            // For 2-CP chains both halves are identical so we skip the
-            // second resolve.
-            vec3 pos0 = fallback, neg0 = fallback;
-            vec3 pos1 = fallback, neg1 = fallback;
-
-            bool flip_res = dot(through_res.opt_normal, line_a.normal) < 0.0;
-            vec3 res_pos = flip_res ? through_res.neg_side : through_res.pos_side;
-            vec3 res_neg = flip_res ? through_res.pos_side : through_res.neg_side;
-            bool res_in_seg1 = through_hit.t >= through_hit.t_branch;
-            if (through_res.resolved) {
-                if (res_in_seg1) { pos1 = res_pos; neg1 = res_neg; }
-                else             { pos0 = res_pos; neg0 = res_neg; }
-            }
-
-            if (!through_hit.is_line) {
-                Hit other_seg = through_hit;
-                other_seg.t = res_in_seg1
-                    ? (through_hit.t_branch * 0.5)
-                    : (0.5 * (through_hit.t_branch + 1.0));
-                ResolveResult res_other = resolve_hit(other_seg, J);
-                if (res_other.resolved) {
-                    bool flip_o = dot(res_other.opt_normal, line_a.normal) < 0.0;
-                    vec3 op = flip_o ? res_other.neg_side : res_other.pos_side;
-                    vec3 on = flip_o ? res_other.pos_side : res_other.neg_side;
-                    if (res_in_seg1) { pos0 = op; neg0 = on; }
-                    else             { pos1 = op; neg1 = on; }
-                } else if (through_res.resolved) {
-                    if (res_in_seg1) { pos0 = res_pos; neg0 = res_neg; }
-                    else             { pos1 = res_pos; neg1 = res_neg; }
-                }
-            } else if (through_res.resolved) {
-                // Straight 2-CP chain: same colors throughout.
-                pos0 = res_pos; neg0 = res_neg;
-                pos1 = res_pos; neg1 = res_neg;
-            }
-
-            // LUT decoded once. Indexed by (sa>0) | ((sb>0) << 1):
-            //   0 = neg0, 1 = pos0, 2 = neg1, 3 = pos1.
-            vec3 lut_lin[4];
-            lut_lin[0] = srgb_to_linear(neg0);
-            lut_lin[1] = srgb_to_linear(pos0);
-            lut_lin[2] = srgb_to_linear(neg1);
-            lut_lin[3] = srgb_to_linear(pos1);
-
-            // Boundary-sweep area accumulation. Walk the pixel boundary
-            // CCW; on each edge find up to 2 line crossings (line_a and
-            // line_b), split the edge into <=3 sub-segments, classify
-            // each by (sa, sb)-sign at its midpoint, and add a signed-
-            // triangle area (J as origin) to the matching wedge bucket.
-            // J interior + consistent walk direction => |cross| gives the
-            // wedge area directly. No polygon storage, no centroid pass.
-            float pix_h = inv_scale * 0.5;
-            vec2 corners[4];
-            corners[0] = vec2(center.x - pix_h, center.y - pix_h);
-            corners[1] = vec2(center.x + pix_h, center.y - pix_h);
-            corners[2] = vec2(center.x + pix_h, center.y + pix_h);
-            corners[3] = vec2(center.x - pix_h, center.y + pix_h);
-
-            vec3 sum_lin = vec3(0.0);
-            float total_area = 0.0;
-
-            for (int ei = 0; ei < 4; ei++) {
-                vec2 p = corners[ei];
-                vec2 q = corners[(ei + 1) & 3];
-                float sa_p = dot(p - line_a.cpt, line_a.normal);
-                float sa_q = dot(q - line_a.cpt, line_a.normal);
-                float sb_p = dot(p - line_b.cpt, line_b.normal);
-                float sb_q = dot(q - line_b.cpt, line_b.normal);
-
-                float splits[2];
-                splits[0] = 0.0;
-                splits[1] = 0.0;
-                int nsplit = 0;
-                if (sa_p * sa_q < 0.0) {
-                    splits[nsplit] = sa_p / (sa_p - sa_q);
-                    nsplit++;
-                }
-                if (sb_p * sb_q < 0.0) {
-                    splits[nsplit] = sb_p / (sb_p - sb_q);
-                    nsplit++;
-                }
-                if (nsplit == 2 && splits[0] > splits[1]) {
-                    float tmp = splits[0]; splits[0] = splits[1]; splits[1] = tmp;
-                }
-
-                float t_prev = 0.0;
-                vec2 u = p;
-                for (int k = 0; k < 2; k++) {
-                    if (k >= nsplit) break;
-                    float t_curr = splits[k];
-                    if (t_curr > t_prev + 1e-9) {
-                        vec2 v = p + t_curr * (q - p);
-                        vec2 m = p + (0.5 * (t_prev + t_curr)) * (q - p);
-                        float sa_m = dot(m - line_a.cpt, line_a.normal);
-                        float sb_m = dot(m - line_b.cpt, line_b.normal);
-                        vec2 uj = u - J;
-                        vec2 vj = v - J;
-                        float area = abs(uj.x * vj.y - uj.y * vj.x) * 0.5;
-                        if (area >= 1e-9) {
-                            int idx = (sa_m > 0.0 ? 1 : 0) | (sb_m > 0.0 ? 2 : 0);
-                            sum_lin += lut_lin[idx] * area;
-                            total_area += area;
-                        }
-                        u = v;
-                    }
-                    t_prev = t_curr;
-                }
-                if (t_prev < 1.0 - 1e-9) {
-                    vec2 m = p + (0.5 * (t_prev + 1.0)) * (q - p);
-                    float sa_m = dot(m - line_a.cpt, line_a.normal);
-                    float sb_m = dot(m - line_b.cpt, line_b.normal);
-                    vec2 uj = u - J;
-                    vec2 vj = q - J;
-                    float area = abs(uj.x * vj.y - uj.y * vj.x) * 0.5;
-                    if (area >= 1e-9) {
-                        int idx = (sa_m > 0.0 ? 1 : 0) | (sb_m > 0.0 ? 2 : 0);
-                        sum_lin += lut_lin[idx] * area;
-                        total_area += area;
-                    }
-                }
-            }
-
-            if (total_area > 0.0) {
-                center_color = linear_to_srgb(sum_lin / total_area);
-                wedge_handled = true;
-            }
-        }
-    }
-
-    // Dual-curve AA: two distinct-chain curves passing through the pixel
-    // without an actual junction inside it (typical of thin strokes where
-    // two boundary curves graze the same pixel). Partitions the pixel
-    // into 3 stripes via two single-line coverages — closed-form, no
-    // boundary sweep. Skips when wedge AA fired, or when no second non-
-    // chain hit is within threshold, or when the LUT model breaks down
-    // (inner-color mismatch / lines cross inside pixel).
-    bool dual_handled = false;
-    if (!wedge_handled && resolved_h >= 0 && resolved_d2 < aa_threshold) {
-        // resolved_h ∈ {0, 1, 2}; explicit selection.
-        Hit hit_a = (resolved_h == 0) ? hits[0]
-                  : (resolved_h == 1) ? hits[1]
-                                      : hits[2];
-        // Find sc_b: first cached hit not on hit_a's chain (1-step
-        // neighbor test) and within aa_threshold. Unrolled across
-        // s ∈ {0, 1, 2} on constant indices to keep hits[] in registers.
-        int sec_h = -1;
-        Hit hit_b;
-        #define TRY_SEC(s, hs) \
-            if (sec_h < 0 && (s) < num_hits && (s) != resolved_h \
-                && (hs).d2 < aa_threshold && (hs).cp_idx >= 0) { \
-                bool same_chain = (hit_a.cp_idx == (hs).cp_idx) \
-                    || (hit_a.cp_idx == (hs).prev_ci) \
-                    || (hit_a.cp_idx == (hs).next_ci) \
-                    || ((hs).cp_idx == hit_a.prev_ci) \
-                    || ((hs).cp_idx == hit_a.next_ci); \
-                if (!same_chain) { sec_h = (s); hit_b = (hs); } \
-            }
-        TRY_SEC(0, hits[0])
-        TRY_SEC(1, hits[1])
-        TRY_SEC(2, hits[2])
-        #undef TRY_SEC
-        if (sec_h >= 0
-            && any(notEqual(res.pos_side, res.neg_side))) {
-            ResolveResult res_b = resolve_hit(hit_b, center);
-            if (res_b.resolved && any(notEqual(res_b.pos_side, res_b.neg_side))) {
-                vec2 cpt_a = beval(hit_a.prev_pos, hit_a.cp_pos, hit_a.next_pos, hit_a.t);
-                vec2 cpt_b = beval(hit_b.prev_pos, hit_b.cp_pos, hit_b.next_pos, hit_b.t);
-                vec2 na = res.opt_normal;
-                vec2 nb = res_b.opt_normal;
-
-                // Inner-side: which side of curve A faces curve B?
-                vec2 delta_ba = cpt_b - cpt_a;
-                bool inner_a_pos = dot(delta_ba, na) > 0.0;
-                bool inner_b_pos = dot(-delta_ba, nb) > 0.0;
-                vec3 a_inner = inner_a_pos ? res.pos_side  : res.neg_side;
-                vec3 b_inner = inner_b_pos ? res_b.pos_side: res_b.neg_side;
-
-                // Dual-curve assumes a shared middle region. If inner
-                // colors disagree, geometry has 3 distinct colors (a
-                // junction missed by structural detection). Defer.
-                if (all(equal(a_inner, b_inner))) {
-                    float d_a = dot(center - cpt_a, na) / inv_scale;
-                    float d_b = dot(center - cpt_b, nb) / inv_scale;
-                    float fa_pos = line_coverage_pos(na, d_a);
-                    float fb_pos = line_coverage_pos(nb, d_b);
-                    float fa_outer = inner_a_pos ? (1.0 - fa_pos) : fa_pos;
-                    float fb_outer = inner_b_pos ? (1.0 - fb_pos) : fb_pos;
-                    // Lines crossing inside pixel → A_outer ∩ B_outer
-                    // overlaps → fractions sum > 1. Defer.
-                    if (fa_outer + fb_outer <= 1.0 + 1e-4) {
-                        float fm = max(0.0, 1.0 - fa_outer - fb_outer);
-                        vec3 a_outer = inner_a_pos ? res.neg_side  : res.pos_side;
-                        vec3 b_outer = inner_b_pos ? res_b.neg_side: res_b.pos_side;
-                        vec3 lin = srgb_to_linear(a_outer) * fa_outer
-                                 + srgb_to_linear(b_outer) * fb_outer
-                                 + srgb_to_linear(a_inner) * fm;
-                        center_color = linear_to_srgb(lin);
-                        dual_handled = true;
-                    }
-                }
-            }
-        }
-    }
-
     // Single-curve AA: exact pixel coverage from the resolved hit's tangent
-    // line. Only fires when neither wedge AA nor dual-curve AA handled it.
-    if (!wedge_handled && !dual_handled
-        && resolved_h >= 0 && resolved_d2 < aa_threshold
+    // line.
+    if (res.resolved && hit.d2 < aa_threshold
         && any(notEqual(res.pos_side, res.neg_side))) {
         float d_p = res.d / inv_scale;
         float frac = line_coverage_pos(res.opt_normal, d_p);
@@ -1147,5 +749,9 @@ void main() {
         center_color = linear_to_srgb(frac * lin0 + (1.0 - frac) * lin1);
     }
 
-    FragColor = vec4(center_color, 1.0);
+    // Sentinel: 1.0 if a 2nd hit is within aa_threshold (Tier 2 will
+    // examine the wedge / dual-curve AA gates). 0.0 means no multi-curve
+    // refinement possible — Tier 2 will pass our RGB through unchanged.
+    float sentinel = (second_d2 < aa_threshold) ? 1.0 : 0.0;
+    FragColor = vec4(center_color, sentinel);
 }
