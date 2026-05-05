@@ -266,6 +266,19 @@ vec2 closest_on_segment(vec2 a0, vec2 a1, vec2 pt) {
     return vec2(t, dot(d, d));
 }
 
+// One Newton step on a cubic D'(t) = c3·t³+c2·t²+c1·t+c0. Polishes a
+// closed-form root (Cardano/trig) to ~1 ULP. Skips when D''(t) is small
+// or the step would diverge. Safe for the quadratic case (c3 ≈ 0).
+float polish_root_c(float t, float c3, float c2, float c1, float c0) {
+    float dp = fma(fma(fma(c3, t, c2), t, c1), t, c0);
+    float ddp = fma(fma(3.0 * c3, t, 2.0 * c2), t, c1);
+    if (abs(ddp) > 1e-10) {
+        float step = dp / ddp;
+        if (abs(step) < 0.5) t -= step;
+    }
+    return t;
+}
+
 // ---- Closest point on B-spline span (exact cubic solver) ----
 //
 // D(t) = |B(t)-pt|² is degree 4, D'(t) is cubic → closed-form roots.
@@ -294,21 +307,22 @@ vec2 closest_on_span(vec2 p0, vec2 p1, vec2 p2, vec2 pt) {
     if (abs(c3) < 1e-12) {
         // Degenerate: quadratic or linear
         if (abs(c2) > 1e-12) {
-            // Numerically stable quadratic root formula (Numerical Recipes 5.6):
-            // q = -0.5*(c1 + sgn(c1)*sqrt(disc)); roots: q/c2, c0/q.
-            // Avoids catastrophic cancellation when c2 is small and the
-            // (-c1 ± sqrt(disc)) form subtracts two near-equal numbers.
-            float disc = c1*c1 - 4.0*c2*c0;
+            // FMA on `b²−4ac`: single-rounding sum recovers ~1 extra bit
+            // and avoids disc rounding to the wrong sign at near-double-
+            // root configurations. Numerical Recipes form for the roots
+            // themselves to also avoid catastrophic cancellation when
+            // (-c1 ± sqrt(disc)) subtracts near-equal numbers.
+            float disc = fma(c1, c1, -4.0 * c2 * c0);
             if (disc >= 0.0) {
                 float sq = sqrt(disc);
                 float qq = -0.5 * (c1 + sign(c1) * sq);
-                float t1 = qq / c2;
-                float t2 = c0 / qq;
+                float t1 = polish_root_c(qq / c2, c3, c2, c1, c0);
+                float t2 = polish_root_c(c0 / qq, c3, c2, c1, c0);
                 if (t1 > 0.0 && t1 < 1.0) { float dd = EVAL_D2(t1); if (dd < best_d2) { best_d2 = dd; best_t = t1; } }
                 if (t2 > 0.0 && t2 < 1.0) { float dd = EVAL_D2(t2); if (dd < best_d2) { best_d2 = dd; best_t = t2; } }
             }
         } else if (abs(c1) > 1e-12) {
-            float t1 = -c0 / c1;
+            float t1 = polish_root_c(-c0 / c1, c3, c2, c1, c0);
             if (t1 > 0.0 && t1 < 1.0) { float dd = EVAL_D2(t1); if (dd < best_d2) { best_d2 = dd; best_t = t1; } }
         }
     } else {
@@ -317,7 +331,9 @@ vec2 closest_on_span(vec2 p0, vec2 p1, vec2 p2, vec2 pt) {
         float shift = -c2 * inv3a;
         float p = (3.0*c3*c1 - c2*c2) / (3.0*c3*c3);
         float q = (2.0*c2*c2*c2 - 9.0*c3*c2*c1 + 27.0*c3*c3*c0) / (27.0*c3*c3*c3);
-        float disc = q*q/4.0 + p*p*p/27.0;
+        // FMA on q²/4 + p³/27: one extra bit at the disc≈0 (near triple
+        // root) boundary between Cardano and trig branches.
+        float disc = fma(q * 0.5, q * 0.5, p*p*p/27.0);
 
         if (disc > 1e-12) {
             // One real root
@@ -325,17 +341,20 @@ vec2 closest_on_span(vec2 p0, vec2 p1, vec2 p2, vec2 pt) {
             float hq = -q * 0.5;
             float u1 = sign(hq+sq) * pow(abs(hq+sq), 1.0/3.0);
             float u2 = sign(hq-sq) * pow(abs(hq-sq), 1.0/3.0);
-            float t1 = u1 + u2 + shift;
+            float t1 = polish_root_c(u1 + u2 + shift, c3, c2, c1, c0);
             if (t1 > 0.0 && t1 < 1.0) { float dd = EVAL_D2(t1); if (dd < best_d2) { best_d2 = dd; best_t = t1; } }
         } else {
-            // Three real roots (trigonometric)
-            float r = sqrt(max(-p*p*p/27.0, 0.0));
-            float phi = (r < 1e-15) ? 0.0 : acos(clamp(-q/(2.0*r), -1.0, 1.0));
-            float cube_r = 2.0 * sign(r) * pow(abs(r), 1.0/3.0);
+            // Three real roots (trigonometric). 2·sqrt(-p/3) equals
+            // 2·cbrt(sqrt(-p³/27)) but reaches the value via one sqrt
+            // instead of (p*p*p, sqrt, pow(_, 1/3)) — faster *and* avoids
+            // pow(_, 1/6)'s precision loss.
+            float r = sqrt(max(-p / 3.0, 0.0));
+            float cos_arg = (r > 1e-20) ? (-q * 0.5) / (r * r * r) : 0.0;
+            float phi = acos(clamp(cos_arg, -1.0, 1.0));
             const float TAU = 6.283185307;
             for (int k = 0; k < 3; k++) {
                 float angle = (phi + TAU * float(k)) / 3.0;
-                float t1 = cube_r * cos(angle) + shift;
+                float t1 = polish_root_c(2.0 * r * cos(angle) + shift, c3, c2, c1, c0);
                 if (t1 > 0.0 && t1 < 1.0) { float dd = EVAL_D2(t1); if (dd < best_d2) { best_d2 = dd; best_t = t1; } }
             }
         }
