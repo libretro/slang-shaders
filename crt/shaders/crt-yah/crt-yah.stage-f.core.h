@@ -43,8 +43,10 @@ float get_brightness_compensation(float color_luma)
 
 vec3 INPUT(vec3 color)
 {
+    float color_floor = INPUT_FLOOR_PROFILE.x;
+
     color = decode_gamma(color);
-    color = apply_floor(color, PARAM_COLOR_FLOOR * PARAM_COLOR_BLACK_LIGHT);
+    color = apply_floor(color, color_floor);
 
     return color;
 }
@@ -463,7 +465,7 @@ vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord)
     halation *= mix(
         1.0,
         get_luminance(halation),
-        (PARAM_HALATION_DIFFUSION * 0.75));
+        PARAM_HALATION_DIFFUSION * 0.75);
 
     // add the difference between color and halation
     return color + (halation - color) * (PARAM_HALATION_INTENSITY * 0.25);
@@ -472,6 +474,7 @@ vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord)
 vec3 apply_noise(vec3 color, float color_luma, vec2 tex_coord)
 {
     float subpixel_size = INPUT_MASK_PROFILE.x;
+    float noise_floor = INPUT_FLOOR_PROFILE.y;
 
     vec2 pix_coord = vec2o(tex_coord.xy * global.OutputSize.xy);
 
@@ -483,7 +486,7 @@ vec3 apply_noise(vec3 color, float color_luma, vec2 tex_coord)
     float noise = random(pix_coord * (frame + 1.0));
 
     float mul_noise = noise * 2.0;
-    float add_noise = noise * (1.0 - color_luma) * (4.0 / 256.0 - PARAM_COLOR_FLOOR) * PARAM_COLOR_BLACK_LIGHT;
+    float add_noise = noise * (1.0 - color_luma) * noise_floor;
 
     return mix(
         color,

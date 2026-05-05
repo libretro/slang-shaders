@@ -10,7 +10,8 @@ layout(location = 5) out float BrightnessCompensation;
 layout(location = 6) out vec2 MaskProfile;
 layout(location = 7) out vec4 BeamProfile;
 layout(location = 8) out float AntiRining;
-layout(location = 9) out mat4x4 BeamFilter;
+layout(location = 9) out vec2 FloorProfile;
+layout(location = 10) out mat4x4 BeamFilter;
 
 // required by crt-yah.stage-v.core.h
 #define INPUT_SCREEN_ORIENTATION ScreenOrientation
@@ -34,6 +35,7 @@ void main()
     BeamFilter = get_beam_filter();
     BrightnessCompensation = get_brightness_compensation();
     AntiRining = get_anti_ringing_amount();
+    FloorProfile = get_floor_profile();
 
     // when automatic down-scaled
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)

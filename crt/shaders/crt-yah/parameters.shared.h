@@ -14,7 +14,6 @@ float mix_master(float value, float off_value, float min_value, float max_value)
     return clamp(scaled, min_value, max_value);
 }
 
-#define PARAM_COLOR_FLOOR max(PARAM_SCANLINES_STRENGTH, PARAM_MASK_INTENSITY) * (1.0 / 256.0)
 #define PARAM_COLOR_COMPENSATION param.COLOR_COMPENSATION
 #define PARAM_COLOR_BRIGHTNESS mix_master(param.COLOR_BRIGHTNESS, 0.0, -1.0, 4.0)
 #define PARAM_COLOR_BRIGHTNESS_FLICKER param.COLOR_BRIGHTNESS_FLICKER

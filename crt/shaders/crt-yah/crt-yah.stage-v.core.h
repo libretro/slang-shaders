@@ -305,3 +305,13 @@ float get_anti_ringing_amount()
 
     return anti_ringing_auto * anti_ringing_manual;
 }
+
+vec2 get_floor_profile()
+{
+    float color_floor = (1.0 / 256.0) * max(PARAM_SCANLINES_STRENGTH, PARAM_MASK_INTENSITY);
+    float noise_floor = (4.0 / 256.0) - color_floor;
+
+    return vec2(
+        color_floor * PARAM_COLOR_BLACK_LIGHT,
+        noise_floor * PARAM_COLOR_BLACK_LIGHT);
+}
