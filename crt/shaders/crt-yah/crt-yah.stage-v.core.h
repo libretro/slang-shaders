@@ -29,6 +29,7 @@
 
 #include "common/math-helper.h"
 #include "common/screen-helper.h"
+#include "common/frame-helper.h"
 
 // orientation-aware vec2 constructor
 vec2 vec2o(float x, float y)
@@ -314,4 +315,17 @@ vec2 get_floor_profile()
     return vec2(
         color_floor * PARAM_COLOR_BLACK_LIGHT,
         noise_floor * PARAM_COLOR_BLACK_LIGHT);
+}
+
+uvec2 get_frame_counts()
+{
+    // interlace scanlines every 2rd frame by frequency (30/60Hz)
+    float interlace_frame = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 2.0);
+
+    // repeat noise every 20 frames with 12Hz
+    float noise_frame = mod(GetUniformFrameCount(12), 20);
+
+    return uvec2(
+        uint(interlace_frame),
+        uint(noise_frame));
 }

@@ -6,6 +6,7 @@ layout(location = 1) out vec2 PixCoord;
 layout(location = 2) out float Fringing;
 layout(location = 3) out float Artifacting;
 layout(location = 4) out float Phase;
+layout(location = 5) flat out uint FrameCount;
 
 // used in common/screen-helper.h
 #define MIN_PIXEL_SIZE 0.0 // allow any pixel size
@@ -14,6 +15,7 @@ layout(location = 4) out float Phase;
 #define ALLOW_AUTO_UP_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) == 3 || int(PARAM_SCREEN_RESOLUTION_SCALE) == 5
 
 #include "common/screen-helper.h"
+#include "common/frame-helper.h"
 
 // orientation-aware vec2 constructors
 vec2 vec2o(vec2 v)
@@ -54,4 +56,7 @@ void main()
         ? (vec2o(global.OriginalSize.xy).x * screen_scale) > 300.0 ? 2.0 : 3.0
         // manual
         : PARAM_NTSC_QUALITY;
+
+    // used for chroma phase offset with 30/60Hz
+    FrameCount = GetUniformFrameCount(PARAM_SCREEN_FREQUENCY);
 }

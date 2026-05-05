@@ -24,7 +24,6 @@
 
 #include "common/constants.h"
 #include "common/color-helper.h"
-#include "common/frame-helper.h"
 #include "common/interpolation-helper.h"
 #include "common/math-helper.h"
 #include "common/subpixel-color.h"
@@ -268,15 +267,16 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size)
 
 vec3 apply_interlace(vec2 pix_coord, vec3 even_color, vec3 uneven_color)
 {
+    float interlace_frame = INPUT_FRAME_COUNTS.x;
+
     // determine even or uneven row
     bool even = (int(floor(vec2o(pix_coord).y)) % 2) != 0;
 
     vec3 progressive = even_color + uneven_color;
-
-    // interlace every 2rd frame with 30/60Hz
-    vec3 interlace = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 2.0) > 0.0
-        ? mix(even_color, uneven_color, float(even))
-        : mix(even_color, uneven_color, float(!even));
+    vec3 interlace = mix(
+        mix(even_color, uneven_color, float(even)),
+        mix(even_color, uneven_color, float(!even)),
+        interlace_frame);
 
     return mix(
         progressive,
@@ -475,16 +475,14 @@ vec3 apply_noise(vec3 color, float color_luma, vec2 tex_coord)
 {
     float subpixel_size = INPUT_MASK_PROFILE.x;
     float noise_floor = INPUT_FLOOR_PROFILE.y;
+    float noise_frame = INPUT_FRAME_COUNTS.y;
 
     vec2 pix_coord = vec2o(tex_coord.xy * global.OutputSize.xy);
 
     // scale noise based on mask's sub-pixel size
     pix_coord = floor(pix_coord / int(subpixel_size)) * int(subpixel_size);
 
-    // repeat every 20 frames with 12Hz
-    float frame = mod(GetUniformFrameCount(12), 20);
-    float noise = random(pix_coord * (frame + 1.0));
-
+    float noise = random(pix_coord * (noise_frame + 1.0));
     float mul_noise = noise * 2.0;
     float add_noise = noise * (1.0 - color_luma) * noise_floor;
 

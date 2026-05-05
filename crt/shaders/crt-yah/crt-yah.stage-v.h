@@ -3,7 +3,7 @@ layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 Coord;
 layout(location = 0) out vec2 TexCoord;
 layout(location = 1) out vec2 ScanTexCoord;
-layout(location = 2) out int ScreenOrientation;
+layout(location = 2) flat out int ScreenOrientation;
 layout(location = 3) out float ScreenMultiple;
 layout(location = 4) out float ScreenMultipleAuto;
 layout(location = 5) out float BrightnessCompensation;
@@ -11,7 +11,8 @@ layout(location = 6) out vec2 MaskProfile;
 layout(location = 7) out vec4 BeamProfile;
 layout(location = 8) out float AntiRining;
 layout(location = 9) out vec2 FloorProfile;
-layout(location = 10) out mat4x4 BeamFilter;
+layout(location = 10) flat out uvec2 FrameCounts;
+layout(location = 11) out mat4x4 BeamFilter;
 
 // required by crt-yah.stage-v.core.h
 #define INPUT_SCREEN_ORIENTATION ScreenOrientation
@@ -36,6 +37,7 @@ void main()
     BrightnessCompensation = get_brightness_compensation();
     AntiRining = get_anti_ringing_amount();
     FloorProfile = get_floor_profile();
+    FrameCounts = get_frame_counts();
 
     // when automatic down-scaled
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)

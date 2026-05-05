@@ -4,6 +4,7 @@ layout(location = 1) in vec2 PixCoord;
 layout(location = 2) in float Fringing;
 layout(location = 3) in float Artifacting;
 layout(location = 4) in float Phase;
+layout(location = 5) flat in uint FrameCount;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -15,7 +16,6 @@ const float Saturation = 1.0;
     Artifacting, 2.0 * Saturation, 0.0, \
     Artifacting, 0.0, 2.0 * Saturation)
 
-#include "common/frame-helper.h"
 #include "common/screen-helper.h"
 
 #include "ntsc-pass1.stage-f.core.h"
@@ -39,10 +39,7 @@ void main()
         return;
     }
 
-    // used for chroma phase offset with 30/60Hz
-    uint frame_count = GetUniformFrameCount(PARAM_SCREEN_FREQUENCY);
-
-    vec3 yiq = pass1(Source, TexCoord, PixCoord, int(Phase), PARAM_NTSC_SHIFT, PARAM_NTSC_JITTER, MIX, frame_count);
+    vec3 yiq = pass1(Source, TexCoord, PixCoord, int(Phase), PARAM_NTSC_SHIFT, PARAM_NTSC_JITTER, MIX, FrameCount);
 
     FragColor = vec4(yiq, 1.0);
 }
