@@ -135,9 +135,13 @@ void main() {
     
     //Halation
     vec3 halation = vec3(0.0);
-    if (!bdelta_render_enabled())
+    if (!bdelta_render_enabled()) {
         halation = get_halation(colortools_and_ntsc_pass, global.colortools_and_ntsc_passSize, vTexCoord);
-        
+    }
+    #ifdef D3D_WORKAROUND
+        //no mipmaps in D3D?
+        halation = vec3(0.0);
+    #endif
     bloomed = max(bloomed,halation);
 
     

@@ -6,7 +6,7 @@
  */
 
 // #define DEBUG_TEXTURE Original
-#define DEBUG_TEXTURE colortools_and_ntsc_pass
+#define DEBUG_TEXTURE in_glow_passFeedback
 //#define DEBUG_TEXTURE halo_pre_gamma_pass
 
 // #define DEBUG_PRINT_VALUE
@@ -397,7 +397,7 @@ void main() {
 
 
 #pragma stage fragment
-layout(location = 0) in vec2 vTexCoord;
+layout(location = 0) noperspective in vec2 vTexCoord;
 layout(location = 1) noperspective in vec2 vOutputCoord;
 layout(location = 2) noperspective in vec2 vBg_img_coords;
 layout(location = 3) flat in float vIsRotated;
@@ -1082,9 +1082,9 @@ vec3 fn_pixel_content(vec2 coords) {
         if (IN_GLOW_WARPSHARP_X < 0.0) {
             float freq = vPG_OriginalSize_tated_mul_pi.y * 2.0;
             if (vDo_Tate == 0.0)
-                warpedglow.x *= -cos(coords.y * freq)+0.25;
+                warpedglow.x *= 0.25 - 0.75 * cos(coords.y * freq); //warpedglow.x = warpedglow.x * mix( 1.0, -cos(coords.y * freq),0.75);
                     else
-                warpedglow.y *= -cos(coords.x * freq)+0.25;
+                warpedglow.y *= 0.25 - 0.75 * cos(coords.x * freq);//warpedglow.y = warpedglow.y * mix( 1.0, -cos(coords.x * freq),0.75);
         }
     #endif
     
@@ -1241,6 +1241,9 @@ vec4 fn_pixel_bezel(vec2 coords_for_bezel, vec2 coords_for_mirror, float nightif
     //Diffuse the light over specular areas, we use a mipmap with low precision.
         if (lut_specular > 0.0) {
             vec3 pixel_avglum = texture(avglum_pass, coords_for_mirror).rgb;
+            #ifdef D3D_WORKAROUND
+                pixel_avglum = vec3(0.5);
+            #endif
             bezel_out = bezel_out + (pixel_avglum * lut_specular) ;
         }
 
@@ -1275,13 +1278,15 @@ vec3 antighost(vec3 c) {
 				if (frame_is_even() && (vInterlace_offset == 0.0)) {
 					vec3 feedback = texture(final_passFeedback, vOutputCoord).rgb;
 					vec3 diff=(feedback - c)*LCD_ANTIGHOSTING;
-					diff = sign(diff) * min( abs(diff), vec3(LCD_ANTIGHOSTING_CEIL));
+					//diff = sign(diff) * min( abs(diff), vec3(LCD_ANTIGHOSTING_CEIL));
+                    diff = clamp(diff, -LCD_ANTIGHOSTING_CEIL, LCD_ANTIGHOSTING_CEIL); //probably faster.
 					c = mix(c, c-diff, 0.5);
 				}
 		}
 	#endif
 	return c;
 }
+
 
 void main() {
 
@@ -1372,6 +1377,7 @@ void main() {
         
         pixel_out = fn_pixel_content(co_content);
         
+            
         if (DO_BACKDROP * BACKDROP_JUST_TUBE > 0.0) {
             vec3 blended = vec3(0.0);
             vec4 backdrop_img = pixel_overlay_image_stretch(backdrop, co_content);
@@ -1392,13 +1398,13 @@ void main() {
             pixel_out = mix(pixel_out+abs(perlin), pixel_out+vec3(content_mask), vec3(vignette_spot.y) );
         }
         
-        #ifdef DO_ADPT_STROBE
-            pixel_out = adaptive_strobe(pixel_out, vAdaptive_strobe_oscillator);
-        #else
-            #ifdef DO_LCD_ANTIGHOSTING
-                pixel_out = antighost(pixel_out);
+            #ifdef DO_ADPT_STROBE
+                pixel_out = adaptive_strobe(pixel_out, vAdaptive_strobe_oscillator, final_passFeedback, vOutputCoord);
+            #else
+                #ifdef DO_LCD_ANTIGHOSTING
+                    pixel_out = antighost(pixel_out);
+                #endif
             #endif
-        #endif
         
 
     } else {

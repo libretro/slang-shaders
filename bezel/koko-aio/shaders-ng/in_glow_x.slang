@@ -10,6 +10,7 @@ layout(location = 0) noperspective out vec2 vTexCoord;
 layout(location = 2) flat out float vGlow_w_needed;
 layout(location = 3) flat out float vSharp_sub;
 layout(location = 4) flat out float vDo_wtfl;
+layout(location = 5) flat out float vWtfl_sharpness_x;
 layout(location = 12) flat out float vWarpedglow_scale_tated;
 layout(location = 14) flat out float vIn_glow_edge_sharpness;
 layout(location = 15) flat out float vIn_glow_edge_defocus_strength;
@@ -73,6 +74,11 @@ void main() {
     }
     vIn_glow_edge_sharpness = mix(abs(in_glow_w), 0.3, vIn_glow_edge_defocus_strength);
     //vIn_glow_edge_sharpness = max(vIn_glow_edge_sharpness, MIN_IN_GLOW_SHARP);
+
+    vWtfl_sharpness_x = (WTFL_SHARPNESS_X+1) * NEW_SCALEMOD_X;
+    if (IN_GLOW_W < 0.0) vWtfl_sharpness_x /= 1.2;
+
+
 }
 
 
@@ -82,6 +88,7 @@ layout(location = 0) noperspective in vec2 vTexCoord;
 layout(location = 2) flat in float vGlow_w_needed;
 layout(location = 3) flat in float vSharp_sub;
 layout(location = 4) flat in float vDo_wtfl;
+layout(location = 5) flat in float vWtfl_sharpness_x;
 layout(location = 12) flat in float vWarpedglow_scale_tated;
 
 layout(location = 14) flat in float vIn_glow_edge_sharpness;
@@ -157,15 +164,15 @@ void main() {
         if (vDo_wtfl == 1.0) {
             waterfall = texture(colortools_and_ntsc_pass, vTexCoord).a; //somehow there is no need to use texture_nearest here.
             waterfall = unpack_21(waterfall, 1.2).x; //FragColor = vec4(vec3(waterfall),0.0);return;
-        
+
             if (DO_IN_GLOW == 0.0)
                 in_glow_w_adapted = 7.0;
-            in_glow_w_adapted = mix(in_glow_w_adapted, WTFL_SHARPNESS_X, waterfall);
+            in_glow_w_adapted = mix(in_glow_w_adapted, vWtfl_sharpness_x, waterfall);
             //cancel sharp sub when doing fake transparencies blur.
             sharp_sub_adapted = mix(sharp_sub_adapted, 1.0, waterfall );
         }
     
-    //Scale it for box
+    //Scale it for box (waterfall blending counteracts this scaling, consider that).
         if (IN_GLOW_W < 0.0)
             in_glow_w_adapted = in_glow_w_adapted/1.2;
         

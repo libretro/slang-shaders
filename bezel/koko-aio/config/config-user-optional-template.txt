@@ -204,7 +204,7 @@
 // #define DO_FXAA  0.0                 // ★ Antialiasing enable ? 
 
 
-// #define DO_RF_NOISE  0.0             // ★ RF Noise enable?
+// #define DO_RF_NOISE  0.0             // ★ (RF) Noise enable?
 // #define RF_NOISE_STRENGTH  0.05      //         Strength
 // #define RF_NOISE_SPARK     0.07      //         Snow noise
 
@@ -481,6 +481,7 @@
 // #define ADPT_STROBE_GAIN_ADJ_NODARK 1.0    // Less gain on dark colors
 // #define ADPT_STROBE_GAMMA_ADJ       0.9    // Post Gamma adjustment
 // #define ADPT_LCD_RETENTION_FIX      3600.0 // LCD Retention workaround cadence (frames)
+// #define ADPT_STROBE_SELECTIVE       0.0    // Apply only to moving areas
 
 // #define ADPT_STROBE_GAMMA_ADJ      0.9    // Gamma adjustment
 

@@ -4,11 +4,8 @@
 #include "includes/functions.include.slang"
 
 #define AA_MODE_FXAA                 // 110 fps  // on fastest preset (good for 2x upscale)
-//#define AA_MODE_SCALE2XPLUS          // 111.2 fps //good general purpose, very light, but blurs edges too much? or not?; unsharp mask does not help.
-//#define AA_MODE_2XSCALEHQ            // 109.5 //used to blur too much shades, tweaked better now. rounder look than ddtxbrlv1, but rounds almost any corner.
 #define AA_MODE_DDTXBRLV1            // 108.4 // a bit blurry, parameters do help, yes, done.
-//#define AA_MODE_SUPER2XSAI           // 106.5 // less Dirty.
-
+#define AA_MODE_2xBRZ
 
 #ifndef D3D_WORKAROUND
    #define FPS_ESTIMATE_PASS halo_pre_gamma_passFeedback
@@ -22,7 +19,7 @@ layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) noperspective out vec2 vTexCoord;
 
-layout(location = 3) noperspective out vec2 vDynamicSeed;
+layout(location = 3) noperspective out vec2 vDynamicSeed_noise;
 
 layout(location = 5) noperspective out vec4 vpt1;
 layout(location = 6) noperspective out vec4 vpt2;
@@ -37,23 +34,28 @@ layout(location = 11) noperspective out vec4 vxt1;
 layout(location = 12) flat out float vDo_flickering;
 layout(location = 13) noperspective out vec2  vFlickerCoords;
 
+
+
+
+
 void main() {
 
    gl_Position = global.MVP * Position;
    vTexCoord = TexCoord;
-   
+
    //noise
-   vDynamicSeed = mod(params.FrameCount, 120.0001) * vTexCoord;
-   
+   vDynamicSeed_noise = vTexCoord;
+   if (RF_NOISE_STRENGTH > 0.0) vDynamicSeed_noise *= mod(params.FrameCount, 120.0001) ;
+
    //flickering helper
-   vDo_flickering  = float ( scanline_have_to_flicker(is_interlaced()) ) ; 
+   vDo_flickering  = float ( scanline_have_to_flicker(is_interlaced()) ) ;
    #ifdef FLICKER_IN_MOTION
       vDo_flickering = 1.0;
    #endif
    if (vDo_flickering == 1.0) {
       //Flicker one over 3 frames:
          float ModFlicker = params.FrameCount % 3;
-      
+
       //Compute y flicker offset:
          float FlickerOffset = 0.0;
          float line_tick = is_interlaced() ? 1 : 2 ;
@@ -65,27 +67,7 @@ void main() {
          vFlickerCoords =  vec2(TexCoord.x, TexCoord.y + FlickerOffset);
    }
 
-      
-   #ifdef AA_MODE_SCALE2XPLUS
-      vec2 pd = params.SourceSize.zw;
 
-      vpt1 = vTexCoord.xyxy + vec4( 0,   -pd.y, -pd.x, 0);   // B, D
-      vpt2 = vTexCoord.xyxy + vec4( pd.x,  0,    0,   pd.y); // F, H	
-   #endif
-      
-   #ifdef AA_MODE_2XSCALEHQ
-      vec2 s = params.SourceSize.zw * 0.5;
-      vec2 dg1 = vec2( s.x, s.y);
-      vec2 dg2 = vec2(-s.x, s.y);
-      vec2 dx = vec2(s.x, 0.0);
-      vec2 dy = vec2(0.0, s.y);
-      vhqt1 = vec4(vTexCoord - dg1, vTexCoord - dy);
-      vhqt2 = vec4(vTexCoord - dg2, vTexCoord + dx);
-      vhqt3 = vec4(vTexCoord + dg1, vTexCoord + dy);
-      vhqt4 = vec4(vTexCoord + dg2, vTexCoord - dx);
-   #endif
-      
-      
    #ifdef AA_MODE_DDTXBRLV1
       vec2 xd = params.SourceSize.zw;
       vxt1.xy = vec2( xd.x,  0); // F
@@ -96,7 +78,7 @@ void main() {
 #pragma stage fragment
 layout(location = 0) noperspective in vec2 vTexCoord;
 
-layout(location = 3) noperspective in vec2 vDynamicSeed;
+layout(location = 3) noperspective in vec2 vDynamicSeed_noise;
 
 layout(location = 5) noperspective in vec4 vpt1;
 layout(location = 6) noperspective in vec4 vpt2;
@@ -111,49 +93,353 @@ layout(location = 11) noperspective in vec4 vxt1;
 layout(location = 12) flat in float vDo_flickering;
 layout(location = 13) noperspective in vec2  vFlickerCoords;
 
+
 layout(location = 0) out vec4 FragColor;
 
 layout(set = 0, binding = 4) uniform sampler2D colortools_and_ntsc_pass;
 layout(set = 0, binding = 5) uniform sampler2D colortools_and_ntsc_passFeedback;
 layout(set = 0, binding = 6) uniform sampler2D FPS_ESTIMATE_PASS;
 
-   
-//#define _KOKO_AA_PRELINEARIZE
-#define _KOKO_AA_PRELINEARIZE_IN  (2.0)
-#define _KOKO_AA_PRELINEARIZE_OUT (1/_KOKO_AA_PRELINEARIZE_IN)
+
 
 vec4 texture_ovr_nearest( sampler2D tex, vec2 co) {
    //return texture(tex, co);
    vec4 c = texture_NEAREST(tex, co, params.SourceSize);
-   #ifdef _KOKO_AA_PRELINEARIZE
-      c.rgb = pow(c.rgb, vec3(_KOKO_AA_PRELINEARIZE_IN));
-   #endif
    return c;
 }
 
 
 vec4 textureLod_ovr(sampler2D tex, vec2 co, float lod) {
    vec4 c = textureLod(tex, co, lod);
-   #ifdef _KOKO_AA_PRELINEARIZE
-      c.rgb = pow(c.rgb, vec3(_KOKO_AA_PRELINEARIZE_IN));
-   #endif
    return c;
 }
 
 vec4 texture_ovr_nearest_lod0( sampler2D tex, vec2 co) {
    //return texture(tex, co);
    vec4 c = texture_NEAREST_lod(tex, co, params.SourceSize, 0.0);
-   #ifdef _KOKO_AA_PRELINEARIZE
-      c.rgb=pow(c.rgb, vec3(_KOKO_AA_PRELINEARIZE_IN));
-   #endif
    return c;
 }
+
+
+
+#ifdef AA_MODE_2xBRZ
+
+/*
+   Following credits to Hyllian's xbrz code,
+   I've just optimized some bits for speed.
+
+
+   Hyllian's xBR-vertex code and texel mapping
+
+   Copyright (C) 2011/2016 Hyllian - sergiogdb@gmail.com
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in
+   all copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+   THE SOFTWARE.
+
+*/
+
+// This shader also uses code and/or concepts from xBRZ as it appears
+// in the Desmume source code. The license for which is as follows:
+
+// ****************************************************************************
+// * This file is part of the HqMAME project. It is distributed under         *
+// * GNU General Public License: http://www.gnu.org/licenses/gpl-3.0          *
+// * Copyright (C) Zenju (zenju AT gmx DOT de) - All Rights Reserved          *
+// *                                                                          *
+// * Additionally and as a special exception, the author gives permission     *
+// * to link the code of this program with the MAME library (or with modified *
+// * versions of MAME that use the same license as MAME), and distribute      *
+// * linked combinations including the two. You must obey the GNU General     *
+// * Public License in all respects for all of the code used other than MAME. *
+// * If you modify this file, you may extend this exception to your version   *
+// * of the file, but you are not obligated to do so. If you do not wish to   *
+// * do so, delete this exception statement from your version.                *
+// ****************************************************************************
+
+
+   #define BLEND_NONE 0
+   #define BLEND_NORMAL 1
+   #define BLEND_DOMINANT 2
+   #define LUMINANCE_WEIGHT 1.0
+   #define EQUAL_COLOR_TOLERANCE 30.0/255.0
+   #define STEEP_DIRECTION_THRESHOLD 2.2
+   #define DOMINANT_DIRECTION_THRESHOLD 3.6
+   #define M_PI 3.1415926535897932384626433832795
+
+	const float  one_sixth = 1.0 / 6.0;
+	const float  two_sixth = 2.0 / 6.0;
+	const float four_sixth = 4.0 / 6.0;
+	const float five_sixth = 5.0 / 6.0;
+
+	float reduce(const vec3 color) {
+		return dot(color, vec3(65536.0, 256.0, 1.0));
+	}
+
+	float color_diff(const vec3 a, const vec3 b) {
+      //koko: use a faster compare:
+      vec3 d = a-b;
+      return dot(d,d);
+	}
+
+	bool IsPixEqual(const vec3 pixA, const vec3 pixB) {
+		return (color_diff(pixA, pixB) < EQUAL_COLOR_TOLERANCE);
+	}
+
+	bool IsBlendingNeeded(const ivec4 blend) {
+		return any(notEqual(blend, ivec4(BLEND_NONE)));
+	}
+
+      void ScalePixel(const ivec4 blend, const vec3 k[9],
+                     float v0, float v4, float v5, float v7, float v8,
+                     inout vec3 dst[4])
+      {
+         float dist_01_04 = color_diff(k[1], k[4]);
+         float dist_03_08 = color_diff(k[3], k[8]);
+         bool haveShallowLine = (STEEP_DIRECTION_THRESHOLD * dist_01_04 <= dist_03_08) && (v0 != v4) && (v5 != v4);
+         bool haveSteepLine   = (STEEP_DIRECTION_THRESHOLD * dist_03_08 <= dist_01_04) && (v0 != v8) && (v7 != v8);
+         bool needBlend = (blend[2] != BLEND_NONE);
+         bool doLineBlend = (  blend[2] >= BLEND_DOMINANT ||
+                           !((blend[1] != BLEND_NONE && !IsPixEqual(k[0], k[4])) ||
+                              (blend[3] != BLEND_NONE && !IsPixEqual(k[0], k[8])) ||
+                              (IsPixEqual(k[4], k[3]) && IsPixEqual(k[3], k[2]) && IsPixEqual(k[2], k[1]) && IsPixEqual(k[1], k[8]) && !IsPixEqual(k[0], k[2])) ) );
+
+         vec3 blendPix = ( color_diff(k[0], k[1]) <= color_diff(k[0], k[3]) ) ? k[1] : k[3];
+         dst[1] = mix(dst[1], blendPix, (needBlend && doLineBlend && haveSteepLine) ? 0.25 : 0.00);
+         dst[2] = mix(dst[2], blendPix, (needBlend) ? ((doLineBlend) ? ((haveShallowLine) ? ((haveSteepLine) ? 5.0/6.0 : 0.75) : ((haveSteepLine) ? 0.75 : 0.50)) : 1.0 - (M_PI/4.0)) : 0.00);
+         dst[3] = mix(dst[3], blendPix, (needBlend && doLineBlend && haveShallowLine) ? 0.25 : 0.00);
+      }
+
+
+
+   vec3 aa_2xbrz(sampler2D smp, vec2 co) {
+
+
+      //---------------------------------------
+      // Input Pixel Mapping:  20|21|22|23|24
+      //                       19|06|07|08|09
+      //                       18|05|00|01|10
+      //                       17|04|03|02|11
+      //                       16|15|14|13|12
+
+
+   // Snap delle coordinate: sostituisce il calcolo interno a texture_ovr_nearest_lod0
+      vec2 sz  = params.SourceSize.xy;
+      vec2 isz = params.SourceSize.zw;
+
+      // snap coords to get NN filtering
+      float sx_l = (floor(co.x * sz.x - 1.0) + 0.5) * isz.x; // -dx
+      float sx_c = (floor(co.x * sz.x      ) + 0.5) * isz.x; // 0
+      float sx_r = (floor(co.x * sz.x + 1.0) + 0.5) * isz.x; // +dx
+      float sx_ll= (floor(co.x * sz.x - 2.0) + 0.5) * isz.x; // -2dx (t6)
+      float sx_rr= (floor(co.x * sz.x + 2.0) + 0.5) * isz.x; // +2dx (t7)
+      float sy_t2 = (floor(co.y * sz.y - 2.0) + 0.5) * isz.y; // t1
+      float sy_t1 = (floor(co.y * sz.y - 1.0) + 0.5) * isz.y; // t2
+      float sy_m  = (floor(co.y * sz.y      ) + 0.5) * isz.y; // t3
+      float sy_b1 = (floor(co.y * sz.y + 1.0) + 0.5) * isz.y; // t4
+      float sy_b2 = (floor(co.y * sz.y + 2.0) + 0.5) * isz.y; // t5
+
+      vec3 src[25];
+
+         src[21] = textureLod(smp, vec2(sx_l,  sy_t2), 0.0).rgb;
+         src[22] = textureLod(smp, vec2(sx_c,  sy_t2), 0.0).rgb;
+         src[23] = textureLod(smp, vec2(sx_r,  sy_t2), 0.0).rgb;
+         src[ 6] = textureLod(smp, vec2(sx_l,  sy_t1), 0.0).rgb;
+         src[ 7] = textureLod(smp, vec2(sx_c,  sy_t1), 0.0).rgb;
+         src[ 8] = textureLod(smp, vec2(sx_r,  sy_t1), 0.0).rgb;
+         src[ 5] = textureLod(smp, vec2(sx_l,  sy_m ), 0.0).rgb;
+         src[ 0] = textureLod(smp, vec2(sx_c,  sy_m ), 0.0).rgb;
+         src[ 1] = textureLod(smp, vec2(sx_r,  sy_m ), 0.0).rgb;
+         src[ 4] = textureLod(smp, vec2(sx_l,  sy_b1), 0.0).rgb;
+         src[ 3] = textureLod(smp, vec2(sx_c,  sy_b1), 0.0).rgb;
+         src[ 2] = textureLod(smp, vec2(sx_r,  sy_b1), 0.0).rgb;
+         src[15] = textureLod(smp, vec2(sx_l,  sy_b2), 0.0).rgb;
+         src[14] = textureLod(smp, vec2(sx_c,  sy_b2), 0.0).rgb;
+         src[13] = textureLod(smp, vec2(sx_r,  sy_b2), 0.0).rgb;
+         src[19] = textureLod(smp, vec2(sx_ll, sy_t1), 0.0).rgb;
+         src[18] = textureLod(smp, vec2(sx_ll, sy_m ), 0.0).rgb;
+         src[17] = textureLod(smp, vec2(sx_ll, sy_b1), 0.0).rgb;
+         src[ 9] = textureLod(smp, vec2(sx_rr, sy_t1), 0.0).rgb;
+         src[10] = textureLod(smp, vec2(sx_rr, sy_m ), 0.0).rgb;
+         src[11] = textureLod(smp, vec2(sx_rr, sy_b1), 0.0).rgb;
+
+         float v[9];
+         v[0] = reduce(src[0]);
+         v[1] = reduce(src[1]);
+         v[2] = reduce(src[2]);
+         v[3] = reduce(src[3]);
+         v[4] = reduce(src[4]);
+         v[5] = reduce(src[5]);
+         v[6] = reduce(src[6]);
+         v[7] = reduce(src[7]);
+         v[8] = reduce(src[8]);
+
+         ivec4 blendResult = ivec4(BLEND_NONE);
+
+         // Preprocess corners
+
+         // Pixel Tap Mapping: --|--|--|--|--
+         //                    --|--|07|08|--
+         //                    --|05|00|01|10
+         //                    --|04|03|02|11
+         //                    --|--|14|13|--
+         // Corner (1, 1)
+         if ( ((v[0] == v[1] && v[3] == v[2]) || (v[0] == v[3] && v[1] == v[2])) == false)
+         {
+            float dist_03_01 = color_diff(src[ 4], src[ 0]) + color_diff(src[ 0], src[ 8]) + color_diff(src[14], src[ 2]) + color_diff(src[ 2], src[10]) + (4.0 * color_diff(src[ 3], src[ 1]));
+            float dist_00_02 = color_diff(src[ 5], src[ 3]) + color_diff(src[ 3], src[13]) + color_diff(src[ 7], src[ 1]) + color_diff(src[ 1], src[11]) + (4.0 * color_diff(src[ 0], src[ 2]));
+            bool dominantGradient = (DOMINANT_DIRECTION_THRESHOLD * dist_03_01) < dist_00_02;
+            blendResult[2] = ((dist_03_01 < dist_00_02) && (v[0] != v[1]) && (v[0] != v[3])) ? ((dominantGradient) ? BLEND_DOMINANT : BLEND_NORMAL) : BLEND_NONE;
+         }
+
+         // Pixel Tap Mapping: --|--|--|--|--
+         //                    --|06|07|--|--
+         //                    18|05|00|01|--
+         //                    17|04|03|02|--
+         //                    --|15|14|--|--
+         // Corner (0, 1)
+         if ( ((v[5] == v[0] && v[4] == v[3]) || (v[5] == v[4] && v[0] == v[3])) == false)
+         {
+            float dist_04_00 = color_diff(src[17], src[ 5]) + color_diff(src[ 5], src[ 7]) + color_diff(src[15], src[ 3]) + color_diff(src[ 3], src[ 1]) + (4.0 * color_diff(src[ 4], src[ 0]));
+            float dist_05_03 = color_diff(src[18], src[ 4]) + color_diff(src[ 4], src[14]) + color_diff(src[ 6], src[ 0]) + color_diff(src[ 0], src[ 2]) + (4.0 * color_diff(src[ 5], src[ 3]));
+            bool dominantGradient = (DOMINANT_DIRECTION_THRESHOLD * dist_05_03) < dist_04_00;
+            blendResult[3] = ((dist_04_00 > dist_05_03) && (v[0] != v[5]) && (v[0] != v[3])) ? ((dominantGradient) ? BLEND_DOMINANT : BLEND_NORMAL) : BLEND_NONE;
+         }
+
+         // Pixel Tap Mapping: --|--|22|23|--
+         //                    --|06|07|08|09
+         //                    --|05|00|01|10
+         //                    --|--|03|02|--
+         //                    --|--|--|--|--
+         // Corner (1, 0)
+         if ( ((v[7] == v[8] && v[0] == v[1]) || (v[7] == v[0] && v[8] == v[1])) == false)
+         {
+            float dist_00_08 = color_diff(src[ 5], src[ 7]) + color_diff(src[ 7], src[23]) + color_diff(src[ 3], src[ 1]) + color_diff(src[ 1], src[ 9]) + (4.0 * color_diff(src[ 0], src[ 8]));
+            float dist_07_01 = color_diff(src[ 6], src[ 0]) + color_diff(src[ 0], src[ 2]) + color_diff(src[22], src[ 8]) + color_diff(src[ 8], src[10]) + (4.0 * color_diff(src[ 7], src[ 1]));
+            bool dominantGradient = (DOMINANT_DIRECTION_THRESHOLD * dist_07_01) < dist_00_08;
+            blendResult[1] = ((dist_00_08 > dist_07_01) && (v[0] != v[7]) && (v[0] != v[1])) ? ((dominantGradient) ? BLEND_DOMINANT : BLEND_NORMAL) : BLEND_NONE;
+         }
+
+         // Pixel Tap Mapping: --|21|22|--|--
+         //                    19|06|07|08|--
+         //                    18|05|00|01|--
+         //                    --|04|03|--|--
+         //                    --|--|--|--|--
+         // Corner (0, 0)
+         if ( ((v[6] == v[7] && v[5] == v[0]) || (v[6] == v[5] && v[7] == v[0])) == false)
+         {
+            float dist_05_07 = color_diff(src[18], src[ 6]) + color_diff(src[ 6], src[22]) + color_diff(src[ 4], src[ 0]) + color_diff(src[ 0], src[ 8]) + (4.0 * color_diff(src[ 5], src[ 7]));
+            float dist_06_00 = color_diff(src[19], src[ 5]) + color_diff(src[ 5], src[ 3]) + color_diff(src[21], src[ 7]) + color_diff(src[ 7], src[ 1]) + (4.0 * color_diff(src[ 6], src[ 0]));
+            bool dominantGradient = (DOMINANT_DIRECTION_THRESHOLD * dist_05_07) < dist_06_00;
+            blendResult[0] = ((dist_05_07 < dist_06_00) && (v[0] != v[5]) && (v[0] != v[7])) ? ((dominantGradient) ? BLEND_DOMINANT : BLEND_NORMAL) : BLEND_NONE;
+         }
+
+         vec3 dst[4];
+         dst[ 0] = src[0];
+         dst[ 1] = src[0];
+         dst[ 2] = src[0];
+         dst[ 3] = src[0];
+
+         // Scale pixel
+         if (IsBlendingNeeded(blendResult) == true) {
+
+            vec3 k[9];
+            vec3 tempDst3;
+
+            k[0] = src[0];
+            k[1] = src[1];
+            k[2] = src[2];
+            k[3] = src[3];
+            k[4] = src[4];
+            k[5] = src[5];
+            k[6] = src[6];
+            k[7] = src[7];
+            k[8] = src[8];
+            ScalePixel(blendResult.xyzw, k, v[0], v[4], v[5], v[7], v[8], dst);
+
+            k[1] = src[7];
+            k[2] = src[8];
+            k[3] = src[1];
+            k[4] = src[2];
+            k[5] = src[3];
+            k[6] = src[4];
+            k[7] = src[5];
+            k[8] = src[6];
+            tempDst3 = dst[3];
+            dst[3] = dst[2];
+            dst[2] = dst[1];
+            dst[1] = dst[0];
+            dst[0] = tempDst3;
+            ScalePixel(blendResult.wxyz, k, v[0], v[2], v[3], v[5], v[6], dst);
+
+            k[1] = src[5];
+            k[2] = src[6];
+            k[3] = src[7];
+            k[4] = src[8];
+            k[5] = src[1];
+            k[6] = src[2];
+            k[7] = src[3];
+            k[8] = src[4];
+            tempDst3 = dst[3];
+            dst[3] = dst[2];
+            dst[2] = dst[1];
+            dst[1] = dst[0];
+            dst[0] = tempDst3;
+            ScalePixel(blendResult.zwxy, k, v[0], v[8], v[1], v[3], v[4], dst);
+
+            k[1] = src[3];
+            k[2] = src[4];
+            k[3] = src[5];
+            k[4] = src[6];
+            k[5] = src[7];
+            k[6] = src[8];
+            k[7] = src[1];
+            k[8] = src[2];
+            tempDst3 = dst[3];
+            dst[3] = dst[2];
+            dst[2] = dst[1];
+            dst[1] = dst[0];
+            dst[0] = tempDst3;
+            ScalePixel(blendResult.yzwx, k, v[0], v[6], v[7], v[1], v[2], dst);
+
+            // Rotate the destination pixels back to 0 degrees.
+            tempDst3 = dst[3];
+            dst[3] = dst[2];
+            dst[2] = dst[1];
+            dst[1] = dst[0];
+            dst[0] = tempDst3;
+         }
+
+      vec2 f = step(0.5, fract(co*params.SourceSize.xy));
+      vec3 res = mix( mix(dst[0], dst[1], f.x),
+                              mix(dst[3], dst[2], f.x), f.y );
+      return res;
+   }
+
+
+#endif
+
+
 
 #ifdef AA_MODE_DDTXBRLV1
 
    /*
    Hyllian's DDT-xBR-lv1 Shader
-   
+
    Copyright (C) 2011-2022 Hyllian/Jararaca - sergiogdb@gmail.com
 
    Sharpness control - Copyright (c) 2022 Filippo Scognamiglio
@@ -176,33 +462,33 @@ vec4 texture_ovr_nearest_lod0( sampler2D tex, vec2 co) {
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
    THE SOFTWARE.
    */
-   
-   
+
+
    //    // set to 1.0 to use dynamic sharpening
    //    #pragma parameter USE_DYNAMIC_SHARPNESS "Dynamic Sharpness [ 0FF | ON ]" 1.0 0.0 1.0 1.0
-   // 
+   //
    //    // Set to 1.0 to bias the interpolation towards sharpening
    //    #pragma parameter USE_SHARPENING_BIAS "Sharpness Bias [ 0FF | ON ]" 1.0 0.0 1.0 1.0
-   // 
+   //
    //    // Minimum amount of sharpening in range [0.0, 1.0]
    //    #pragma parameter DYNAMIC_SHARPNESS_MIN "Dynamic Sharpness Min" 0.0 0.0 1.0 0.1
-   // 
+   //
    //    // Maximum amount of sharpening in range [0.0, 1.0]
    //    #pragma parameter DYNAMIC_SHARPNESS_MAX "Dynamic Sharpness Max" 0.3 0.0 1.0 0.1
-   // 
+   //
    //    // If USE_DYNAMIC_SHARPNESS is 0 apply this static sharpness
    //    #pragma parameter STATIC_SHARPNESS "Static Sharpness" 0.5 0.0 1.0 0.1
-   // 
+   //
    //    #pragma parameter DDT_THRESHOLD "DDT Diagonal Threshold" 2.6 1.0 6.0 0.2
-   // 
+   //
    //    #define USE_DYNAMIC_SHARPNESS  params.USE_DYNAMIC_SHARPNESS
    //    #define USE_SHARPENING_BIAS    params.USE_SHARPENING_BIAS
    //    #define DYNAMIC_SHARPNESS_MIN  (params.DYNAMIC_SHARPNESS_MIN * 0.5)
    //    #define DYNAMIC_SHARPNESS_MAX  (params.DYNAMIC_SHARPNESS_MAX * 0.5)
    //    #define STATIC_SHARPNESS       (params.STATIC_SHARPNESS * 0.5)
    //    #define DDT_THRESHOLD params.DDT_THRESHOLD
-   // 
-   
+   //
+
    #define WP1  4.0
    #define WP2  1.0
    #define WP3 -1.0
@@ -214,7 +500,7 @@ vec4 texture_ovr_nearest_lod0( sampler2D tex, vec2 co) {
 
    #define STATIC_SHARPNESS       (0.5 * 0.5)
    #define DDT_THRESHOLD 2.6
-   
+
    const vec3 Y = vec3( 0.299,  0.587,  0.114);
 
    float luma(vec3 color) {
@@ -255,10 +541,10 @@ vec4 texture_ovr_nearest_lod0( sampler2D tex, vec2 co) {
       }
       vec3 weights = fastBarycentric(triangleCoords, sharpness);
       return weights.x * cornerColor + weights.y * t2 + weights.z * t4;
-   } 
-   
+   }
+
    vec3 aa_ddtxbrlv1(sampler2D tex, vec2 co, vec4 pt1) {
-   
+
       vec2 pos = fract(co*params.SourceSize.xy)-vec2(0.5); // pos = pixel position
       vec2 dir = sign(pos); // dir = pixel direction
       float lmax, lmin, contrast;
@@ -296,8 +582,8 @@ vec4 texture_ovr_nearest_lod0( sampler2D tex, vec2 co) {
             contrast = sqrt(contrast);
 
          sharpness = mix(DYNAMIC_SHARPNESS_MIN, DYNAMIC_SHARPNESS_MAX, contrast);
-      }	
-      
+      }
+
       float a1 = luma(A1);
       float b1 = luma(B1);
       float a0 = luma(A0);
@@ -333,214 +619,10 @@ vec4 texture_ovr_nearest_lod0( sampler2D tex, vec2 co) {
       }
       else
          color = quadBilinear(A, B, C, D, vec2(p, q), sharpness);
-      
+
       return color;
    }
-   
-#endif
 
-
-#ifdef AA_MODE_SUPER2XSAI
-
-    /*              Super2xSaI code               */
-    /*  Copied from the Dosbox source code        */
-    /*  Copyright (C) 2002-2007  The DOSBox Team  */
-    /*  License: GNU-GPL                          */
-    /*  Adapted by guest(r) on 16.4.2007          */
-
-   const vec3 dt = vec3(65536.0,256.0,1.0);
-   float GET_RESULT(float A, float B, float C, float D) {
-      return (sign(abs(A-C)+abs(A-D)) - sign(abs(B-C)+abs(B-D))); 
-   }
-
-   float reduce(vec3 color)    { 
-      return dot(color,dt);
-   }
-   
-   vec3 aa_super2x_sai(sampler2D tex,  vec2 co) {
-      vec2 OGL2Size    = params.SourceSize.xy;
-      vec2 OGL2InvSize = params.SourceSize.zw;
-
-      // Calculating texel coordinates
-
-      vec2 OGL2Pos = co * OGL2Size.xy;
-      vec2 fp  = fract(OGL2Pos);
-      vec2 dx  = vec2(OGL2InvSize.x,0.0);
-      vec2 dy  = vec2(0.0,OGL2InvSize.y);
-      vec2 g1  = vec2( OGL2InvSize.x,OGL2InvSize.y);
-      vec2 g2  = vec2(-OGL2InvSize.x,OGL2InvSize.y);
-
-      vec2 pC4 = floor(OGL2Pos)/OGL2Size.xy + 0.5*OGL2InvSize;
-      vec2 pC8 = pC4 + g1;
-
-      // Reading the texels
-         vec3 C0 = textureLod_ovr(tex,pC4-g1, 0.0).xyz; 
-         vec3 C1 = textureLod_ovr(tex,pC4-dy, 0.0).xyz; 
-         vec3 C2 = textureLod_ovr(tex,pC4-g2, 0.0).xyz; 
-         vec3 D3 = textureLod_ovr(tex,pC4-g2+dx, 0.0).xyz; 
-         vec3 C3 = textureLod_ovr(tex,pC4-dx, 0.0).xyz; 
-         vec3 C4 = textureLod_ovr(tex,pC4, 0.0).xyz; 
-         vec3 C5 = textureLod_ovr(tex,pC4+dx, 0.0).xyz; 
-         vec3 D4 = textureLod_ovr(tex,pC8-g2, 0.0).xyz; 
-         vec3 C6 = textureLod_ovr(tex,pC4+g2, 0.0).xyz; 
-         vec3 C7 = textureLod_ovr(tex,pC4+dy, 0.0).xyz; 
-         vec3 C8 = textureLod_ovr(tex,pC8, 0.0).xyz; 
-         vec3 D5 = textureLod_ovr(tex,pC8+dx, 0.0).xyz; 
-         vec3 D0 = textureLod_ovr(tex,pC4+g2+dy, 0.0).xyz; 
-         vec3 D1 = textureLod_ovr(tex,pC8+g2, 0.0).xyz; 
-         vec3 D2 = textureLod_ovr(tex,pC8+dy, 0.0).xyz; 
-         vec3 D6 = textureLod_ovr(tex,pC8+g1, 0.0).xyz; 
-
-      vec3 p00,p10,p01,p11;
-
-      float c0 = reduce(C0);float c1 = reduce(C1);
-      float c2 = reduce(C2);float c3 = reduce(C3);
-      float c4 = reduce(C4);float c5 = reduce(C5);
-      float c6 = reduce(C6);float c7 = reduce(C7);
-      float c8 = reduce(C8);float d0 = reduce(D0);
-      float d1 = reduce(D1);float d2 = reduce(D2);
-      float d3 = reduce(D3);float d4 = reduce(D4);
-      float d5 = reduce(D5);float d6 = reduce(D6);
-
-      
-      if (c7 == c5 && c4 != c8) {
-            p11 = p01 = C7;
-      } else if (c4 == c8 && c7 != c5) {
-            p11 = p01 = C4;
-      } else if (c4 == c8 && c7 == c5) {
-            float r;
-            r = GET_RESULT(c5,c4,c6,d1);
-            r+= GET_RESULT(c5,c4,c3,c1);
-            r+= GET_RESULT(c5,c4,d2,d5);
-            r+= GET_RESULT(c5,c4,c2,d4);
-
-            if (r > 0.0)
-                     p11 = p01 = C5;
-            else if (r < 0.0)
-                     p11 = p01 = C4;
-            else {
-                     p11 = p01 = 0.5*(C4+C5);
-            }
-      } else {
-            if (c5 == c8 && c8 == d1 && c7 != d2 && c8 != d0)
-                     p11 = 0.25*(3.0*C8+C7);
-            else if (c4 == c7 && c7 == d2 && d1 != c8 && c7 != d6)
-                     p11 = 0.25*(3.0*C7+C8);
-            else
-                     p11 = 0.5*(C7+C8);
-
-            if (c5 == c8 && c5 == c1 && c4 != c2 && c5 != c0)
-                     p01 = 0.25*(3.0*C5+C4);
-            else if (c4 == c7 && c4 == c2 && c1 != c5 && c4 != d3)
-                     p01 = 0.25*(3.0*C4+C5);
-            else
-                     p01 = 0.5*(C4+C5);
-      }
-
-      if (c4 == c8 && c7 != c5 && c3 == c4 && c4 != d2)
-            p10 = 0.5*(C7+C4);
-      else if (c4 == c6 && c5 == c4 && c3 != c7 && c4 != d0)
-            p10 = 0.5*(C7+C4);
-      else
-            p10 = C7;
-
-      if (c7 == c5 && c4 != c8 && c6 == c7 && c7 != c2)
-            p00 = 0.5*(C7+C4);
-      else if (c3 == c7 && c8 == c7 && c6 != c4 && c7 != c0)
-            p00 = 0.5*(C7+C4);
-      else
-            p00 = C4;
-
-      // Distributing the final products    
-
-      vec3 color = 0.0.xxx;
-
-      if (fp.x < 0.50)
-      { if (fp.y < 0.50) color = p00; else color = p10;}
-      else
-      { if (fp.y < 0.50) color = p01; else color = p11;}
-      
-      return color;
-   }
-   
-   
-#endif
-
-
-#ifdef AA_MODE_SCALE2XPLUS
-
-   vec3 aa_scale2xplus(sampler2D tex, vec2 co, vec4 pt1, vec4 pt2) {
-      /*
-         Scale2xPlus shader 
-         - Copyright (C) 2007 guest(r) - guest.r@gmail.com
-         - License: GNU-GPL  
-
-         The Scale2x algorithm:
-         - Scale2x Homepage: http://scale2x.sourceforge.net/
-         - Copyright (C) 2001, 2002, 2003, 2004 Andrea Mazzoleni 
-         - License: GNU-GPL  
-      */
-
-      vec2 fp = fract(co*params.SourceSize.xy);
-
-      // Reading the texels
-         vec3 B = texture_ovr_nearest_lod0(tex, pt1.xy).xyz;
-         vec3 D = texture_ovr_nearest_lod0(tex, pt1.zw).xyz;
-         vec3 E = texture_ovr_nearest_lod0(tex, co).xyz;
-         vec3 F = texture_ovr_nearest_lod0(tex, pt2.xy).xyz;
-         vec3 H = texture_ovr_nearest_lod0(tex, pt2.zw).xyz;
-
-      vec3 E0 = D == B && B != H && D != F ? D : E;
-      vec3 E1 = B == F && B != H && D != F ? F : E;
-      vec3 E2 = D == H && B != H && D != F ? D : E;
-      vec3 E3 = H == F && B != H && D != F ? F : E;
-
-      // Product interpolation
-      return (E3*fp.x+E2*(1-fp.x))*fp.y+(E1*fp.x+E0*(1-fp.x))*(1-fp.y);
-   }
-#endif
-
-
-#ifdef AA_MODE_2XSCALEHQ
-   vec3 aa_2xscalehq(sampler2D tex, vec2 co, vec4 pt1, vec4 pt2, vec4 pt3, vec4 pt4) {
-      float mx = 0.325;      // start smoothing wt.
-      float k = -0.250;      // wt. decrease factor //does not seem to affect anything
-      float max_w = 0.25 * 0.0;    // max filter weigth // the lower, the less "debanding"
-      float min_w =-0.05;    // min filter weigth
-      float lum_add = 0.25;  // affects smoothing
-      vec3 c00 = texture_ovr_nearest_lod0(tex, pt1.xy).xyz; 
-      vec3 c10 = texture_ovr_nearest_lod0(tex, pt1.zw).xyz; 
-      vec3 c20 = texture_ovr_nearest_lod0(tex, pt2.xy).xyz; 
-      vec3 c01 = texture_ovr_nearest_lod0(tex, pt4.zw).xyz; 
-      vec3 c11 = texture_ovr_nearest_lod0(tex, co).xyz; 
-      vec3 c21 = texture_ovr_nearest_lod0(tex, pt2.zw).xyz; 
-      vec3 c02 = texture_ovr_nearest_lod0(tex, pt4.xy).xyz; 
-      vec3 c12 = texture_ovr_nearest_lod0(tex, pt3.zw).xyz; 
-      vec3 c22 = texture_ovr_nearest_lod0(tex, pt3.xy).xyz; 
-
-      float md1 = dot(abs(c00 - c22), vec3(1.0));
-      float md2 = dot(abs(c02 - c20), vec3(1.0));
-
-      float w1 = dot(abs(c22 - c11), vec3(1.0)) * md2;
-      float w2 = dot(abs(c02 - c11), vec3(1.0)) * md1;
-      float w3 = dot(abs(c00 - c11), vec3(1.0)) * md2;
-      float w4 = dot(abs(c20 - c11), vec3(1.0)) * md1;
-
-      float t1 = w1 + w3;
-      float t2 = w2 + w4;
-      float ww = max(t1, t2) + 0.0001;
-
-      c11 = (w1 * c00 + w2 * c20 + w3 * c22 + w4 * c02 + ww * c11) / (t1 + t2 + ww);
-
-      float lc1 = k / (0.12 * dot(c10 + c12 + c11, vec3(1.0)) + lum_add);
-      float lc2 = k / (0.12 * dot(c01 + c21 + c11, vec3(1.0)) + lum_add);
-
-      w1 = clamp(lc1 * dot(abs(c11 - c10), vec3(1.0)) + mx, min_w, max_w);
-      w2 = clamp(lc2 * dot(abs(c11 - c21), vec3(1.0)) + mx, min_w, max_w);
-      w3 = clamp(lc1 * dot(abs(c11 - c12), vec3(1.0)) + mx, min_w, max_w);
-      w4 = clamp(lc2 * dot(abs(c11 - c01), vec3(1.0)) + mx, min_w, max_w);
-      return (w1 * c10) + (w2 * c21) + (w3 * c12) + (w4 * c01) + (1.0 - w1 - w2 - w3 - w4) * c11;
-   }
 #endif
 
 
@@ -567,17 +649,17 @@ vec3 pixel_flickering(vec3 pixel_cur) {
  */
 
    vec3 flickline = texture(colortools_and_ntsc_pass,vFlickerCoords).rgb;
-   
+
    //float lumdiff = abs( flickline.r + flickline.g + flickline.b - pixel_cur.r - pixel_cur.g - pixel_cur.b);
    //float lumdiff = abs( (flickline.r + flickline.g) + (flickline.b - pixel_cur.r) - (pixel_cur.g + pixel_cur.b) ); //1687 1754 2946   ASM PROOF: FASTER
    float lumdiff = abs( dot(flickline.rgb, vec3(1.0)) - dot(pixel_cur.rgb, vec3(1.0)));// 1685 1750 2948 //ASM PROOF: Faster on SIMD8 and SIMD16, slower on SIMD32
 
-   
+
    // disable flickering on 25 and 30fps content:
    if (low_fps(FPS_ESTIMATE_PASS)) lumdiff = 0.0;
-   
+
    lumdiff = min(lumdiff * PIXELGRID_INTR_FLICK_POWR, 1.0);
-   
+
 
    #ifdef FLICKER_IN_MOTION
       lumdiff = 0.4;
@@ -586,7 +668,7 @@ vec3 pixel_flickering(vec3 pixel_cur) {
       float is_moving = float(prev_frame != cur_frame);
       lumdiff *= is_moving;
    #endif
-   
+
    return mix(pixel_cur.rgb,flickline.rgb,lumdiff);
 
 }
@@ -615,12 +697,12 @@ vec3 pixel_flickering(vec3 pixel_cur) {
 #endif
 
 #if (FXAA_PRESET == 3)
-    #define FXAA_EDGE_THRESHOLD      (1.0/8.0)  
-    #define FXAA_EDGE_THRESHOLD_MIN  (1.0/16.0) 
-    #define FXAA_SEARCH_STEPS        16         
-    #define FXAA_SEARCH_THRESHOLD    (1.0/4.0)  
-    #define FXAA_SUBPIX_CAP          (3.0/4.0)  
-    #define FXAA_SUBPIX_TRIM         (1.0/4.0)  
+    #define FXAA_EDGE_THRESHOLD      (1.0/8.0)
+    #define FXAA_EDGE_THRESHOLD_MIN  (1.0/16.0)
+    #define FXAA_SEARCH_STEPS        16
+    #define FXAA_SEARCH_THRESHOLD    (1.0/4.0)
+    #define FXAA_SUBPIX_CAP          (3.0/4.0)
+    #define FXAA_SUBPIX_TRIM         (1.0/4.0)
 #endif
 #if (FXAA_PRESET == 4)
     #define FXAA_EDGE_THRESHOLD      (1.0/8.0)
@@ -658,13 +740,13 @@ vec3 FxaaLerp3(vec3 a, vec3 b, float amountOfA) {
 
 vec4 FxaaTexOff(sampler2D tex, vec2 pos, ivec2 off, vec4 sourcesize, vec4 outputsize) {
    float x = pos.x + float(off.x) * sourcesize.z;
-   float y = pos.y + float(off.y) * sourcesize.w;   
-   
+   float y = pos.y + float(off.y) * sourcesize.w;
+
    vec2 fragmentShift = off * outputsize.zw;
    vec2 shiftedUV = pos + fragmentShift;
    vec2 nearestUV = floor(shiftedUV * sourcesize.xy) * sourcesize.zw + sourcesize.zw * 0.5;
-   
-   return textureLod_ovr(tex, nearestUV, 0.0);    
+
+   return textureLod_ovr(tex, nearestUV, 0.0);
 }
 
 // pos is the output of FxaaVertexShader interpolated across screen.
@@ -691,19 +773,19 @@ vec3 FxaaPixelShader(vec2 pos, sampler2D tex, vec4 sourcesize, vec4 outputsize) 
    if(range < max(FXAA_EDGE_THRESHOLD_MIN, rangeMax * FXAA_EDGE_THRESHOLD)) {
       return rgbM;
    }
-      
+
    vec3 rgbL = rgbN + rgbW + rgbM + rgbE + rgbS; //ASM_PROOF: USELESS parenthesis
 
    float lumaL = (lumaN + lumaW + lumaE + lumaS) * 0.25;
    float rangeL = abs(lumaL - lumaM);
 
    #ifdef FXAA_SUBPIX_TRIM
-      float blendL = max(0.0, (rangeL / range) - FXAA_SUBPIX_TRIM) * FXAA_SUBPIX_TRIM_SCALE; 
+      float blendL = max(0.0, (rangeL / range) - FXAA_SUBPIX_TRIM) * FXAA_SUBPIX_TRIM_SCALE;
       blendL = min(FXAA_SUBPIX_CAP, blendL);
    #else
       float blendL = 0.0;
    #endif
-   
+
    vec3 rgbNW = FxaaTexOff(tex, pos.xy, ivec2(-1,-1), sourcesize, outputsize).xyz;
    vec3 rgbNE = FxaaTexOff(tex, pos.xy, ivec2( 1,-1), sourcesize, outputsize).xyz;
    vec3 rgbSW = FxaaTexOff(tex, pos.xy, ivec2(-1, 1), sourcesize, outputsize).xyz;
@@ -712,23 +794,23 @@ vec3 FxaaPixelShader(vec2 pos, sampler2D tex, vec4 sourcesize, vec4 outputsize) 
    rgbL += (rgbNW + rgbNE + rgbSW + rgbSE);
 
    rgbL *= vec3(1.0/9.0);
-      
+
    float lumaNW = FxaaLuma(rgbNW);
    float lumaNE = FxaaLuma(rgbNE);
    float lumaSW = FxaaLuma(rgbSW);
    float lumaSE = FxaaLuma(rgbSE);
 
-   float edgeVert = 
+   float edgeVert =
       abs((0.25 * lumaNW) + (-0.5 * lumaN) + (0.25 * lumaNE)) +
       abs((0.50 * lumaW ) + (-1.0 * lumaM) + (0.50 * lumaE )) +
       abs((0.25 * lumaSW) + (-0.5 * lumaS) + (0.25 * lumaSE));
-   float edgeHorz = 
+   float edgeHorz =
       abs((0.25 * lumaNW) + (-0.5 * lumaW) + (0.25 * lumaSW)) +
       abs((0.50 * lumaN ) + (-1.0 * lumaM) + (0.50 * lumaS )) +
       abs((0.25 * lumaNE) + (-0.5 * lumaE) + (0.25 * lumaSE));
-      
+
    bool horzSpan = edgeHorz >= edgeVert;
- 
+
    vec2 texel_size_scaled = sourcesize.zw * 0.5; //<-- KOKO, hack.
 
    float lengthSign = horzSpan ? -texel_size_scaled.y : -texel_size_scaled.x;
@@ -755,9 +837,9 @@ vec3 FxaaPixelShader(vec2 pos, sampler2D tex, vec4 sourcesize, vec4 outputsize) 
    posN.y = pos.y + (horzSpan ? lengthSign * 0.5 : 0.0);
 
    gradientN *= FXAA_SEARCH_THRESHOLD;
-      
+
    vec2 posP = posN;
-   vec2 offNP = horzSpan ? vec2(texel_size_scaled.x, 0.0) : vec2(0.0, texel_size_scaled.y); 
+   vec2 offNP = horzSpan ? vec2(texel_size_scaled.x, 0.0) : vec2(0.0, texel_size_scaled.y);
    float lumaEndN = lumaN;
    float lumaEndP = lumaN;
    bool doneN = false;
@@ -769,38 +851,38 @@ vec3 FxaaPixelShader(vec2 pos, sampler2D tex, vec4 sourcesize, vec4 outputsize) 
    for(int i = 0; i < FXAA_SEARCH_STEPS; i++) {
       vec2 posN_adjusted;
       vec2 posP_adjusted;
-      
+
       if (horzSpan) {
          posN_adjusted.x = coords_NEAREST(posN, params.SourceSize).x;
          posN_adjusted.y = posN.y;
-         
+
          posP_adjusted.x = coords_NEAREST(posP, params.SourceSize).x;
          posP_adjusted.y = posP.y;
-         
+
       } else {
-         
+
          posN_adjusted.x = posN.x;
          posN_adjusted.y = coords_NEAREST(posN, params.SourceSize).y;
-         
+
          posP_adjusted.x = posP.x;
          posP_adjusted.y = coords_NEAREST(posP, params.SourceSize).y;
       }
-      
-      
+
+
       if(!doneN) {
          lumaEndN = FxaaLuma(textureLod_ovr(tex, posN_adjusted.xy,0.0).xyz);
       }
       if(!doneP) {
          lumaEndP = FxaaLuma(textureLod_ovr(tex, posP_adjusted.xy,0.0).xyz);
       }
-            
+
       doneN = doneN || (abs(lumaEndN - lumaN) >= gradientN);
       doneP = doneP || (abs(lumaEndP - lumaN) >= gradientN);
-      
+
       if (doneN && doneP) {
          break;
       }
-      
+
       if (!doneN) {
          posN -= offNP;
       }
@@ -822,11 +904,11 @@ vec3 FxaaPixelShader(vec2 pos, sampler2D tex, vec4 sourcesize, vec4 outputsize) 
    dstN = directionN ? dstN : dstP;
    float subPixelOffset = (0.5 + (dstN * (-1.0/spanLength))) * lengthSign;
 
-   
+
    subPixelOffset *= 2.0; //<-- KOKO, hack.
-   
+
    vec2 smpco;
-      
+
    if (horzSpan) {
       smpco.x = pos.x + 0.0;
       smpco.y = coords_NEAREST( pos, params.SourceSize ).y + subPixelOffset;
@@ -836,21 +918,21 @@ vec3 FxaaPixelShader(vec2 pos, sampler2D tex, vec4 sourcesize, vec4 outputsize) 
    }
 
    vec3 rgbF = textureLod_ovr(tex, smpco, 0.0).rgb;
-   return FxaaLerp3(rgbL, rgbF, blendL); 
+   return FxaaLerp3(rgbL, rgbF, blendL);
 }
 
 void main() {
-   
+
    #ifndef D3D_WORKAROUND
       if (is_skipped_frame())
          return;
    #endif
-   
+
    vec4 pixel_out;
    pixel_out.rgb = texture_NEAREST(colortools_and_ntsc_pass, vTexCoord, params.SourceSize).rgb;
-   
+
    pixel_out.a = texture(colortools_and_ntsc_pass, vTexCoord).a;//, params.SourceSize).a;
-   
+
    // If we need to smooth waterfalls, it is good to smooth
    // their detection mask too, maybe using an higher lod ist good tho,
    // but we still require linear sampling.
@@ -866,25 +948,30 @@ void main() {
       //pixel_out.rgb = aa_2xscalehq(Source, vTexCoord , vhqt1, vhqt2, vhqt3, vhqt4); //no linearization
       //pixel_out.rgb = aa_scale2xplus(Source, vTexCoord, vpt1, vpt2); // no linearization
       //pixel_out.rgb = aa_super2x_sai(Source, vTexCoord); §// ?? linearization
-      #ifdef _KOKO_AA_PRELINEARIZE
-         pixel_out.rgb = pow(pixel_out.rgb, vec3(_KOKO_AA_PRELINEARIZE_OUT) );
-      #endif
 	}
 */
 
-   if (DO_FXAA == 1.0) {
-      pixel_out.rgb = FxaaPixelShader(vTexCoord, colortools_and_ntsc_pass, params.SourceSize, params.OutputSize);
-      #ifdef _KOKO_AA_PRELINEARIZE
-         pixel_out.rgb = pow(pixel_out.rgb, vec3(_KOKO_AA_PRELINEARIZE_OUT) );
-      #endif
-   } else
-   if (DO_FXAA == 2.0) {
-      pixel_out.rgb = aa_ddtxbrlv1(colortools_and_ntsc_pass, vTexCoord, vxt1);
-      #ifdef _KOKO_AA_PRELINEARIZE
-         pixel_out.rgb = pow(pixel_out.rgb, vec3(_KOKO_AA_PRELINEARIZE_OUT) );
-      #endif
+   float border = 0.0;
+   if (DO_FXAA > 0.0) {
+      vec3 pix = texture(colortools_and_ntsc_pass,vTexCoord).rgb;
+      border = dot(fwidth(pix).rgb,vec3(1.0));
+      border = clamp(border, 0,3.0);
    }
-	
+
+   #define TRESHOLD_AA 0.05 //speedup by skipping uniform zones.
+
+   if (border >= TRESHOLD_AA) {
+      if (DO_FXAA == 1.0) {
+         pixel_out.rgb = FxaaPixelShader(vTexCoord, colortools_and_ntsc_pass, params.SourceSize, params.OutputSize);
+      } else
+      if (DO_FXAA == 2.0) {
+         pixel_out.rgb = aa_ddtxbrlv1(colortools_and_ntsc_pass, vTexCoord, vxt1);
+      } else
+      if (DO_FXAA == 3.0) {
+         pixel_out.rgb = aa_2xbrz(colortools_and_ntsc_pass, vTexCoord);
+      }
+   } 
+
 /*
    if (DO_FXAA == 1.0) {
       pixel_out.rgb = FxaaPixelShader(vTexCoord, colortools_and_ntsc_pass, params.SourceSize, params.OutputSize);
@@ -901,34 +988,28 @@ void main() {
    if (DO_FXAA == 5.0) {
       pixel_out.rgb = aa_super2x_sai(colortools_and_ntsc_pass, vTexCoord);
    }
-   
-   #ifdef _KOKO_AA_PRELINEARIZE
-      pixel_out.rgb = pow(pixel_ozut.rgb, vec3(_KOKO_AA_PRELINEARIZE_OUT) );
-   #endif
+
 */
 
    if ( !bdelta_render_enabled() ) {
-      if (vDo_flickering==1.0) 
+      if (vDo_flickering==1.0)
          pixel_out.rgb = pixel_flickering(pixel_out.rgb).rgb;
-   
-      
+
+
       if (DO_RF_NOISE > 0.01 ) {
          //Unfortunately we need to clamp to min 0.0 again after applying noise
          //to avoid glitches on amd (and probably nvidia too).
          //It should be possible to change the noise function to just emit positive
          //numbers and pre-lowering the brightness of pixel_out in the very first pass tho.
 
-            float rfnoise = get_rf_noise(vDynamicSeed);
+            float rfnoise = get_rf_noise(vDynamicSeed_noise);
             pixel_out.rgb += rfnoise;
             pixel_out.rgb = max(pixel_out.rgb, vec3(0.0));
       }
    }
-   
-    //pixel_out.rgb = max(vec3(0.0), pixel_out.rgb); 
-   
 
+    //pixel_out.rgb = max(vec3(0.0), pixel_out.rgb);
 
-   
    FragColor = pixel_out;
-   
+
 }

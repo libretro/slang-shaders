@@ -42,14 +42,6 @@ void main() {
                                          (!deltarender_preconditions_met(bIs_Interlaced)) || 
                                          (params.FrameCount == 0.0)
 								 );
-	/*
-	float do_tate = need_tate(bIsRotated);
-	float vScanlinePeriod = 1.0;
-	if (scanlines_will_alternate(bIs_Interlaced))
-		vScanlinePeriod = 0.5;
-		
-	vEnough_res_y = float(!fn_very_lowres_y(global.final_passFeedbackSize.xy, params.OriginalSize.xyzw, do_tate, bIsRotated, need_integer_scale(), get_in_aspect(), vScanlinePeriod));
-	*/
 	
 }
 

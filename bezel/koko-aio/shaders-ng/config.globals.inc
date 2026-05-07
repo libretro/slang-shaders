@@ -967,6 +967,10 @@
     #define ADPT_LCD_RETENTION_FIX global.ADPT_LCD_RETENTION_FIX
 #endif
 
+#ifndef ADPT_STROBE_SELECTIVE
+    #define ADPT_STROBE_SELECTIVE global.ADPT_STROBE_SELECTIVE
+#endif
+
 #ifndef SERVICE1
     #define SERVICE1 global.SERVICE1
 #endif
