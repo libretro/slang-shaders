@@ -141,8 +141,13 @@ void main() {
       vec2 co_diffused = vCoords_zoomout;
       if (DO_GAME_GEOM_OVERRIDE > 0.5)
          co_diffused = content_geom_override_zoom(vCoords_zoomout, GAME_GEOM_ASPECT, get_in_aspect(), GAME_GEOM_VSHIFT, GAME_GEOM_HSHIFT, GAME_GEOM_ZOOM);
+
       vec3 pixel_diffused = textureLod( colortools_and_ntsc_pass, co_diffused, 6.0).rgb;
       pixel_diffused = pow(pixel_diffused.rgb, vec3(IN_GLOW_GAMMA));
+      #ifdef D3D_WORKAROUND
+            //no mipmaps in d3d?
+            pixel_diffused = vec3(0.0);
+      #endif
 
       pixel_out += pixel_diffused * BEZEL_DIFFUSION_STR;
 

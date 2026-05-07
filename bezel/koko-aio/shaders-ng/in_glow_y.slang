@@ -14,7 +14,7 @@ layout(location = 5) flat out float vDo_wtfl;
 layout(location = 6) flat out float vIn_glow_h_adapted;
 layout(location = 7) flat out float vDeltaRenderOk;
 layout(location = 8) flat out float vWarpedglow;
-layout(location = 9) noperspective out vec2 vDynamicSeed;
+layout(location = 9) noperspective out vec2 vDynamicSeed_noise;
 layout(location = 10) flat out float vIn_glow_edge_sharpness;
 layout(location = 11) flat out float vIn_glow_edge_defocus_strength;
 layout(location = 12) noperspective out float vWarpedglow_vtexcoord_offsets_plus;
@@ -22,6 +22,7 @@ layout(location = 13) noperspective out float vWarpedglow_vtexcoord_offsets_minu
 layout(location = 14) flat out vec2 vR_offset;
 layout(location = 15) flat out vec2 vG_offset;
 layout(location = 16) flat out vec2 vB_offset;
+layout(location = 17) flat out float vWtfl_sharpness_y;
 
 void main() {
    gl_Position = global.MVP * Position;
@@ -89,8 +90,9 @@ void main() {
    vWarpedglow_vtexcoord_offsets_plus =  vTexCoord.y + warpedglow_delta;
    
    
-   //Generate a seed that changes over time for temporal random noise
-   vDynamicSeed = mod(params.FrameCount, 120.0001) * vTexCoord;
+   //noise
+   vDynamicSeed_noise = vTexCoord;
+   if (RF_NOISE_STRENGTH > 0.0) vDynamicSeed_noise *= mod(params.FrameCount, 120.0001) ;
    
    
    if (EDGE_DEFOCUS_DO_BLUR*DO_SHIFT_RGB > 0.001) {
@@ -122,6 +124,8 @@ void main() {
    if (vIn_glow_edge_defocus_strength > 0.0 && DO_IN_GLOW == 0.0)
       vIn_glow_h_adapted = 7.0;
  
+   vWtfl_sharpness_y = (WTFL_SHARPNESS_Y+1) * NEW_SCALEMOD_Y;
+
    if (DO_SHIFT_RGB == 1.0) {
       // divide y by pi/2.0 to sync with sin() period in pixelgrid code in final pass.
       vR_offset=-(vec2(DECON_RX, DECON_RY) * vec2(NEW_SCALEMOD_X, NEW_SCALEMOD_Y) / global.upscale_passSize.xy) / vec2(pi/2.0);
@@ -143,7 +147,7 @@ layout(location = 5) flat in float vDo_wtfl;
 layout(location = 6) flat in float vIn_glow_h_adapted;
 layout(location = 7) flat in float vDeltaRenderOk;
 layout(location = 8) flat in float vWarpedglow;
-layout(location = 9) noperspective in vec2 vDynamicSeed;
+layout(location = 9) noperspective in vec2 vDynamicSeed_noise;
 layout(location = 10) flat in float vIn_glow_edge_sharpness;
 layout(location = 11) flat in float vIn_glow_edge_defocus_strength;
 layout(location = 12) noperspective in float vWarpedglow_vtexcoord_offsets_plus;
@@ -151,6 +155,7 @@ layout(location = 13) noperspective in float vWarpedglow_vtexcoord_offsets_minus
 layout(location = 14) flat in vec2 vR_offset;
 layout(location = 15) flat in vec2 vG_offset;
 layout(location = 16) flat in vec2 vB_offset;
+layout(location = 17) flat in float vWtfl_sharpness_y;
 
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 4) uniform sampler2D upscale_pass;
@@ -181,7 +186,7 @@ vec3 apply_noise_to(vec3 c) {
       return c;
    
    c.rgb = pow(c.rgb, vec3(1/IN_GLOW_GAMMA));
-      c += get_rf_noise(vDynamicSeed);
+      c += get_rf_noise(vDynamicSeed_noise);
       c = max(c, vec3(0.0));
    c.rgb = pow(c.rgb, vec3(IN_GLOW_GAMMA));
    return c;
@@ -276,7 +281,7 @@ void main() {
          float waterfall = texture_NEAREST_lod(colortools_and_ntsc_pass, vTexCoord, params.OriginalSize,0.0).a;
          waterfall = unpack_21(waterfall, 1.2).y;
          //FragColor = vec4(vec3(waterfall),0.0);return;
-         in_glow_h_adapted = mix(in_glow_h_adapted, WTFL_SHARPNESS_Y, waterfall);
+         in_glow_h_adapted = mix(in_glow_h_adapted, vWtfl_sharpness_y, waterfall);
          //cancel sharp sub when doing fake transparencies blur.
          sharp_sub_adapted = mix(sharp_sub_adapted, 1.0, waterfall );
       }

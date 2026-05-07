@@ -207,8 +207,8 @@ However nice effects may be obtained (eg: with vector games). <br>
         The area of the screen that will be in focus (affects previous 2 settings)
 
         
-**RF Noise:**<br>
-    Emulates radio frequency noise with a given strength<br>
+**(RF?) Noise:**<br>
+    Show noise on screen with a given strength<br>
 	
     1 produce noise before the Glow/Blur pass, while -1 will move it after.
     Suggestions:
@@ -217,6 +217,10 @@ However nice effects may be obtained (eg: with vector games). <br>
     
     Uniform noise: Balanced noise that ranges from -x to +x.
     Snow noise: Sparkling/Rarefied noise 
+    
+    Setting Uniform noise to a positive value will cause uniform and snow noise
+    to act as an RF noise, changing over time continuously.
+    A negative value will make it static, which could be useful to simulate an lcd display.
         
         
 **Glow/Blur:**<br>

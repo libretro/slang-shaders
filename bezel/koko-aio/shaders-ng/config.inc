@@ -323,7 +323,9 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 	float ADPT_LCD_RETENTION_FIX;
 	float ADPT_STROBE_GAIN_ADJ_NODARK;
 	float ADPT_STROBE_CEIL;
-	
+	float ADPT_STROBE_SELECTIVE;
+    
+    
 	float UNIFORMITY;
 	float V_SHAPE;
 	
@@ -369,7 +371,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 
 // AA
 // Apply an antialiasing filters.
-#pragma parameter DO_FXAA "★ Antialiasing enable? (fxaa, ddt-xbr-lv1) ==>"	0.0 	0.0 2.0 1.0
+#pragma parameter DO_FXAA "★ Antialiasing enable? (fxaa,ddt-xbr-lv1,xbrz) ==>"	0.0 	0.0 3.0 1.0
 #pragma parameter LABEL0004 " " 0 0 0 1
 
 
@@ -385,8 +387,8 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 
 // Fake transparency handling
 #pragma parameter DO_WTFL             "★ Fake transparencies blending enable (eg: sonic waterfall)?"    0.0 0.0 1.0 1.0
-#pragma parameter WTFL_SHARPNESS_X      "        Overridden X-sharpness"             0.6 0.35 3.0 0.05
-#pragma parameter WTFL_SHARPNESS_Y      "        Overridden Y-sharpness"             0.6 0.35 3.0 0.05
+#pragma parameter WTFL_SHARPNESS_X      "        Overridden X-sharpness"             0.0 0.0 3.0 0.05
+#pragma parameter WTFL_SHARPNESS_Y      "        Overridden Y-sharpness"             3.0 0.0 3.0 0.05
 //#pragma parameter WTFL_THRESHOLD      "        Detection threshold"                1.0 0.0 2.0 0.01
 #pragma parameter LABEL0057 " " 0 0 0 1
 
@@ -454,8 +456,8 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 
 
 // RF Noise
-#pragma parameter DO_RF_NOISE	 "★ RF Noise? (Post glow, Off, Pre glow)  ==>"			0.0 	-1.0  1.0     1.0
-#pragma parameter RF_NOISE_STRENGTH "        Uniform noise"				0.07	0.0 1.0 0.01
+#pragma parameter DO_RF_NOISE	 "★ (RF?) Noise? (Post glow, Off, Pre glow)  ==>"			0.0 	-1.0  1.0     1.0
+#pragma parameter RF_NOISE_STRENGTH "        Uniform noise (<0.0 = static noise)"				0.07	-1.0 1.0 0.01
 #pragma parameter RF_NOISE_SPARK    "        Snow noise"				0.09	0.0 1.0 0.01
 #pragma parameter LABEL0005 " " 0 0 0 1
 
@@ -468,7 +470,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter IN_GLOW_SPREAD_SHARPNESS  "        .  Glow light sharpness"	2.0 	0.01 2.0 0.01
 #pragma parameter IN_GLOW_W                 "        Sharp X (neg=use BOX unsharp)"		2.5	-2.0 7.0 0.05
 #pragma parameter IN_GLOW_H                 "        Sharp Y (neg=use BOX unsharp)"		2.5	-2.0 7.0 0.05
-#pragma parameter IN_GLOW_WARPSHARP_X       "        Warped glow X (neg = scanlined)"    -0.3  -2.0 2.0 0.05
+#pragma parameter IN_GLOW_WARPSHARP_X       "        Warped glow X (neg = scanlined)"    -0.35  -2.0 2.0 0.05
 #pragma parameter IN_GLOW_WARPSHARP_Y       "        Warped glow Y"                      0.4  0.0  2.0 0.05
 #pragma parameter IN_GLOW_WARPSHARP_GAMMA   "        Warped glow dynamics (1.0=linear)"  1.0  0.2 1.0 0.05
 #pragma parameter LABEL0011 " " 0 0 0 1
@@ -743,7 +745,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter ADPT_STROBE_GAIN_ADJ_NODARK   "          Less gain on dark colors"    1.0   0.0  1.0  0.05
 #pragma parameter ADPT_STROBE_GAMMA_ADJ         "   .   Post Gamma adjustment"   0.9   0.5  4.0  0.05
 #pragma parameter ADPT_LCD_RETENTION_FIX        "   .   LCD Retention workaround cadence (frames)"   3600.0   0.0  300000.0  50.0
-
+#pragma parameter ADPT_STROBE_SELECTIVE         "   .   Apply only to moving areas (subframes unsupported)"    0.0   0.0  1.0  1.0 
 
 #pragma parameter LABEL9999 " " 0 0 0 1
 
