@@ -281,7 +281,7 @@ vec4 get_beam_profile()
     beam_min_width /=
         1.0
         // for beam width < 1 and for beam width < 0
-        + (min(1.0, 1.0 - PARAM_BEAM_WIDTH_MIN) - min(0.0, PARAM_BEAM_WIDTH_MIN * 4.0))
+        + (min(1.0, 1.0 - PARAM_BEAM_WIDTH_MIN) - min(0.0, PARAM_BEAM_WIDTH_MIN * 2.0))
         // when strength in range [0.5, 1.0]
         * min(1.0, PARAM_SCANLINES_STRENGTH * 2.0)
         // half
