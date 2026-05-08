@@ -48,6 +48,7 @@ layout(set = 0, binding = 3) uniform sampler2D PhosphorPassFeedback;
 
 #include "common/colorspace-srgb.h"
 #include "common/frame-helper.h"
+#include "common/math-helper.h"
 
 #define INPUT(color) decode_gamma(color)
 #define OUTPUT(color) encode_gamma(color)
@@ -55,7 +56,7 @@ layout(set = 0, binding = 3) uniform sampler2D PhosphorPassFeedback;
 void main()
 {
     // return if effect is disabled
-    if (PARAM_PHOSPHOR_AMOUNT == 0.0)
+    if (is_zero(PARAM_PHOSPHOR_AMOUNT))
     {
         FragColor = texture(Source, TexCoord);
 

@@ -7,6 +7,7 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #include "common/colorspace-srgb.h"
+#include "common/math-helper.h"
 
 // required by blur.stage-f.core.h
 #define INPUT(color) decode_gamma(color)
@@ -17,7 +18,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 void main()
 {
     // return if effect is disabled
-    if (BLUR_AMOUNT == 0.0)
+    if (is_zero(BLUR_AMOUNT))
     {
         FragColor = texture(Source, TexCoord);
 

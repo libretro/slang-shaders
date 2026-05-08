@@ -23,9 +23,9 @@
 */
 
 // used in common/screen-helper.h
-#define BASE_SIZE int(PARAM_SCREEN_RESOLUTION_SCALE) > 3 ? 480.0 : 240.0
-#define ALLOW_AUTO_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) > 1
-#define ALLOW_AUTO_UP_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) == 3 || int(PARAM_SCREEN_RESOLUTION_SCALE) == 5
+#define BASE_SIZE (PARAM_SCREEN_RESOLUTION_SCALE > 3 ? 480.0 : 240.0)
+#define ALLOW_AUTO_SCALE (PARAM_SCREEN_RESOLUTION_SCALE > 1)
+#define ALLOW_AUTO_UP_SCALE (PARAM_SCREEN_RESOLUTION_SCALE == 3 || PARAM_SCREEN_RESOLUTION_SCALE == 5)
 
 #include "common/math-helper.h"
 #include "common/screen-helper.h"
@@ -39,7 +39,7 @@ vec2 vec2o(float x, float y)
         : vec2(y, x);
 }
 
-vec2 get_mask_profile()
+vec4 get_mask_profile()
 {
     float pixel_size = global.SourceSize.x < global.SourceSize.y
         ? global.FinalViewportSize.x / global.SourceSize.x
@@ -79,7 +79,16 @@ vec2 get_mask_profile()
         PARAM_MASK_TYPE == 3 ? clamp((subpixel_size - 2.0) * 0.25, 0.0, 1.0) : 0.0;
     subpixel_smoothness *= PARAM_MASK_SUBPIXEL_SHAPE;
 
-    return vec2(subpixel_size, subpixel_smoothness);
+    int subpixel_type =
+        // black, white to magenta, green
+        PARAM_MASK_SUBPIXEL == 1 ? PARAM_MASK_SUBPIXEL + 1 :
+        PARAM_MASK_SUBPIXEL;
+
+    bool subpixel_color_swap =
+        // magenta, green to blue, yellow
+        PARAM_MASK_SUBPIXEL == 1;
+
+    return vec4(subpixel_type, subpixel_size, subpixel_smoothness, subpixel_color_swap);
 }
 
 float get_brightness_compensation()
@@ -106,8 +115,8 @@ float get_brightness_compensation()
     float mask_intensity = normalized_sigmoid(PARAM_MASK_INTENSITY * PARAM_MASK_INTENSITY, 0.5);
     float mask_blend = 1.0 - (1.0 - PARAM_MASK_BLEND) * (1.0 - PARAM_MASK_BLEND);
 
-    float mask_size = INPUT_MASK_PROFILE.x;
-    float mask_smoothness = INPUT_MASK_PROFILE.y;
+    int mask_size = int(INPUT_MASK_PROFILE.y);
+    float mask_smoothness = INPUT_MASK_PROFILE.z;
 
     // mask sub-pixel
     float subpixel_offset =
@@ -134,11 +143,11 @@ float get_brightness_compensation()
     // for mask size > 2
     float size_offset =
         // aperture-grille
-        PARAM_MASK_TYPE == 1 && mask_size > 2.0 ? mix(-0.4, -0.1, mask_blend) :
+        PARAM_MASK_TYPE == 1 && mask_size > 2 ? mix(-0.4, -0.1, mask_blend) :
         // slot-mask
-        PARAM_MASK_TYPE == 2 && mask_size > 2.0 ? mix(-0.4, -0.1, mask_blend) :
+        PARAM_MASK_TYPE == 2 && mask_size > 2 ? mix(-0.4, -0.1, mask_blend) :
         // shadow-mask
-        PARAM_MASK_TYPE == 3 && mask_size > 2.0 ? mix(0.4, 0.1, mask_blend) : 0.0;
+        PARAM_MASK_TYPE == 3 && mask_size > 2 ? mix(0.4, 0.1, mask_blend) : 0.0;
 
     // mask smoothness
     float smoothness_offset = mask_smoothness;

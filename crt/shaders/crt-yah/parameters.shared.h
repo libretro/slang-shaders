@@ -1,7 +1,7 @@
 
 #define PARAM_GLOBAL_MASTER global.GLOBAL_MASTER
-#define PARAM_SCREEN_RESOLUTION_SCALE global.SCREEN_RESOLUTION_SCALE
-#define PARAM_SCREEN_ORIENTATION global.SCREEN_ORIENTATION
+#define PARAM_SCREEN_RESOLUTION_SCALE int(global.SCREEN_RESOLUTION_SCALE)
+#define PARAM_SCREEN_ORIENTATION int(global.SCREEN_ORIENTATION)
 #define PARAM_SCREEN_SCALE global.SCREEN_SCALE
 #define PARAM_SCREEN_FREQUENCY global.SCREEN_FREQUENCY
 #define PARAM_SCREEN_INTERLACED global.SCREEN_INTERLACED
@@ -14,7 +14,7 @@ float mix_master(float value, float off_value, float min_value, float max_value)
     return clamp(scaled, min_value, max_value);
 }
 
-#define PARAM_COLOR_COMPENSATION param.COLOR_COMPENSATION
+#define PARAM_COLOR_COMPENSATION int(param.COLOR_COMPENSATION)
 #define PARAM_COLOR_BRIGHTNESS mix_master(param.COLOR_BRIGHTNESS, 0.0, -1.0, 4.0)
 #define PARAM_COLOR_BRIGHTNESS_FLICKER param.COLOR_BRIGHTNESS_FLICKER
 #define PARAM_COLOR_OVERFLOW mix_master(param.COLOR_OVERFLOW, 0.0, 0.0, 2.0)
@@ -27,8 +27,8 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 #define PARAM_MASK_INTENSITY mix_master(param.MASK_INTENSITY, 0.0, 0.0, 1.0)
 #define PARAM_MASK_BLEND param.MASK_BLEND
 #define PARAM_MASK_SCALE param.MASK_SCALE
-#define PARAM_MASK_TYPE param.MASK_TYPE
-#define PARAM_MASK_SUBPIXEL param.MASK_SUBPIXEL
+#define PARAM_MASK_TYPE int(param.MASK_TYPE)
+#define PARAM_MASK_SUBPIXEL int(param.MASK_SUBPIXEL)
 #define PARAM_MASK_SUBPIXEL_SHAPE param.MASK_SUBPIXEL_SHAPE
 #define PARAM_MASK_COLOR_BLEED mix_master(param.MASK_COLOR_BLEED, 0.0, 0.0, 1.0)
 
@@ -50,7 +50,7 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 #define PARAM_NTSC_PROFILE param.NTSC_PROFILE
 #define PARAM_NTSC_JITTER param.NTSC_JITTER
 #define PARAM_NTSC_SHIFT param.NTSC_SHIFT
-#define PARAM_NTSC_QUALITY param.NTSC_QUALITY
+#define PARAM_NTSC_QUALITY int(param.NTSC_QUALITY)
 #define PARAM_NTSC_SCALE param.NTSC_SCALE
 
 #define PARAM_DECONVERGE_LINEAR mix_master(param.DECONVERGE_LINEAR, 0.0, -2.0, 2.0)

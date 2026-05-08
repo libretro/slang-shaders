@@ -26,4 +26,13 @@ float normalized_sigmoid(float value, float slope)
     return (value - value * slope) / (slope - abs(value) * 2.0 * slope + 1.0);
 }
 
+// Checks if the given value is approximately zero, considering two decimal places.
+// @value: the value to check
+bool is_zero(float value)
+{
+    float round_value = round(abs(value) * 100.0) / 100.0;
+
+    return round_value == 0.0;
+}
+
 #endif // MATH_HELPER_DEFINED

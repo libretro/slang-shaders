@@ -43,9 +43,9 @@ layout(location = 2) out float ScreenMultiple;
 layout(location = 3) flat out uint FrequencyMod;
 
 // used in common/screen-helper.h
-#define BASE_SIZE int(PARAM_SCREEN_RESOLUTION_SCALE) > 3 ? 480.0 : 240.0
-#define ALLOW_AUTO_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) > 1
-#define ALLOW_AUTO_UP_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) == 3 || int(PARAM_SCREEN_RESOLUTION_SCALE) == 5
+#define BASE_SIZE (PARAM_SCREEN_RESOLUTION_SCALE > 3 ? 480.0 : 240.0)
+#define ALLOW_AUTO_SCALE (PARAM_SCREEN_RESOLUTION_SCALE > 1)
+#define ALLOW_AUTO_UP_SCALE (PARAM_SCREEN_RESOLUTION_SCALE == 3 || PARAM_SCREEN_RESOLUTION_SCALE == 5)
 
 #include "common/screen-helper.h"
 #include "common/frame-helper.h"
@@ -54,7 +54,7 @@ void main()
 {
     gl_Position = global.MVP * Position;
 
-    ScreenOrientation = get_orientation(global.OutputSize.xy, int(PARAM_SCREEN_ORIENTATION));
+    ScreenOrientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
     ScreenMultiple = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -PARAM_SCREEN_SCALE);
 
     // jitter each 3rd frame with 30/60Hz
@@ -164,8 +164,8 @@ float get_brightness_offset(vec3 color)
 void main()
 {
     // return if effect is disabled
-    if (PARAM_COLOR_BRIGHTNESS_FLICKER == 0.0
-        && PARAM_SCANLINES_OFFSET == 0.0)
+    if (is_zero(PARAM_COLOR_BRIGHTNESS_FLICKER)
+        && is_zero(PARAM_SCANLINES_OFFSET))
     {
         FragColor = texture(Source, TexCoord);
 

@@ -35,9 +35,9 @@ layout(location = 2) out vec2 TexCoordG;
 layout(location = 3) out vec2 TexCoordB;
 
 // used in common/screen-helper.h
-#define BASE_SIZE int(PARAM_SCREEN_RESOLUTION_SCALE) > 3 ? 480.0 : 240.0
-#define ALLOW_AUTO_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) > 1
-#define ALLOW_AUTO_UP_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) == 3 || int(PARAM_SCREEN_RESOLUTION_SCALE) == 5
+#define BASE_SIZE (PARAM_SCREEN_RESOLUTION_SCALE > 3 ? 480.0 : 240.0)
+#define ALLOW_AUTO_SCALE (PARAM_SCREEN_RESOLUTION_SCALE > 1)
+#define ALLOW_AUTO_UP_SCALE (PARAM_SCREEN_RESOLUTION_SCALE == 3 || PARAM_SCREEN_RESOLUTION_SCALE == 5)
 
 #include "common/screen-helper.h"
 
@@ -45,7 +45,7 @@ void main()
 {
     gl_Position = global.MVP * Position;
 
-    int screen_orientation = get_orientation(global.OutputSize.xy, int(PARAM_SCREEN_ORIENTATION));
+    int screen_orientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
     float screen_scale = get_screen_multiple(global.OriginalSize.xy, screen_orientation, -PARAM_SCREEN_SCALE);
 
     // limit deconverge to range of [-1.0, 1.0]
@@ -103,6 +103,7 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #include "common/colorspace-srgb.h"
+#include "common/math-helper.h"
 
 // required by blur.h
 #define INPUT(color) decode_gamma(color)
@@ -111,8 +112,8 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 void main()
 {
     // return if effect is disabled
-    if (PARAM_DECONVERGE_LINEAR == 0.0
-        && PARAM_DECONVERGE_RADIAL == 0.0)
+    if (is_zero(PARAM_DECONVERGE_LINEAR)
+        && is_zero(PARAM_DECONVERGE_RADIAL))
     {
         FragColor = texture(Source, TexCoord);
 

@@ -5,14 +5,14 @@ layout(location = 0) out vec2 TexCoord;
 layout(location = 1) out vec2 PixCoord;
 layout(location = 2) out float Fringing;
 layout(location = 3) out float Artifacting;
-layout(location = 4) out float Phase;
+layout(location = 4) flat out int Phase;
 layout(location = 5) flat out uint FrameCount;
 
 // used in common/screen-helper.h
 #define MIN_PIXEL_SIZE 0.0 // allow any pixel size
-#define BASE_SIZE int(PARAM_SCREEN_RESOLUTION_SCALE) > 3 ? 480.0 : 240.0
-#define ALLOW_AUTO_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) > 1
-#define ALLOW_AUTO_UP_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) == 3 || int(PARAM_SCREEN_RESOLUTION_SCALE) == 5
+#define BASE_SIZE (PARAM_SCREEN_RESOLUTION_SCALE > 3 ? 480.0 : 240.0)
+#define ALLOW_AUTO_SCALE (PARAM_SCREEN_RESOLUTION_SCALE > 1)
+#define ALLOW_AUTO_UP_SCALE (PARAM_SCREEN_RESOLUTION_SCALE == 3 || PARAM_SCREEN_RESOLUTION_SCALE == 5)
 
 #include "common/screen-helper.h"
 #include "common/frame-helper.h"
@@ -53,7 +53,7 @@ void main()
     // 3 - Three Phase
     Phase = PARAM_NTSC_QUALITY < 1.5
         // auto
-        ? (vec2o(global.OriginalSize.xy).x * screen_scale) > 300.0 ? 2.0 : 3.0
+        ? (vec2o(global.OriginalSize.xy).x * screen_scale) > 300.0 ? 2 : 3
         // manual
         : PARAM_NTSC_QUALITY;
 

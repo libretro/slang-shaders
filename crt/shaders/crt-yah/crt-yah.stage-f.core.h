@@ -32,7 +32,7 @@ float get_brightness_compensation(float color_luma)
 {
     float mask_blend = 1.0 - (1.0 - PARAM_MASK_BLEND) * (1.0 - PARAM_MASK_BLEND);
 
-    return PARAM_COLOR_COMPENSATION > 0.0
+    return PARAM_COLOR_COMPENSATION > 0
         ? mix(
             INPUT_BRIGHTNESS_COMPENSATION,
             INPUT_BRIGHTNESS_COMPENSATION * (1.0 - color_luma),
@@ -330,7 +330,7 @@ vec3 get_scanlines_color(sampler2D source, vec2 tex_coord)
 
 vec3 apply_details(vec3 scanlines_color, sampler2D base_samler, vec2 base_coord, sampler2D blur_sampler, vec2 blur_coord)
 {
-    if (PARAM_SHARP_AMOUNT == 0.0)
+    if (is_zero(PARAM_SHARP_AMOUNT))
     {
         return scanlines_color;
     }
@@ -365,7 +365,7 @@ vec3 apply_details(vec3 scanlines_color, sampler2D base_samler, vec2 base_coord,
 
 vec3 blend_colors(vec3 raw_color, vec3 scanlines_color)
 {
-    if (PARAM_SCANLINES_STRENGTH == 0.0)
+    if (is_zero(PARAM_SCANLINES_STRENGTH))
     {
         return raw_color;
     }
@@ -383,17 +383,11 @@ vec3 get_mask(vec2 tex_coord)
 {
     vec2 pix_coord = vec2o(tex_coord * global.OutputSize.xy);
 
-    int subpixel_type = int(PARAM_MASK_SUBPIXEL);
-    int subpixel_mask = int(PARAM_MASK_TYPE);
-    int subpixel_size = int(INPUT_MASK_PROFILE.x);
-    float subpixel_smoothness = INPUT_MASK_PROFILE.y;
-    bool subpixel_color_swap =
-        // magenta, green to blue, yellow
-        subpixel_type == 1;
-    subpixel_type =
-        // black, white to magenta, green
-        subpixel_type == 1 ? subpixel_type + 1 :
-        subpixel_type;
+    int subpixel_mask = PARAM_MASK_TYPE;
+    int subpixel_type = int(INPUT_MASK_PROFILE.x);
+    int subpixel_size = int(INPUT_MASK_PROFILE.y);
+    float subpixel_smoothness = INPUT_MASK_PROFILE.z;
+    bool subpixel_color_swap = bool(INPUT_MASK_PROFILE.w);
 
     vec3 mask = get_subpixel_color(
         pix_coord,
@@ -409,7 +403,7 @@ vec3 get_mask(vec2 tex_coord)
 
 vec3 apply_mask(vec3 color, float color_luma, vec2 tex_coord)
 {
-    if (PARAM_MASK_TYPE == 0.0)
+    if (PARAM_MASK_TYPE == 0)
     {
         return color;
     }
@@ -454,7 +448,7 @@ vec3 apply_color_overflow(vec3 color)
 
 vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord)
 {
-    if (PARAM_HALATION_INTENSITY == 0.0)
+    if (is_zero(PARAM_HALATION_INTENSITY))
     {
         return color;
     }
@@ -473,14 +467,14 @@ vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord)
 
 vec3 apply_noise(vec3 color, float color_luma, vec2 tex_coord)
 {
-    float subpixel_size = INPUT_MASK_PROFILE.x;
+    int subpixel_size = int(INPUT_MASK_PROFILE.y);
     float noise_floor = INPUT_FLOOR_PROFILE.y;
     float noise_frame = INPUT_FRAME_COUNTS.y;
 
     vec2 pix_coord = vec2o(tex_coord.xy * global.OutputSize.xy);
 
     // scale noise based on mask's sub-pixel size
-    pix_coord = floor(pix_coord / int(subpixel_size)) * int(subpixel_size);
+    pix_coord = floor(pix_coord / subpixel_size) * subpixel_size;
 
     float noise = random(pix_coord * (noise_frame + 1.0));
     float mul_noise = noise * 2.0;

@@ -43,6 +43,8 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D SamplerLutNtsc;
 layout(set = 0, binding = 4) uniform sampler2D SamplerLutTrinitron;
 
+#include "common/math-helper.h"
+
 vec3 apply_lut(vec3 color, sampler2D lut_sampler)
 {
     float lut_size = textureSize(lut_sampler, 0).y;
@@ -58,7 +60,7 @@ vec3 apply_lut(vec3 color, sampler2D lut_sampler)
 void main()
 {
     // return if effect is disabled
-    if (PARAM_COLOR_PROFILE == 0.0)
+    if (is_zero(PARAM_COLOR_PROFILE))
     {
         FragColor = texture(Source, TexCoord);
 
