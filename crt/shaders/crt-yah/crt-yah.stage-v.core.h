@@ -338,3 +338,16 @@ uvec2 get_frame_counts()
         uint(interlace_frame),
         uint(noise_frame));
 }
+
+vec2 get_tex_size()
+{
+    vec2 tex_size = global.OriginalSize.xy;
+
+    // orientation-aware multiple
+    vec2 multiple = vec2o(1.0, INPUT_SCREEN_MULTIPLE);
+
+    // apply "fake" scale (only y-axis)
+    tex_size /= multiple;
+
+    return tex_size;
+}

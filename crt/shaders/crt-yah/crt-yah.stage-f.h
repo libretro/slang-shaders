@@ -1,16 +1,17 @@
 #pragma stage fragment
 layout(location = 0) in vec2 TexCoord;
 layout(location = 1) in vec2 ScanTexCoord;
-layout(location = 2) flat in int ScreenOrientation;
-layout(location = 3) in float ScreenMultiple;
-layout(location = 4) in float ScreenMultipleAuto;
-layout(location = 5) in float BrightnessCompensation;
-layout(location = 6) in vec4 MaskProfile;
-layout(location = 7) in vec4 BeamProfile;
-layout(location = 8) in float AntiRining;
-layout(location = 9) in vec2 FloorProfile;
-layout(location = 10) flat in uvec2 FrameCounts;
-layout(location = 11) in mat4x4 BeamFilter;
+layout(location = 2) in vec2 TexSize;
+layout(location = 3) flat in int ScreenOrientation;
+layout(location = 4) in float ScreenMultiple;
+layout(location = 5) in float ScreenMultipleAuto;
+layout(location = 6) in float BrightnessCompensation;
+layout(location = 7) in vec4 MaskProfile;
+layout(location = 8) in vec4 BeamProfile;
+layout(location = 9) in float AntiRining;
+layout(location = 10) in vec2 FloorProfile;
+layout(location = 11) flat in uvec2 FrameCounts;
+layout(location = 12) in mat4x4 BeamFilter;
 layout(location = 0) out vec4 FragColor;
 
 #ifdef IS_SINGLE_PASS
@@ -47,15 +48,16 @@ layout(location = 0) out vec4 FragColor;
 
 void main()
 {
+    vec2 tex_size = TexSize;
     vec2 tex_coord = TexCoord;
     vec2 tex_coord_curved = apply_cubic_lens_distortion(tex_coord);
-    vec2 tex_coord_curved_sharpened = apply_sharp_bilinear_filtering(tex_coord_curved);
+    vec2 tex_coord_curved_sharpened = apply_sharp_bilinear_filtering(tex_coord_curved, tex_size);
     vec2 scan_coord = ScanTexCoord;
     vec2 scan_coord_curved = apply_cubic_lens_distortion(scan_coord);
-    vec2 scan_coord_curved_sharpened = apply_sharp_bilinear_filtering(scan_coord_curved);
+    vec2 scan_coord_curved_sharpened = apply_sharp_bilinear_filtering(scan_coord_curved, tex_size);
 
-    vec3 raw_color = get_raw_color(TextureSource, tex_coord_curved_sharpened);
-    vec3 scanlines_color = get_scanlines_color(TextureSource, scan_coord_curved);
+    vec3 raw_color = get_raw_color(TextureSource, tex_coord_curved_sharpened, tex_size);
+    vec3 scanlines_color = get_scanlines_color(TextureSource, scan_coord_curved, tex_size);
 
 #ifndef IS_SINGLE_PASS
     scanlines_color = apply_details(scanlines_color, TextureSource, scan_coord_curved, BlurSource, tex_coord_curved);

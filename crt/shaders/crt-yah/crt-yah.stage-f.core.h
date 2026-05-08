@@ -96,20 +96,8 @@ vec2 vec2oy(vec2 v, float f)
         INPUT_SCREEN_ORIENTATION);
 }
 
-vec2 apply_scale(vec2 tex_size)
+vec2 apply_sharp_bilinear_filtering(vec2 tex_coord, vec2 tex_size)
 {
-    vec2 multiple = vec2o(1.0, INPUT_SCREEN_MULTIPLE);
-
-    // apply "fake" scale (only y-axis)
-    tex_size /= multiple;
-
-    return tex_size;
-}
-
-vec2 apply_sharp_bilinear_filtering(vec2 tex_coord)
-{
-    vec2 tex_size = apply_scale(global.OriginalSize.xy);
-
     return sharp_bilinear(tex_coord, tex_size, global.OutputSize.xy);
 }
 
@@ -225,22 +213,22 @@ vec2 get_scanlines_pixel_coordinate(vec2 tex_coord, vec2 tex_size)
 
 vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size)
 {
-    vec2 multiple = vec2o(1.0, INPUT_SCREEN_MULTIPLE);
+    vec2 multiple = vec2(1.0, INPUT_SCREEN_MULTIPLE);
 
-    vec2 tex_coord = floor(pix_coord);
+    vec2 tex_offset = vec2(0.0);
 
     // when manual down-scaled
     if (INPUT_SCREEN_MULTIPLE > 1.0)
     {
         // apply half texel offset
         //   scaled by absolute amount of multiple
-        tex_coord += vec2o(-0.5, 0.5) / multiple;
+        tex_offset += vec2(-0.5, 0.5) / multiple;
     }
     // when manual up-scaled
     else
     {
         // apply half texel offset
-        tex_coord += vec2o(-0.5, 0.5);
+        tex_offset += vec2(-0.5, 0.5);
     }
 
     // when automatic down-scaled
@@ -248,7 +236,7 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size)
     {
         // apply half texel x-offset (to sample between two pixel along scanlines)
         //   see vertex stage
-        tex_coord += vec2o(-0.5, 0.0);
+        tex_offset += vec2(-0.5, 0.0);
     }
 
     // when manual or automatic down-scaled
@@ -256,21 +244,22 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size)
     {
         // apply half texel y-offset (to sample between two pixel between scanlines)
         //   scaled by relative amount of multiple
-        tex_coord += vec2o(0.0, 0.5) / multiple * (INPUT_SCREEN_MULTIPLE - 1.0);
+        tex_offset += vec2(0.0, 0.5) / multiple * (INPUT_SCREEN_MULTIPLE - 1.0);
     }
 
-    // pixel to texture coordinates
-    tex_coord /= tex_size;
+    // orientation-aware offset
+    vec2 tex_coord = floor(pix_coord) + vec2o(tex_offset);
 
-    return tex_coord;
+    // pixel to texture coordinates
+    return tex_coord / tex_size;
 }
 
-vec3 apply_interlace(vec2 pix_coord, vec3 even_color, vec3 uneven_color)
+vec3 apply_interlace(vec2 pix_coord_o, vec3 even_color, vec3 uneven_color)
 {
     float interlace_frame = INPUT_FRAME_COUNTS.x;
 
-    // determine even or uneven row
-    bool even = (int(floor(vec2o(pix_coord).y)) % 2) != 0;
+    // determine even or uneven row, orientation-aware
+    bool even = (int(floor(pix_coord_o.y)) % 2) != 0;
 
     vec3 progressive = even_color + uneven_color;
     vec3 interlace = mix(
@@ -284,32 +273,30 @@ vec3 apply_interlace(vec2 pix_coord, vec3 even_color, vec3 uneven_color)
         PARAM_SCREEN_INTERLACED);
 }
 
-vec3 get_raw_color(sampler2D source, vec2 tex_coord)
+vec3 get_raw_color(sampler2D source, vec2 tex_coord, vec2 tex_size)
 {
-    vec2 tex_size = apply_scale(global.OriginalSize.xy);
-
-    // texture to pixel coordinates
-    vec2 pix_coord = tex_coord * tex_size;
+    // texture to pixel coordinates, orientation-aware
+    vec2 pix_coord_o = vec2o(tex_coord * tex_size);
 
     vec3 color0 = vec3(0.0);
     vec3 color1 = INPUT(texture(source, tex_coord).rgb);
 
-    return apply_interlace(pix_coord, color0, color1);
+    return apply_interlace(pix_coord_o, color0, color1);
 }
 
-vec3 get_scanlines_color(sampler2D source, vec2 tex_coord)
+vec3 get_scanlines_color(sampler2D source, vec2 tex_coord, vec2 tex_size)
 {
-    vec2 tex_size = apply_scale(global.OriginalSize.xy);
-
     vec2 pix_coord = vec2(0.0);
     pix_coord = get_scanlines_pixel_coordinate(tex_coord, tex_size);
     tex_coord = get_scanlines_texel_coordinate(pix_coord, tex_size);
 
-    vec2 tex_delta = vec2(1.0) / tex_size;
-    vec2 tex_delta_x = vec2ox(tex_delta, 0.0);
-    vec2 tex_delta_y = vec2oy(tex_delta, 0.0);
+    vec2 tex_offset = vec2(1.0) / tex_size;
+    vec2 tex_offset_x = vec2ox(tex_offset, 0.0);
+    vec2 tex_offset_y = vec2oy(tex_offset, 0.0);
 
-    vec2 pix_fract = vec2o(fract(pix_coord));
+    // orientation-aware pixel coordinates
+    vec2 pix_coord_o = vec2o(pix_coord);
+    vec2 pix_fract = fract(pix_coord_o);
 
     // apply filtering
     vec4 beam_filter = vec4(
@@ -318,14 +305,14 @@ vec3 get_scanlines_color(sampler2D source, vec2 tex_coord)
         pix_fract.x,
         1.0) * INPUT_BEAM_FILTER;
 
-    vec3 color0 = get_half_beam_color(source, tex_coord, tex_delta_x, tex_delta_y, beam_filter);
-    vec3 color1 = get_half_beam_color(source, tex_coord, tex_delta_x, vec2(0.0), beam_filter);
+    vec3 color0 = get_half_beam_color(source, tex_coord, tex_offset_x, tex_offset_y, beam_filter);
+    vec3 color1 = get_half_beam_color(source, tex_coord, tex_offset_x, vec2(0.0), beam_filter);
 
     // apply scanlines
     vec3 factor0 = get_half_scanlines_factor(color0, pix_fract.y);
     vec3 factor1 = get_half_scanlines_factor(color1, 1.0 - pix_fract.y);
 
-    return apply_interlace(pix_coord, color0 * factor0, color1 * factor1);
+    return apply_interlace(pix_coord_o, color0 * factor0, color1 * factor1);
 }
 
 vec3 apply_details(vec3 scanlines_color, sampler2D base_samler, vec2 base_coord, sampler2D blur_sampler, vec2 blur_coord)
@@ -342,6 +329,7 @@ vec3 apply_details(vec3 scanlines_color, sampler2D base_samler, vec2 base_coord,
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
     {
         // apply full texel x-offset (to sample a neighbor pixel)
+        //   orientation-aware
         base_coord += vec2o(-1.0, 0.0) / global.OriginalSize.xy;
 
         base_color += texture(base_samler, base_coord).rgb;
@@ -471,12 +459,13 @@ vec3 apply_noise(vec3 color, float color_luma, vec2 tex_coord)
     float noise_floor = INPUT_FLOOR_PROFILE.y;
     float noise_frame = INPUT_FRAME_COUNTS.y;
 
-    vec2 pix_coord = vec2o(tex_coord.xy * global.OutputSize.xy);
+    // texture to screen coordinates, orientation-aware
+    vec2 screen_coord = vec2o(tex_coord.xy * global.OutputSize.xy);
 
     // scale noise based on mask's sub-pixel size
-    pix_coord = floor(pix_coord / subpixel_size) * subpixel_size;
+    screen_coord = floor(screen_coord / subpixel_size) * subpixel_size;
 
-    float noise = random(pix_coord * (noise_frame + 1.0));
+    float noise = random(screen_coord * (noise_frame + 1.0));
     float mul_noise = noise * 2.0;
     float add_noise = noise * (1.0 - color_luma) * noise_floor;
 
