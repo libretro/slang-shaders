@@ -37,7 +37,7 @@ void main()
     // 1 - Auto
     // 2 - Two Phase
     // 3 - Three Phase
-    Phase = PARAM_NTSC_QUALITY < 1.5
+    Phase = PARAM_NTSC_QUALITY == 1
         // auto
         ? (vec2o(global.OriginalSize.xy).x * screen_scale) > 300.0 ? 2 : 3
         // manual

@@ -4,28 +4,21 @@
     Modified by Jezze
 */
 
-#include "common/constants.h"
 #include "common/colorspace-yiq.h"
 
-vec3 pass1(vec3 yiq, vec2 pixCoord, int phase, float phase_shift, mat3 mix3x3, uint frameCount)
+vec3 pass1(vec3 yiq, vec2 pixCoord, int phase, vec3 chromaProfile, uint frameCount, mat3 mix3x3)
 {
-    float chroma_frequency = phase == 2
-        ? PI / (15.0 / 4.0)
-        : PI / 3.0;
-    float chroma_amplitude = phase == 2
-        ? PI
-        : PI * (2.0 / 3.0);
-    float chroma_shift = phase == 2
-        ? phase_shift + 1.0
-        : (phase_shift * 1.5) + 1.5;
+    float chromaFrequency = chromaProfile.x;
+    float chromaAmplitude = chromaProfile.y;
+    float chromaShift = chromaProfile.z;
 
-    float chroma_phase
-        = chroma_amplitude * (mod(pixCoord.y, phase) + mod(frameCount, 2.0))
-        * chroma_shift
-        + chroma_frequency * pixCoord.x;
+    float chromaPhase
+        = chromaAmplitude * (mod(pixCoord.y, phase) + mod(frameCount, 2.0))
+        * chromaShift
+        + chromaFrequency * pixCoord.x;
 
-    float i = cos(chroma_phase);
-    float q = sin(chroma_phase);
+    float i = cos(chromaPhase);
+    float q = sin(chromaPhase);
 
     yiq.yz *= vec2(i, q); // Modulate
     yiq *= mix3x3; // Cross-talk
@@ -43,10 +36,9 @@ vec3 pass1(vec3 yiq, vec2 pixCoord, int phase, float phase_shift, mat3 mix3x3, u
 //    To simulate a different resolution than the original texture size, multiply the pixel coordinate along the scan-direction.
 //    To change the scan-direction, swap the x- and y-axis of the pixel coordinate.
 // @phase: the chroma phase in rangle of [2,3]
-// @phaseShift: the chroma phase shift
+// @chromaProfile: the chroma profile (frequency, amplitude, shift)
 // @jitter: whether and how much jitter is applied
-//    For 2-phase jitter is reduced by frame-count.
-//    For 3-phase jitter is reduced by field-merge.
+// @frameCount: the current frame count
 // @mix: a 3x3 mix matrix, with the following composition
 //    b, f, f,
 //    a, s, 0,
@@ -56,8 +48,7 @@ vec3 pass1(vec3 yiq, vec2 pixCoord, int phase, float phase_shift, mat3 mix3x3, u
 //    f = fringing (0 = neutral)
 //    a = artifacting (0 = neutral)
 //    0 = unused
-// @frameCount: the current frame count
-vec3 pass1(sampler2D source, vec2 texCoord, vec2 pixCoord, int phase, float phaseShift, float jitter, mat3 mix3x3, uint frameCount)
+vec3 pass1(sampler2D source, vec2 texCoord, vec2 pixCoord, int phase, vec3 chromaProfile, float jitter, uint frameCount, mat3 mix3x3)
 {
     vec3 rgb = texture(source, texCoord).rgb;
     vec3 yiq = rgb_to_yiq(rgb);
@@ -66,8 +57,8 @@ vec3 pass1(sampler2D source, vec2 texCoord, vec2 pixCoord, int phase, float phas
     uint frame1 = jitter > 0.0
         ? frameCount // jitter
         : 1; // static
-    vec3 yiq0 = pass1(yiq, pixCoord, phase, phaseShift, mix3x3, frame0);
-    vec3 yiq1 = pass1(yiq, pixCoord, phase, phaseShift, mix3x3, frame1);
+    vec3 yiq0 = pass1(yiq, pixCoord, phase, chromaProfile, frame0, mix3x3);
+    vec3 yiq1 = pass1(yiq, pixCoord, phase, chromaProfile, frame1, mix3x3);
 
     if (jitter > 0.0)
     {

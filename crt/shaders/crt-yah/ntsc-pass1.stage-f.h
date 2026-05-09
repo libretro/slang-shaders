@@ -4,7 +4,8 @@ layout(location = 1) in vec2 PixCoord;
 layout(location = 2) in float Fringing;
 layout(location = 3) in float Artifacting;
 layout(location = 4) flat in int Phase;
-layout(location = 5) flat in uint FrameCount;
+layout(location = 5) in vec3 ChromaProfile;
+layout(location = 6) flat in uint FrameCount;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -40,7 +41,7 @@ void main()
         return;
     }
 
-    vec3 yiq = pass1(Source, TexCoord, PixCoord, Phase, PARAM_NTSC_SHIFT, PARAM_NTSC_JITTER, MIX, FrameCount);
+    vec3 yiq = pass1(Source, TexCoord, PixCoord, Phase, ChromaProfile, PARAM_NTSC_JITTER, FrameCount, MIX);
 
     FragColor = vec4(yiq, 1.0);
 }
