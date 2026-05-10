@@ -1,4 +1,6 @@
-# VectorScale shader preset
+# VectorScale shader preset (simple-curvature optimizer).
+# Uses |p_{i-1} - 2 p_i + p_{i+1}|² as the curvature energy. For the
+# paper's exact ∫|κ|ds energy, use vectorscale-exact-energy.slangp.
 # Works with any input resolution (not just Game Boy 160x144).
 # Intermediate textures are over-allocated using source-relative scales:
 #   Cell graph:   2W x 7H   (needs (W+1) x 6(H+1), works for H >= 6)
@@ -44,14 +46,14 @@ scale_type_y3 = source
 scale_y3 = 0.5
 wrap_mode3 = clamp_to_border
 
-shader4 = shaders/optimize-energy.slang
+shader4 = shaders/optimize-energy-simple.slang
 alias4 = Opt1
 filter_linear4 = false
 scale_type4 = source
 scale4 = 1.0
 wrap_mode4 = clamp_to_border
 
-shader5 = shaders/optimize-energy.slang
+shader5 = shaders/optimize-energy-simple.slang
 alias5 = Opt2
 filter_linear5 = false
 scale_type5 = source

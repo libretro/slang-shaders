@@ -1,0 +1,128 @@
+# Vibeboy vectorize: same optimizer topology as
+# vibeboy-vectorize-exact-energy-single-aa.slangp, with the multi-AA
+# rasterizer chained after the single-AA rasterizer for better edge
+# anti-aliasing.
+
+shaders = 16
+
+shader0 = shaders/similarity-graph.slang
+alias0 = SimilarityGraph
+filter_linear0 = false
+scale_type0 = source
+scale0 = 2.0
+wrap_mode0 = clamp_to_border
+
+shader1 = shaders/resolve-crossings.slang
+alias1 = ResolvedGraph
+filter_linear1 = false
+scale_type1 = source
+scale1 = 1.0
+wrap_mode1 = clamp_to_border
+
+shader2 = shaders/cell-graph.slang
+alias2 = CellGraph
+filter_linear2 = false
+scale_type_x2 = source
+scale_x2 = 1.0
+scale_type_y2 = source
+scale_y2 = 3.5
+wrap_mode2 = clamp_to_border
+
+shader3 = shaders/init-positions.slang
+alias3 = InitPos
+filter_linear3 = false
+scale_type_x3 = source
+scale_x3 = 1.0
+scale_type_y3 = source
+scale_y3 = 0.5
+wrap_mode3 = clamp_to_border
+
+# Outer iter 0
+shader4 = shaders/optimize-energy.slang
+alias4 = Picard0
+filter_linear4 = false
+scale_type4 = source
+scale4 = 1.0
+wrap_mode4 = clamp_to_border
+
+shader5 = shaders/gradient-correction.slang
+alias5 = Grad0
+filter_linear5 = false
+scale_type5 = source
+scale5 = 1.0
+wrap_mode5 = clamp_to_border
+
+# Outer iter 1
+shader6 = shaders/optimize-energy.slang
+alias6 = Picard1
+filter_linear6 = false
+scale_type6 = source
+scale6 = 1.0
+wrap_mode6 = clamp_to_border
+
+shader7 = shaders/gradient-correction.slang
+alias7 = Grad1
+filter_linear7 = false
+scale_type7 = source
+scale7 = 1.0
+wrap_mode7 = clamp_to_border
+
+# Outer iter 2
+shader8 = shaders/optimize-energy.slang
+alias8 = Picard2
+filter_linear8 = false
+scale_type8 = source
+scale8 = 1.0
+wrap_mode8 = clamp_to_border
+
+shader9 = shaders/gradient-correction.slang
+alias9 = Grad2
+filter_linear9 = false
+scale_type9 = source
+scale9 = 1.0
+wrap_mode9 = clamp_to_border
+
+# T-junction stem CP snap.
+shader10 = shaders/update-tjunction.slang
+alias10 = TJunc1
+filter_linear10 = false
+scale_type10 = source
+scale10 = 1.0
+wrap_mode10 = clamp_to_border
+
+shader11 = shaders/update-tjunction.slang
+alias11 = TJunc2
+filter_linear11 = false
+scale_type11 = source
+scale11 = 1.0
+wrap_mode11 = clamp_to_border
+
+shader12 = shaders/update-tjunction.slang
+alias12 = FinalPositions
+filter_linear12 = false
+scale_type12 = source
+scale12 = 1.0
+wrap_mode12 = clamp_to_border
+
+shader13 = shaders/pack-positions.slang
+alias13 = PackedPositions
+filter_linear13 = false
+scale_type_x13 = source
+scale_x13 = 3.0
+scale_type_y13 = source
+scale_y13 = 1.0
+wrap_mode13 = clamp_to_border
+
+shader14 = shaders/cell-rasterizer-single-aa.slang
+alias14 = SingleAA
+filter_linear14 = false
+scale_type14 = viewport
+scale14 = 1.0
+wrap_mode14 = clamp_to_border
+
+shader15 = shaders/cell-rasterizer-multi-aa.slang
+alias15 = FinalOutput
+filter_linear15 = true
+scale_type15 = viewport
+scale15 = 1.0
+wrap_mode15 = clamp_to_border

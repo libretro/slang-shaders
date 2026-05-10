@@ -246,6 +246,33 @@ bool checkForCorner(vec2 v1, vec2 v2) {
     return false;
 }
 
+// True iff pixel (px, py) is topologically "isolated": after the similarity
+// graph + crossing resolution, all four cardinal neighbors share its color
+// AND all four diagonal connections to it are kept (it sits in the middle
+// of an X-shape of diagonal links). When the optimizer skips a CP marked
+// IS_CORNER, snapping its placement to the integer grid corner keeps the
+// lone single-pixel from rendering as a smeared off-axis B-spline outline.
+bool is_isolated_pixel(int px, int py) {
+    if (px <= 0 || py <= 0
+        || px >= IMG_W() - 1
+        || py >= IMG_H() - 1) return false;
+    uint cand = px_color(px, py);
+    uint n_col = px_color(px, py - 1);
+    if (n_col == cand) return false;
+    uint e_col = px_color(px + 1, py);
+    uint s_col = px_color(px, py + 1);
+    uint w_col = px_color(px - 1, py);
+    if (n_col != e_col || n_col != s_col || n_col != w_col) return false;
+    uint diag_tl = g(2 * px,       2 * py);
+    uint diag_tr = g(2 * (px + 1), 2 * py);
+    uint diag_br = g(2 * (px + 1), 2 * (py + 1));
+    uint diag_bl = g(2 * px,       2 * (py + 1));
+    return ((diag_tl & 2u) != 0u)
+        && ((diag_tr & 1u) != 0u)
+        && ((diag_br & 2u) != 0u)
+        && ((diag_bl & 1u) != 0u);
+}
+
 // Encode a CP index as (cx, cy, slot) components.
 vec3 encode_cp_idx(int cp_idx) {
     if (cp_idx < 0) return vec3(-1.0);
@@ -342,6 +369,9 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
                 vec2 s_pos = neighbor_cp_pos(cx, cy + 1, 2);
                 vec2 w_pos = neighbor_cp_pos(cx - 1, cy, 3);
                 if (checkForCorner(s_pos - p0, w_pos - p0)) cp0_flag |= IS_CORNER;
+                if (is_isolated_pixel(cx - 1, cy)) {
+                    p0 = vec2(float(cx), float(cy));
+                }
             }
             int d_prev = cp0_has_s ? 2 : -1;
             int d_next = cp0_has_w ? 3 : -1;
@@ -358,6 +388,9 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
                 vec2 n_pos = neighbor_cp_pos(cx, cy - 1, 0);
                 vec2 e_pos = neighbor_cp_pos(cx + 1, cy, 1);
                 if (checkForCorner(n_pos - p1, e_pos - p1)) cp1_flag |= IS_CORNER;
+                if (is_isolated_pixel(cx, cy - 1)) {
+                    p1 = vec2(float(cx), float(cy));
+                }
             }
             int d_prev = cp1_has_n ? 0 : -1;
             int d_next = cp1_has_e ? 1 : -1;
@@ -383,6 +416,9 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
                 vec2 n_pos = neighbor_cp_pos(cx, cy - 1, 0);
                 vec2 w_pos = neighbor_cp_pos(cx - 1, cy, 3);
                 if (checkForCorner(n_pos - p0, w_pos - p0)) cp0_flag |= IS_CORNER;
+                if (is_isolated_pixel(cx - 1, cy - 1)) {
+                    p0 = vec2(float(cx), float(cy));
+                }
             }
             int d_prev = cp0_has_n ? 0 : -1;
             int d_next = cp0_has_w ? 3 : -1;
@@ -399,6 +435,9 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
                 vec2 s_pos = neighbor_cp_pos(cx, cy + 1, 2);
                 vec2 e_pos = neighbor_cp_pos(cx + 1, cy, 1);
                 if (checkForCorner(s_pos - p1, e_pos - p1)) cp1_flag |= IS_CORNER;
+                if (is_isolated_pixel(cx, cy)) {
+                    p1 = vec2(float(cx), float(cy));
+                }
             }
             int d_prev = cp1_has_s ? 2 : -1;
             int d_next = cp1_has_e ? 1 : -1;
