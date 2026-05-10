@@ -18,7 +18,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 void main()
 {
     // return if effect is disabled
-    if (is_zero(BLUR_AMOUNT))
+    if (BLUR_AMOUNT == 0.0)
     {
         FragColor = texture(Source, TexCoord);
 

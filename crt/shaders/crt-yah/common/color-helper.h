@@ -21,7 +21,7 @@ float max_color(vec3 color)
 //   >0.0 - increasing
 vec3 apply_contrast(vec3 color, float contrast)
 {
-    if (is_zero(contrast))
+    if (contrast == 0.0)
     {
         return color;
     }
@@ -59,7 +59,7 @@ vec3 apply_brightness(vec3 color, float brightness)
 // @overflow - the amount of overflow to apply.
 vec3 apply_color_overflow(vec3 color, float overflow)
 {
-    if (is_zero(overflow))
+    if (overflow == 0.0)
     {
         return color;
     }
@@ -81,7 +81,7 @@ vec3 apply_color_overflow(vec3 color, float overflow)
 // @floor - the minimum value.
 vec3 apply_floor(vec3 color, float floor)
 {
-    if (is_zero(floor))
+    if (floor == 0.0)
     {
         return color;
     }
@@ -118,7 +118,7 @@ vec3 apply_saturation(vec3 color, float saturation)
 //    1.0 - D75
 vec3 apply_temperature(vec3 color, float white_point_relative)
 {
-    if (is_zero(white_point_relative))
+    if (white_point_relative == 0.0)
     {
         return color;
     }

@@ -112,8 +112,8 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 void main()
 {
     // return if effect is disabled
-    if (is_zero(PARAM_DECONVERGE_LINEAR)
-        && is_zero(PARAM_DECONVERGE_RADIAL))
+    if (PARAM_DECONVERGE_LINEAR == 0.0
+        && PARAM_DECONVERGE_RADIAL == 0.0)
     {
         FragColor = texture(Source, TexCoord);
 

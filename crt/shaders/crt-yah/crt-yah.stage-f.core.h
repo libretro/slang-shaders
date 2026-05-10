@@ -54,7 +54,8 @@ vec3 OUTPUT(vec3 color, float color_luma)
 {
     float brightness_compensation = get_brightness_compensation(color_luma);
 
-    color = apply_brightness(apply_brightness(color, brightness_compensation), PARAM_COLOR_BRIGHTNESS);
+    color = apply_brightness(color, brightness_compensation);
+    color = apply_brightness(color, PARAM_COLOR_BRIGHTNESS);
     color = apply_contrast(color, PARAM_COLOR_CONTRAST);
     color = apply_temperature(color, PARAM_COLOR_TEMPERATUE);
     color = apply_saturation(color, PARAM_COLOR_SATURATION);
@@ -317,7 +318,7 @@ vec3 get_scanlines_color(sampler2D source, vec2 tex_coord, vec2 tex_size)
 
 vec3 apply_details(vec3 scanlines_color, sampler2D base_samler, vec2 base_coord, sampler2D blur_sampler, vec2 blur_coord)
 {
-    if (is_zero(PARAM_SHARP_AMOUNT))
+    if (PARAM_SHARP_AMOUNT == 0.0)
     {
         return scanlines_color;
     }
@@ -353,7 +354,7 @@ vec3 apply_details(vec3 scanlines_color, sampler2D base_samler, vec2 base_coord,
 
 vec3 blend_colors(vec3 raw_color, vec3 scanlines_color)
 {
-    if (is_zero(PARAM_SCANLINES_STRENGTH))
+    if (PARAM_SCANLINES_STRENGTH == 0.0)
     {
         return raw_color;
     }
@@ -436,7 +437,7 @@ vec3 apply_color_overflow(vec3 color)
 
 vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord)
 {
-    if (is_zero(PARAM_HALATION_INTENSITY))
+    if (PARAM_HALATION_INTENSITY == 0.0)
     {
         return color;
     }
