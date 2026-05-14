@@ -94,35 +94,33 @@ vec2 read_pos(int cp_idx) {
     return texelFetch(Source, ivec2(cx, cy_slot), 0).rg;
 }
 
-vec2 read_orig_pos(int cp_idx) {
-    if (cp_idx < 0 || cp_idx >= NUM_CPS()) return vec2(0.0);
+// Compact CellGraph: 1 texel per CP. See cell-graph.slang for layout.
+vec4 read_cg(int cp_idx) {
     int cx, cy_slot;
     decode_cp(cp_idx, cx, cy_slot);
-    return texelFetch(CellGraph, ivec2(cx, cy_slot * 3), 0).rg;
+    return texelFetch(CellGraph, ivec2(cx, cy_slot), 0);
 }
 
-int decode_neighbor(vec4 val) {
-    if (val.r < -0.5) return -1;
-    int ncx = int(val.r + 0.5);
-    int ncy = int(val.g + 0.5);
-    int nslot = int(val.b + 0.5);
-    return (ncy * CORNERS_W() + ncx) * 2 + nslot;
+int unpack_idx(uint v) {
+    return (v == 0xFFFFFFu) ? -1 : int(v);
+}
+
+vec2 read_orig_pos(int cp_idx) {
+    if (cp_idx < 0 || cp_idx >= NUM_CPS()) return vec2(0.0);
+    return read_cg(cp_idx).rg;
 }
 
 ivec2 read_neighbors(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return ivec2(-1, -1);
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    return ivec2(decode_neighbor(texelFetch(CellGraph, ivec2(cx, base_row + 1), 0)),
-                 decode_neighbor(texelFetch(CellGraph, ivec2(cx, base_row + 2), 0)));
+    vec4 val = read_cg(cp_idx);
+    uint pv = floatBitsToUint(val.b) & 0xFFFFFFu;
+    uint nv = floatBitsToUint(val.a) & 0xFFFFFFu;
+    return ivec2(unpack_idx(pv), unpack_idx(nv));
 }
 
 uint read_flags(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return 0u;
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    return uint(texelFetch(CellGraph, ivec2(cx, cy_slot * 3), 0).b + 0.5);
+    return (floatBitsToUint(read_cg(cp_idx).b) >> 24) & 0xFFu;
 }
 
 // T-junction ghost: stem CPs read as the ghost-snapped position
@@ -249,38 +247,44 @@ void main() {
     int cp_slot = cy_slot % 2;
     int i = (cy * CORNERS_W() + col) * 2 + cp_slot;
 
-    // Focal CP: CellGraph row 0 packs p_orig (rg) + flags (b).
-    int my_base = cy_slot * 3;
+    // Focal CP: one CellGraph fetch yields p_orig (rg) + flags + dirs +
+    // both neighbor indices.
     vec2 starting_p = texelFetch(Source, ivec2(col, cy_slot), 0).rg;
-    vec3 my_r0_xyz = texelFetch(CellGraph, ivec2(col, my_base), 0).rgb;
-    vec2 p_orig = my_r0_xyz.rg;
-    uint flags = uint(my_r0_xyz.b + 0.5);
+    vec4 my_cg = texelFetch(CellGraph, ivec2(col, cy_slot), 0);
+    uint my_b = floatBitsToUint(my_cg.b);
+    uint my_a = floatBitsToUint(my_cg.a);
+    vec2 p_orig = my_cg.rg;
+    uint flags = (my_b >> 24) & 0xFFu;
 
     if (flags == 0u || (flags & 1u) != 0u) {
         FragColor = vec4(starting_p.x, starting_p.y, 0.0, 0.0);
         return;
     }
 
-    int prev_idx = decode_neighbor(texelFetch(CellGraph, ivec2(col, my_base + 1), 0));
-    int next_idx = decode_neighbor(texelFetch(CellGraph, ivec2(col, my_base + 2), 0));
+    int prev_idx = unpack_idx(my_b & 0xFFFFFFu);
+    int next_idx = unpack_idx(my_a & 0xFFFFFFu);
     if (prev_idx < 0 || next_idx < 0) {
         FragColor = vec4(starting_p.x, starting_p.y, 0.0, 0.0);
         return;
     }
 
-    // Prev/next neighbors: only flags + index rows are needed (their
-    // p_orig is not consumed here).
+    // Prev/next neighbors: pull flags + their own neighbor indices in
+    // one fetch each.
     int prev_cx, prev_cy_slot;  decode_cp(prev_idx, prev_cx, prev_cy_slot);
-    int prev_base = prev_cy_slot * 3;
-    uint prev_flags = uint(texelFetch(CellGraph, ivec2(prev_cx, prev_base), 0).b + 0.5);
-    int prev_pp_idx = decode_neighbor(texelFetch(CellGraph, ivec2(prev_cx, prev_base + 1), 0));
-    int prev_nn_idx = decode_neighbor(texelFetch(CellGraph, ivec2(prev_cx, prev_base + 2), 0));
+    vec4 prev_cg = texelFetch(CellGraph, ivec2(prev_cx, prev_cy_slot), 0);
+    uint prev_b = floatBitsToUint(prev_cg.b);
+    uint prev_a = floatBitsToUint(prev_cg.a);
+    uint prev_flags = (prev_b >> 24) & 0xFFu;
+    int prev_pp_idx = unpack_idx(prev_b & 0xFFFFFFu);
+    int prev_nn_idx = unpack_idx(prev_a & 0xFFFFFFu);
 
     int next_cx, next_cy_slot;  decode_cp(next_idx, next_cx, next_cy_slot);
-    int next_base = next_cy_slot * 3;
-    uint next_flags = uint(texelFetch(CellGraph, ivec2(next_cx, next_base), 0).b + 0.5);
-    int next_pp_idx = decode_neighbor(texelFetch(CellGraph, ivec2(next_cx, next_base + 1), 0));
-    int next_nn_idx = decode_neighbor(texelFetch(CellGraph, ivec2(next_cx, next_base + 2), 0));
+    vec4 next_cg = texelFetch(CellGraph, ivec2(next_cx, next_cy_slot), 0);
+    uint next_b = floatBitsToUint(next_cg.b);
+    uint next_a = floatBitsToUint(next_cg.a);
+    uint next_flags = (next_b >> 24) & 0xFFu;
+    int next_pp_idx = unpack_idx(next_b & 0xFFFFFFu);
+    int next_nn_idx = unpack_idx(next_a & 0xFFFFFFu);
 
     // Ghost-aware position for prev/next: a CP is a stem iff its
     // JUNCTION bit is set AND its index-1 CP is a T-junction. Common

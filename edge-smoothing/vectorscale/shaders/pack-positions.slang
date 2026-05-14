@@ -128,20 +128,20 @@ vec2 bspline_intersect(vec2 a_p0, vec2 a_p1, vec2 a_p2,
     return vec2(clamp(t, 0.0, 1.0), clamp(s, 0.0, 1.0));
 }
 
-int decode_neighbor(vec4 val) {
-    if (val.r < -0.5) return -1;
-    int ncx = int(val.r + 0.5);
-    int ncy = int(val.g + 0.5);
-    int nslot = int(val.b + 0.5);
-    return (ncy * CORNERS_W() + ncx) * 2 + nslot;
+// Compact CellGraph: 1 texel per CP. See cell-graph.slang for layout.
+vec4 read_cg(int cp_idx) {
+    int cx, cy_slot;
+    decode_cp(cp_idx, cx, cy_slot);
+    return texelFetch(CellGraph, ivec2(cx, cy_slot), 0);
+}
+
+int unpack_idx(uint v) {
+    return (v == 0xFFFFFFu) ? -1 : int(v);
 }
 
 uint read_flags(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return 0u;
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    return uint(texelFetch(CellGraph, ivec2(cx, base_row), 0).b + 0.5);
+    return (floatBitsToUint(read_cg(cp_idx).b) >> 24) & 0xFFu;
 }
 
 // Closest-point cubic solver — must match cell-rasterizer.slang's
@@ -227,17 +227,19 @@ void main() {
     int slot = cy_slot & 1;
     int ci = (cy * CORNERS_W() + cx) * 2 + slot;
 
-    // Read flags + neighbors. Inactive CPs write zeros — the rasterizer
-    // already skips them via its own flag check.
-    uint flag = read_flags(ci);
+    // Read flags + neighbors in one fetch. Inactive CPs write zeros —
+    // the rasterizer already skips them via its own flag check.
+    vec4 cg = texelFetch(CellGraph, ivec2(cx, cy_slot), 0);
+    uint cg_b = floatBitsToUint(cg.b);
+    uint cg_a = floatBitsToUint(cg.a);
+    uint flag = (cg_b >> 24) & 0xFFu;
     if (flag == 0u) {
         FragColor = vec4(0.0);
         return;
     }
 
-    int base_row = cy_slot * 3;
-    int prev_ci = decode_neighbor(texelFetch(CellGraph, ivec2(cx, base_row + 1), 0));
-    int next_ci = decode_neighbor(texelFetch(CellGraph, ivec2(cx, base_row + 2), 0));
+    int prev_ci = unpack_idx(cg_b & 0xFFFFFFu);
+    int next_ci = unpack_idx(cg_a & 0xFFFFFFu);
 
     // CPs with no neighbors (e.g. fully-isolated chain endpoints owned by
     // someone else's clamped extension) — write zeros.
@@ -300,9 +302,9 @@ void main() {
     if ((flag & IS_CROSSING) != 0u) {
         // Read partner-slot neighbor indices (partner is at cy_slot ^ 1
         // within the same cx column).
-        int p_base_row = (cy_slot ^ 1) * 3;
-        int p_prev = decode_neighbor(texelFetch(CellGraph, ivec2(cx, p_base_row + 1), 0));
-        int p_next = decode_neighbor(texelFetch(CellGraph, ivec2(cx, p_base_row + 2), 0));
+        vec4 p_cg = texelFetch(CellGraph, ivec2(cx, cy_slot ^ 1), 0);
+        int p_prev = unpack_idx(floatBitsToUint(p_cg.b) & 0xFFFFFFu);
+        int p_next = unpack_idx(floatBitsToUint(p_cg.a) & 0xFFFFFFu);
 
         int n_idx, s_idx, e_idx, w_idx;
         if (slot == 0) {

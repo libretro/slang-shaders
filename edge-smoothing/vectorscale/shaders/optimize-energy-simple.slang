@@ -76,44 +76,33 @@ vec2 read_pos(int cp_idx) {
     return vec2(val.r, val.g);
 }
 
-// Read original position from cell graph texture (row offset 0).
+// Compact CellGraph: 1 texel per CP. See cell-graph.slang for layout.
+vec4 read_cg(int cp_idx) {
+    int cx, cy_slot;
+    decode_cp(cp_idx, cx, cy_slot);
+    return texelFetch(CellGraph, ivec2(cx, cy_slot), 0);
+}
+
+int unpack_idx(uint v) {
+    return (v == 0xFFFFFFu) ? -1 : int(v);
+}
+
 vec2 read_orig_pos(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return vec2(0.0);
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    vec4 val = texelFetch(CellGraph, ivec2(cx, base_row), 0);
-    return vec2(val.r, val.g);
+    return read_cg(cp_idx).rg;
 }
 
-// Decode a neighbor CP index from component encoding.
-int decode_neighbor(vec4 val) {
-    if (val.r < -0.5) return -1;
-    int ncx = int(val.r + 0.5);
-    int ncy = int(val.g + 0.5);
-    int nslot = int(val.b + 0.5);
-    return (ncy * CORNERS_W() + ncx) * 2 + nslot;
-}
-
-// Read neighbors from cell graph texture (row offsets 1 and 2).
 ivec2 read_neighbors(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return ivec2(-1, -1);
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    vec4 prev_val = texelFetch(CellGraph, ivec2(cx, base_row + 1), 0);
-    vec4 next_val = texelFetch(CellGraph, ivec2(cx, base_row + 2), 0);
-    return ivec2(decode_neighbor(prev_val), decode_neighbor(next_val));
+    vec4 val = read_cg(cp_idx);
+    uint pv = floatBitsToUint(val.b) & 0xFFFFFFu;
+    uint nv = floatBitsToUint(val.a) & 0xFFFFFFu;
+    return ivec2(unpack_idx(pv), unpack_idx(nv));
 }
 
-// Read flags from cell graph texture (row 0, B channel).
 uint read_flags(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return 0u;
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    vec4 val = texelFetch(CellGraph, ivec2(cx, base_row), 0);
-    return uint(val.b + 0.5);
+    return (floatBitsToUint(read_cg(cp_idx).b) >> 24) & 0xFFu;
 }
 
 // Read neighbor position, using corrected position for T-junctions.

@@ -74,14 +74,21 @@ void decode_cp(int cp_idx, out int cx, out int cy_slot) {
     cy_slot = cy_ * 2 + cp_slot;
 }
 
-// Read original position from cell graph texture (row 0, RG channels).
-vec2 read_orig(int cp_idx) {
-    if (cp_idx < 0 || cp_idx >= NUM_CPS()) return vec2(-1e10);
+// Compact CellGraph: 1 texel per CP. See cell-graph.slang for layout.
+vec4 read_cg(int cp_idx) {
     int cx, cy_slot;
     decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    vec4 val = texelFetch(CellGraph, ivec2(cx, base_row), 0);
-    return vec2(val.r, val.g);
+    return texelFetch(CellGraph, ivec2(cx, cy_slot), 0);
+}
+
+int unpack_idx(uint v) {
+    return (v == 0xFFFFFFu) ? -1 : int(v);
+}
+
+// Read original position from cell graph (RG channels).
+vec2 read_orig(int cp_idx) {
+    if (cp_idx < 0 || cp_idx >= NUM_CPS()) return vec2(-1e10);
+    return read_cg(cp_idx).rg;
 }
 
 // Per-CP packed render geometry from pack-positions. 3 horizontal texels:
@@ -128,48 +135,27 @@ PackedCp read_packed_cp(int cp_idx) {
     return r;
 }
 
-// Decode a neighbor CP index from component encoding.
-int decode_neighbor(vec4 val) {
-    if (val.r < -0.5) return -1;
-    int ncx = int(val.r + 0.5);
-    int ncy = int(val.g + 0.5);
-    int nslot = int(val.b + 0.5);
-    return (ncy * CORNERS_W() + ncx) * 2 + nslot;
-}
-
-// Read neighbors from cell graph texture (row offsets 1 and 2).
+// Read neighbors from cell graph (BA channels, low 24 bits each).
 ivec2 read_neighbors(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return ivec2(-1, -1);
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    vec4 prev_val = texelFetch(CellGraph, ivec2(cx, base_row + 1), 0);
-    vec4 next_val = texelFetch(CellGraph, ivec2(cx, base_row + 2), 0);
-    return ivec2(decode_neighbor(prev_val), decode_neighbor(next_val));
+    vec4 val = read_cg(cp_idx);
+    uint pv = floatBitsToUint(val.b) & 0xFFFFFFu;
+    uint nv = floatBitsToUint(val.a) & 0xFFFFFFu;
+    return ivec2(unpack_idx(pv), unpack_idx(nv));
 }
 
-// Read flags from cell graph texture (row 0, B channel).
+// Read flags from cell graph (B channel, top 8 bits).
 uint read_flags(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return 0u;
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    vec4 val = texelFetch(CellGraph, ivec2(cx, base_row), 0);
-    return uint(val.b + 0.5);
+    return (floatBitsToUint(read_cg(cp_idx).b) >> 24) & 0xFFu;
 }
 
-// Read packed boundary directions from cell graph (row 0, A channel).
+// Read packed boundary directions from cell graph (A channel, top 8 bits).
 // Returns (prev_dir, next_dir) where -1 = none, 0=N, 1=E, 2=S, 3=W.
 ivec2 read_dirs(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return ivec2(-1, -1);
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    vec4 val = texelFetch(CellGraph, ivec2(cx, base_row), 0);
-    int dir_pack = int(val.a + 0.5);
-    int prev_dir = (dir_pack % 8) - 1;
-    int next_dir = (dir_pack / 8) - 1;
-    return ivec2(prev_dir, next_dir);
+    uint dp = (floatBitsToUint(read_cg(cp_idx).a) >> 24) & 0xFFu;
+    return ivec2(int(dp & 0x7u) - 1, int((dp >> 3) & 0x7u) - 1);
 }
 
 // Get the grid corner (icx, icy) for a CP index.
@@ -593,40 +579,39 @@ ResolveResult resolve_hit(Hit hit, vec2 query) {
     vec2 pp = hit.prev_pos;
     vec2 np = hit.next_pos;
 
-    // Read row 0 of the cell graph for ci, prev, and next exactly once
-    // each — it packs orig_pos (rg), flags (b), and dir_pack (a). The
-    // helpers (read_orig / read_flags / read_dirs) all hit the same
-    // texel; calling each separately costs 3 redundant texelFetches per
-    // resolve. Inline the unpack here.
-    int cx_ci, cy_slot_ci;       decode_cp(ci, cx_ci, cy_slot_ci);
-    int row0_ci_y = cy_slot_ci * 3;
-    vec4 row0_ci = texelFetch(CellGraph, ivec2(cx_ci, row0_ci_y), 0);
+    // Read CellGraph for ci, prev, and next exactly once each — each
+    // texel packs orig_pos (rg), flags + prev_idx (b), and dir_pack +
+    // next_idx (a). The helpers (read_orig / read_flags / read_dirs) all
+    // hit the same texel; calling each separately costs redundant
+    // texelFetches per resolve. Inline the unpack here.
+    int cx_ci, cy_slot_ci; decode_cp(ci, cx_ci, cy_slot_ci);
+    vec4 cg_ci = texelFetch(CellGraph, ivec2(cx_ci, cy_slot_ci), 0);
 
-    vec4 row0_prev = vec4(0.0);
+    vec4 cg_prev = vec4(0.0);
     if (prev_ci >= 0 && prev_ci < NUM_CPS()) {
         int cx_p, cy_slot_p; decode_cp(prev_ci, cx_p, cy_slot_p);
-        row0_prev = texelFetch(CellGraph, ivec2(cx_p, cy_slot_p * 3), 0);
+        cg_prev = texelFetch(CellGraph, ivec2(cx_p, cy_slot_p), 0);
     }
-    vec4 row0_next = vec4(0.0);
+    vec4 cg_next = vec4(0.0);
     if (next_ci >= 0 && next_ci < NUM_CPS()) {
         int cx_n, cy_slot_n; decode_cp(next_ci, cx_n, cy_slot_n);
-        row0_next = texelFetch(CellGraph, ivec2(cx_n, cy_slot_n * 3), 0);
+        cg_next = texelFetch(CellGraph, ivec2(cx_n, cy_slot_n), 0);
     }
 
     // Endpoint defer: hit at exact t=0|1 of an endpoint-extended curve
-    // — defer to the next-closest hit. Use already-fetched row0 data
-    // instead of separate read_flags calls.
+    // — defer to the next-closest hit. Use already-fetched data instead
+    // of separate read_flags calls.
     bool prev_is_endpoint = (prev_ci < 0)
-        || (uint(row0_prev.b + 0.5) & IS_ENDPOINT) != 0u;
+        || ((floatBitsToUint(cg_prev.b) >> 24) & IS_ENDPOINT) != 0u;
     bool next_is_endpoint = (next_ci < 0)
-        || (uint(row0_next.b + 0.5) & IS_ENDPOINT) != 0u;
+        || ((floatBitsToUint(cg_next.b) >> 24) & IS_ENDPOINT) != 0u;
     if ((prev_is_endpoint && hit_t == 0.0) || (next_is_endpoint && hit_t == 1.0)) {
         return r;
     }
 
-    int dir_pack_ci = int(row0_ci.a + 0.5);
-    int prev_dir = (dir_pack_ci % 8) - 1;
-    int next_dir = (dir_pack_ci / 8) - 1;
+    uint dp_ci = (floatBitsToUint(cg_ci.a) >> 24) & 0xFFu;
+    int prev_dir = int(dp_ci & 0x7u) - 1;
+    int next_dir = int((dp_ci >> 3) & 0x7u) - 1;
     ivec2 grid = ivec2((ci / 2) % CORNERS_W(), (ci / 2) / CORNERS_W());
 
     vec3 pl = vec3(0.0), pr = vec3(0.0), nl = vec3(0.0), nr = vec3(0.0);
@@ -654,9 +639,9 @@ ResolveResult resolve_hit(Hit hit, vec2 query) {
         else return r;
     }
 
-    vec2 orig_ci   = row0_ci.rg;
-    vec2 orig_prev = (prev_ci >= 0) ? row0_prev.rg : orig_ci;
-    vec2 orig_next = (next_ci >= 0) ? row0_next.rg : orig_ci;
+    vec2 orig_ci   = cg_ci.rg;
+    vec2 orig_prev = (prev_ci >= 0) ? cg_prev.rg : orig_ci;
+    vec2 orig_next = (next_ci >= 0) ? cg_next.rg : orig_ci;
     vec2 orig_cp, orig_pp, orig_np;
     if (hit.is_line) {
         // 2-CP chain: a0 is the prev-side endpoint, a1 is the next-side.

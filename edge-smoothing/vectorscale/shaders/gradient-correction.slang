@@ -70,8 +70,13 @@ vec2 read_pos(int cp_idx) {
     return texelFetch(Source, cp_coords(cp_idx), 0).rg;
 }
 
-// Position + flags for one CP. One Source fetch + one CellGraph row-0
-// fetch. Caller is responsible for checking idx >= 0 first.
+// Compact CellGraph: 1 texel per CP. See cell-graph.slang for layout.
+int unpack_idx(uint v) {
+    return (v == 0xFFFFFFu) ? -1 : int(v);
+}
+
+// Position + flags for one CP. One Source fetch + one CellGraph fetch.
+// Caller is responsible for checking idx >= 0 first.
 struct CpBasic {
     vec2 pos;
     uint flags;
@@ -81,33 +86,26 @@ CpBasic fetch_basic(int cp_idx) {
     CpBasic d;
     ivec2 xy = cp_coords(cp_idx);
     d.pos = texelFetch(Source, xy, 0).rg;
-    d.flags = uint(texelFetch(CellGraph, ivec2(xy.x, xy.y * 3), 0).b + 0.5);
+    d.flags = (floatBitsToUint(texelFetch(CellGraph, xy, 0).b) >> 24) & 0xFFu;
     return d;
 }
 
 uint read_flags(int cp_idx) {
     ivec2 xy = cp_coords(cp_idx);
-    return uint(texelFetch(CellGraph, ivec2(xy.x, xy.y * 3), 0).b + 0.5);
+    return (floatBitsToUint(texelFetch(CellGraph, xy, 0).b) >> 24) & 0xFFu;
 }
 
 vec2 read_orig(int cp_idx) {
     ivec2 xy = cp_coords(cp_idx);
-    return texelFetch(CellGraph, ivec2(xy.x, xy.y * 3), 0).rg;
-}
-
-int decode_neighbor(vec4 val) {
-    if (val.r < -0.5) return -1;
-    int ncx = int(val.r + 0.5);
-    int ncy = int(val.g + 0.5);
-    int nslot = int(val.b + 0.5);
-    return (ncy * CORNERS_W() + ncx) * 2 + nslot;
+    return texelFetch(CellGraph, xy, 0).rg;
 }
 
 ivec2 read_neighbors(int cp_idx) {
     ivec2 xy = cp_coords(cp_idx);
-    int base_row = xy.y * 3;
-    return ivec2(decode_neighbor(texelFetch(CellGraph, ivec2(xy.x, base_row + 1), 0)),
-                 decode_neighbor(texelFetch(CellGraph, ivec2(xy.x, base_row + 2), 0)));
+    vec4 val = texelFetch(CellGraph, xy, 0);
+    uint pv = floatBitsToUint(val.b) & 0xFFFFFFu;
+    uint nv = floatBitsToUint(val.a) & 0xFFFFFFu;
+    return ivec2(unpack_idx(pv), unpack_idx(nv));
 }
 
 // Ghost-aware position resolution given already-fetched CpBasic. Most
@@ -192,15 +190,17 @@ void main() {
     vec2 p_self = texelFetch(Source, self_xy, 0).rg;
     FragColor = vec4(p_self, 0.0, 0.0);
     if (cp_idx >= NUM_CPS()) return;
-    vec4 self_cg0 = texelFetch(CellGraph, ivec2(self_xy.x, self_xy.y * 3), 0);
-    uint sf = uint(self_cg0.b + 0.5);
-    vec2 p_orig = self_cg0.rg;
+    vec4 self_cg = texelFetch(CellGraph, self_xy, 0);
+    uint self_b = floatBitsToUint(self_cg.b);
+    uint self_a = floatBitsToUint(self_cg.a);
+    uint sf = (self_b >> 24) & 0xFFu;
+    vec2 p_orig = self_cg.rg;
     if (sf == 0u || (sf & 1u) != 0u) return;
 
     bool self_corner = (sf & IS_CORNER) != 0u;
-    ivec2 self_nbrs = read_neighbors(cp_idx);
-    int prev_idx = self_nbrs.x;
-    int next_idx = self_nbrs.y;
+    int prev_idx = unpack_idx(self_b & 0xFFFFFFu);
+    int next_idx = unpack_idx(self_a & 0xFFFFFFu);
+    ivec2 self_nbrs = ivec2(prev_idx, next_idx);
 
     // Fetch immediate neighbors. Held across the segment computations
     // because both feed multiple segments and the T-junction cases.

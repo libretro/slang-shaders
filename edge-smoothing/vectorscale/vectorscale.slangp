@@ -34,7 +34,7 @@ filter_linear2 = false
 scale_type_x2 = source
 scale_x2 = 1.0
 scale_type_y2 = source
-scale_y2 = 3.5
+scale_y2 = 1.05
 wrap_mode2 = clamp_to_border
 
 shader3 = shaders/init-positions.slang
@@ -43,7 +43,7 @@ filter_linear3 = false
 scale_type_x3 = source
 scale_x3 = 1.0
 scale_type_y3 = source
-scale_y3 = 0.5
+scale_y3 = 1.0
 wrap_mode3 = clamp_to_border
 
 shader4 = shaders/optimize-energy-simple.slang
