@@ -92,10 +92,10 @@ vec2 vec2o(float x, float y)
 float get_luminance_corrected(vec3 color)
 {
     color = apply_color_overflow(color, PARAM_COLOR_OVERFLOW);
-    color = apply_contrast(color, PARAM_COLOR_CONTRAST);
     color = apply_brightness(color, PARAM_COLOR_BRIGHTNESS);
-    color = apply_saturation(color, PARAM_COLOR_SATURATION);
+    color = apply_contrast(color, PARAM_COLOR_CONTRAST);
     color = apply_temperature(color, PARAM_COLOR_TEMPERATUE);
+    color = apply_saturation(color, PARAM_COLOR_SATURATION);
     color = min(vec3(1.0), color);
 
     return get_luminance(color);
