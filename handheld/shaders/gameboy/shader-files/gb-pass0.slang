@@ -6,24 +6,30 @@
 //  / / __/ /| | / /|_/ / __/    / __  / / / /\  /                       //
 // / /_/ / ___ |/ /  / / /___   / /_/ / /_/ / / /                        //
 // \____/_/  |_/_/  /_/_____/  /_____/\____/ /_/                         //
-//  ==================== DOT MATRIX SHADER v1.1                          //
+//  ==================== DOT MATRIX SHADER v1.2                          //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
-// Copyright (C) 2024-2025 Matt Akins                                    //
+// Copyright (C) 2024-2026 Matt Akins			                         //
 //                                                                       //
-// 2/6/24 - Modified to support color output by mattakins                //
-// 9/30/25 - v1.0 by mattakins                                           //
+// 6/2/26 - v1.2				                                         //
+//   • Added motion-based shadows               					     //
+//   • Fixed edge light banding											 //
+//                                                                       //
+// 10/25/25 - v1.1                                        				 //
+//   • Fixed fullscreen mode right and bottom border bug                 //
+//   • Improved brightness compensation for fullscreen pixel parameters  //
+//                                                                       //
+// 9/30/25 - v1.0                                         				 //
 //   • Fullscreen mode scales dot matrix effect to any screen size       //
 //   • Swap between display modes (full / max integer / scale factor)    //
-//   • Built-in palette presets while maintaining image pallete support  //
+//   • Built-in palette presets while maintaining image palette support  //
 //   • Drop shadow ON / OFF toggle                                       //
 //   • Simple vs perceptual pixel brightness calculation modes           //
 //   • Performance optimizations (vertex pre-calc, early-exit)           //
 //   • Parameter reorganization for ease of use                          //
 //   • Fixed issue with artifacts sometimes appearing in border          //
-// 10/25/25 - v1.1 by mattakins                                          //
-//   • Fixed fullscreen mode right and bottom border bug                 //
-//   • Improved brightness compensation for fullscreen pixel parameters  //
+//                                                                       //
+// 2/6/24 - Modified to support color output                			 //
 //                                                                       //
 // This program is free software: you can redistribute it and/or modify  //
 // it under the terms of the GNU General Public License as published by  //
@@ -43,11 +49,6 @@
   /////////////////////////////////////////////////////////////////////////
  // gb-pass0 - Core dot matrix generation & response time simulation    //
 /////////////////////////////////////////////////////////////////////////
-
-#pragma parameter GAMEBOY_SHADER "=== GAME BOY DOT MATRIX SHADER v1.1 ===" 0.0 0.0 1.0 1.0
-#pragma parameter NOTE1 " *  TIPS: Turn OFF Integer Scale in Settings > Video > Scaling" 0.0 0.0 1.0 1.0
-#pragma parameter NOTE2 " *  GBC: Turn OFF Core > Color Correction & Interframe Blending" 0.0 0.0 1.0 1.0
-#pragma parameter NOTE3 " *  GBA: Turn ON Core > Color Correction & Interframe Blending" 0.0 0.0 1.0 1.0
 
 #include "gb-params.inc"
 
@@ -159,6 +160,7 @@ layout(push_constant) uniform Push
 	float sharp_mode;
 	float pixel_shape;
 	float palette;
+	float auto_soften;
 } registers;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -185,6 +187,7 @@ layout(location = 7) out vec2 screen_bounds;
 layout(location = 8) out float video_scale_factor;
 layout(location = 9) out vec2 scale_bounds;
 layout(location = 10) out float aa_compensation_factor;  // Grey balance compensation (numerical)
+layout(location = 11) out float effective_softness;      // Adaptive softness (moiré reduction)
 
   /////////////////////////////////////////////////////////////////////////
  // Vertex definitions                                                  //
@@ -237,6 +240,20 @@ void main()
         screen_bounds = vec2(1.0);
     }
 
+    // Compute scale-aware softness for uneven fullscreen scales
+    effective_softness = registers.pixel_softness;
+    if (registers.auto_soften > 0.5 && registers.integer_mode < 0.5) {
+        vec2 scale = registers.OutputSize.xy / registers.SourceSize.xy;
+        vec2 fract_scale = fract(scale);
+        // 0 at integer scales, 0.5 at worst fractional (x.5)
+        float fract_factor = max(
+            0.5 - abs(fract_scale.x - 0.5),
+            0.5 - abs(fract_scale.y - 0.5)
+        );
+        // Increase softness proportionally to fractional severity
+        effective_softness += fract_factor * 4.0;
+    }
+
     // Calculate grey balance compensation using numerical coverage sampling (only needed for fullscreen mode)
     if (registers.integer_mode < 0.5) {
         // Reference params match empirical tuning baseline:
@@ -244,7 +261,7 @@ void main()
         float ref_brightness = sample_average_coverage(0.80, 0.80, 1.0, 1.0,
                                                        registers.sharp_mode);
         float cur_brightness = sample_average_coverage(registers.pixel_size,
-                                                       registers.pixel_softness,
+                                                       effective_softness,
                                                        registers.sharpening_amount,
                                                        registers.pixel_shape,
                                                        registers.sharp_mode);
@@ -259,8 +276,8 @@ void main()
         float size_comp = (registers.pixel_size > 0.80)
             ? pow(registers.pixel_size / 0.80, 0.62)  // Larger pixels appear brighter (perceptual effect)
             : 1.0;
-        float softness_comp = (registers.pixel_softness > 1.0)
-            ? pow(registers.pixel_softness, 0.444)  // Higher softness increases perceived brightness
+        float softness_comp = (effective_softness > 1.0)
+            ? pow(effective_softness, 0.444)  // Higher softness increases perceived brightness
             : 1.0;
         float sharpening_comp = (registers.sharp_mode < 0.5)
             ? mix(0.857, 1.0, registers.sharpening_amount)  // Power: linear coverage is brighter
@@ -294,6 +311,7 @@ layout(location = 7) in vec2 screen_bounds;
 layout(location = 8) in float video_scale_factor;
 layout(location = 9) in vec2 scale_bounds;
 layout(location = 10) in float aa_compensation_factor;
+layout(location = 11) in float effective_softness;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 layout(set = 0, binding = 3) uniform sampler2D OriginalHistory1;
@@ -369,12 +387,12 @@ void main()
         float rect_sharpened;
         if (registers.sharp_mode < 0.5) {
             // Mode 0: Power curve
-            float sharp_factor = 1.0 / max(registers.pixel_softness, 0.001);
+            float sharp_factor = 1.0 / max(effective_softness, 0.001);
             rect_sharpened = pow(x_coverage, sharp_factor) * pow(y_coverage, sharp_factor);
         } else {
             // Mode 1: Sigmoid
-            // Base steepness of 10.0 provides moderate sharpness, scaled by pixel_softness
-            float sigmoid_strength = 10.0 / max(registers.pixel_softness, 0.001);
+            // Base steepness of 10.0 provides moderate sharpness, scaled by effective_softness
+            float sigmoid_strength = 10.0 / max(effective_softness, 0.001);
             float x_sharp = 1.0 / (1.0 + exp(-sigmoid_strength * (x_coverage - 0.5)));
             float y_sharp = 1.0 / (1.0 + exp(-sigmoid_strength * (y_coverage - 0.5)));
             rect_sharpened = x_sharp * y_sharp;
@@ -389,9 +407,9 @@ void main()
         // Apply sharpening to 2D coverage (creates circular gradients)
         float circ_sharpened;
         if (registers.sharp_mode < 0.5) {
-            circ_sharpened = pow(circ_linear, 1.0 / max(registers.pixel_softness, 0.001));
+            circ_sharpened = pow(circ_linear, 1.0 / max(effective_softness, 0.001));
         } else {
-            float sigmoid_strength = 10.0 / max(registers.pixel_softness, 0.001);
+            float sigmoid_strength = 10.0 / max(effective_softness, 0.001);
             circ_sharpened = 1.0 / (1.0 + exp(-sigmoid_strength * (circ_linear - 0.5)));
         }
 

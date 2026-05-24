@@ -6,24 +6,10 @@
 //  / / __/ /| | / /|_/ / __/    / __  / / / /\  /                       //
 // / /_/ / ___ |/ /  / / /___   / /_/ / /_/ / / /                        //
 // \____/_/  |_/_/  /_/_____/  /_____/\____/ /_/                         //
-//  ==================== DOT MATRIX SHADER v1.1                          //
+//  ==================== DOT MATRIX SHADER v1.2                          //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
-// Copyright (C) 2024-2025 Matt Akins                                    //
-//                                                                       //
-// 2/6/24 - Modified to support color output by mattakins                //
-// 9/30/25 - v1.0 by mattakins                                           //
-//   • Fullscreen mode scales dot matrix effect to any screen size       //
-//   • Swap between display modes (full / max integer / scale factor)    //
-//   • Built-in palette presets while maintaining image pallete support  //
-//   • Drop shadow ON / OFF toggle                                       //
-//   • Simple vs perceptual pixel brightness calculation modes           //
-//   • Performance optimizations (vertex pre-calc, early-exit)           //
-//   • Parameter reorganization for ease of use                          //
-//   • Fixed issue with artifacts sometimes appearing in border          //
-// 10/25/25 - v1.1 by mattakins                                          //
-//   • Fixed fullscreen mode right and bottom border bug                 //
-//   • Improved brightness compensation for fullscreen pixel parameters  //
+// Copyright (C) 2024-2026 Matt Akins                                    //
 //                                                                       //
 // This program is free software: you can redistribute it and/or modify  //
 // it under the terms of the GNU General Public License as published by  //
@@ -63,13 +49,19 @@ layout(push_constant) uniform Push
 	float screen_offset_y;
 	float shadow_enable;
 	float palette;
-	float shadow_scale;
 	float integer_mode;
+	float shadow_motion;
+	float shadow_max_offset;
 } registers;
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
+    #ifdef _HAS_SENSOR_UNIFORMS
+    vec3 Gyroscope;
+    vec3 Accelerometer;
+    vec3 AccelerometerRest;
+    #endif
 } global;
 
   /////////////////////////////////////////////////////////////////////////
@@ -82,7 +74,14 @@ layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec2 texel;
 layout(location = 2) out float resolution_scale;
-layout(location = 3) out float shadow_scale_factor;
+layout(location = 3) out vec2 shadow_offset;
+
+vec2 getOrientedTilt(vec3 accel) {
+    float magnitude = length(accel);
+    if (magnitude < 0.01) return vec2(0.0);
+    vec3 dir = accel / magnitude;
+    return vec2(-dir.x, dir.y);
+}
 
 void main()
 {
@@ -95,8 +94,24 @@ void main()
     float scale_y = registers.OutputSize.y / 480.0;
     resolution_scale = sqrt(scale_x * scale_y);
 
-    // Pre-calculate shadow scale factor based on toggle
-    shadow_scale_factor = (registers.shadow_scale > 0.5) ? resolution_scale : 1.0;
+    vec2 gravity = vec2(0.0);
+
+    #ifdef _HAS_SENSOR_UNIFORMS
+    if (registers.shadow_motion > 0.5) {
+        vec3 accel = global.Accelerometer;
+        bool has_sensors = length(accel) > 0.01;
+        if (has_sensors) {
+            gravity = getOrientedTilt(accel);
+        }
+    }
+    #endif
+
+    if (registers.shadow_motion > 0.5) {
+        vec2 base = vec2(registers.shadow_offset_x, registers.shadow_offset_y);
+        shadow_offset = (base + gravity * registers.shadow_max_offset) * resolution_scale * registers.SourceSize.zw;
+    } else {
+        shadow_offset = vec2(registers.shadow_offset_x, registers.shadow_offset_y) * resolution_scale * registers.SourceSize.zw;
+    }
 
     texel = registers.SourceSize.zw;
 }
@@ -109,7 +124,7 @@ void main()
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec2 texel;
 layout(location = 2) in float resolution_scale;
-layout(location = 3) in float shadow_scale_factor;
+layout(location = 3) in vec2 shadow_offset;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 1) uniform sampler2D Source;
 layout(set = 0, binding = 2) uniform sampler2D PassOutput1;
@@ -135,19 +150,15 @@ vec4 get_bg_color() {
     }
 }
 
-#define bg_color get_bg_color() 
+#define bg_color get_bg_color()
 
 // Sample the background color from the palette
 #define shadow_alpha (registers.contrast * registers.shadow_opacity * registers.shadow_enable)
 
-// Offset for the shadow (with resolution compensation if enabled)
-#define shadow_offset vec2(registers.shadow_offset_x * texel.x * shadow_scale_factor, registers.shadow_offset_y * texel.y * shadow_scale_factor)    
-
 // Offset for the entire screen
-// Apply -1 offset to all modes
 #define screen_offset vec2( \
-    (registers.screen_offset_x - 1.0) * texel.x, \
-    (registers.screen_offset_y - 1.0) * texel.y \
+    registers.screen_offset_x * texel.x, \
+    registers.screen_offset_y * texel.y \
 )
 
   /////////////////////////////////////////////////////////////////////////
@@ -162,17 +173,20 @@ void main()
     // Cache background color to avoid multiple function calls
     vec4 bg_color_cached = get_bg_color();
 
+    vec2 shadow_sample = vTexCoord - (shadow_offset + screen_offset);
+    shadow_sample = clamp(shadow_sample, vec2(0.0), vec2(1.0) - texel);
+
     // Sample all the relevant textures
     vec4 foreground = texture(PassOutput1, tex - screen_offset);
     vec4 background = texture(BACKGROUND, vTexCoord);
-    vec4 shadows    = texture(Source, vTexCoord - (shadow_offset + screen_offset));
+    vec4 shadows    = texture(Source, shadow_sample);
 
     // Foreground and background are blended with the background color
     foreground *= bg_color_cached;
-    
+
     float bg_test = 0.0;
     if ( foreground.a > 0.0 )
-        bg_test = 1.0; 
+        bg_test = 1.0;
 
     background -= (background - 0.5) * registers.bg_smoothing * bg_test;
 
@@ -188,10 +202,10 @@ void main()
     );
 
     // Shadows are alpha blended with the background
-    vec4 out_color = (shadows * shadows.a * shadow_alpha) + (background * (1 - shadows.a * shadow_alpha));  
+    vec4 out_color = (shadows * shadows.a * shadow_alpha) + (background * (1 - shadows.a * shadow_alpha));
 
     // Foreground is alpha blended with the shadowed background
     out_color = (foreground * foreground.a * registers.contrast) + (out_color * (registers.screen_light - foreground.a * registers.contrast * registers.pixel_opacity));
-    
+
     FragColor = out_color;
 }
