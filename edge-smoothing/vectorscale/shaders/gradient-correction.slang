@@ -1,18 +1,12 @@
 #version 450
 #pragma format R32G32B32A32_SFLOAT
 
-// Global gradient correction step. Pass B of the 2-pass outer iter
-// (Picard → gradient) for the unbiased vectorize optimizer. Mirrors
-// the CPU `compute_g`-then-step in
+// Gradient-correction pass — pass B of the 2-pass outer iter
+// (Picard → gradient). Mirrors the CPU `compute_g` step in
 // vibeboy/src/scaling/vectorize.rs::optimize_energy.
 //
 // For each CP i:
 //   p_out[i] = p_in[i] − η · clip(∇E_i, MAX_STEP)
-//
-// Each unique CP touched is fetched once via fetch_basic() (1 Source +
-// 1 CellGraph row-0 read for position + flags). Ghost positions for
-// stem-shadow neighbors are resolved inline using the already-fetched
-// flags plus at most one extra (idx-1) flag check.
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -47,10 +41,11 @@ int IMG_W()    { return int(params.OriginalSize.x); }
 int IMG_H()    { return int(params.OriginalSize.y); }
 int CORNERS_W() { return IMG_W() + 1; }
 int CORNERS_H() { return IMG_H() + 1; }
-int NUM_CPS()  { return CORNERS_W() * CORNERS_H() * 2; }
+int NUM_CPS()  { return CORNERS_H() << 12;  /* bit-packed encoding: cy < CH means cp_idx < CH<<12 */ }
 
 const uint IS_CORNER    = 16u;
 const uint IS_TJUNCTION = 32u;
+const uint IS_CROSSING  = 64u;
 const uint IS_ENDPOINT  = 128u;
 
 const float POSITIONAL_SCALE = 2.5;
@@ -58,12 +53,12 @@ const float ETA      = 0.05;
 const float MAX_STEP = 0.25;
 const float S4 = POSITIONAL_SCALE * POSITIONAL_SCALE * POSITIONAL_SCALE * POSITIONAL_SCALE;
 
+// Bit-packed CP encoding. Row-interleaved slot — see cell-rasterizer-single-aa.slang.
 ivec2 cp_coords(int cp_idx) {
-    int cp_half = cp_idx / 2;
     int cp_slot = cp_idx & 1;
-    int cx = cp_half % CORNERS_W();
-    int cy = cp_half / CORNERS_W();
-    return ivec2(cx, cy * 2 + cp_slot);
+    int cx = (cp_idx >> 1) & 0x7FF;
+    int cy = cp_idx >> 12;
+    return ivec2(cx, (cy << 1) | cp_slot);
 }
 
 vec2 read_pos(int cp_idx) {
@@ -75,8 +70,7 @@ int unpack_idx(uint v) {
     return (v == 0xFFFFFFu) ? -1 : int(v);
 }
 
-// Position + flags for one CP. One Source fetch + one CellGraph fetch.
-// Caller is responsible for checking idx >= 0 first.
+// Position + flags for one CP. Caller must check idx >= 0 first.
 struct CpBasic {
     vec2 pos;
     uint flags;
@@ -108,10 +102,17 @@ ivec2 read_neighbors(int cp_idx) {
     return ivec2(unpack_idx(pv), unpack_idx(nv));
 }
 
-// Ghost-aware position resolution given already-fetched CpBasic. Most
-// CPs short-circuit on the (flags & 1u) test without any extra fetches.
-// Only stem-shadow CPs (bit 0 set AND idx-1 is a T-junction) pay the
-// 4-CP synthesis cost.
+// Ghost-extension B-spline weights, returned as (sp, st, sn).
+vec3 ghost_weights(bool pe, bool ne) {
+    if (pe && ne) return vec3(0.25,  0.5,   0.25);
+    if (pe)       return vec3(0.25,  0.625, 0.125);
+    if (ne)       return vec3(0.125, 0.625, 0.25);
+    return        vec3(0.125, 0.75,  0.125);
+}
+
+// Ghost-aware position. Stem-shadow CPs (bit 0 set AND idx-1 is a
+// T-junction) synthesize their position from the through-pair; the
+// common case short-circuits on the (flags & 1u) test.
 vec2 ghost_pos(int idx, CpBasic d) {
     if (idx <= 0 || (d.flags & 1u) == 0u) return d.pos;
     if ((read_flags(idx - 1) & IS_TJUNCTION) == 0u) return d.pos;
@@ -120,12 +121,8 @@ vec2 ghost_pos(int idx, CpBasic d) {
     if (t_nbrs.x < 0 || t_nbrs.y < 0) return d.pos;
     bool pe = (read_flags(t_nbrs.x) & IS_ENDPOINT) != 0u;
     bool ne = (read_flags(t_nbrs.y) & IS_ENDPOINT) != 0u;
-    float sp, st, sn;
-    if (pe && ne)      { sp = 0.25;  st = 0.5;   sn = 0.25; }
-    else if (pe)       { sp = 0.25;  st = 0.625; sn = 0.125; }
-    else if (ne)       { sp = 0.125; st = 0.625; sn = 0.25; }
-    else               { sp = 0.125; st = 0.75;  sn = 0.125; }
-    return sp * read_pos(t_nbrs.x) + st * read_pos(t) + sn * read_pos(t_nbrs.y);
+    vec3 w = ghost_weights(pe, ne);
+    return w.x * read_pos(t_nbrs.x) + w.y * read_pos(t) + w.z * read_pos(t_nbrs.y);
 }
 
 int seg_mode_3(bool center, bool left, bool right) {
@@ -134,13 +131,6 @@ int seg_mode_3(bool center, bool left, bool right) {
     if (left) return 2;
     if (right) return 1;
     return 0;
-}
-
-void ghost_weights(bool pe, bool ne, out float sp, out float st, out float sn) {
-    if (pe && ne)      { sp = 0.25;  st = 0.5;   sn = 0.25; }
-    else if (pe)       { sp = 0.25;  st = 0.625; sn = 0.125; }
-    else if (ne)       { sp = 0.125; st = 0.625; sn = 0.25; }
-    else               { sp = 0.125; st = 0.75;  sn = 0.125; }
 }
 
 // Returns θ * j_endpoint for one segment (endpoint ∈ {0,1,2} = a,b,c).
@@ -183,9 +173,18 @@ void main() {
     ivec2 opos = ivec2(vTexCoord * params.OutputSize.xy);
     int cx = opos.x;
     int cy_slot = opos.y;
-    int cp_idx = ((cy_slot / 2) * CORNERS_W() + cx) * 2 + (cy_slot & 1);
+    int cp_slot = cy_slot & 1;
+    int cy = cy_slot >> 1;
 
-    // Fetch self in one go.
+    // Crossing slot-1 redirect — see optimize-energy.slang.
+    uint flags_self = (floatBitsToUint(
+        texelFetch(CellGraph, ivec2(cx, cy_slot), 0).b) >> 24) & 0xFFu;
+    if ((flags_self & IS_CROSSING) != 0u && cp_slot == 1) {
+        cy_slot -= 1;
+        cp_slot = 0;
+    }
+    int cp_idx = (cy << 12) | (cx << 1) | cp_slot;
+
     ivec2 self_xy = cp_coords(cp_idx);
     vec2 p_self = texelFetch(Source, self_xy, 0).rg;
     FragColor = vec4(p_self, 0.0, 0.0);
@@ -202,8 +201,8 @@ void main() {
     int next_idx = unpack_idx(self_a & 0xFFFFFFu);
     ivec2 self_nbrs = ivec2(prev_idx, next_idx);
 
-    // Fetch immediate neighbors. Held across the segment computations
-    // because both feed multiple segments and the T-junction cases.
+    // Immediate neighbors. Held across the segment work and T-junction
+    // cases below.
     CpBasic prev_d, next_d;
     if (prev_idx >= 0) prev_d = fetch_basic(prev_idx);
     else { prev_d.pos = vec2(0.0); prev_d.flags = 0u; }
@@ -212,13 +211,11 @@ void main() {
 
     vec2 g = vec2(0.0);
 
-    // ---- Segment centered at self ----
+    // Segment centered at self.
     if (!self_corner && prev_idx >= 0 && next_idx >= 0) {
         bool prev_corner = (prev_d.flags & IS_CORNER) != 0u;
         bool next_corner = (next_d.flags & IS_CORNER) != 0u;
         int mode = seg_mode_3(self_corner, prev_corner, next_corner);
-        // Stem-shadow short-circuits when bit 0 of flags is clear (the
-        // common case for regular interior CPs).
         bool prev_stem = ((prev_d.flags & 1u) != 0u) && ((read_flags(prev_idx - 1) & IS_TJUNCTION) != 0u);
         bool next_stem = ((next_d.flags & 1u) != 0u) && ((read_flags(next_idx - 1) & IS_TJUNCTION) != 0u);
         if (mode != 3 && !prev_stem && !next_stem) {
@@ -228,7 +225,7 @@ void main() {
         }
     }
 
-    // ---- Segment centered at prev ----
+    // Segment centered at prev.
     if (prev_idx >= 0 && (prev_d.flags & (1u | IS_CORNER)) == 0u) {
         ivec2 prev_nbrs = read_neighbors(prev_idx);
         int gp_idx = (prev_nbrs.x == cp_idx) ? prev_nbrs.y : prev_nbrs.x;
@@ -247,7 +244,7 @@ void main() {
         }
     }
 
-    // ---- Segment centered at next ----
+    // Segment centered at next.
     if (next_idx >= 0 && (next_d.flags & (1u | IS_CORNER)) == 0u) {
         ivec2 next_nbrs = read_neighbors(next_idx);
         int gn_idx = (next_nbrs.x == cp_idx) ? next_nbrs.y : next_nbrs.x;
@@ -266,7 +263,7 @@ void main() {
         }
     }
 
-    // ---- T-junction Case A: self is a T-junction ----
+    // T-junction Case A: self is a T-junction.
     if ((sf & IS_TJUNCTION) != 0u && prev_idx >= 0 && next_idx >= 0
         && cp_idx + 1 < NUM_CPS()) {
         int s_idx = read_neighbors(cp_idx + 1).x;
@@ -276,15 +273,15 @@ void main() {
             if (so_i >= 0) {
                 bool pe = (prev_d.flags & IS_ENDPOINT) != 0u;
                 bool ne = (next_d.flags & IS_ENDPOINT) != 0u;
-                float sp, st, sn;
-                ghost_weights(pe, ne, sp, st, sn);
+                vec3 gw = ghost_weights(pe, ne);
+                float sp = gw.x, st = gw.y, sn = gw.z;
                 vec2 ghost = sp * prev_d.pos + st * p_self + sn * next_d.pos;
                 g += st * seg_grad_one(ghost, read_pos(s_idx), read_pos(so_i), 0, 0);
             }
         }
     }
 
-    // ---- T-junction Case B: self is T_prev or T_next of an adjacent T-junction ----
+    // T-junction Case B: self is T_prev or T_next of an adjacent T-junction.
     for (int k = 0; k < 2; k++) {
         int t_idx = (k == 0) ? prev_idx : next_idx;
         CpBasic t_d = (k == 0) ? prev_d : next_d;
@@ -300,14 +297,14 @@ void main() {
         if (so_i < 0) continue;
         bool pe = (read_flags(t_nbrs.x) & IS_ENDPOINT) != 0u;
         bool ne = (read_flags(t_nbrs.y) & IS_ENDPOINT) != 0u;
-        float sp, st, sn;
-        ghost_weights(pe, ne, sp, st, sn);
+        vec3 gw = ghost_weights(pe, ne);
+        float sp = gw.x, st = gw.y, sn = gw.z;
         float w = (t_nbrs.x == cp_idx) ? sp : sn;
         vec2 ghost = sp * read_pos(t_nbrs.x) + st * t_d.pos + sn * read_pos(t_nbrs.y);
         g += w * seg_grad_one(ghost, read_pos(s_idx), read_pos(so_i), 0, 0);
     }
 
-    // ---- T-junction Case C: self is the chain CP s of an adjacent T-junction ----
+    // T-junction Case C: self is the chain CP s of an adjacent T-junction.
     for (int k = 0; k < 2; k++) {
         int n_idx = (k == 0) ? prev_idx : next_idx;
         CpBasic n_d = (k == 0) ? prev_d : next_d;
@@ -322,17 +319,16 @@ void main() {
         if (so_i < 0) continue;
         bool pe = (read_flags(t_nbrs.x) & IS_ENDPOINT) != 0u;
         bool ne = (read_flags(t_nbrs.y) & IS_ENDPOINT) != 0u;
-        float sp, st, sn;
-        ghost_weights(pe, ne, sp, st, sn);
+        vec3 gw = ghost_weights(pe, ne);
+        float sp = gw.x, st = gw.y, sn = gw.z;
         vec2 ghost = sp * read_pos(t_nbrs.x) + st * read_pos(t) + sn * read_pos(t_nbrs.y);
         g += seg_grad_one(ghost, p_self, read_pos(so_i), 0, 1);
     }
 
-    // Positional gradient.
+    // Positional gradient + step.
     vec2 d = p_self - p_orig;
     g += 4.0 * S4 * dot(d, d) * d;
 
-    // Step.
     vec2 step_v = -ETA * g;
     float len2 = dot(step_v, step_v);
     if (len2 > MAX_STEP * MAX_STEP) {

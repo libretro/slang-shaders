@@ -45,23 +45,12 @@ layout(location = 0) out vec4 FragColor;
 
 layout(set = 0, binding = 2) uniform sampler2D Source; // Pass 0 output (similarity graph)
 
-// ---- Graph access helpers ----
-
-// Image dimensions (original input, not the 2x graph)
-// SourceSize.xy = 2*imgW, 2*imgH (the graph texture size)
-// OriginalSize.xy = imgW, imgH (the original pixel art)
-
+// SourceSize.xy = 2W × 2H (the graph). OriginalSize.xy = W × H.
 uint img_w() { return uint(params.OriginalSize.x); }
 uint img_h() { return uint(params.OriginalSize.y); }
 
-// Read graph edge/diagonal flag at graph coordinate (gx, gy).
-// The graph texture is 2W x 2H; graph coords 0..2W-1, 0..2H-1 are valid.
-// Values beyond that are border (0).
-//
-// Pixel colors at odd,odd are stored as normalized RGB in .rgb (not used here).
-// Edge connectivity (even,odd / odd,even) and diagonal flags (even,even) are
-// small integers stored as float(value) in .r. Read back with uint(val + 0.5).
-// This function is only called for edge/diagonal positions (never odd,odd).
+// Read graph edge/diagonal flag at (gx, gy). Edge/diagonal values are
+// stored as float in .r; called only for non-(odd,odd) positions.
 uint g(int gx, int gy) {
     ivec2 texSize = ivec2(params.SourceSize.xy);
     if (gx < 0 || gy < 0 || gx >= texSize.x || gy >= texSize.y)
@@ -83,45 +72,29 @@ const uint DIR_N  = 128u;
 
 // ---- Valence computation ----
 
-// Compute 8-connected valence bitmask for pixel (x,y).
-// Cardinal edges are at (2x+1 +/- 1, 2y+1) and (2x+1, 2y+1 +/- 1).
-// Diagonal edges are corner flags at adjacent corners.
+// 8-connected valence bitmask, precomputed by similarity-graph into the
+// .a channel of the pixel-center texel at (2x+1, 2y+1). Bits match the
+// DIR_* constants above. The mask stays valid throughout this pass
+// because resolve-crossings only modifies even-even diagonal flags.
 uint valence_mask(uint x, uint y) {
-    uint v = 0u;
-    int gx = int(2u * x + 1u);
-    int gy = int(2u * y + 1u);
     int gw = int(params.SourceSize.x);
     int gh = int(params.SourceSize.y);
-
-    // Cardinal
-    if (gx >= 2 && g(gx - 1, gy) != 0u) v |= DIR_W;
-    if (gx + 1 < gw && g(gx + 1, gy) != 0u) v |= DIR_E;
-    if (gy >= 2 && g(gx, gy - 1) != 0u) v |= DIR_N;
-    if (gy + 1 < gh && g(gx, gy + 1) != 0u) v |= DIR_S;
-
-    // Diagonal: check corner flags
-    // NW corner is at (gx-1, gy-1), backslash bit 0 means TL-BR, we are BR = SE endpoint
-    if (gx >= 2 && gy >= 2 && (g(gx - 1, gy - 1) & 1u) != 0u) v |= DIR_NW;
-    // NE corner is at (gx+1, gy-1), slash bit 1 means TR-BL, we are BL = SW endpoint
-    if (gx + 1 < gw && gy >= 2 && (g(gx + 1, gy - 1) & 2u) != 0u) v |= DIR_NE;
-    // SW corner is at (gx-1, gy+1), slash bit 1
-    if (gx >= 2 && gy + 1 < gh && (g(gx - 1, gy + 1) & 2u) != 0u) v |= DIR_SW;
-    // SE corner is at (gx+1, gy+1), backslash bit 0
-    if (gx + 1 < gw && gy + 1 < gh && (g(gx + 1, gy + 1) & 1u) != 0u) v |= DIR_SE;
-
-    return v;
+    int gx = int(2u * x + 1u);
+    int gy = int(2u * y + 1u);
+    if (gx < 0 || gy < 0 || gx >= gw || gy >= gh) return 0u;
+    return uint(texelFetch(Source, ivec2(gx, gy), 0).a + 0.5);
 }
 
 uint valence_count(uint mask) {
-    uint c = 0u;
-    uint m = mask;
-    while (m != 0u) { c += m & 1u; m >>= 1u; }
-    return c;
+    return uint(bitCount(mask));
 }
 
 // ---- Chain walking ----
 
-// Walk a chain of valence-2 nodes using XOR direction tracking.
+// Walk a chain of valence-2 nodes via XOR direction tracking. The 64-
+// iteration cap bounds worst-case latency; the vote is the chain-length
+// difference between the two diagonal candidates, so both chains hitting
+// the cap is a tie the other two heuristics resolve.
 uint walk_chain(uint sx, uint sy, uint fx, uint fy) {
     uint cx = sx, cy = sy;
     uint length = 1u;
@@ -138,7 +111,7 @@ uint walk_chain(uint sx, uint sy, uint fx, uint fy) {
     if (idx ==  1 && idy == -1) pred_dir = DIR_NE;
     if (idx == -1 && idy ==  1) pred_dir = DIR_SW;
 
-    for (uint iter = 0u; iter < 200u; iter++) {
+    for (uint iter = 0u; iter < 64u; iter++) {
         uint mask = valence_mask(cx, cy);
         if (valence_count(mask) != 2u) break;
 
@@ -166,65 +139,92 @@ uint walk_chain(uint sx, uint sy, uint fx, uint fy) {
 
 // ---- Sparse pixel BFS ----
 
-// Simultaneous A/B component labeling in 8x8 window around crossing.
-// Center 2x2 seeded with A(1) and B(2), then multi-source BFS propagates.
-// Returns component sizes excluding seeds.
+// Bit-per-component labels for the 8×8 BFS. labelsA bit i = cell i in
+// component A (main / backslash); labelsB bit i = component B
+// (anti / slash). Both clear = unlabeled; both set is impossible.
+uint get_label_bp(uvec2 labelsA, uvec2 labelsB, int idx) {
+    uint mask = 1u << (uint(idx) & 31u);
+    uint a_word = (idx < 32) ? labelsA.x : labelsA.y;
+    uint b_word = (idx < 32) ? labelsB.x : labelsB.y;
+    bool a_set = (a_word & mask) != 0u;
+    bool b_set = (b_word & mask) != 0u;
+    return a_set ? 1u : (b_set ? 2u : 0u);
+}
+
+void set_label_bp(inout uvec2 labelsA, inout uvec2 labelsB, int idx, uint value) {
+    uint mask = 1u << (uint(idx) & 31u);
+    uint a_mask = (value == 1u) ? mask : 0u;
+    uint b_mask = (value == 2u) ? mask : 0u;
+    if (idx < 32) {
+        labelsA.x |= a_mask;
+        labelsB.x |= b_mask;
+    } else {
+        labelsA.y |= a_mask;
+        labelsB.y |= b_mask;
+    }
+}
+
+// Simultaneous A/B component labeling in an 8×8 window around the
+// crossing. Center 2×2 is seeded with A at (3,3)/(4,4) and B at (3,4)/
+// (4,3); BFS propagates. Returns component sizes excluding seeds.
 void sparse_pixel_sizes(uint bx, uint by, out uint sizeA, out uint sizeB) {
-    // 8x8 label array: 0=unlabeled, 1=A(main/backslash), 2=B(anti/slash)
-    int labels[64];
-    for (int i = 0; i < 64; i++) labels[i] = 0;
-    labels[3*8+3] = 1; // (bx, by) = main diagonal endpoint
-    labels[3*8+4] = 2; // (bx+1, by) = anti diagonal endpoint
-    labels[4*8+3] = 2; // (bx, by+1) = anti diagonal endpoint
-    labels[4*8+4] = 1; // (bx+1, by+1) = main diagonal endpoint
+    uvec2 labelsA = uvec2(1u << 27, 1u <<  4);
+    uvec2 labelsB = uvec2(1u << 28, 1u <<  3);
 
     sizeA = 0u;
     sizeB = 0u;
 
-    // BFS queue
-    uint q_col[64], q_row[64];
-    uint head = 0u, tail = 0u;
-    q_col[tail] = 3u; q_row[tail] = 3u; tail++;
-    q_col[tail] = 4u; q_row[tail] = 3u; tail++;
-    q_col[tail] = 4u; q_row[tail] = 4u; tail++;
-    q_col[tail] = 3u; q_row[tail] = 4u; tail++;
+    // BFS frontier: bit i set = cell idx i (= row*8+col) needs processing.
+    uvec2 frontier = uvec2(
+        (1u << 27) | (1u << 28),
+        (1u <<  3) | (1u <<  4)
+    );
 
     const int dcol[8] = int[8](-1, -1, -1, 0, 1, 1, 1, 0);
     const int drow[8] = int[8](-1, 0, 1, 1, 1, 0, -1, -1);
     const uint dirs[8] = uint[8](DIR_NW, DIR_W, DIR_SW, DIR_S, DIR_SE, DIR_E, DIR_NE, DIR_N);
 
-    while (head < tail) {
-        uint col = q_col[head];
-        uint row = q_row[head];
-        head++;
-        int label = labels[row*8u+col];
+    while (frontier.x != 0u || frontier.y != 0u) {
+        // Pop the lowest set bit from frontier.
+        int idx;
+        if (frontier.x != 0u) {
+            idx = findLSB(frontier.x);
+            frontier.x &= ~(1u << uint(idx));
+        } else {
+            int hi = findLSB(frontier.y);
+            frontier.y &= ~(1u << uint(hi));
+            idx = 32 + hi;
+        }
 
-        int px = int(bx) + int(col) - 3;
-        int py = int(by) + int(row) - 3;
+        int row = idx >> 3;
+        int col = idx & 7;
+        uint label = get_label_bp(labelsA, labelsB, idx);
+
+        int px = int(bx) + col - 3;
+        int py = int(by) + row - 3;
         if (px < 0 || py < 0 || px >= int(img_w()) || py >= int(img_h())) continue;
 
         uint vmask = valence_mask(uint(px), uint(py));
 
         for (uint d = 0u; d < 8u; d++) {
             if ((vmask & dirs[d]) == 0u) continue;
-            int nc = int(col) + dcol[d];
-            int nr = int(row) + drow[d];
+            int nc = col + dcol[d];
+            int nr = row + drow[d];
             if (nc < 0 || nc >= 8 || nr < 0 || nr >= 8) continue;
-            if (labels[nr*8+nc] != 0) continue;
+            int n_idx = nr * 8 + nc;
+            if (get_label_bp(labelsA, labelsB, n_idx) != 0u) continue;
 
             int npx = int(bx) + nc - 3;
             int npy = int(by) + nr - 3;
             if (npx < 0 || npy < 0 || npx >= int(img_w()) || npy >= int(img_h())) continue;
 
-            labels[nr*8+nc] = label;
-            if (label == 1) sizeA++;
+            set_label_bp(labelsA, labelsB, n_idx, label);
+            if (label == 1u) sizeA++;
             else sizeB++;
 
-            if (tail < 64u) {
-                q_col[tail] = uint(nc);
-                q_row[tail] = uint(nr);
-                tail++;
-            }
+            // Set the new cell's bit in the frontier.
+            if (n_idx < 32) frontier.x |= 1u << uint(n_idx);
+            else            frontier.y |= 1u << uint(n_idx - 32);
         }
     }
 }
@@ -336,7 +336,7 @@ void main() {
         result = 0u; // tie: remove both
     }
 
-    // Store as float(result) — small integers stored via uintBitsToFloat become
-    // denormalized floats that get flushed to zero on many GPUs.
+    // Store as float(result): uintBitsToFloat of small ints produces
+    // denormals that get flushed to zero on many GPUs.
     FragColor = vec4(float(result), 0.0, 0.0, 0.0);
 }

@@ -1,6 +1,6 @@
-# VectorScale shader preset (simple-curvature optimizer).
+# Vibeboy vectorize shader preset (simple-curvature optimizer).
 # Uses |p_{i-1} - 2 p_i + p_{i+1}|² as the curvature energy. For the
-# paper's exact ∫|κ|ds energy, use vectorscale-exact-energy.slangp.
+# paper's exact ∫|κ|ds energy, use vibeboy-vectorize-exact-energy.slangp.
 # Works with any input resolution (not just Game Boy 160x144).
 # Intermediate textures are over-allocated using source-relative scales:
 #   Cell graph:   2W x 7H   (needs (W+1) x 6(H+1), works for H >= 6)
@@ -12,7 +12,7 @@
 # — it forces RGBA16F on some backends and silently overrides the pragma,
 # causing sub-pixel position rounding visible as hairline misalignment
 # at the rasterizer.
-shaders = 12
+shaders = 14
 
 shader0 = shaders/similarity-graph.slang
 alias0 = SimilarityGraph
@@ -29,61 +29,68 @@ scale1 = 1.0
 wrap_mode1 = clamp_to_border
 
 shader2 = shaders/cell-graph.slang
-alias2 = CellGraph
+alias2 = CellGraphRaw
 filter_linear2 = false
 scale_type_x2 = source
-scale_x2 = 1.0
+scale_x2 = 0.55
 scale_type_y2 = source
 scale_y2 = 1.05
 wrap_mode2 = clamp_to_border
 
-shader3 = shaders/init-positions.slang
-alias3 = InitPos
-filter_linear3 = false
-scale_type_x3 = source
-scale_x3 = 1.0
-scale_type_y3 = source
-scale_y3 = 1.0
-wrap_mode3 = clamp_to_border
 
-shader4 = shaders/optimize-energy-simple.slang
-alias4 = Opt1
+shader3 = shaders/bake-neighbor-endpoints.slang
+alias3 = CellGraph
+filter_linear3 = false
+scale_type3 = source
+scale3 = 1.0
+wrap_mode3 = clamp_to_border
+shader4 = shaders/init-positions.slang
+alias4 = InitPos
 filter_linear4 = false
-scale_type4 = source
-scale4 = 1.0
+scale_type_x4 = source
+scale_x4 = 1.0
+scale_type_y4 = source
+scale_y4 = 1.0
 wrap_mode4 = clamp_to_border
 
 shader5 = shaders/optimize-energy-simple.slang
-alias5 = Opt2
+alias5 = Opt1
 filter_linear5 = false
 scale_type5 = source
 scale5 = 1.0
 wrap_mode5 = clamp_to_border
 
-# T-junction stem CP snap (3 iterations for convergence). Only stem CPs
-# are repositioned here — through-CPs and crossings pass through with
-# their optimizer-final positions intact. The crossing curve-curve
-# intersection is handled in pack-positions below.
-shader6 = shaders/update-tjunction.slang
-alias6 = TJunc1
+shader6 = shaders/optimize-energy-simple.slang
+alias6 = Opt2
 filter_linear6 = false
 scale_type6 = source
 scale6 = 1.0
 wrap_mode6 = clamp_to_border
 
+# T-junction stem CP snap (3 iterations for convergence). Only stem CPs
+# are repositioned here — through-CPs and crossings pass through with
+# their optimizer-final positions intact. The crossing curve-curve
+# intersection is handled in pack-positions below.
 shader7 = shaders/update-tjunction.slang
-alias7 = TJunc2
+alias7 = TJunc1
 filter_linear7 = false
 scale_type7 = source
 scale7 = 1.0
 wrap_mode7 = clamp_to_border
 
 shader8 = shaders/update-tjunction.slang
-alias8 = FinalPositions
+alias8 = TJunc2
 filter_linear8 = false
 scale_type8 = source
 scale8 = 1.0
 wrap_mode8 = clamp_to_border
+
+shader9 = shaders/update-tjunction.slang
+alias9 = FinalPositions
+filter_linear9 = false
+scale_type9 = source
+scale9 = 1.0
+wrap_mode9 = clamp_to_border
 
 # Denormalize per-CP geometry: pack each CP's (pp, cp, np) ghost-extended
 # triple, t_branch, neighbor indices, validity, and is_line flag into 3
@@ -92,25 +99,39 @@ wrap_mode8 = clamp_to_border
 # the two B-spline spans, inlined). Lets the rasterizer skip
 # neighbor-index decode + neighbor position fetches + ghost construction
 # + cubic/Newton solves in its hot loop.
-shader9 = shaders/pack-positions.slang
-alias9 = PackedPositions
-filter_linear9 = false
-scale_type_x9 = source
-scale_x9 = 3.0
-scale_type_y9 = source
-scale_y9 = 1.0
-wrap_mode9 = clamp_to_border
-
-shader10 = shaders/cell-rasterizer-single-aa.slang
-alias10 = SingleAA
+shader10 = shaders/pack-positions.slang
+alias10 = PackedPositions
 filter_linear10 = false
-scale_type10 = viewport
-scale10 = 1.0
+scale_type_x10 = source
+scale_x10 = 2.0
+scale_type_y10 = source
+scale_y10 = 1.0
 wrap_mode10 = clamp_to_border
 
-shader11 = shaders/cell-rasterizer-multi-aa.slang
-alias11 = FinalOutput
-filter_linear11 = true
-scale_type11 = viewport
-scale11 = 1.0
+# Active-cell info: per source cell, output (RGB = fallback color,
+# A = 8-bit mask of which CPs at the 4 corners × 2 slots render a span).
+# The rasterizer reads this once per pixel to gate find_hits (skip when
+# mask == 0) and to iterate set bits only.
+shader11 = shaders/active-cell-mask.slang
+alias11 = CellInfo
+filter_linear11 = false
+scale_type_x11 = source
+scale_x11 = 0.5
+scale_type_y11 = source
+scale_y11 = 0.5
 wrap_mode11 = clamp_to_border
+
+
+shader12 = shaders/cell-rasterizer-single-aa.slang
+alias12 = SingleAA
+filter_linear12 = false
+scale_type12 = viewport
+scale12 = 1.0
+wrap_mode12 = clamp_to_border
+
+shader13 = shaders/cell-rasterizer-multi-aa.slang
+alias13 = FinalOutput
+filter_linear13 = true
+scale_type13 = viewport
+scale13 = 1.0
+wrap_mode13 = clamp_to_border

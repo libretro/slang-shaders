@@ -1,30 +1,24 @@
 #version 450
 #pragma format R32G32B32A32_SFLOAT
 
-// Pass 3: cell-graph builder.
-//
-// Builds B-spline control points at grid corners from the resolved
-// similarity graph. Each CP is packed into a single RGBA32F texel using a
-// uint-bits encoding (channels B/A carry uint bit patterns reinterpreted
-// as float). Downstream passes (init-positions, optimize-energy,
-// gradient-correction, update-tjunction, pack-positions, cell-rasterizer)
-// read this format directly.
+// Pass 3: cell-graph builder. Builds B-spline control points at grid
+// corners from the resolved similarity graph and packs each CP into a
+// single RGBA32F texel.
 //
 // 1 fragment per (grid corner, slot). Output texture: (W+1) × 2(H+1).
 //
 // Output layout (per corner cx, cy, slot ∈ {0, 1}):
-//   Col cx, Row cy * 2 + slot:
+//   Col cx, Row (cy*2 + slot):
 //     R = pos.x
 //     G = pos.y
 //     B = uintBitsToFloat( (flag    << 24) | (prev_idx_24bit & 0xFFFFFFu) )
 //     A = uintBitsToFloat( (dir_pack << 24) | (next_idx_24bit & 0xFFFFFFu) )
 //
-// dir_pack = (prev_dir + 1) | ((next_dir + 1) << 3)
-//   — equals the legacy `(prev_dir+1) + (next_dir+1)*8` value, since 8 is
-//     a power of two and each field fits in 3 bits.
-// prev_idx_24bit / next_idx_24bit: 0xFFFFFFu sentinel for "no neighbor"
-// (== -1 in the unpacked int domain), else the CP's global linear index.
-// 24 bits supports up to 16M CPs — comfortable for any pixel-art input.
+// Row-interleaved slot — slot 0 and slot 1 of the same corner sit on
+// adjacent rows so downstream readers hit the same texture cache line.
+//
+// dir_pack = (prev_dir + 1) | ((next_dir + 1) << 3)  (3 bits each).
+// prev/next_idx_24bit: 0xFFFFFFu = "no neighbor" (decodes to -1).
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -82,11 +76,23 @@ uint px_color(int px, int py) {
     return (r << 16u) | (g_ << 8u) | b;
 }
 
-void bnd_colors(int cx, int cy, int dir, out uint ca, out uint cb) {
-    if (dir == 0)      { ca = px_color(cx - 1, cy - 1); cb = px_color(cx, cy - 1); }
-    else if (dir == 1) { ca = px_color(cx, cy - 1);     cb = px_color(cx, cy);     }
-    else if (dir == 2) { ca = px_color(cx, cy);         cb = px_color(cx - 1, cy); }
-    else               { ca = px_color(cx - 1, cy);     cb = px_color(cx - 1, cy - 1); }
+// 4 pixel colors around corner (cx, cy):
+//   .x = NW (cx-1, cy-1)   .y = NE (cx, cy-1)
+//   .z = SE (cx,   cy)     .w = SW (cx-1, cy)
+uvec4 load_corner_pixels(int cx, int cy) {
+    return uvec4(
+        px_color(cx - 1, cy - 1),
+        px_color(cx,     cy - 1),
+        px_color(cx,     cy),
+        px_color(cx - 1, cy)
+    );
+}
+
+uvec2 bnd_colors_from(uvec4 c, int dir) {
+    if (dir == 0) return uvec2(c.x, c.y);
+    if (dir == 1) return uvec2(c.y, c.z);
+    if (dir == 2) return uvec2(c.z, c.w);
+    return uvec2(c.w, c.x);
 }
 
 bool is_shading_edge(uint ca, uint cb) {
@@ -101,26 +107,24 @@ bool is_shading_edge(uint ca, uint cb) {
     return (dy * dy + du * du + dv * dv) <= threshold * threshold;
 }
 
-void select_tjunction_pair(int cx, int cy, int d0, int d1, int d2,
-                           out int pair0, out int pair1) {
-    uint ca0, cb0, ca1, cb1, ca2, cb2;
-    bnd_colors(cx, cy, d0, ca0, cb0);
-    bnd_colors(cx, cy, d1, ca1, cb1);
-    bnd_colors(cx, cy, d2, ca2, cb2);
-    bool s0 = is_shading_edge(ca0, cb0);
-    bool s1 = is_shading_edge(ca1, cb1);
-    bool s2 = is_shading_edge(ca2, cb2);
+ivec2 select_tjunction_pair(int cx, int cy, int d0, int d1, int d2) {
+    uvec4 corners = load_corner_pixels(cx, cy);
+    uvec2 c0 = bnd_colors_from(corners, d0);
+    uvec2 c1 = bnd_colors_from(corners, d1);
+    uvec2 c2 = bnd_colors_from(corners, d2);
+    bool s0 = is_shading_edge(c0.x, c0.y);
+    bool s1 = is_shading_edge(c1.x, c1.y);
+    bool s2 = is_shading_edge(c2.x, c2.y);
     int shading_count = (s0 ? 1 : 0) + (s1 ? 1 : 0) + (s2 ? 1 : 0);
 
     if (shading_count == 1) {
-        if (s0) { pair0 = d1; pair1 = d2; }
-        else if (s1) { pair0 = d0; pair1 = d2; }
-        else { pair0 = d0; pair1 = d1; }
-        return;
+        if (s0) return ivec2(d1, d2);
+        if (s1) return ivec2(d0, d2);
+        return ivec2(d0, d1);
     }
-    if ((d0 ^ d2) == 2) { pair0 = d0; pair1 = d2; }
-    else if ((d0 ^ d1) == 2) { pair0 = d0; pair1 = d1; }
-    else { pair0 = d1; pair1 = d2; }
+    if ((d0 ^ d2) == 2) return ivec2(d0, d2);
+    if ((d0 ^ d1) == 2) return ivec2(d0, d1);
+    return ivec2(d1, d2);
 }
 
 bool similar(int px0, int py0, int px1, int py1) {
@@ -135,10 +139,13 @@ bool similar(int px0, int py0, int px1, int py1) {
     return false;
 }
 
+// Bit-packed CP encoding: (cy << 12) | (cx << 1) | slot.
+//   bit 0 = slot, bits 1-11 = cx (max 2047), bits 12+ = cy.
+// Decoded via shifts; fits within the 24-bit CellGraph index storage.
 int cp_base(int cx, int cy) {
     if (cx < 0 || cy < 0 || cx >= CORNERS_W() || cy >= CORNERS_H())
         return -1;
-    return (cy * CORNERS_W() + cx) * 2;
+    return (cy << 12) | (cx << 1);
 }
 
 int nbr_cp_idx(int cx, int cy, int from_dir) {
@@ -151,10 +158,14 @@ int nbr_cp_idx(int cx, int cy, int from_dir) {
     bool is_llur = (diag & 2u) != 0u && (diag & 1u) == 0u;
 
     if (!is_ullr && !is_llur) {
-        bool t_bnd_n = g(2 * cx, 2 * cy - 1) == 0u;
-        bool t_bnd_e = g(2 * cx + 1, 2 * cy) == 0u;
-        bool t_bnd_s = g(2 * cx, 2 * cy + 1) == 0u;
-        bool t_bnd_w = g(2 * cx - 1, 2 * cy) == 0u;
+        uint t_g_n = g(2 * cx,     2 * cy - 1);
+        uint t_g_e = g(2 * cx + 1, 2 * cy);
+        uint t_g_s = g(2 * cx,     2 * cy + 1);
+        uint t_g_w = g(2 * cx - 1, 2 * cy);
+        bool t_bnd_n = t_g_n == 0u;
+        bool t_bnd_e = t_g_e == 0u;
+        bool t_bnd_s = t_g_s == 0u;
+        bool t_bnd_w = t_g_w == 0u;
         uint t_count = (t_bnd_n ? 1u : 0u) + (t_bnd_e ? 1u : 0u)
                      + (t_bnd_s ? 1u : 0u) + (t_bnd_w ? 1u : 0u);
         if (t_count == 4u) {
@@ -166,10 +177,9 @@ int nbr_cp_idx(int cx, int cy, int from_dir) {
             if (t_bnd_e) dirs[di++] = 1;
             if (t_bnd_s) dirs[di++] = 2;
             if (t_bnd_w) dirs[di++] = 3;
-            int pair0, pair1;
-            select_tjunction_pair(cx, cy, dirs[0], dirs[1], dirs[2], pair0, pair1);
+            ivec2 pair = select_tjunction_pair(cx, cy, dirs[0], dirs[1], dirs[2]);
             int target_side = from_dir ^ 2;
-            if (target_side != pair0 && target_side != pair1) return base + 1;
+            if (target_side != pair.x && target_side != pair.y) return base + 1;
         }
         return base;
     }
@@ -244,14 +254,18 @@ CPData make_inactive() {
     return CPData(vec2(0.0), -1, -1, 0u, -1, -1);
 }
 
-void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
-    slot0 = make_inactive();
-    slot1 = make_inactive();
+// Compute CPData for one (corner, slot). Slot-specialized: most cases
+// short-circuit on slot==1; only diagonal / T-junction / crossing cases
+// produce a slot-1 CP.
+CPData compute_corner(int cx, int cy, int slot) {
+    CPData cp = make_inactive();
     int base = cp_base(cx, cy);
-    if (base < 0) return;
+    if (base < 0) return cp;
     bool is_interior = cx > 0 && cy > 0 && cx < IMG_W() && cy < IMG_H();
 
     if (!is_interior) {
+        // Boundary corners never produce slot 1.
+        if (slot != 0) return cp;
         bool has_boundary = false;
         if (cy == 0 && cx > 0 && cx < IMG_W())
             has_boundary = !similar(cx - 1, 0, cx, 0);
@@ -268,104 +282,117 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
             else if (cy == 0)       { nbr = nbr_cp_idx(cx, cy+1, 2); our_dir = 2; }
             else if (cx == IMG_W()) { nbr = nbr_cp_idx(cx-1, cy, 3); our_dir = 3; }
             else if (cx == 0)       { nbr = nbr_cp_idx(cx+1, cy, 1); our_dir = 1; }
-            slot0.pos = vec2(float(cx), float(cy));
-            slot0.flag = 1u;
-            slot0.next = nbr;
-            slot0.next_dir = our_dir;
+            cp.pos = vec2(float(cx), float(cy));
+            cp.flag = 1u;
+            cp.next = nbr;
+            cp.next_dir = our_dir;
         }
-        return;
+        return cp;
     }
 
+    // Batch the 4 edge-bit fetches up front for parallel memory issue.
+    uint g_n = g(2 * cx,     2 * cy - 1);
+    uint g_e = g(2 * cx + 1, 2 * cy);
+    uint g_s = g(2 * cx,     2 * cy + 1);
+    uint g_w = g(2 * cx - 1, 2 * cy);
+    bool bnd_n = (g_n == 0u);
+    bool bnd_e = (g_e == 0u);
+    bool bnd_s = (g_s == 0u);
+    bool bnd_w = (g_w == 0u);
+    uint bnd_count = (bnd_n ? 1u : 0u) + (bnd_e ? 1u : 0u)
+                   + (bnd_s ? 1u : 0u) + (bnd_w ? 1u : 0u);
+    if (bnd_count == 0u) return cp;
+
+    // diag is only needed for the diagonal-pattern branches below.
     uint diag = g(2 * cx, 2 * cy);
     bool has_main = (diag & 1u) != 0u;
     bool has_anti = (diag & 2u) != 0u;
-    bool bnd_n = !similar(cx - 1, cy - 1, cx, cy - 1);
-    bool bnd_e = !similar(cx, cy - 1, cx, cy);
-    bool bnd_s = !similar(cx - 1, cy, cx, cy);
-    bool bnd_w = !similar(cx - 1, cy - 1, cx - 1, cy);
-    uint bnd_count = (bnd_n ? 1u : 0u) + (bnd_e ? 1u : 0u)
-                   + (bnd_s ? 1u : 0u) + (bnd_w ? 1u : 0u);
-    if (bnd_count == 0u) return;
 
     if (has_main && !has_anti) {
-        bool cp0_has_s = bnd_s, cp0_has_w = bnd_w;
-        bool cp1_has_n = bnd_n, cp1_has_e = bnd_e;
-        bool cp0_alive = cp0_has_s || cp0_has_w;
-        bool cp1_alive = cp1_has_n || cp1_has_e;
-        if (cp0_alive) {
-            vec2 p0 = vec2(float(cx) - 0.25, float(cy) + 0.25);
-            int prev0 = cp0_has_s ? nbr_cp_idx(cx, cy + 1, 2) : -1;
-            int next0 = cp0_has_w ? nbr_cp_idx(cx - 1, cy, 3) : -1;
-            bool cp0_junction = !(cp0_has_s && cp0_has_w);
-            uint cp0_flag = cp0_junction ? 1u : 2u;
-            if (!cp0_junction) {
+        // Main-diagonal: slot 0 at (-0.25, +0.25) uses S/W; slot 1 at
+        // (+0.25, -0.25) uses N/E.
+        if (slot == 0) {
+            bool has_s = bnd_s, has_w = bnd_w;
+            if (!(has_s || has_w)) return cp;
+            vec2 p = vec2(float(cx) - 0.25, float(cy) + 0.25);
+            int prev = has_s ? nbr_cp_idx(cx, cy + 1, 2) : -1;
+            int next = has_w ? nbr_cp_idx(cx - 1, cy, 3) : -1;
+            bool junction = !(has_s && has_w);
+            uint flag = junction ? 1u : 2u;
+            if (!junction) {
                 vec2 s_pos = neighbor_cp_pos(cx, cy + 1, 2);
                 vec2 w_pos = neighbor_cp_pos(cx - 1, cy, 3);
-                if (checkForCorner(s_pos - p0, w_pos - p0)) cp0_flag |= IS_CORNER;
-                if (is_isolated_pixel(cx - 1, cy)) p0 = vec2(float(cx), float(cy));
+                if (checkForCorner(s_pos - p, w_pos - p)) flag |= IS_CORNER;
+                if (is_isolated_pixel(cx - 1, cy)) p = vec2(float(cx), float(cy));
             }
-            int d_prev = cp0_has_s ? 2 : -1;
-            int d_next = cp0_has_w ? 3 : -1;
-            slot0 = CPData(p0, prev0, next0, cp0_flag, d_prev, d_next);
-        }
-        if (cp1_alive) {
-            vec2 p1 = vec2(float(cx) + 0.25, float(cy) - 0.25);
-            int prev1 = cp1_has_n ? nbr_cp_idx(cx, cy - 1, 0) : -1;
-            int next1 = cp1_has_e ? nbr_cp_idx(cx + 1, cy, 1) : -1;
-            bool cp1_junction = !(cp1_has_n && cp1_has_e);
-            uint cp1_flag = cp1_junction ? 1u : 2u;
-            if (!cp1_junction) {
+            int d_prev = has_s ? 2 : -1;
+            int d_next = has_w ? 3 : -1;
+            cp = CPData(p, prev, next, flag, d_prev, d_next);
+        } else {
+            bool has_n = bnd_n, has_e = bnd_e;
+            if (!(has_n || has_e)) return cp;
+            vec2 p = vec2(float(cx) + 0.25, float(cy) - 0.25);
+            int prev = has_n ? nbr_cp_idx(cx, cy - 1, 0) : -1;
+            int next = has_e ? nbr_cp_idx(cx + 1, cy, 1) : -1;
+            bool junction = !(has_n && has_e);
+            uint flag = junction ? 1u : 2u;
+            if (!junction) {
                 vec2 n_pos = neighbor_cp_pos(cx, cy - 1, 0);
                 vec2 e_pos = neighbor_cp_pos(cx + 1, cy, 1);
-                if (checkForCorner(n_pos - p1, e_pos - p1)) cp1_flag |= IS_CORNER;
-                if (is_isolated_pixel(cx, cy - 1)) p1 = vec2(float(cx), float(cy));
+                if (checkForCorner(n_pos - p, e_pos - p)) flag |= IS_CORNER;
+                if (is_isolated_pixel(cx, cy - 1)) p = vec2(float(cx), float(cy));
             }
-            int d_prev = cp1_has_n ? 0 : -1;
-            int d_next = cp1_has_e ? 1 : -1;
-            slot1 = CPData(p1, prev1, next1, cp1_flag, d_prev, d_next);
+            int d_prev = has_n ? 0 : -1;
+            int d_next = has_e ? 1 : -1;
+            cp = CPData(p, prev, next, flag, d_prev, d_next);
         }
-        return;
+        return cp;
     }
 
     if (has_anti && !has_main) {
-        bool cp0_has_n = bnd_n, cp0_has_w = bnd_w;
-        bool cp1_has_s = bnd_s, cp1_has_e = bnd_e;
-        bool cp0_alive = cp0_has_n || cp0_has_w;
-        bool cp1_alive = cp1_has_s || cp1_has_e;
-        if (cp0_alive) {
-            vec2 p0 = vec2(float(cx) - 0.25, float(cy) - 0.25);
-            int prev0 = cp0_has_n ? nbr_cp_idx(cx, cy - 1, 0) : -1;
-            int next0 = cp0_has_w ? nbr_cp_idx(cx - 1, cy, 3) : -1;
-            bool cp0_junction = !(cp0_has_n && cp0_has_w);
-            uint cp0_flag = cp0_junction ? 1u : 2u;
-            if (!cp0_junction) {
+        // Anti-diagonal: slot 0 at (-0.25, -0.25) uses N/W; slot 1 at
+        // (+0.25, +0.25) uses S/E.
+        if (slot == 0) {
+            bool has_n = bnd_n, has_w = bnd_w;
+            if (!(has_n || has_w)) return cp;
+            vec2 p = vec2(float(cx) - 0.25, float(cy) - 0.25);
+            int prev = has_n ? nbr_cp_idx(cx, cy - 1, 0) : -1;
+            int next = has_w ? nbr_cp_idx(cx - 1, cy, 3) : -1;
+            bool junction = !(has_n && has_w);
+            uint flag = junction ? 1u : 2u;
+            if (!junction) {
                 vec2 n_pos = neighbor_cp_pos(cx, cy - 1, 0);
                 vec2 w_pos = neighbor_cp_pos(cx - 1, cy, 3);
-                if (checkForCorner(n_pos - p0, w_pos - p0)) cp0_flag |= IS_CORNER;
-                if (is_isolated_pixel(cx - 1, cy - 1)) p0 = vec2(float(cx), float(cy));
+                if (checkForCorner(n_pos - p, w_pos - p)) flag |= IS_CORNER;
+                if (is_isolated_pixel(cx - 1, cy - 1)) p = vec2(float(cx), float(cy));
             }
-            int d_prev = cp0_has_n ? 0 : -1;
-            int d_next = cp0_has_w ? 3 : -1;
-            slot0 = CPData(p0, prev0, next0, cp0_flag, d_prev, d_next);
-        }
-        if (cp1_alive) {
-            vec2 p1 = vec2(float(cx) + 0.25, float(cy) + 0.25);
-            int prev1 = cp1_has_s ? nbr_cp_idx(cx, cy + 1, 2) : -1;
-            int next1 = cp1_has_e ? nbr_cp_idx(cx + 1, cy, 1) : -1;
-            bool cp1_junction = !(cp1_has_s && cp1_has_e);
-            uint cp1_flag = cp1_junction ? 1u : 2u;
-            if (!cp1_junction) {
+            int d_prev = has_n ? 0 : -1;
+            int d_next = has_w ? 3 : -1;
+            cp = CPData(p, prev, next, flag, d_prev, d_next);
+        } else {
+            bool has_s = bnd_s, has_e = bnd_e;
+            if (!(has_s || has_e)) return cp;
+            vec2 p = vec2(float(cx) + 0.25, float(cy) + 0.25);
+            int prev = has_s ? nbr_cp_idx(cx, cy + 1, 2) : -1;
+            int next = has_e ? nbr_cp_idx(cx + 1, cy, 1) : -1;
+            bool junction = !(has_s && has_e);
+            uint flag = junction ? 1u : 2u;
+            if (!junction) {
                 vec2 s_pos = neighbor_cp_pos(cx, cy + 1, 2);
                 vec2 e_pos = neighbor_cp_pos(cx + 1, cy, 1);
-                if (checkForCorner(s_pos - p1, e_pos - p1)) cp1_flag |= IS_CORNER;
-                if (is_isolated_pixel(cx, cy)) p1 = vec2(float(cx), float(cy));
+                if (checkForCorner(s_pos - p, e_pos - p)) flag |= IS_CORNER;
+                if (is_isolated_pixel(cx, cy)) p = vec2(float(cx), float(cy));
             }
-            int d_prev = cp1_has_s ? 2 : -1;
-            int d_next = cp1_has_e ? 1 : -1;
-            slot1 = CPData(p1, prev1, next1, cp1_flag, d_prev, d_next);
+            int d_prev = has_s ? 2 : -1;
+            int d_next = has_e ? 1 : -1;
+            cp = CPData(p, prev, next, flag, d_prev, d_next);
         }
-        return;
+        return cp;
     }
+
+    // bnd_count ∈ {1, 2, 3, 4}, on-grid positions.
+    // bnd_count < 3: only slot 0 is produced.
+    if (bnd_count < 3u && slot != 0) return cp;
 
     vec2 pos = vec2(float(cx), float(cy));
     int n_idx = bnd_n ? nbr_cp_idx(cx, cy - 1, 0) : -1;
@@ -390,57 +417,56 @@ void compute_corner(int cx, int cy, out CPData slot0, out CPData slot1) {
             vec2 np = neighbor_cp_pos(next_cx, next_cy, n_dir);
             if (checkForCorner(pp - pos, np - pos)) f |= IS_CORNER;
         }
-        slot0 = CPData(pos, prev, next, f, p_dir, n_dir);
+        cp = CPData(pos, prev, next, f, p_dir, n_dir);
     } else if (bnd_count == 1u) {
         int nbr = -1; int nbr_dir = -1;
         if (bnd_n) { nbr = n_idx; nbr_dir = 0; }
         else if (bnd_e) { nbr = e_idx; nbr_dir = 1; }
         else if (bnd_s) { nbr = s_idx; nbr_dir = 2; }
         else { nbr = w_idx; nbr_dir = 3; }
-        slot0 = CPData(pos, nbr, -1, 1u, nbr_dir, -1);
+        cp = CPData(pos, nbr, -1, 1u, nbr_dir, -1);
     } else if (bnd_count == 3u) {
+        // T-junction: slot 0 is the through-CP, slot 1 is the stem.
         int dirs[3]; int di = 0;
         if (bnd_n) dirs[di++] = 0;
         if (bnd_e) dirs[di++] = 1;
         if (bnd_s) dirs[di++] = 2;
         if (bnd_w) dirs[di++] = 3;
-        int t_prev_dir, t_next_dir;
-        select_tjunction_pair(cx, cy, dirs[0], dirs[1], dirs[2], t_prev_dir, t_next_dir);
+        ivec2 t_pair = select_tjunction_pair(cx, cy, dirs[0], dirs[1], dirs[2]);
+        int t_prev_dir = t_pair.x;
+        int t_next_dir = t_pair.y;
         int idx_arr[4] = int[4](n_idx, e_idx, s_idx, w_idx);
         int prev = idx_arr[t_prev_dir];
         int next = idx_arr[t_next_dir];
-        if (prev >= 0 && next >= 0) {
-            int prev_slot = prev / 2;
-            int prev_cx = prev_slot % CORNERS_W();
-            int prev_cy = prev_slot / CORNERS_W();
-            int next_slot = next / 2;
-            int next_cx = next_slot % CORNERS_W();
-            int next_cy = next_slot / CORNERS_W();
-            pos = vec2(
-                0.125 * float(prev_cx) + 0.75 * float(cx) + 0.125 * float(next_cx),
-                0.125 * float(prev_cy) + 0.75 * float(cy) + 0.125 * float(next_cy)
-            );
-        }
-        slot0 = CPData(pos, prev, next, 2u | IS_TJUNCTION, t_prev_dir, t_next_dir);
-        int stem_idx = -1; int stem_dir = -1;
-        if (bnd_n && t_prev_dir != 0 && t_next_dir != 0) { stem_idx = n_idx; stem_dir = 0; }
-        else if (bnd_e && t_prev_dir != 1 && t_next_dir != 1) { stem_idx = e_idx; stem_dir = 1; }
-        else if (bnd_s && t_prev_dir != 2 && t_next_dir != 2) { stem_idx = s_idx; stem_dir = 2; }
-        else if (bnd_w && t_prev_dir != 3 && t_next_dir != 3) { stem_idx = w_idx; stem_dir = 3; }
-        if (stem_idx >= 0) {
-            slot1 = CPData(pos, stem_idx, -1, 1u, stem_dir, -1);
+        // Both slots stay at the grid corner. The stem CP is snapped onto
+        // the rendered through-curve later in update-tjunction.slang using
+        // ghost-aware (sp, st, sn) coefficients; pre-snapping here with
+        // fixed weights would mis-bias the optimizer's positional energy
+        // when prev/next is an endpoint.
+        if (slot == 0) {
+            cp = CPData(pos, prev, next, 2u | IS_TJUNCTION, t_prev_dir, t_next_dir);
+        } else {
+            int stem_idx = -1; int stem_dir = -1;
+            if (bnd_n && t_prev_dir != 0 && t_next_dir != 0) { stem_idx = n_idx; stem_dir = 0; }
+            else if (bnd_e && t_prev_dir != 1 && t_next_dir != 1) { stem_idx = e_idx; stem_dir = 1; }
+            else if (bnd_s && t_prev_dir != 2 && t_next_dir != 2) { stem_idx = s_idx; stem_dir = 2; }
+            else if (bnd_w && t_prev_dir != 3 && t_next_dir != 3) { stem_idx = w_idx; stem_dir = 3; }
+            if (stem_idx >= 0) {
+                cp = CPData(pos, stem_idx, -1, 1u, stem_dir, -1);
+            }
         }
     } else {
-        slot0 = CPData(pos, n_idx, s_idx, 2u | IS_CROSSING, 0, 2);
-        slot1 = CPData(pos, e_idx, w_idx, 2u | IS_CROSSING, 1, 3);
+        // bnd_count == 4: crossing.
+        if (slot == 0) cp = CPData(pos, n_idx, s_idx, 2u | IS_CROSSING, 0, 2);
+        else           cp = CPData(pos, e_idx, w_idx, 2u | IS_CROSSING, 1, 3);
     }
+    return cp;
 }
 
 // Pack a single CP into the 4-channel compact format. -1 indices map
-// to the 24-bit sentinel 0xFFFFFFu (which decodes back to -1 in Pass B).
+// to the 24-bit sentinel 0xFFFFFFu.
 vec4 pack_cp(CPData cp) {
     if (cp.flag == 0u) {
-        // Inactive slot: write zeros for pos+flag, sentinels for neighbors.
         return vec4(
             0.0,
             0.0,
@@ -449,7 +475,6 @@ vec4 pack_cp(CPData cp) {
         );
     }
 
-    // Mark chain endpoints (matches the gate in the legacy main).
     uint flag = cp.flag;
     if (cp.prev < 0 || cp.next < 0) flag |= IS_ENDPOINT;
 
@@ -470,17 +495,15 @@ void main() {
     int cx = opos.x;
     int row = opos.y;
 
-    // Output rows are organized as `cy * 2 + slot`, with `slot ∈ {0, 1}`.
-    int cy = row / 2;
+    // Row-interleaved slot layout: row = cy*2 + slot.
     int slot = row & 1;
+    int cy   = row >> 1;
 
-    if (cx > IMG_W() || cy > IMG_H() || cx >= CORNERS_W() || cy >= CORNERS_H()) {
+    if (cx >= CORNERS_W() || cy >= CORNERS_H()) {
         FragColor = vec4(0.0);
         return;
     }
 
-    CPData s0, s1;
-    compute_corner(cx, cy, s0, s1);
-    CPData cp = (slot == 0) ? s0 : s1;
+    CPData cp = compute_corner(cx, cy, slot);
     FragColor = pack_cp(cp);
 }

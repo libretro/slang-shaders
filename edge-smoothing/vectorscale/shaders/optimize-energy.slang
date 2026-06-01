@@ -3,33 +3,24 @@
 #pragma format R32G32B32A32_SFLOAT
 
 // Per-CP Picard step: 2D Newton on the local θ² + positional energy
-// around p_i, holding all neighbors fixed. Mirrors the CPU
-// `optimize_one_pass` in vibeboy/src/scaling/vectorize.rs.
+// around p_i, holding neighbors fixed. Mirrors the CPU `optimize_one_pass`
+// in vibeboy/src/scaling/vectorize.rs.
 //
 // Energy = E_curvature + E_positional
-//   E_curvature: sum of θ²/2 over the (up to) three quadratic-spline
-//     segments touching p_i, where θ = atan2(va×vb, va·vb). Plus the
-//     same on the second chain at crossings, plus stem-via-ghost
-//     coupling at T-junctions and their through-pair.
-//   E_positional: (positional_scale · ‖p − p_orig‖)⁴, scale = 2.5.
+//   E_curvature: sum of θ²/2 over the ≤3 quadratic-spline segments
+//     touching p_i (θ = atan2(va×vb, va·vb)). Plus the second chain at
+//     crossings and stem-via-ghost coupling at T-junctions.
+//   E_positional: (POSITIONAL_SCALE · ‖p − p_orig‖)⁴.
 //
-// Step strategy: single clamped Newton step. Computes the full Newton
-// direction then caps |δ| at MAX_STEP=0.10 px. The cap acts as a
-// trust region and converges to a lower final energy than backtracking
-// line search at the same outer-iter count, with no backtrack work.
+// Single Newton step capped at MAX_STEP px (trust region). Output: RG only.
 //
-// Output channels: RG = Newton result; BA unused.
+// The host preset runs this followed by gradient-correction.slang per
+// outer iter.
 //
-// Outer iteration: the host preset runs this Picard pass followed by
-// gradient-correction.slang for each outer iter. The gradient pass
-// produces the input for the next outer iter's Picard.
-//
-// Register-pressure invariants (don't naively refactor away):
-//   - The segment helpers compute only (g, H), never energy — there
-//     is no consumer for the energy value.
-//   - Stem coupling and crossing data are computed inside their
-//     respective IS_TJUNCTION / IS_CROSSING branches. The non-special
-//     path must not pay for their register state.
+// Register-pressure invariants (do not refactor away):
+//   - Segment helpers compute only (g, H); there is no energy consumer.
+//   - Crossing and stem-coupling code lives inside its own branch so
+//     the non-special path doesn't carry the register state.
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -64,7 +55,7 @@ int IMG_W()    { return int(params.OriginalSize.x); }
 int IMG_H()    { return int(params.OriginalSize.y); }
 int CORNERS_W() { return IMG_W() + 1; }
 int CORNERS_H() { return IMG_H() + 1; }
-int NUM_CPS()  { return CORNERS_W() * CORNERS_H() * 2; }
+int NUM_CPS()  { return CORNERS_H() << 12;  /* bit-packed encoding: cy < CH means cp_idx < CH<<12 */ }
 
 const uint IS_CORNER    = 16u;
 const uint IS_TJUNCTION = 32u;
@@ -72,33 +63,25 @@ const uint IS_CROSSING  = 64u;
 const uint IS_ENDPOINT  = 128u;
 
 const float POSITIONAL_SCALE = 2.5;
-// One inner Newton iter per outer pass — open-coded as a straight-line
-// block below. A smaller per-iter Picard step leaves more headroom for
-// the gradient correction to debias toward ∇E = 0 instead of
-// overshooting the Gauss-Seidel fixed point, so additional inner
-// iterations don't help and can slightly hurt the converged energy.
+// One inner Newton iter per outer pass; additional iters overshoot the
+// Gauss-Seidel fixed point and slightly hurt converged energy.
 
-// CP data accessors (cp_idx = (cy*CORNERS_W + cx)*2 + slot).
-void decode_cp(int cp_idx, out int cx, out int cy_slot) {
-    int cp_half = cp_idx / 2;
+// CP data accessors. Row-interleaved slot — see cell-rasterizer-single-aa.slang.
+ivec2 decode_cp(int cp_idx) {
     int cp_slot = cp_idx & 1;
-    cx = cp_half % CORNERS_W();
-    int cy = cp_half / CORNERS_W();
-    cy_slot = cy * 2 + cp_slot;
+    int cx = (cp_idx >> 1) & 0x7FF;
+    int cy = cp_idx >> 12;
+    return ivec2(cx, (cy << 1) | cp_slot);
 }
 
 vec2 read_pos(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return vec2(0.0);
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    return texelFetch(Source, ivec2(cx, cy_slot), 0).rg;
+    return texelFetch(Source, decode_cp(cp_idx), 0).rg;
 }
 
 // Compact CellGraph: 1 texel per CP. See cell-graph.slang for layout.
 vec4 read_cg(int cp_idx) {
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    return texelFetch(CellGraph, ivec2(cx, cy_slot), 0);
+    return texelFetch(CellGraph, decode_cp(cp_idx), 0);
 }
 
 int unpack_idx(uint v) {
@@ -123,6 +106,14 @@ uint read_flags(int cp_idx) {
     return (floatBitsToUint(read_cg(cp_idx).b) >> 24) & 0xFFu;
 }
 
+// Ghost-extension B-spline weights, returned as (sp, st, sn).
+vec3 ghost_weights(bool prev_is_end, bool next_is_end) {
+    if (prev_is_end && next_is_end) return vec3(0.25,  0.5,   0.25);
+    if (prev_is_end)                return vec3(0.25,  0.625, 0.125);
+    if (next_is_end)                return vec3(0.125, 0.625, 0.25);
+    return                                 vec3(0.125, 0.75,  0.125);
+}
+
 // T-junction ghost: stem CPs read as the ghost-snapped position
 // synthesized from T's through-pair, not their stored position.
 // Bit 0 of flags is JUNCTION; a CP is a stem iff JUNCTION is set AND
@@ -136,12 +127,8 @@ vec2 read_neighbor_pos(int idx) {
         if (t_nbrs.x >= 0 && t_nbrs.y >= 0) {
             bool prev_is_end = (read_flags(t_nbrs.x) & IS_ENDPOINT) != 0u;
             bool next_is_end = (read_flags(t_nbrs.y) & IS_ENDPOINT) != 0u;
-            float sp, st, sn;
-            if (prev_is_end && next_is_end)      { sp = 0.25;  st = 0.5;   sn = 0.25; }
-            else if (prev_is_end)                { sp = 0.25;  st = 0.625; sn = 0.125; }
-            else if (next_is_end)                { sp = 0.125; st = 0.625; sn = 0.25; }
-            else                                 { sp = 0.125; st = 0.75;  sn = 0.125; }
-            return sp * read_pos(t_nbrs.x) + st * read_pos(t) + sn * read_pos(t_nbrs.y);
+            vec3 w = ghost_weights(prev_is_end, next_is_end);
+            return w.x * read_pos(t_nbrs.x) + w.y * read_pos(t) + w.z * read_pos(t_nbrs.y);
         }
     }
     return read_pos(idx);
@@ -154,25 +141,23 @@ int grandneighbor_idx(int via, int back) {
     return (vn.x == back) ? vn.y : vn.x;
 }
 
-void ghost_weights(bool prev_is_end, bool next_is_end,
-                   out float st, out float sp, out float sn) {
-    if (prev_is_end && next_is_end)      { st = 0.5;   sp = 0.25;  sn = 0.25; }
-    else if (prev_is_end)                { st = 0.625; sp = 0.25;  sn = 0.125; }
-    else if (next_is_end)                { st = 0.625; sp = 0.125; sn = 0.25; }
-    else                                 { st = 0.75;  sp = 0.125; sn = 0.125; }
-}
+// Result of resolving a T-junction stem to its two physical endpoints.
+// `valid` distinguishes the success case from the "stem has no chain
+// partner" failure.
+struct StemPoints { vec2 s; vec2 so; bool valid; };
 
-bool stem_endpoints(int t, out vec2 s_pos, out vec2 so_pos) {
-    s_pos = vec2(0.0);
-    so_pos = vec2(0.0);
+StemPoints stem_endpoints(int t) {
+    StemPoints r;
+    r.s = vec2(0.0); r.so = vec2(0.0); r.valid = false;
     int s_idx = read_neighbors(t + 1).x;
-    if (s_idx < 0) return false;
+    if (s_idx < 0) return r;
     ivec2 sn = read_neighbors(s_idx);
     int so = (sn.x == t + 1) ? sn.y : sn.x;
-    if (so < 0) return false;
-    s_pos = read_pos(s_idx);
-    so_pos = read_neighbor_pos(so);
-    return true;
+    if (so < 0) return r;
+    r.s = read_pos(s_idx);
+    r.so = read_neighbor_pos(so);
+    r.valid = true;
+    return r;
 }
 
 // SegMode: 0 full | 1 left half | 2 right half | 3 skip.
@@ -184,9 +169,8 @@ int seg_mode(bool center_corner, bool left_corner, bool right_corner) {
     return 0;
 }
 
-// Polynomial atan2 approximation. Accuracy ~1e-3 vs exact, ~2-3× faster
-// than precise atan(y,x). The curvature energy is θ²/2 so small θ errors
-// translate to even smaller energy errors — safe in this context.
+// Polynomial atan2, accuracy ~1e-3. Curvature energy is θ²/2 so the
+// errors square down further — safe in this context.
 float fast_atan2(float y, float x) {
     float ax = abs(x), ay = abs(y);
     float a = min(ax, ay) / (max(ax, ay) + 1e-30);
@@ -197,9 +181,7 @@ float fast_atan2(float y, float x) {
     return (y < 0.0) ? -r : r;
 }
 
-// Full-segment add (mode==0). Used for crossing, stem coupling, and
-// non-corner main segments. Accumulates (g, H) only — the energy
-// value isn't consumed anywhere.
+// Full-segment add (mode==0). Accumulates (g, H) only.
 void add_segment_full(vec2 va, vec2 vb, float s_va, float s_vb,
                       inout vec2 g,
                       inout float h00, inout float h01, inout float h11) {
@@ -217,8 +199,8 @@ void add_segment_full(vec2 va, vec2 vb, float s_va, float s_vb,
     h11 += dtheta_dpy * dtheta_dpy;
 }
 
-// Half-segment-aware add: dispatches mode ∈ {0,1,2,3}. Used only for
-// the main 3 segments touching p where corners may need exclusion.
+// Half-segment-aware add. Used for the 3 main segments touching p
+// where adjacent corners may need exclusion.
 void add_segment_mode(int mode, vec2 va, vec2 vb, float s_va, float s_vb,
                       inout vec2 g,
                       inout float h00, inout float h01, inout float h11) {
@@ -243,12 +225,25 @@ void main() {
         return;
     }
 
-    int cy = cy_slot / 2;
-    int cp_slot = cy_slot % 2;
-    int i = (cy * CORNERS_W() + col) * 2 + cp_slot;
+    int cp_slot = cy_slot & 1;
+    int cy = cy_slot >> 1;
+    int i_self = (cy << 12) | (col << 1) | cp_slot;
 
-    // Focal CP: one CellGraph fetch yields p_orig (rg) + flags + dirs +
-    // both neighbor indices.
+    // Crossing slot-1 redirect: slot 1 of a crossing is the same physical
+    // node as slot 0. Running Newton independently per slot drifts them
+    // apart by ulp/step due to FP non-associativity, breaking the
+    // rasterizer's t_branch invariant. Slot 1's fragment must compute
+    // slot 0's update byte-for-byte.
+    int cy_slot_self_for_flags = cy_slot;
+    uint flags_self = (floatBitsToUint(
+        texelFetch(CellGraph, ivec2(col, cy_slot_self_for_flags), 0).b) >> 24) & 0xFFu;
+    bool is_crossing_self = (flags_self & IS_CROSSING) != 0u;
+    if (is_crossing_self && cp_slot == 1) {
+        cy_slot -= 1;
+        cp_slot = 0;
+    }
+    int i = (cy << 12) | (col << 1) | cp_slot;
+
     vec2 starting_p = texelFetch(Source, ivec2(col, cy_slot), 0).rg;
     vec4 my_cg = texelFetch(CellGraph, ivec2(col, cy_slot), 0);
     uint my_b = floatBitsToUint(my_cg.b);
@@ -268,28 +263,26 @@ void main() {
         return;
     }
 
-    // Prev/next neighbors: pull flags + their own neighbor indices in
-    // one fetch each.
-    int prev_cx, prev_cy_slot;  decode_cp(prev_idx, prev_cx, prev_cy_slot);
-    vec4 prev_cg = texelFetch(CellGraph, ivec2(prev_cx, prev_cy_slot), 0);
+    ivec2 prev_xy = decode_cp(prev_idx);
+    vec4 prev_cg = texelFetch(CellGraph, prev_xy, 0);
     uint prev_b = floatBitsToUint(prev_cg.b);
     uint prev_a = floatBitsToUint(prev_cg.a);
     uint prev_flags = (prev_b >> 24) & 0xFFu;
     int prev_pp_idx = unpack_idx(prev_b & 0xFFFFFFu);
     int prev_nn_idx = unpack_idx(prev_a & 0xFFFFFFu);
 
-    int next_cx, next_cy_slot;  decode_cp(next_idx, next_cx, next_cy_slot);
-    vec4 next_cg = texelFetch(CellGraph, ivec2(next_cx, next_cy_slot), 0);
+    ivec2 next_xy = decode_cp(next_idx);
+    vec4 next_cg = texelFetch(CellGraph, next_xy, 0);
     uint next_b = floatBitsToUint(next_cg.b);
     uint next_a = floatBitsToUint(next_cg.a);
     uint next_flags = (next_b >> 24) & 0xFFu;
     int next_pp_idx = unpack_idx(next_b & 0xFFFFFFu);
     int next_nn_idx = unpack_idx(next_a & 0xFFFFFFu);
 
-    // Ghost-aware position for prev/next: a CP is a stem iff its
-    // JUNCTION bit is set AND its index-1 CP is a T-junction. Common
-    // case (JUNCTION clear) short-circuits without an extra fetch.
-    vec2 n0 = texelFetch(Source, ivec2(prev_cx, prev_cy_slot), 0).rg;
+    // Ghost-aware position. A CP is a stem iff JUNCTION (bit 0) is set
+    // AND its index-1 CP is a T-junction; the common JUNCTION-clear
+    // case short-circuits without an extra flag fetch.
+    vec2 n0 = texelFetch(Source, prev_xy, 0).rg;
     if ((prev_flags & 1u) != 0u && prev_idx > 0
         && (read_flags(prev_idx - 1) & IS_TJUNCTION) != 0u) {
         int t = prev_idx - 1;
@@ -305,7 +298,7 @@ void main() {
             n0 = sp_g * read_pos(t_nbrs.x) + st_g * read_pos(t) + sn_g * read_pos(t_nbrs.y);
         }
     }
-    vec2 n1 = texelFetch(Source, ivec2(next_cx, next_cy_slot), 0).rg;
+    vec2 n1 = texelFetch(Source, next_xy, 0).rg;
     if ((next_flags & 1u) != 0u && next_idx > 0
         && (read_flags(next_idx - 1) & IS_TJUNCTION) != 0u) {
         int t = next_idx - 1;
@@ -331,8 +324,8 @@ void main() {
     bool gprev_corner = gprev_idx >= 0 && (read_flags(gprev_idx) & IS_CORNER) != 0u;
     bool gnext_corner = gnext_idx >= 0 && (read_flags(gnext_idx) & IS_CORNER) != 0u;
 
-    // Per-segment mode (0=full, 1=left half, 2=right half, 3=skip) for
-    // the three main segments touching p, packed into one uint:
+    // Per-segment mode (0=full, 1=left half, 2=right half, 3=skip)
+    // packed into one uint:
     //   bits 0-1: mode_self
     //   bits 2-3: mode_e_prev
     //   bits 4-5: mode_e_next
@@ -340,10 +333,8 @@ void main() {
                | (uint((gprev_idx < 0) ? 3 : seg_mode(prev_corner, gprev_corner, self_corner)) << 2)
                | (uint((gnext_idx < 0) ? 3 : seg_mode(next_corner, self_corner, gnext_corner)) << 4);
 
-    // Pre-compute the p-independent segment partials. va_prev_const is
-    // the va of segment θ_{i-1} (= n0 - nn0); vb_next_const is the vb
-    // of segment θ_{i+1} (= nn1 - n1). We don't need to keep nn0/nn1
-    // around once these are computed.
+    // p-independent segment partials. va_prev_const = va of θ_{i-1};
+    // vb_next_const = vb of θ_{i+1}. Drops nn0/nn1 from registers.
     vec2 va_prev_const = vec2(0.0);
     vec2 vb_next_const = vec2(0.0);
     if (((state >> 2) & 3u) != 3u) {
@@ -356,7 +347,6 @@ void main() {
     const float s4 = POSITIONAL_SCALE * POSITIONAL_SCALE
                    * POSITIONAL_SCALE * POSITIONAL_SCALE; // 39.0625
 
-    // ---- Single Newton step at starting_p ----
     vec2 p = starting_p;
     vec2 g_ = vec2(0.0);
     float h00 = 0.0, h01 = 0.0, h11 = 0.0;
@@ -379,9 +369,8 @@ void main() {
                          g_, h00, h01, h11);
     }
 
-    // ---- Crossing's second chain ----
-    // Local to this branch so non-crossing CPs don't carry its register
-    // state across the rest of the Newton block.
+    // Crossing's second chain. Kept inside the branch so non-crossing
+    // CPs don't carry its register state.
     if ((flags & IS_CROSSING) != 0u) {
         int other = (cp_slot == 0) ? i + 1 : i - 1;
         ivec2 cn = read_neighbors(other);
@@ -415,19 +404,18 @@ void main() {
         }
     }
 
-    // ---- Stem coupling ----
-    // Like the crossing branch above, each case's data is local to its
-    // if-block to keep the non-stem path off the hook.
+    // Stem coupling. Each case's data is local to its if-block to keep
+    // the non-stem path off the hook.
     // Case A: i is a T-junction itself.
     if ((flags & IS_TJUNCTION) != 0u) {
-        vec2 s_pos, so_pos;
-        if (stem_endpoints(i, s_pos, so_pos)) {
+        StemPoints sp_a = stem_endpoints(i);
+        if (sp_a.valid) {
             bool pe = (prev_flags & IS_ENDPOINT) != 0u;
             bool ne = (next_flags & IS_ENDPOINT) != 0u;
-            float st, sp, sn;
-            ghost_weights(pe, ne, st, sp, sn);
-            vec2 va = s_pos - so_pos;
-            vec2 vb = sp * n0 + sn * n1 - s_pos + st * p;
+            vec3 w = ghost_weights(pe, ne);
+            float sp = w.x, st = w.y, sn = w.z;
+            vec2 va = sp_a.s - sp_a.so;
+            vec2 vb = sp * n0 + sn * n1 - sp_a.s + st * p;
             add_segment_full(va, vb, 0.0, st, g_, h00, h01, h11);
         }
     }
@@ -436,12 +424,12 @@ void main() {
         && prev_pp_idx >= 0 && prev_nn_idx >= 0) {
         bool jpe = (read_flags(prev_pp_idx) & IS_ENDPOINT) != 0u;
         bool jne = (read_flags(prev_nn_idx) & IS_ENDPOINT) != 0u;
-        float st, sp, sn;
-        ghost_weights(jpe, jne, st, sp, sn);
+        vec3 w = ghost_weights(jpe, jne);
+        float sp = w.x, st = w.y, sn = w.z;
         float p_coef = 0.0;
         vec2 ghost_const = vec2(0.0);
         if (prev_pp_idx == i || prev_nn_idx == i) {
-            vec2 p_t = texelFetch(Source, ivec2(prev_cx, prev_cy_slot), 0).rg;
+            vec2 p_t = texelFetch(Source, prev_xy, 0).rg;
             if (prev_pp_idx == i) {
                 p_coef = sp;
                 ghost_const = st * p_t + sn * read_neighbor_pos(prev_nn_idx);
@@ -451,10 +439,10 @@ void main() {
             }
         }
         if (p_coef != 0.0) {
-            vec2 s_pos, so_pos;
-            if (stem_endpoints(prev_idx, s_pos, so_pos)) {
-                vec2 va = s_pos - so_pos;
-                vec2 vb = ghost_const - s_pos + p_coef * p;
+            StemPoints sp_b = stem_endpoints(prev_idx);
+            if (sp_b.valid) {
+                vec2 va = sp_b.s - sp_b.so;
+                vec2 vb = ghost_const - sp_b.s + p_coef * p;
                 add_segment_full(va, vb, 0.0, p_coef, g_, h00, h01, h11);
             }
         }
@@ -464,12 +452,12 @@ void main() {
         && next_pp_idx >= 0 && next_nn_idx >= 0) {
         bool jpe = (read_flags(next_pp_idx) & IS_ENDPOINT) != 0u;
         bool jne = (read_flags(next_nn_idx) & IS_ENDPOINT) != 0u;
-        float st, sp, sn;
-        ghost_weights(jpe, jne, st, sp, sn);
+        vec3 w = ghost_weights(jpe, jne);
+        float sp = w.x, st = w.y, sn = w.z;
         float p_coef = 0.0;
         vec2 ghost_const = vec2(0.0);
         if (next_pp_idx == i || next_nn_idx == i) {
-            vec2 p_t = texelFetch(Source, ivec2(next_cx, next_cy_slot), 0).rg;
+            vec2 p_t = texelFetch(Source, next_xy, 0).rg;
             if (next_pp_idx == i) {
                 p_coef = sp;
                 ghost_const = st * p_t + sn * read_neighbor_pos(next_nn_idx);
@@ -479,16 +467,16 @@ void main() {
             }
         }
         if (p_coef != 0.0) {
-            vec2 s_pos, so_pos;
-            if (stem_endpoints(next_idx, s_pos, so_pos)) {
-                vec2 va = s_pos - so_pos;
-                vec2 vb = ghost_const - s_pos + p_coef * p;
+            StemPoints sp_c = stem_endpoints(next_idx);
+            if (sp_c.valid) {
+                vec2 va = sp_c.s - sp_c.so;
+                vec2 vb = ghost_const - sp_c.s + p_coef * p;
                 add_segment_full(va, vb, 0.0, p_coef, g_, h00, h01, h11);
             }
         }
     }
 
-    // Positional energy: gradient + Hessian contribution.
+    // Positional energy contribution.
     vec2 d = p - p_orig;
     float d2 = dot(d, d);
     g_.x += 4.0 * s4 * d2 * d.x;

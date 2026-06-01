@@ -1,37 +1,21 @@
 #version 450
 #pragma format R32G32B32A32_SFLOAT
 
-// Pass: Denormalize per-CP render geometry into PackedPositions.
+// Pack-positions. Denormalize per-CP render geometry into PackedPositions
+// from FinalPositions + CellGraph. 2 horizontally-adjacent texels per CP:
 //
-// Reads FinalPositions (post-tjunction stem snap) + CellGraph
-// (neighbors, flags) and packs each CP's complete render geometry
-// into 3 horizontally-adjacent texels:
+//   (cx*2 + 0, cy_slot) = (cp.x, cp.y, t_branch, validity)
+//                         validity: 0.0 = skip / inactive, 1.0 = valid
+//   (cx*2 + 1, cy_slot) = (pp.x, pp.y, np.x,     np.y)
 //
-//   (cx*3 + 0, cy_slot) = (pp.x, pp.y, prev_ci_as_float, 0)
-//   (cx*3 + 1, cy_slot) = (cp.x, cp.y, t_branch, validity)
-//                         validity: 0.0 = skip / inactive,
-//                                   1.0 = valid normal,
-//                                   2.0 = valid 2-CP chain (is_line)
-//   (cx*3 + 2, cy_slot) = (np.x, np.y, next_ci_as_float, 0)
-//
-// pp / np are already ghost-extended (pp = 2·prev - cp etc.) for
-// endpoint neighbors. t_branch is computed in the right way per CP
-// type (see the t_branch dispatch in main()):
-//   - IS_CROSSING: 2D Newton iteration on F(t,s) = B_a(t) - B_b(s) = 0,
-//     starting from (0.5, 0.5).
+// pp / np are ghost-extended (pp = 2·prev - cp etc.) when the relevant
+// neighbor is an endpoint. t_branch is computed per CP type:
+//   - IS_CROSSING: 2D Newton on F(t,s) = B_a(t) - B_b(s) = 0.
 //   - 2-CP chain (degenerate stem): t_branch = 0.5; pp/cp/np built as
-//     a straight line so the rasterizer's is_line path takes over.
-//   - One-sided clamped Bezier: closed-form cubic project of the
+//     a straight line (the rasterizer's c3<1e-10 path handles it).
+//   - One-sided clamped Bezier: closed-form cubic projection of the
 //     interior B-spline midpoint onto the clamped span.
-//   - Else: t_branch = 0.5.
-//
-// Cost: ~once-per-frame O(num_cps) work — 3 fragments per CP slot, so
-// 6·corners_w·corners_h fragments total. Drops per-pixel work in the
-// rasterizer's test_one_cp from ~6 fetches + ghost construction +
-// cubic/Newton solve down to 4 fetches (1 flag + 3 packed reads).
-//
-// resolve_hit still needs neighbor flags/dirs for color resolution, so
-// the neighbor indices stay encoded in the B channels of texels 0/2.
+//   - Else: 0.5.
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -66,41 +50,33 @@ int IMG_W()    { return int(params.OriginalSize.x); }
 int IMG_H()    { return int(params.OriginalSize.y); }
 int CORNERS_W() { return IMG_W() + 1; }
 int CORNERS_H() { return IMG_H() + 1; }
-int NUM_CPS()  { return CORNERS_W() * CORNERS_H() * 2; }
+int NUM_CPS()  { return CORNERS_H() << 12;  /* bit-packed encoding: cy < CH means cp_idx < CH<<12 */ }
 
 const uint IS_CROSSING = 64u;
 const uint IS_ENDPOINT = 128u;
 
-void decode_cp(int cp_idx, out int cx, out int cy_slot) {
-    int cp_half = cp_idx / 2;
+// Bit-packed CP encoding. Row-interleaved slot — see cell-rasterizer-single-aa.slang.
+ivec2 decode_cp(int cp_idx) {
     int cp_slot = cp_idx & 1;
-    cx = cp_half % CORNERS_W();
-    int cy = cp_half / CORNERS_W();
-    cy_slot = cy * 2 + cp_slot;
+    int cx = (cp_idx >> 1) & 0x7FF;
+    int cy = cp_idx >> 12;
+    return ivec2(cx, (cy << 1) | cp_slot);
 }
 
 vec2 read_pos(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return vec2(0.0);
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    return texelFetch(FinalPositions, ivec2(cx, cy_slot), 0).rg;
+    return texelFetch(FinalPositions, decode_cp(cp_idx), 0).rg;
 }
 
-// ---- B-spline curve-curve intersection (2D Newton) ----
-//
-// Solves F(t, s) = B_a(t) - B_b(s) = 0 from (t, s) = (0.5, 0.5). The
-// optimizer keeps crossings near the grid corner so the initial guess
-// is within ~0.1 of the answer; quadratic Newton convergence drives
-// the residual below f32 epsilon in 3 iterations (4 for safety).
-// Returns vec2(t_a, t_b).
-//
-// Each step: J·Δ = -F where J is the 2×2 partial-derivative matrix
-//   J11 = ∂Fx/∂t = 2·aa.x·t + ba.x       J12 = ∂Fx/∂s = -(2·ab.x·s + bb.x)
-//   J21 = ∂Fy/∂t = 2·aa.y·t + ba.y       J22 = ∂Fy/∂s = -(2·ab.y·s + bb.y)
-// Inverted analytically. The early-break guard on |det(J)| < 1e-12
-// is the tangent / parallel-curves case; in practice the pipeline
-// guarantees a real crossing so this never fires, but it keeps the
-// shader well-defined if a degenerate input ever shows up.
+// Forward decl — span_closest_t seeds bspline_intersect.
+float span_closest_t(vec2 p0, vec2 p1, vec2 p2, vec2 pt);
+
+// B-spline curve-curve intersection. Solves F(t,s) = B_a(t) - B_b(s) = 0
+// via 2D Newton, seeded with closest-t on each span to a_p1 (which equals
+// b_p1 post-optimization). The closest-t seed handles asymmetric chains
+// where one side is endpoint-clamped — fixed t=s=0.5 lands in the wrong
+// basin and produces wedge-AA artifacts. 6 iters with step-size early
+// out; matches the vibeboy reference.
 vec2 bspline_intersect(vec2 a_p0, vec2 a_p1, vec2 a_p2,
                        vec2 b_p0, vec2 b_p1, vec2 b_p2) {
     vec2 aa = 0.5 * a_p0 - a_p1 + 0.5 * a_p2;
@@ -110,9 +86,10 @@ vec2 bspline_intersect(vec2 a_p0, vec2 a_p1, vec2 a_p2,
     vec2 bb = -b_p0 + b_p1;
     vec2 cb = 0.5 * b_p0 + 0.5 * b_p1;
 
-    float t = 0.5;
-    float s = 0.5;
-    for (int iter = 0; iter < 4; iter++) {
+    float t = span_closest_t(a_p0, a_p1, a_p2, a_p1);
+    float s = span_closest_t(b_p0, b_p1, b_p2, a_p1);
+
+    for (int iter = 0; iter < 6; iter++) {
         vec2 fa = aa * t * t + ba * t + ca;
         vec2 fb = ab * s * s + bb * s + cb;
         vec2 f = fa - fb;
@@ -124,15 +101,14 @@ vec2 bspline_intersect(vec2 a_p0, vec2 a_p1, vec2 a_p2,
         float ds = (-dft.y * f.x + dft.x * f.y) / det;
         t -= dt;
         s -= ds;
+        if (abs(dt) < 1e-7 && abs(ds) < 1e-7) break;
     }
     return vec2(clamp(t, 0.0, 1.0), clamp(s, 0.0, 1.0));
 }
 
 // Compact CellGraph: 1 texel per CP. See cell-graph.slang for layout.
 vec4 read_cg(int cp_idx) {
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    return texelFetch(CellGraph, ivec2(cx, cy_slot), 0);
+    return texelFetch(CellGraph, decode_cp(cp_idx), 0);
 }
 
 int unpack_idx(uint v) {
@@ -144,67 +120,84 @@ uint read_flags(int cp_idx) {
     return (floatBitsToUint(read_cg(cp_idx).b) >> 24) & 0xFFu;
 }
 
-// Closest-point cubic solver — must match cell-rasterizer.slang's
-// closest_on_span exactly so that t_branch values agree with what the
-// rasterizer would compute. Inlined here because pack-positions runs once
-// per frame (cheap) while the rasterizer runs per pixel.
+// MUST stay byte-identical to cell-rasterizer-*.slang::polish_root_c.
+float polish_root_c(float t, float c3, float c2, float c1, float c0) {
+    float dp = fma(fma(fma(c3, t, c2), t, c1), t, c0);
+    float ddp = fma(fma(3.0 * c3, t, 2.0 * c2), t, c1);
+    if (abs(ddp) > 1e-10) {
+        float step = dp / ddp;
+        if (abs(step) < 0.5) t -= step;
+    }
+    return t;
+}
+
+// MUST match cell-rasterizer-*.slang's closest_on_span ulp-for-ulp.
+// Any drift flips the rasterizer's `hit_t < t_branch` side-of-curve
+// decision at near-singular crossings → visible color-switch artifacts.
 float span_closest_t(vec2 p0, vec2 p1, vec2 p2, vec2 pt) {
+    // Polynomial form: B(t) = a*t² + b*t + c
     vec2 a = 0.5 * (p0 - 2.0 * p1 + p2);
     vec2 b = p1 - p0;
-    vec2 e = 0.5 * (p0 + p1) - pt;
+    vec2 e = 0.5 * (p0 + p1) - pt;  // c - pt
 
+    // D'(t)/2 cubic coefficients
     float c3 = 2.0 * dot(a, a);
     float c2 = 3.0 * dot(a, b);
     float c1 = 2.0 * dot(a, e) + dot(b, b);
     float c0 = dot(b, e);
 
     #define EVAL_D2(t) dot((a*(t)+b)*(t)+e, (a*(t)+b)*(t)+e)
+
+    // Start with endpoints
     float d0 = EVAL_D2(0.0);
     float d1 = EVAL_D2(1.0);
     float best_d2 = d0; float best_t = 0.0;
     if (d1 < best_d2) { best_d2 = d1; best_t = 1.0; }
 
-    if (abs(c3) < 1e-12) {
+    if (abs(c3) < 1e-10) {
         if (abs(c2) > 1e-12) {
-            float disc = c1*c1 - 4.0*c2*c0;
+            float disc = fma(c1, c1, -4.0 * c2 * c0);
             if (disc >= 0.0) {
                 float sq = sqrt(disc);
                 float qq = -0.5 * (c1 + sign(c1) * sq);
-                float t1 = qq / c2;
-                float t2 = c0 / qq;
+                float t1 = polish_root_c(qq / c2, c3, c2, c1, c0);
+                float t2 = polish_root_c(c0 / qq, c3, c2, c1, c0);
                 if (t1 > 0.0 && t1 < 1.0) { float dd = EVAL_D2(t1); if (dd < best_d2) { best_d2 = dd; best_t = t1; } }
                 if (t2 > 0.0 && t2 < 1.0) { float dd = EVAL_D2(t2); if (dd < best_d2) { best_d2 = dd; best_t = t2; } }
             }
         } else if (abs(c1) > 1e-12) {
-            float t1 = -c0 / c1;
+            float t1 = polish_root_c(-c0 / c1, c3, c2, c1, c0);
             if (t1 > 0.0 && t1 < 1.0) { float dd = EVAL_D2(t1); if (dd < best_d2) { best_d2 = dd; best_t = t1; } }
         }
     } else {
+        // Full cubic: depressed form via t = u - c2/(3·c3)
         float inv3a = 1.0 / (3.0 * c3);
         float shift = -c2 * inv3a;
         float p = (3.0*c3*c1 - c2*c2) / (3.0*c3*c3);
         float q = (2.0*c2*c2*c2 - 9.0*c3*c2*c1 + 27.0*c3*c3*c0) / (27.0*c3*c3*c3);
-        float disc = q*q/4.0 + p*p*p/27.0;
+        float disc = fma(q * 0.5, q * 0.5, p*p*p/27.0);
 
         if (disc > 1e-12) {
+            // One real root
             float sq = sqrt(disc);
             float hq = -q * 0.5;
             float u1 = sign(hq+sq) * pow(abs(hq+sq), 1.0/3.0);
             float u2 = sign(hq-sq) * pow(abs(hq-sq), 1.0/3.0);
-            float t1 = u1 + u2 + shift;
+            float t1 = polish_root_c(u1 + u2 + shift, c3, c2, c1, c0);
             if (t1 > 0.0 && t1 < 1.0) { float dd = EVAL_D2(t1); if (dd < best_d2) { best_d2 = dd; best_t = t1; } }
         } else {
-            float r = sqrt(max(-p*p*p/27.0, 0.0));
-            float phi = (r < 1e-15) ? 0.0 : acos(clamp(-q/(2.0*r), -1.0, 1.0));
-            float cube_r = 2.0 * sign(r) * pow(abs(r), 1.0/3.0);
+            float r = sqrt(-p / 3.0);
+            float cos_arg = clamp((-q * 0.5) / (r * r * r), -1.0, 1.0);
+            float phi = acos(cos_arg);
             const float TAU = 6.283185307;
             for (int k = 0; k < 3; k++) {
                 float angle = (phi + TAU * float(k)) / 3.0;
-                float t1 = cube_r * cos(angle) + shift;
+                float t1 = polish_root_c(2.0 * r * cos(angle) + shift, c3, c2, c1, c0);
                 if (t1 > 0.0 && t1 < 1.0) { float dd = EVAL_D2(t1); if (dd < best_d2) { best_d2 = dd; best_t = t1; } }
             }
         }
     }
+
     #undef EVAL_D2
     return best_t;
 }
@@ -212,10 +205,11 @@ float span_closest_t(vec2 p0, vec2 p1, vec2 p2, vec2 pt) {
 void main() {
     ivec2 opos = ivec2(vTexCoord * params.OutputSize.xy);
 
-    // Decode (cx, slot_within_cp, cy_slot) from the output coordinate.
-    // The texture is 3*corners_w wide, so column = cx*3 + which_pos.
-    int which_pos = opos.x % 3;             // 0=pp, 1=cp, 2=np
-    int cx = opos.x / 3;
+    // Texture is 2*corners_w wide: column = cx*2 + which_texel.
+    //   which_texel = 0 → (cp.x, cp.y, t_branch, validity)
+    //   which_texel = 1 → (pp.x, pp.y, np.x,    np.y)
+    int which_texel = opos.x & 1;
+    int cx = opos.x >> 1;
     int cy_slot = opos.y;
 
     if (cx >= CORNERS_W() || cy_slot >= CORNERS_H() * 2) {
@@ -223,12 +217,10 @@ void main() {
         return;
     }
 
-    int cy = cy_slot / 2;
     int slot = cy_slot & 1;
-    int ci = (cy * CORNERS_W() + cx) * 2 + slot;
+    int cy = cy_slot >> 1;
+    int ci = (cy << 12) | (cx << 1) | slot;
 
-    // Read flags + neighbors in one fetch. Inactive CPs write zeros —
-    // the rasterizer already skips them via its own flag check.
     vec4 cg = texelFetch(CellGraph, ivec2(cx, cy_slot), 0);
     uint cg_b = floatBitsToUint(cg.b);
     uint cg_a = floatBitsToUint(cg.a);
@@ -241,17 +233,14 @@ void main() {
     int prev_ci = unpack_idx(cg_b & 0xFFFFFFu);
     int next_ci = unpack_idx(cg_a & 0xFFFFFFu);
 
-    // CPs with no neighbors (e.g. fully-isolated chain endpoints owned by
-    // someone else's clamped extension) — write zeros.
+    // No neighbors: chain endpoints owned by another CP's clamped extension.
     if (prev_ci < 0 && next_ci < 0) {
         FragColor = vec4(0.0);
         return;
     }
 
-    // 2-CP-chain detection: both ends are endpoint markers and we own the
-    // span. Only the lower-indexed endpoint renders. Mirror the
-    // rasterizer's existing logic so the packed geometry matches what
-    // test_one_cp would have constructed.
+    // 2-CP-chain: both ends are endpoint markers, only the lower-
+    // indexed endpoint renders the span.
     bool i_am_endpoint = (prev_ci < 0 || next_ci < 0);
     bool two_cp_chain = false;
     if (i_am_endpoint) {
@@ -273,10 +262,8 @@ void main() {
 
     vec2 cp, pp, np;
     if (two_cp_chain) {
-        // Render as a straight line between the two markers. Pick
-        // p0=(3·a0-a1)/2, p1=midpoint, p2=(3·a1-a0)/2 so beval gives
-        // B(t)=lerp(a0,a1,t). Closest-point queries dispatch to a line
-        // solver via is_line in the rasterizer.
+        // Straight line between the markers. Picking p0=(3·a0-a1)/2,
+        // p1=midpoint, p2=(3·a1-a0)/2 makes beval evaluate to lerp(a0,a1,t).
         int other = (prev_ci < 0) ? next_ci : prev_ci;
         vec2 other_pos = read_pos(other);
         vec2 a0 = (prev_ci < 0) ? cp_real : other_pos;
@@ -290,19 +277,14 @@ void main() {
         np = next_is_end ? (2.0 * next_pos - cp) : next_pos;
     }
 
-    // t_branch: rasterizer's branch threshold between prev_dir and
-    // next_dir for color resolution. Mirrors test_one_cp's logic.
-    //
-    // Crossings: solve the curve-curve intersection inline (Newton
-    // iteration on F(t,s) = B_a(t) - B_b(s) = 0). Need both this slot's
-    // own neighbors and the partner slot's neighbors — slot 0 holds
-    // the N-S chain, slot 1 holds E-W. cp_a and cp_b are the same
-    // physical position (both slots of a crossing are co-located).
+    // t_branch: rasterizer's prev_dir/next_dir split parameter.
+    // Crossings solve the curve-curve intersection inline; slot 0 holds
+    // the N-S chain and slot 1 the E-W, and both share the same physical
+    // position.
     float t_branch;
     if ((flag & IS_CROSSING) != 0u) {
-        // Read partner-slot neighbor indices (partner is at cy_slot ^ 1
-        // within the same cx column).
-        vec4 p_cg = texelFetch(CellGraph, ivec2(cx, cy_slot ^ 1), 0);
+        // Partner CP index is ci^1 (slot bit at position 0).
+        vec4 p_cg = texelFetch(CellGraph, decode_cp(ci ^ 1), 0);
         int p_prev = unpack_idx(floatBitsToUint(p_cg.b) & 0xFFFFFFu);
         int p_next = unpack_idx(floatBitsToUint(p_cg.a) & 0xFFFFFFu);
 
@@ -340,23 +322,17 @@ void main() {
     } else if (two_cp_chain) {
         t_branch = 0.5;
     } else if (prev_is_end || next_is_end) {
-        // One-sided clamped Bezier: parameterization is shifted, so the
-        // t at which the rendered curve reaches the symmetric
-        // "before/after sc" location of an interior span isn't 0.5.
-        // Project the interior-span midpoint onto the clamped span.
+        // One-sided clamped Bezier: the rendered curve's parameterization
+        // is shifted, so t=0.5 isn't the symmetric split point. Project
+        // the interior-span midpoint onto the clamped span.
         vec2 interior_mid = 0.125 * pp + 0.75 * cp + 0.125 * np;
         t_branch = span_closest_t(pp, cp, np, interior_mid);
     } else {
         t_branch = 0.5;
     }
 
-    float validity = two_cp_chain ? 2.0 : 1.0;
-    float prev_ci_f = (prev_ci < 0) ? -1.0 : float(prev_ci);
-    float next_ci_f = (next_ci < 0) ? -1.0 : float(next_ci);
-
-    vec4 out_texel;
-    if (which_pos == 0)      out_texel = vec4(pp.x, pp.y, prev_ci_f, 0.0);
-    else if (which_pos == 1) out_texel = vec4(cp.x, cp.y, t_branch,  validity);
-    else                     out_texel = vec4(np.x, np.y, next_ci_f, 0.0);
+    vec4 out_texel = (which_texel == 0)
+        ? vec4(cp.x, cp.y, t_branch, 1.0)
+        : vec4(pp.x, pp.y, np.x,     np.y);
     FragColor = out_texel;
 }
