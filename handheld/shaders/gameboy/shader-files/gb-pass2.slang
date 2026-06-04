@@ -6,24 +6,10 @@
 //  / / __/ /| | / /|_/ / __/    / __  / / / /\  /                       //
 // / /_/ / ___ |/ /  / / /___   / /_/ / /_/ / / /                        //
 // \____/_/  |_/_/  /_/_____/  /_____/\____/ /_/                         //
-//  ==================== DOT MATRIX SHADER v1.1                          //
+//  ==================== DOT MATRIX SHADER v1.2                          //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
-// Copyright (C) 2024-2025 Matt Akins                                    //
-//                                                                       //
-// 2/6/24 - Modified to support color output by mattakins                //
-// 9/30/25 - v1.0 by mattakins                                           //
-//   • Fullscreen mode scales dot matrix effect to any screen size       //
-//   • Swap between display modes (full / max integer / scale factor)    //
-//   • Built-in palette presets while maintaining image pallete support  //
-//   • Drop shadow ON / OFF toggle                                       //
-//   • Simple vs perceptual pixel brightness calculation modes           //
-//   • Performance optimizations (vertex pre-calc, early-exit)           //
-//   • Parameter reorganization for ease of use                          //
-//   • Fixed issue with artifacts sometimes appearing in border          //
-// 10/25/25 - v1.1 by mattakins                                          //
-//   • Fixed fullscreen mode right and bottom border bug                 //
-//   • Improved brightness compensation for fullscreen pixel parameters  //
+// Copyright (C) 2024-2026 Matt Akins                                    //
 //                                                                       //
 // This program is free software: you can redistribute it and/or modify  //
 // it under the terms of the GNU General Public License as published by  //
@@ -92,13 +78,13 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 /*
 sigma = 4.0, normalized for 5 pixel offset       sigma = 4.0, normalized for 4 pixel offset
-Raw Gaussian weights:                            Raw Gaussian weights:   
+Raw Gaussian weights:                            Raw Gaussian weights:
 0.09973561222190091607086808117254 @position0    0.09973561222190091607086808117254 @position0
 0.09666707205829167156101677393475 @position1    0.09666707205829167156101677393475 @position1
 0.08801637626376240452162358324964 @position2    0.08801637626376240452162358324964 @position2
 0.07528440407628116669052257071979 @position3    0.07528440407628116669052257071979 @position3
 0.06049272702308815188099267447364 @position4    0.06049272702308815188099267447364 @position4
-0.04566231462789672460813692086928 @position5            
+0.04566231462789672460813692086928 @position5
 
 sum [p0 + 2(p1 + p2 + p3 + p4 + p5)]:            sum [p0 + 2(p1 + p2 + p3 + p4)]:
 0.83198140032054115459545312766674               0.74065677106474770537917928592818
@@ -118,20 +104,20 @@ void main()
 {
     // Define offsets and weights - change this for both the X and Y passes if you change the sigma value or number of texels sampled
     float offsets[5] = float[](0.0, 1.0, 2.0, 3.0, 4.0);
-    
+
     /*
     Precalculated using the Gaussian function:
     G(x) = (1 / sqrt(2 * pi * sigma^2)) * e^(-x^2 / (2 * sigma^2))
-    
+
     Where sigma = 4.0 and x = offset in range [0, 5]
     Normalized to 1 to prevent image darkening by multiplying each weight by:
     1 / sum(all weights)
     */
-    float weights[5] = float[]( 0.13465834124289953661305802732548,       
-                                0.13051534237555914090930704141833,        
-                                0.11883557904592230273554609080014,         
-                                0.10164546793794160274995705611009,      
-                                0.08167444001912718529866079800870 );      
+    float weights[5] = float[]( 0.13465834124289953661305802732548,
+                                0.13051534237555914090930704141833,
+                                0.11883557904592230273554609080014,
+                                0.10164546793794160274995705611009,
+                                0.08167444001912718529866079800870 );
 
     // Sample the current fragment and apply its weight
     vec4 out_color = texture(Source, clamp(vTexCoord, lower_bound, upper_bound)) * weights[0];

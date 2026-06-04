@@ -6,24 +6,10 @@
 //  / / __/ /| | / /|_/ / __/    / __  / / / /\  /                       //
 // / /_/ / ___ |/ /  / / /___   / /_/ / /_/ / / /                        //
 // \____/_/  |_/_/  /_/_____/  /_____/\____/ /_/                         //
-//  ==================== DOT MATRIX SHADER v1.1                          //
+//  ==================== DOT MATRIX SHADER v1.2                          //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
-// Copyright (C) 2024-2025 Matt Akins                                    //
-//                                                                       //
-// 2/6/24 - Modified to support color output by mattakins                //
-// 9/30/25 - v1.0 by mattakins                                           //
-//   • Fullscreen mode scales dot matrix effect to any screen size       //
-//   • Swap between display modes (full / max integer / scale factor)    //
-//   • Built-in palette presets while maintaining image pallete support  //
-//   • Drop shadow ON / OFF toggle                                       //
-//   • Simple vs perceptual pixel brightness calculation modes           //
-//   • Performance optimizations (vertex pre-calc, early-exit)           //
-//   • Parameter reorganization for ease of use                          //
-//   • Fixed issue with artifacts sometimes appearing in border          //
-// 10/25/25 - v1.1 by mattakins                                          //
-//   • Fixed fullscreen mode right and bottom border bug                 //
-//   • Improved brightness compensation for fullscreen pixel parameters  //
+// Copyright (C) 2024-2026 Matt Akins                                    //
 //                                                                       //
 // This program is free software: you can redistribute it and/or modify  //
 // it under the terms of the GNU General Public License as published by  //
@@ -83,7 +69,7 @@ void main()
 	gl_Position	=	global.MVP * Position;
 
 	vTexCoord	=	TexCoord.xy + offset_xy;
-	
+
 	vec2 diff	=	vTexCoord.xy - middle;
 	tex_border	=	middle + diff * registers.OutputSize.xy / border_scale;
 }
