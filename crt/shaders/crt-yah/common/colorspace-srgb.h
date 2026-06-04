@@ -16,19 +16,31 @@ const mat3 RGBtoXYZ = mat3(
      0.3575761,  0.7151522,  0.1191920,
      0.1804375,  0.0721750,  0.9503041);
 
-// D65 to D55 in XYZ working space
+// D65 to D55 in XYZ working space (Bradford Adaptation Method)
 // http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
-const mat3 D65toD55 = mat3(
+const mat3 XYZ_D65toD55 = mat3(
      1.0285405,  0.0172109, -0.0058993,
      0.0135022,  0.9952227,  0.0096778,
     -0.0314825, -0.0106363,  0.8425735);
 
-// D65 to D75 in XYZ working space
+// D65 to D75 in XYZ working space (Bradford Adaptation Method)
 // http://www.brucelindbloom.com/index.html?Eqn_ChromAdapt.html
-const mat3 D65toD75 = mat3(
+const mat3 XYZ_D65toD75 = mat3(
      0.9799401, -0.0112490,  0.0049195,
     -0.0091708,  1.0015532, -0.0081963,
      0.0252447,  0.0083931,  1.1295615);
+
+// D65 to D55 in sRGB working space (RGBtoXYZ * XYZ_D65toD55 * XYZtoRGB)
+const mat3 RGB_D65toD55 = mat3(
+     1.0466892,  0.0565973, -0.0267750,
+    -0.0061786,  0.9779289,  0.0521965,
+    -0.0559533, -0.0360764,  0.8417185);
+
+// D65 to D75 in sRGB working space (RGBtoXYZ * XYZ_D65toD75 * XYZtoRGB)
+const mat3 RGB_D65toD75 = mat3(
+     0.9696396, -0.0362021,  0.0240235,
+     0.0012016,  1.0114650, -0.0445505,
+     0.0443886,  0.0278090,  1.1299500);
 
 const float LumaR = 0.2126;
 const float LumaG = 0.7152;

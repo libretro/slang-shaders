@@ -125,13 +125,13 @@ vec3 apply_temperature(vec3 color, float white_point_relative)
 
     mat3 white_point = white_point_relative < 0.0
         // warmer
-        ? D65toD55
+        ? RGB_D65toD55
         // cooler
-        : D65toD75;
+        : RGB_D65toD75;
 
     return mix(
         color,
-        color * RGBtoXYZ * white_point * XYZtoRGB,
+        color * white_point,
         abs(white_point_relative));
 }
 
