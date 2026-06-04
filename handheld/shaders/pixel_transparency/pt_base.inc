@@ -9,8 +9,8 @@
    | || | | (_| | | | \__ \ |_) | (_| | | |  __/ | | | (__| |_| |
    |_||_|  \__,_|_| |_|___/ .__/ \__,_|_|  \___|_| |_|\___|\__, |
                           |_|                BASE #INCLUDE  |___/
-    v2.1 by mattakins
-    Copyright (C) 2025 Matt Akins.
+    v2.2 by mattakins
+    Copyright (C) 2025-2026 Matt Akins.
 
     Expects before #include:
 
@@ -45,7 +45,7 @@ vec2 getOrientedTilt(vec3 accel) {
 void main() {
     gl_Position = global.MVP * Position;
     vTexCoord = TexCoord;
-    texel = param.SourceSize.zw;
+    texel = param.OutputSize.zw;
 
     // Resolution scale for shadow compensation (reference: 640x480)
     float scale_x = param.OutputSize.x / 640.0;
@@ -61,32 +61,28 @@ void main() {
         vec3 accel = global.Accelerometer;
         has_sensors = length(accel) > 0.01;
         if (has_sensors) {
-            if (param.PT_ACCEL_RELATIVE > 0.5) {
-                // Relative: normalize both, subtract — same scale as "from level"
-                vec3 rest = global.AccelerometerRest;
-                gravity = clamp(getOrientedTilt(accel) - getOrientedTilt(rest), vec2(-1.0), vec2(1.0));
-            } else {
-                gravity = getOrientedTilt(accel);
-            }
-
+            gravity = getOrientedTilt(accel);
             gravity = clamp(gravity * param.PT_ACCEL_SENSITIVITY, vec2(-1.0), vec2(1.0));
         }
     }
     #endif
 
     #ifdef PT_SHIMMER
+    // Compute final light position (static + motion tilt)
+    vec2 computed_light = vec2(param.PT_LIGHT_X, param.PT_LIGHT_Y);
+    if (param.PT_ACCEL_ENABLE > 0.5 && has_sensors) {
+        computed_light += vec2(gravity.x, -gravity.y) * param.PT_LIGHT_RANGE;
+    }
+
     // Light position: X/Y sets the fixed light position, motion adds tilt offset
-    if (param.PT_RAINBOW_ENABLE > 0.5 || param.PT_GLARE_ENABLE > 0.5) {
-        light_pos = vec2(param.PT_LIGHT_X, param.PT_LIGHT_Y);
-        if (param.PT_ACCEL_ENABLE > 0.5 && has_sensors) {
-            light_pos += vec2(gravity.x, -gravity.y) * param.PT_LIGHT_RANGE;
-        }
+    if (global.PT_SUNLIGHT_ENABLE > 0.5 && (param.PT_RAINBOW_ENABLE > 0.5 || param.PT_GLARE_ENABLE > 0.5 || global.PT_REFLECT_ENABLE > 0.5)) {
+        light_pos = computed_light;
     } else {
         light_pos = vec2(0.5, 0.5);
     }
     #endif
 
-    // Shadow offset — motion centers on motion neutral X/Y, static uses offset X/Y
+    // Shadow offset: motion or static.
     if (param.PT_SHADOW_MOTION > 0.5 && param.PT_ACCEL_ENABLE > 0.5 && has_sensors) {
         vec2 base = vec2(param.PT_SHADOW_MOTION_X, param.PT_SHADOW_MOTION_Y);
         shadow_offset_raw = base + gravity * param.PT_SHADOW_MAX_OFFSET;
@@ -240,7 +236,6 @@ vec3 qwpSpectralTint(float gamma_eff) {
 
 void main() {
     vec4 lcd_color = texture(Source, vTexCoord);
-    vec3 original_pixel = texture(Original, vTexCoord).rgb;
 
     vec4 output_color = lcd_color;
 
@@ -248,6 +243,8 @@ void main() {
         FragColor = output_color;
         return;
     }
+
+    vec3 original_pixel = texture(Original, vTexCoord).rgb;
 
     // Debug: replace game image with white to isolate shader effects
     if (global.PT_HIDE_CONTENT > 0.5) {
@@ -270,7 +267,6 @@ void main() {
     if (param.PT_SHADOW_ENABLE > 0.5 && global.PT_HIDE_CONTENT < 1.5) {
         vec2 shadow_offset = -shadow_offset_raw * shadow_scale_factor * texel;
 
-        vec3 center_source = texture(Original, vTexCoord + shadow_offset).rgb;
         float shadow_strength = 0.0;
 
         if (param.PT_SHADOW_BLUR > 0.1) {
@@ -317,6 +313,7 @@ void main() {
                 shadow_strength = (blurred_shadow / 16.0) * param.PT_SHADOW_OPACITY;
             }
         } else {
+            vec3 center_source = texture(Original, vTexCoord + shadow_offset).rgb;
             float shadow_source_brightness = getBrightness(center_source);
             shadow_strength = (1.0 - shadow_source_brightness) * param.PT_SHADOW_OPACITY;
         }
@@ -422,13 +419,17 @@ void main() {
 
     // === Sunlight Rainbow & Specular Glare (shimmer only) ===
 #ifdef PT_SHIMMER
-    if (param.PT_RAINBOW_ENABLE > 0.5 || param.PT_GLARE_ENABLE > 0.5) {
+    if (global.PT_SUNLIGHT_ENABLE > 0.5 && (param.PT_RAINBOW_ENABLE > 0.5 || param.PT_GLARE_ENABLE > 0.5 || global.PT_REFLECT_ENABLE > 0.5)) {
         float aspect_ratio = param.OutputSize.x / param.OutputSize.y;
         vec2 to_light = (vTexCoord - light_pos) * vec2(aspect_ratio, 1.0);
-        float dist_xy = length(to_light);
+        float dist_sq = 0.0;
+        if (global.PT_REFLECT_ENABLE > 0.5 || param.PT_GLARE_ENABLE > 0.5) {
+            dist_sq = dot(to_light, to_light);
+        }
 
         // Rainbow effect — QWP chromatic dispersion with 3D light source geometry.
         if (param.PT_RAINBOW_ENABLE > 0.5 && global.PT_RAINBOW_INTENSITY > 0.001) {
+            float dist_xy = length(to_light);
             const float GAMMA_BASE = 275.0; // Double-pass through 137.5nm QWP film
             const float N_FILM = 1.5; // Stretched polycarbonate
 
@@ -481,10 +482,20 @@ void main() {
             output_color.rgb = tinted;
         }
 
+        // Ambient front-surface reflection — broad sheen centered on the light source.
+        if (global.PT_REFLECT_ENABLE > 0.5) {
+            float spread_sq = global.PT_REFLECT_SPREAD * global.PT_REFLECT_SPREAD;
+            float reflect_strength = exp(-dist_sq / (2.0 * spread_sq));
+            reflect_strength = reflect_strength * global.PT_REFLECT_INTENSITY + global.PT_REFLECT_BIAS;
+
+            vec3 reflect_color = mix(vec3(1.0), vec3(1.0, 0.95, 0.85), global.PT_REFLECT_WARM);
+            output_color.rgb += reflect_color * reflect_strength;
+        }
+
         // Specular glare — soft white hotspot centered on the light source.
         if (param.PT_GLARE_ENABLE > 0.5 && global.PT_GLARE_INTENSITY > 0.001) {
             float size_sq = global.PT_GLARE_SIZE * global.PT_GLARE_SIZE;
-            float glare_strength = exp(-dist_xy * dist_xy / (2.0 * size_sq)) * global.PT_GLARE_INTENSITY;
+            float glare_strength = exp(-dist_sq / (2.0 * size_sq)) * global.PT_GLARE_INTENSITY;
 
             output_color.rgb = mix(output_color.rgb, vec3(1.0), clamp(glare_strength, 0.0, 0.85));
         }
