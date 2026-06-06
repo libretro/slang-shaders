@@ -430,12 +430,21 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
         }
     }
 
-    color *= smooth_round_box(
-        fract(pixCoord / bounds),
-        bounds * 1024.0, // virtually inflate bounds to be able to apply smoothness
-        scale,
-        radius,
-        smoothness);
+    if (size > 2)
+    {
+        color *= smooth_round_box(
+            fract(pixCoord / bounds),
+            bounds * 1024.0, // virtually inflate bounds to be able to apply smoothness
+            scale,
+            radius,
+            smoothness);
+    }
+    else
+    {
+        color *= sharp_box(
+            fract(pixCoord / bounds),
+            scale);
+    }
 
     return color;
 }
