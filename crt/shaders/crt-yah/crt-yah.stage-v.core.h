@@ -52,8 +52,8 @@ vec4 get_mask_profile()
 
     // down-scale with integer increments
     float subpixel_downscale = floor(abs(PARAM_MASK_SCALE)) + 1.0;
-    // up-scale with factional increments, considering auto screen-scale
-    float subpixel_upscale = (PARAM_MASK_SCALE * INPUT_SCREEN_MULTIPLE_AUTO) + 1.0;
+    // up-scale with factional increments
+    float subpixel_upscale = PARAM_MASK_SCALE + 1.0;
 
     float subpixel_size = pixel_size / subpixel_count;
 
