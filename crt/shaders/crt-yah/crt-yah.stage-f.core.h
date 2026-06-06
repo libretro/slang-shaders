@@ -104,6 +104,11 @@ vec2 apply_sharp_bilinear_filtering(vec2 tex_coord, vec2 tex_size)
 
 vec2 apply_cubic_lens_distortion(vec2 tex_coord)
 {
+    if (PARAM_CRT_CURVATURE_AMOUNT == 0.0)
+    {
+        return tex_coord;
+    }
+
     float amount = PARAM_CRT_CURVATURE_AMOUNT;
 
     // center coordinates
@@ -127,6 +132,11 @@ vec2 apply_cubic_lens_distortion(vec2 tex_coord)
 
 float get_vignette_factor(vec2 tex_coord)
 {
+    if (PARAM_CRT_VIGNETTE_AMOUNT == 0.0)
+    {
+        return 1.0;
+    }
+
     float amount = PARAM_CRT_VIGNETTE_AMOUNT;
 
     // center coordinates
@@ -143,6 +153,11 @@ float get_vignette_factor(vec2 tex_coord)
 
 float get_round_corner_factor(vec2 tex_coord)
 {
+    if (PARAM_CRT_CORNER_RAIDUS == 0.0)
+    {
+        return 1.0;
+    }
+
     return smooth_round_box(
         tex_coord,
         global.OutputSize.xy,
@@ -456,6 +471,11 @@ vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord)
 
 vec3 apply_noise(vec3 color, float color_luma, vec2 tex_coord)
 {
+    if (PARAM_CRT_NOISE_AMOUNT == 0.0)
+    {
+        return color;
+    }
+
     int subpixel_size = int(INPUT_MASK_PROFILE.y);
     float noise_floor = INPUT_FLOOR_PROFILE.y;
     float noise_frame = INPUT_FRAME_COUNTS.y;
