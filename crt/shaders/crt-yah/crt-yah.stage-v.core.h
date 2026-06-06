@@ -103,11 +103,16 @@ float get_brightness_compensation()
     float scanlines_strength = normalized_sigmoid(PARAM_SCANLINES_STRENGTH, 0.5);
 
     // scanlines compensation
-    brightness_compensation += (scanlines_strength * 0.5)
-        // include shape [0.0] and [1.0], exclude shape [0.5]
-        * abs(PARAM_BEAM_SHAPE * 2.0 - 1.0)
-        // exclude shape [0.25]
-        * abs(PARAM_BEAM_SHAPE * 1.25 - 0.25);
+    brightness_compensation += scanlines_strength
+        * mix(
+            // increase for sharp shape
+            0.5,
+            // increase for smooth shape
+            1.0,
+            PARAM_BEAM_SHAPE);
+    brightness_compensation -= (scanlines_strength * 0.25)
+        // reduce for in-between sharp and smooth shape
+        * (1.0 - abs(PARAM_BEAM_SHAPE * 2.0 - 1.0));
 
     float mask_intensity = normalized_sigmoid(PARAM_MASK_INTENSITY * PARAM_MASK_INTENSITY, 0.5);
     float mask_blend = 1.0 - (1.0 - PARAM_MASK_BLEND) * (1.0 - PARAM_MASK_BLEND);
