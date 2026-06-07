@@ -7,7 +7,6 @@ layout(set = 0, binding = 2) uniform sampler2D Source; // output frame of the 1s
 layout(set = 0, binding = 3) uniform sampler2D OriginalHistory1; // input frame of the 1st NTSC pass
 
 #include "common/screen-helper.h"
-#include "common/math-helper.h"
 
 #include "ntsc-pass2.stage-f.core.h"
 

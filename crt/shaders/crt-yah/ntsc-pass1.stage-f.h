@@ -18,7 +18,6 @@ const float Saturation = 1.0;
     Artifacting, 0.0, 2.0 * Saturation)
 
 #include "common/screen-helper.h"
-#include "common/math-helper.h"
 
 #include "ntsc-pass1.stage-f.core.h"
 

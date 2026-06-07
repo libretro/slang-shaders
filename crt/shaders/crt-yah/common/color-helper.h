@@ -4,7 +4,6 @@
 
 #include "constants.h"
 #include "colorspace-srgb.h"
-#include "math-helper.h"
 
 // Returns the maximum value of the given color.
 // @color - the color.

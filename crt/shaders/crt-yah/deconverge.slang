@@ -103,7 +103,6 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #include "common/colorspace-srgb.h"
-#include "common/math-helper.h"
 
 // required by blur.h
 #define INPUT(color) decode_gamma(color)
