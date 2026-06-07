@@ -37,23 +37,28 @@ layout(push_constant) uniform Push
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 Coord;
-layout(location = 1) out int ScreenOrientation;
-layout(location = 2) out float ScreenMultiple;
 layout(location = 0) out vec2 TexCoord;
+layout(location = 1) flat out int ScreenOrientation;
+layout(location = 2) out float ScreenMultiple;
+layout(location = 3) flat out uint FrequencyMod;
 
 // used in common/screen-helper.h
-#define BASE_SIZE int(PARAM_SCREEN_RESOLUTION_SCALE) > 3 ? 480.0 : 240.0
-#define ALLOW_AUTO_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) > 1
-#define ALLOW_AUTO_UP_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) == 3 || int(PARAM_SCREEN_RESOLUTION_SCALE) == 5
+#define BASE_SIZE (PARAM_SCREEN_RESOLUTION_SCALE > 3 ? 480.0 : 240.0)
+#define ALLOW_AUTO_SCALE (PARAM_SCREEN_RESOLUTION_SCALE > 1)
+#define ALLOW_AUTO_UP_SCALE (PARAM_SCREEN_RESOLUTION_SCALE == 3 || PARAM_SCREEN_RESOLUTION_SCALE == 5)
 
 #include "common/screen-helper.h"
+#include "common/frame-helper.h"
 
 void main()
 {
     gl_Position = global.MVP * Position;
 
-    ScreenOrientation = get_orientation(global.OutputSize.xy, int(PARAM_SCREEN_ORIENTATION));
+    ScreenOrientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
     ScreenMultiple = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -PARAM_SCREEN_SCALE);
+
+    // jitter each 3rd frame with 30/60Hz
+    FrequencyMod = uint(mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 3));
 
     TexCoord = Coord;
 }
@@ -62,15 +67,16 @@ void main()
 layout(location = 0) in vec2 TexCoord;
 layout(location = 1) flat in int ScreenOrientation;
 layout(location = 2) in float ScreenMultiple;
+layout(location = 3) flat in uint FrequencyMod;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #define INPUT_SCREEN_ORIENTATION ScreenOrientation
 #define INPUT_SCREEN_MULTIPLE ScreenMultiple
+#define INPUT_FREQUENCY_MOD FrequencyMod
 
 #include "common/colorspace-srgb.h"
 #include "common/color-helper.h"
-#include "common/frame-helper.h"
 #include "common/math-helper.h"
 
 #define INPUT(color) decode_gamma(color)
@@ -86,10 +92,10 @@ vec2 vec2o(float x, float y)
 float get_luminance_corrected(vec3 color)
 {
     color = apply_color_overflow(color, PARAM_COLOR_OVERFLOW);
-    color = apply_contrast(color, PARAM_COLOR_CONTRAST);
     color = apply_brightness(color, PARAM_COLOR_BRIGHTNESS);
-    color = apply_saturation(color, PARAM_COLOR_SATURATION);
+    color = apply_contrast(color, PARAM_COLOR_CONTRAST);
     color = apply_temperature(color, PARAM_COLOR_TEMPERATUE);
+    color = apply_saturation(color, PARAM_COLOR_SATURATION);
     color = min(vec3(1.0), color);
 
     return get_luminance(color);
@@ -105,15 +111,12 @@ vec3 get_color(sampler2D source, vec2 tex_coord)
     {
         float offset_amount = 0.5;
 
-        // jitter offset each 3rd frame with 30/60Hz
-        float scanlines_mod = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 3);
-
         // full offset
         scanlines_offset =
             // 3rd frame upwards
-            scanlines_mod > 1.0 ? 1.0 :
+            INPUT_FREQUENCY_MOD > 1.0 ? 1.0 :
             // 2nd frame downwards
-            scanlines_mod > 0.0 ? -1.0 :
+            INPUT_FREQUENCY_MOD > 0.0 ? -1.0 :
             // 1st frame no offset
             0.0;
 
@@ -143,15 +146,12 @@ float get_brightness_offset(vec3 color)
     // get luminance brightness corrected
     float luma = get_luminance_corrected(color);
 
-    // jitter offset each 3rd frame with 30/60Hz
-    float brightness_mod = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 3);
-
     // full offset
     float brightness_offset =
         // 3rd frame lighten
-        brightness_mod > 1.0 ? luma :
+        INPUT_FREQUENCY_MOD > 1.0 ? luma :
         // 2nd frame darken
-        brightness_mod > 0.0 ? -luma :
+        INPUT_FREQUENCY_MOD > 0.0 ? -luma :
         // 1st frame no offset
         0.0;
 

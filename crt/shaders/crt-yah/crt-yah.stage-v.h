@@ -3,14 +3,17 @@ layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 Coord;
 layout(location = 0) out vec2 TexCoord;
 layout(location = 1) out vec2 ScanTexCoord;
-layout(location = 2) out int ScreenOrientation;
-layout(location = 3) out float ScreenMultiple;
-layout(location = 4) out float ScreenMultipleAuto;
-layout(location = 5) out float BrightnessCompensation;
-layout(location = 6) out vec2 MaskProfile;
-layout(location = 7) out vec4 BeamProfile;
-layout(location = 8) out float AntiRining;
-layout(location = 9) out mat4x4 BeamFilter;
+layout(location = 2) out vec2 TexSize;
+layout(location = 3) flat out int ScreenOrientation;
+layout(location = 4) out float ScreenMultiple;
+layout(location = 5) out float ScreenMultipleAuto;
+layout(location = 6) out float BrightnessCompensation;
+layout(location = 7) out vec4 MaskProfile;
+layout(location = 8) out vec4 BeamProfile;
+layout(location = 9) out float AntiRining;
+layout(location = 10) out vec2 FloorProfile;
+layout(location = 11) flat out uvec2 FrameCounts;
+layout(location = 12) out mat4x4 BeamFilter;
 
 // required by crt-yah.stage-v.core.h
 #define INPUT_SCREEN_ORIENTATION ScreenOrientation
@@ -23,10 +26,11 @@ layout(location = 9) out mat4x4 BeamFilter;
 void main()
 {
     gl_Position = global.MVP * Position;
+
     TexCoord = Coord;
     ScanTexCoord = Coord;
 
-    ScreenOrientation = get_orientation(global.OutputSize.xy, int(PARAM_SCREEN_ORIENTATION));
+    ScreenOrientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
     ScreenMultiple = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -PARAM_SCREEN_SCALE);
     ScreenMultipleAuto = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, 0.0);
     MaskProfile = get_mask_profile();
@@ -34,6 +38,9 @@ void main()
     BeamFilter = get_beam_filter();
     BrightnessCompensation = get_brightness_compensation();
     AntiRining = get_anti_ringing_amount();
+    FloorProfile = get_floor_profile();
+    FrameCounts = get_frame_counts();
+    TexSize = get_tex_size();
 
     // when automatic down-scaled
     if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)

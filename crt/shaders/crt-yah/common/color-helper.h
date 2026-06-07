@@ -20,6 +20,11 @@ float max_color(vec3 color)
 //   >0.0 - increasing
 vec3 apply_contrast(vec3 color, float contrast)
 {
+    if (contrast == 0.0)
+    {
+        return color;
+    }
+
     float linear = clamp(max_color(color), 0.0, 1.0);
 
     float nonlinear = linear;
@@ -53,6 +58,11 @@ vec3 apply_brightness(vec3 color, float brightness)
 // @overflow - the amount of overflow to apply.
 vec3 apply_color_overflow(vec3 color, float overflow)
 {
+    if (overflow == 0.0)
+    {
+        return color;
+    }
+
     vec3 color_overflow = color * color * overflow;
 
     color.r += LumaR * LumaG * color_overflow.g;
@@ -70,6 +80,11 @@ vec3 apply_color_overflow(vec3 color, float overflow)
 // @floor - the minimum value.
 vec3 apply_floor(vec3 color, float floor)
 {
+    if (floor == 0.0)
+    {
+        return color;
+    }
+
     float luminance = get_luminance(color);
     floor *= 1.0 - luminance;
 
@@ -84,6 +99,11 @@ vec3 apply_floor(vec3 color, float floor)
 //   >1.0 - increasing
 vec3 apply_saturation(vec3 color, float saturation)
 {
+    if (saturation == 1.0)
+    {
+        return color;
+    }
+
     float luminance = get_luminance(color);
 
     return mix(vec3(luminance), color, saturation);
@@ -97,15 +117,20 @@ vec3 apply_saturation(vec3 color, float saturation)
 //    1.0 - D75
 vec3 apply_temperature(vec3 color, float white_point_relative)
 {
+    if (white_point_relative == 0.0)
+    {
+        return color;
+    }
+
     mat3 white_point = white_point_relative < 0.0
         // warmer
-        ? D65toD55
+        ? RGB_D65toD55
         // cooler
-        : D65toD75;
+        : RGB_D65toD75;
 
     return mix(
         color,
-        color * RGBtoXYZ * white_point * XYZtoRGB,
+        color * white_point,
         abs(white_point_relative));
 }
 

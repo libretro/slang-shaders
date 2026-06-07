@@ -23,12 +23,13 @@
 */
 
 // used in common/screen-helper.h
-#define BASE_SIZE int(PARAM_SCREEN_RESOLUTION_SCALE) > 3 ? 480.0 : 240.0
-#define ALLOW_AUTO_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) > 1
-#define ALLOW_AUTO_UP_SCALE int(PARAM_SCREEN_RESOLUTION_SCALE) == 3 || int(PARAM_SCREEN_RESOLUTION_SCALE) == 5
+#define BASE_SIZE (PARAM_SCREEN_RESOLUTION_SCALE > 3 ? 480.0 : 240.0)
+#define ALLOW_AUTO_SCALE (PARAM_SCREEN_RESOLUTION_SCALE > 1)
+#define ALLOW_AUTO_UP_SCALE (PARAM_SCREEN_RESOLUTION_SCALE == 3 || PARAM_SCREEN_RESOLUTION_SCALE == 5)
 
 #include "common/math-helper.h"
 #include "common/screen-helper.h"
+#include "common/frame-helper.h"
 
 // orientation-aware vec2 constructor
 vec2 vec2o(float x, float y)
@@ -38,7 +39,7 @@ vec2 vec2o(float x, float y)
         : vec2(y, x);
 }
 
-vec2 get_mask_profile()
+vec4 get_mask_profile()
 {
     float pixel_size = global.SourceSize.x < global.SourceSize.y
         ? global.FinalViewportSize.x / global.SourceSize.x
@@ -51,8 +52,8 @@ vec2 get_mask_profile()
 
     // down-scale with integer increments
     float subpixel_downscale = floor(abs(PARAM_MASK_SCALE)) + 1.0;
-    // up-scale with factional increments, considering auto screen-scale
-    float subpixel_upscale = (PARAM_MASK_SCALE * INPUT_SCREEN_MULTIPLE_AUTO) + 1.0;
+    // up-scale with factional increments
+    float subpixel_upscale = PARAM_MASK_SCALE + 1.0;
 
     float subpixel_size = pixel_size / subpixel_count;
 
@@ -78,7 +79,16 @@ vec2 get_mask_profile()
         PARAM_MASK_TYPE == 3 ? clamp((subpixel_size - 2.0) * 0.25, 0.0, 1.0) : 0.0;
     subpixel_smoothness *= PARAM_MASK_SUBPIXEL_SHAPE;
 
-    return vec2(subpixel_size, subpixel_smoothness);
+    int subpixel_type =
+        // black, white to magenta, green
+        PARAM_MASK_SUBPIXEL == 1 ? PARAM_MASK_SUBPIXEL + 1 :
+        PARAM_MASK_SUBPIXEL;
+
+    bool subpixel_color_swap =
+        // magenta, green to blue, yellow
+        PARAM_MASK_SUBPIXEL == 1;
+
+    return vec4(subpixel_type, subpixel_size, subpixel_smoothness, subpixel_color_swap);
 }
 
 float get_brightness_compensation()
@@ -93,20 +103,22 @@ float get_brightness_compensation()
     float scanlines_strength = normalized_sigmoid(PARAM_SCANLINES_STRENGTH, 0.5);
 
     // scanlines compensation
-    brightness_compensation +=
-        scanlines_strength
+    brightness_compensation += scanlines_strength
         * mix(
-            // sharp shape
-            0.375,
-            // smooth shape
-            0.875,
+            // increase for sharp shape
+            0.5,
+            // increase for smooth shape
+            1.0,
             PARAM_BEAM_SHAPE);
+    brightness_compensation -= (scanlines_strength * 0.25)
+        // reduce for in-between sharp and smooth shape
+        * (1.0 - abs(PARAM_BEAM_SHAPE * 2.0 - 1.0));
 
     float mask_intensity = normalized_sigmoid(PARAM_MASK_INTENSITY * PARAM_MASK_INTENSITY, 0.5);
     float mask_blend = 1.0 - (1.0 - PARAM_MASK_BLEND) * (1.0 - PARAM_MASK_BLEND);
 
-    float mask_size = INPUT_MASK_PROFILE.x;
-    float mask_smoothness = INPUT_MASK_PROFILE.y;
+    int mask_size = int(INPUT_MASK_PROFILE.y);
+    float mask_smoothness = INPUT_MASK_PROFILE.z;
 
     // mask sub-pixel
     float subpixel_offset =
@@ -133,11 +145,11 @@ float get_brightness_compensation()
     // for mask size > 2
     float size_offset =
         // aperture-grille
-        PARAM_MASK_TYPE == 1 && mask_size > 2.0 ? mix(-0.4, -0.1, mask_blend) :
+        PARAM_MASK_TYPE == 1 && mask_size > 2 ? mix(-0.4, -0.1, mask_blend) :
         // slot-mask
-        PARAM_MASK_TYPE == 2 && mask_size > 2.0 ? mix(-0.4, -0.1, mask_blend) :
+        PARAM_MASK_TYPE == 2 && mask_size > 2 ? mix(-0.4, -0.1, mask_blend) :
         // shadow-mask
-        PARAM_MASK_TYPE == 3 && mask_size > 2.0 ? mix(0.4, 0.1, mask_blend) : 0.0;
+        PARAM_MASK_TYPE == 3 && mask_size > 2 ? mix(0.4, 0.1, mask_blend) : 0.0;
 
     // mask smoothness
     float smoothness_offset = mask_smoothness;
@@ -243,7 +255,7 @@ mat4x4 get_beam_filter()
                     (-b - 6.0 * c) / 6.0,          (3.0 * b + 12.0 * c) / 6.0, (-3.0 * b - 6.0 * c) / 6.0,              b  / 6.0,
         (12.0 - 9.0 * b - 6.0 * c) / 6.0, (-18.0 + 12.0 * b +  6.0 * c) / 6.0,                        0.0, (6.0 - 2.0 * b) / 6.0,
        -(12.0 - 9.0 * b - 6.0 * c) / 6.0, ( 18.0 - 15.0 * b - 12.0 * c) / 6.0,  (3.0 * b + 6.0 * c) / 6.0,              b  / 6.0,
-                     (b + 6.0 * c) / 6.0,                           -c,                  0.0,                   0.0
+                     (b + 6.0 * c) / 6.0,                           -c,                               0.0,                   0.0
     );
 }
 
@@ -271,7 +283,7 @@ vec4 get_beam_profile()
     beam_min_width /=
         1.0
         // for beam width < 1 and for beam width < 0
-        + (min(1.0, 1.0 - PARAM_BEAM_WIDTH_MIN) - min(0.0, PARAM_BEAM_WIDTH_MIN * 4.0))
+        + (min(1.0, 1.0 - PARAM_BEAM_WIDTH_MIN) - min(0.0, PARAM_BEAM_WIDTH_MIN * 2.0))
         // when strength in range [0.5, 1.0]
         * min(1.0, PARAM_SCANLINES_STRENGTH * 2.0)
         // half
@@ -304,4 +316,40 @@ float get_anti_ringing_amount()
     float anti_ringing_manual = PARAM_ANTI_RINGING;
 
     return anti_ringing_auto * anti_ringing_manual;
+}
+
+vec2 get_floor_profile()
+{
+    float color_floor = (1.0 / 256.0) * max(PARAM_SCANLINES_STRENGTH, PARAM_MASK_INTENSITY);
+    float noise_floor = (4.0 / 256.0) - color_floor;
+
+    return vec2(
+        color_floor * PARAM_COLOR_BLACK_LIGHT,
+        noise_floor * PARAM_COLOR_BLACK_LIGHT);
+}
+
+uvec2 get_frame_counts()
+{
+    // interlace scanlines every 2rd frame by frequency (30/60Hz)
+    float interlace_frame = mod(GetUniformFrameCount(PARAM_SCREEN_FREQUENCY), 2.0);
+
+    // repeat noise every 20 frames with 12Hz
+    float noise_frame = mod(GetUniformFrameCount(12), 20);
+
+    return uvec2(
+        uint(interlace_frame),
+        uint(noise_frame));
+}
+
+vec2 get_tex_size()
+{
+    vec2 tex_size = global.OriginalSize.xy;
+
+    // orientation-aware multiple
+    vec2 multiple = vec2o(1.0, INPUT_SCREEN_MULTIPLE);
+
+    // apply "fake" scale (only y-axis)
+    tex_size /= multiple;
+
+    return tex_size;
 }
