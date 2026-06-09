@@ -51,6 +51,7 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 #define PARAM_NTSC_JITTER param.NTSC_JITTER
 #define PARAM_NTSC_SHIFT param.NTSC_SHIFT
 #define PARAM_NTSC_QUALITY int(param.NTSC_QUALITY)
+#define PARAM_NTSC_PHASE int(param.NTSC_PHASE)
 #define PARAM_NTSC_SCALE param.NTSC_SCALE
 
 #define PARAM_DECONVERGE_LINEAR mix_master(param.DECONVERGE_LINEAR, 0.0, -2.0, 2.0)

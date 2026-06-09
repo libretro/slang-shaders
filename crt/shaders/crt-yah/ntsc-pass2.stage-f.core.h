@@ -145,13 +145,15 @@ vec3 fetch_offset(sampler2D source, vec2 texCoord, vec2 scanTexelSize, float off
 //    To simulate a different resolution than the original texture size, divide the texel size along the scan-direction.
 //    The component in the none-scan-direction has to be 0.0.
 // @phase: the phase modulation in rangle of [2,3]
-vec3 pass2(sampler2D source, vec2 texCoord, vec2 scanTexelSize, int phase)
+// @tabs: the number of taps to use (max. 32 for phase 2, max. 24 for phase 3)
+vec3 pass2(sampler2D source, vec2 texCoord, vec2 scanTexelSize, int phase, int tabs)
 {
     vec3 yiq = vec3(0.0);
 
     if (phase == 2)
     {
-        for (int i = 0; i < TAPS_2_phase; i++)
+        // skip taps with smaller contribution to save performance
+        for (int i = TAPS_2_phase - tabs; i < TAPS_2_phase; i++)
         {
             float offset = float(i);
             float count = float(TAPS_2_phase);
@@ -167,7 +169,8 @@ vec3 pass2(sampler2D source, vec2 texCoord, vec2 scanTexelSize, int phase)
     }
     else
     {
-        for (int i = 0; i < TAPS_3_phase; i++)
+        // skip taps with smaller contribution to save performance
+        for (int i = TAPS_3_phase - tabs; i < TAPS_3_phase; i++)
         {
             float offset = float(i);
             float count = float(TAPS_3_phase);

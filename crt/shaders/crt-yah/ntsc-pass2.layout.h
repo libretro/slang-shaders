@@ -15,5 +15,6 @@ layout (push_constant) uniform Push
 {
     float NTSC_PROFILE;
     float NTSC_QUALITY;
+    float NTSC_PHASE;
     float NTSC_SCALE;
 } param;

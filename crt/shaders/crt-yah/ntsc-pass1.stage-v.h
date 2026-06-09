@@ -5,9 +5,10 @@ layout(location = 0) out vec2 TexCoord;
 layout(location = 1) out vec2 PixCoord;
 layout(location = 2) out float Fringing;
 layout(location = 3) out float Artifacting;
-layout(location = 4) flat out int Phase;
-layout(location = 5) out vec3 ChromaProfile;
-layout(location = 6) flat out uint FrameCount;
+layout(location = 4) out float Saturation;
+layout(location = 5) flat out int Phase;
+layout(location = 6) out vec3 ChromaProfile;
+layout(location = 7) flat out uint FrameCount;
 
 // used in common/screen-helper.h
 #define MIN_PIXEL_SIZE 0.0 // allow any pixel size
@@ -32,7 +33,8 @@ void main()
 {
     gl_Position = global.MVP * Position;
 
-    float screen_scale = 1.0 / get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -(PARAM_SCREEN_SCALE + PARAM_NTSC_SCALE));
+    float multiple = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -(PARAM_SCREEN_SCALE + PARAM_NTSC_SCALE));
+    float screen_scale = 1.0 / multiple;
 
     TexCoord = Coord;
     PixCoord = TexCoord * global.OutputSize.xy;
@@ -49,15 +51,38 @@ void main()
     Fringing = (PARAM_NTSC_PROFILE - 1.0);
     Artifacting = (PARAM_NTSC_PROFILE - 1.0) * 0.5 * (max(screen_scale, 1.0) + 1.0);
 
-    // Quality:
+    // Phase:
     // 1 - Auto
     // 2 - Two Phase
     // 3 - Three Phase
-    Phase = PARAM_NTSC_QUALITY == 1
+    Phase = PARAM_NTSC_PHASE == 1
         // auto
         ? (vec2o(global.OriginalSize.xy).x * screen_scale) > 300.0 ? 2 : 3
         // manual
-        : PARAM_NTSC_QUALITY;
+        : PARAM_NTSC_PHASE;
+
+    if (Phase == 2)
+    {
+        // auto depending of screen scale
+        if (PARAM_NTSC_QUALITY == 0)
+        {
+            // compensate decreased saturation caused by lower quality
+            Saturation =
+                multiple >= 3.0 ? 1.675 :
+                multiple >= 1.5 ? 1.125 : 1.0;
+        }
+        else
+        {
+            // compensate decreased saturation caused by lower quality
+            Saturation =
+                PARAM_NTSC_QUALITY == 1 ? 1.675 :
+                PARAM_NTSC_QUALITY == 2 ? 1.125 : 1.0;
+        }
+    }
+    else
+    {
+        Saturation = 1.0;
+    }
 
     float chromaFrequency = Phase == 2
         ? PI / (15.0 / 4.0)
