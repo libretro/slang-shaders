@@ -1,7 +1,8 @@
 #version 450
 
 /*
-Author: djayjp aka CreativeForce (2025)
+Author: djayjp aka CreativeForce (2026)
+Modified: sharpening removed; gamma controls replaced by GBA Mode Gamma toggle.
 
 This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -18,20 +19,16 @@ This program is free software; you can redistribute it and/or
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-#pragma parameter TARGET_GAMMA_SEL    "Target Gamma (0=2.20, 1=2.40)"          0.00 0.00 1.00 1.00
-#pragma parameter MONITOR_GAMMA       "Monitor Gamma (normally left at 2.20)"  2.20 1.80 2.60 0.05
+// Gamma mode: 0 = default 2.20 source gamma, 1 = GBA-style 2.70 source gamma.
+#pragma parameter GBA_MODE_GAMMA     "GBA Mode Gamma"                       0.00 0.00 1.00 1.00
 
 // Vertical controls
-#pragma parameter V_BLACKS_PER        "Vertical Lines"  		       1.00 0.00 5.00 1.00
-#pragma parameter V_STRENGTH          "Vertical Lines Strength"                1.00 0.00 1.00 0.01
-#pragma parameter V_PHASE             "Vertical Phase"                         0.00 -256.00 256.00 1.00
-
-// Sharpen (post-linearize, pre-mask) — Radius fixed to 1px
-#pragma parameter SHARPEN_AMOUNT      "Sharpen Amount"                          0.00 0.00 1.00 0.01
-#pragma parameter SHARPEN_CLAMP       "Sharpen Clamp"                           0.10 0.00 0.50 0.01
+#pragma parameter V_BLACKS_PER       "Vertical Lines"                       1.00 0.00 5.00 1.00
+#pragma parameter V_STRENGTH         "Vertical Lines Strength"              1.00 0.00 1.00 0.01
+#pragma parameter V_PHASE            "Vertical Phase"                       0.00 -256.00 256.00 1.00
 
 // Auto-phase (placed last)
-#pragma parameter AUTO_PHASE          "Auto-Phase (lock to active content)"     1.00 0.00 1.00 1.00
+#pragma parameter AUTO_PHASE         "Auto-Phase (lock to active content)"   1.00 0.00 1.00 1.00
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -39,15 +36,11 @@ layout(push_constant) uniform Push {
     vec4 OutputSize;
     uint FrameCount;
 
-    float TARGET_GAMMA_SEL;
-    float MONITOR_GAMMA;
+    float GBA_MODE_GAMMA;
 
     float V_BLACKS_PER;
     float V_STRENGTH;
     float V_PHASE;
-
-    float SHARPEN_AMOUNT;
-    float SHARPEN_CLAMP;
 
     float AUTO_PHASE;
 } pc;
@@ -96,32 +89,12 @@ void main(){
     int v_period = v_blacks + 1;
     int v_thick  = v_blacks;
 
-    // Linear-light pipeline
-    float g_src = (pc.TARGET_GAMMA_SEL >= 0.5) ? 2.40 : 2.20;
-    float g_mon = clamp(pc.MONITOR_GAMMA, 1.0, 3.0);
+    // Fixed gamma pipeline.
+    // Default assumes source gamma 2.20. GBA Mode uses source gamma 2.70.
+    // Output is encoded for a fixed 2.20 monitor/output gamma.
+    float g_src = (pc.GBA_MODE_GAMMA >= 0.5) ? 2.70 : 2.20;
+    const float g_out = 2.20;
     vec3 col_lin = to_linear(col, g_src);
-
-    // === Sharpen (linear light), pre-mask; Radius fixed to 1 px (3x3) ===
-    float amount = clamp(pc.SHARPEN_AMOUNT, 0.0, 1.0);
-    if (amount > 0.0) {
-        vec2 texel = vec2(1.0) / max(pc.SourceSize.xy, vec2(1.0));
-        vec3 acc = vec3(0.0);
-        float cnt = 0.0;
-        for (int dy = -1; dy <= 1; ++dy) {
-            for (int dx = -1; dx <= 1; ++dx) {
-                vec3 s = to_linear(texture(Source, vTexCoord + texel * vec2(dx, dy)).rgb, g_src);
-                acc += s;
-                cnt += 1.0;
-            }
-        }
-        vec3 blur_lin = acc / max(cnt, 1.0);
-        vec3 high = col_lin - blur_lin;
-
-        float c = pc.SHARPEN_CLAMP;
-        high = clamp(high, vec3(-c), vec3(c));
-
-        col_lin = max(col_lin + amount * high, vec3(0.0));
-    }
 
     // Phase (integer-aligned)
     int v_phase_i = int(floor(pc.V_PHASE + 0.5));
@@ -148,6 +121,6 @@ void main(){
     // Apply mask
     vec3 masked_lin = col_lin * vec3(mask_val);
 
-    vec3 out_col = to_gamma(masked_lin, g_mon);
+    vec3 out_col = to_gamma(masked_lin, g_out);
     FragColor = vec4(out_col, 1.0);
 }
