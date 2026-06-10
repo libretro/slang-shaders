@@ -861,7 +861,7 @@ if (!skiprest &&
 	float DD = float(eq(A, D));
 	float FF = float(eq(C, F));
 
-	float sideFactor = eq_B_D && DD!=FF ? 1.0 : -0.145898;
+	float sideFactor = eq_D_F && DD!=FF ? 1.0 : -0.145898;
 	Bl = Bl - (B1 +B2 +B1*B2) *0.381966;
 	Dl = Dl - step(El, Dl) + DD*sideFactor;
 	Fl = Fl - step(El, Fl) + FF*sideFactor;
@@ -890,7 +890,7 @@ if (!skiprest &&
 	float DD = float(eq(D, G));
 	float FF = float(eq(F, I));
 
-	float sideFactor = eq_B_D && DD!=FF ? 1.0 : -0.145898;
+	float sideFactor = eq_D_F && DD!=FF ? 1.0 : -0.145898;
 
 	Hl = Hl - (H1+H2+H1*H2) *0.381966;
 	Dl = Dl - step(El, Dl) + DD*sideFactor;
