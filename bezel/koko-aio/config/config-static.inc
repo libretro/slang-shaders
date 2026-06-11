@@ -131,6 +131,9 @@
 //which coords holds the autocrop zoom value
 #define AUTOCROP_SAMPLING_POINT vec2(0.125)
 
+	// continuous sampling, no temporal smoothing, fuill scene lum
+#define FULL_SCENE_LUM_SAMPLING_POINT vec2(0.3125)
+
 	// temporal smoothed sampling point without color correction
 #define TSMOOTH_NOCC_SAMPLING_POINT vec2(0.5)
 

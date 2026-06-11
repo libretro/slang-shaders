@@ -1,15 +1,6 @@
 //DON'T DELETE THIS LINE
 
 //   To use this file, first copy it to a new file named: config-user-optional.txt
-//
-//
-//   This file will NOT be overwritten by an update, so you're safe,
-//   and will likely to conflict with the old/deprecated config-user.txt
-//   So my advice is to migrate config-user.txt content to config-user-optional.txt
-//   the syntax is the same.
-//
-//
-//
 
 
 //   Lines have this format: //#define PARAMETER VALUE //DESCRIPTION
@@ -68,20 +59,6 @@
 // #define ANTIBURN_X 1.0
 // #define ANTIBURN_COMPLETE
 // #define ANTIBURN_AMPLITUDE 1.0
-
-// Enable lcd antighosting.
-// It works by temporal sharpening pixels, and the  
-// effect is proportional to the color difference over time on a full frame base.
-// It is DISABLED if DELTA_RENDER is enabled and not designed for subframes.
-// Enabling this will make related shader parameter actually work.
-// #define DO_LCD_ANTIGHOSTING
-
-// Enable Adaptive strobe (similar to black frame insertion)
-// This works by alternating the image brightness across frames and subframes.
-// Doing so, will reduce the motion induced blur and image clarity, hopefully
-// approaching CRT behaviour.
-// Enabling this will make related shader parameter actually work.
-// #define DO_ADPT_STROBE
 
 // By enabling this options, shader will take steps to speed-up subframes processing.
 // It could  display the previous rendered frame if possible or just part of it.

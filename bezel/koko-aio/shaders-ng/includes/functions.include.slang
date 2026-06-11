@@ -147,7 +147,7 @@ bool fps_halver_is_skipped_frame()  {
 }
 
 bool skip_subframe() {
-	#ifdef DO_ADPT_STROBE
+	#ifdef DO_ADPT_STROBE_PLUGIN
 		return false;
 	#endif
 
@@ -1640,7 +1640,7 @@ vec4 PG_get_hmask_preset() {
 	vec4 c = PG_get_hmask_preset_wrapped();
 	//alternate submask color positions to help sample-and-hold induced blurring
 	#ifndef D3D_WORKAROUND
-		#ifdef DO_LCD_ANTIGHOSTING
+		#ifdef DO_LCD_ANTIGHOSTING_PLUGIN
 		if (LCD_ANTIGHOSTING_FLIP_MASK == 1.0) {
 			if (frame_is_even())
 				c.xyz = c.zxy;
@@ -1664,7 +1664,7 @@ vec3 strobe( vec3 c) {
 
 vec3 adaptive_strobe(vec3 c, float osc, sampler2D feedback_smp, vec2 feedback_smp_co) {
 
-	#ifndef DO_ADPT_STROBE
+	#ifndef DO_ADPT_STROBE_PLUGIN
         return c;
 	#endif
 

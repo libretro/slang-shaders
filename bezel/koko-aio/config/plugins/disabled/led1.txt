@@ -1,0 +1,42 @@
+// Emulate a power led with an halo.
+// led x hue: the color of the led
+// X,Y the position on screen
+// leds are drawn over the foreground image, which needs to be enabled.
+//
+// To use:
+// 1 - Have a transparent foreground png overlay image setted up; leds in the png should appear as powered on.
+// 2 - With a gfx program, lower the alpha channel of the pixel that correspond to leds,
+//     make it "just almost" zero so that colors informations are preserved, and save.
+//     smoothing the alpha channel via gradient from inner black to outer white gives nice effect.
+// 3 - In koko-aio parameters, set x and y values of each led so that they correspond to the real led position.
+// 4 - tweak hue so that it matches the led color of the png.
+
+
+// Parameters meaning:
+// -----------------------
+// Halo size:     The size of the halo
+// Halo shape:    Turns the halo shape between circle and rectangle
+// Halo Aspect:   Makes the halo wider
+// Overexposure:  Simulate a camera overxposure, good for dark images.
+//                A negative value will lower the overexposure when using the
+//                nightify function and the image has been lightened up by the ambient lights.
+//
+// Power led hue: The color of the led
+// Power led X,Y: The position of the led
+//
+// Power led 3, when using denise emulator is bound to drive led and will be driven by the floppy access.
+
+
+
+#ifndef USE_LED1
+#define USE_LED1
+#endif
+
+#pragma parameter LED1_LABEL_PRE        "      [Plugin] Power led 1"	0.0 0.0 0.0 1.0
+#pragma parameter LED1_SIZE	            "         halo size (0 to disable) (Image over only)"	0.0    0.0  3.0    0.01
+#pragma parameter LED1_SHAPE            "         halo shape (circle to square)"                0.0    0.0  0.5    0.1
+#pragma parameter LED1_ASPECT           "         halo aspect"                                  1.0    0.2  5.0    0.05
+#pragma parameter LED1_EXPOSURE         "         Overexposure (<0.0=auto)"                    -1.0   -2.0  2.0    0.1
+#pragma parameter LED1_HUE	            "         Hue"    1.0   0.0  1.0    0.01
+#pragma parameter LED1_X	            "         Pos X"	  0.1  -1.0  2.0   0.0005
+#pragma parameter LED1_Y	            "         Pos Y"	  0.1  -1.0  2.0   0.0005
