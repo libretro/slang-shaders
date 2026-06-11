@@ -125,7 +125,7 @@ float get_avglum() {
     /* avglum alpha has some zones:
      * TSMOOTH_NOCC_SAMPLING_POINT -> smoothed_sampling, no color corrections, adaptived black (/crush) uses this..
      * DYN_ZOOM_SAMPLING_POINT -> temporal smoothed_sampling, used to adapt fullscreen zoom
-     * AUTOCROP_SAMPLING_POINT -> autocrop zoom value pixked up by final pass.
+     * AUTOCROP_SAMPLING_POINT -> autocrop zoom value picked up by final pass.
      * RESSWITCH_SAMPLING_POINT -> resolution change detection
      * anything else: continuous sampling
      */
@@ -164,9 +164,16 @@ float get_avglum() {
             float transition_speed_adaptive_black = 0.1;
             return mix(texture(avglum_passFeedback,TSMOOTH_NOCC_SAMPLING_POINT).a, get_avg_lum_from_mip_nocc(), transition_speed_adaptive_black);
         }
+
+        bool instant_sampling_no_cc = is_first_inside_rect(vTexCoord, vec4(FULL_SCENE_LUM_SAMPLING_POINT-0.1 , FULL_SCENE_LUM_SAMPLING_POINT+0.1)) ;
+        if (instant_sampling_no_cc) {
+            float transition_speed_adaptive_black = 0.1;
+            return get_avg_lum_from_mip_nocc();
+        }
+
     #endif
     
-    //Outside specific areas, update continuously; this is used by bezel highlights.
+    //Outside specific areas, update continuously;
     return get_avg_lum_from_mip();
 
 }

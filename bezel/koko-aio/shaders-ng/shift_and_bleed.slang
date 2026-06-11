@@ -77,8 +77,12 @@ layout(set = 0, binding = 1) uniform sampler2D upscale_pass;
 
 
 vec3 shadow(vec2 coords, sampler2D in_texture, vec3 source_pixel) {
-    //Emulates shadowing for dot matrix screens like Gameboy.
-    vec2 off = vec2(DOT_M_SHADOW_OFF, abs(DOT_M_SHADOW_OFF)) * -params.OutputSize.zw * 0.5;
+    //Emulates shadowing for dot matrix screens like Gameboy
+    //offset is relative to source input size, scaled by the Gameboy mono resolution.
+    //vec2 off = vec2(DOT_M_SHADOW_OFF, abs(DOT_M_SHADOW_OFF)) * -params.OriginalSize.zw * 0.25 * params.OriginalSize.xy/vec2(160,144);
+    //simplifies to this:
+    vec2 off = -vec2(DOT_M_SHADOW_OFF, abs(DOT_M_SHADOW_OFF))/vec2(640,567);
+    //vec2 off = -vec2(DOT_M_SHADOW_OFF, abs(DOT_M_SHADOW_OFF)) * (global.FinalViewportSize.zw*3);
     vec3 pixel_shadow = texture(in_texture,coords + off).rgb;
     return source_pixel.rgb - max( (source_pixel.rgb - pixel_shadow), vec3(0.0) ) * DOT_M_SHADOW_STR;
 }

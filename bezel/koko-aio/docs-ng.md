@@ -849,7 +849,17 @@ However nice effects may be obtained (eg: with vector games). <br>
     
 
 ---------------------------
-        
+
+
+**Plugin system**
+---------------------------
+It is possible to add extra functionalities and enable their relative realtime parameters<br>
+by copying relative files from config/plugins/disabled to the config/plugins/enabled folder.<br>
+<br>
+After a shader restart the plugin related parameters will appear in the parameters list.<br>
+Documentation for each plugin is inside the plugin itself, you can open it with a text file viewer.<br>
+
+
         
 **Static features**
 ---------------------------
@@ -907,52 +917,7 @@ Changes are applied after a shader reload.*<br>
     content area (eg: ambient lights, reflections) to gain some fps.<br>
     To activate that ffeature, in config-user-optional.txt, write:<br>
     ```#define HALVE_BORDER_UPDATE```<br>
-  
-** Adaptive strobe (not compatible with LCD_ANTIGHOSTING):**
-    Similar to black frame insertion, this works by alternating the image 
-    brightness across frames and subframes (enabling the latter is recommended).
-    Doing so, will reduce the motion induced blur and image clarity, hopefully
-    approaching CRT behaviour.
-    To use it, in file config-user-optional.txt, write:<br>
-    ```#define DO_ADPT_STROBE```<br><br>
-    Once you do that, the following parameters can be changed runtime:
-    
-    Strength:
-        This modulates the clarity and the perceived flickering.
-    Hard limit strobe effect to:
-        This limit the maximum oscillation to reduce flickering on mid-tones 
-    Gain adjustment, post gamma adjustment, Less gain on dark colors:
-        Since the perceived image depends on the display pixel refresh speed,
-        it may be needed to adjust this.
-    LCD Retention workaround cadence (frames):
-        Some (IPS?) panels may suffer from temporary image retention when BFI/like is used.
-        This parameter will invert the flipping every number of frames configured
-        hopefully preventing that issue.
-  
-**LCD antighosting:**
-    . Not compatible Direct3D<br>
-    . Disabled with DELTA_RENDER)<br>
-    . Disabled with Adaptive strobe<br>
-    . Disabled with Antiburn<br>
-    
-    LCD displays often suffer from high pixel refresh times <br>
-    which produces ghosting when game changes on screen.<br>
-    By inducing larger color transitions, it prompts the LCD cells <br>
-    to adjust their states more rapidly, thereby reducing ghosting.<br><br>
-    To use it, in file config-user-optional.txt, write:<br>
-    ```#define DO_LCD_ANTIGHOSTING```<br><br>
-    Once you do that, the following parameters can be changed runtime:
-    
-    Strength:
-        The effect strength; it has to be tuned depending on your LCD response time.
-    Ceil:
-        The effect is proportional to the color difference over time,
-        however you can set an hard maximum here.
-    Flip Mask:
-        Enabling this will cause the horizontal mask to be flipped at every frame.
-        It is an experimental measure to mitigate ghosting that could work or not,
-        depending on your display.
-    
+
 **Conditional FPS Halver**<br>
     *[Warning:] Only on retroarch > 1.19.1*<br>
     *[Warning:] This feature is not compatible with HALVE_BORDER_UPDATE* <br>
@@ -996,4 +961,3 @@ Changes are applied after a shader reload.*<br>
     ...however ORIGINAL_FPS_UNTRUSTED is slower and on some<br>
     video drivers isn't reliable either.<br>
     if D3D_WORKAROUND is defined, Core reported fps value is always trusted.<br>
-

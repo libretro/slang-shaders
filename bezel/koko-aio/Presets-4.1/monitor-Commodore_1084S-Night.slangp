@@ -1,4 +1,5 @@
 #reference "monitor-Commodore_1084S.slangp"
+#reference "../refs/leds_on_1084s.slangp"
 
 
 BEZEL_R = "-0.01"
@@ -24,3 +25,5 @@ AMBI_ADD_ON_BLACK = "1.000000"
 
 
 DO_SPOT = "0.0"
+
+

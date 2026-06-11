@@ -2,12 +2,10 @@
 
 /* This pass:
  * Composes the previous passes
- * Does masks, spot, bezel, vignette, background image (anything else?)
+ * Does masks, spot, bezel, vignette, background image (and so on)
  */
 
-// #define DEBUG_TEXTURE Original
-#define DEBUG_TEXTURE in_glow_passFeedback
-//#define DEBUG_TEXTURE halo_pre_gamma_pass
+#define DEBUG_TEXTURE in_glow_pass
 
 // #define DEBUG_PRINT_VALUE
 // #define PRINTED_VALUE global.FinalViewportSize.x
@@ -48,7 +46,7 @@ layout(location = 16) flat out float vDo_pixelgrid_h;
 layout(location = 17) noperspective out float vFake_scanline_period;
 layout(location = 18) flat out float vPG_y_shift;
 layout(location = 19) noperspective out vec2 vUnrotated_Output_coords;
-#ifdef DO_ADPT_STROBE
+#ifdef DO_ADPT_STROBE_PLUGIN
     layout(location = 20) flat out float vAdaptive_strobe_oscillator;
 #endif
     
@@ -380,7 +378,7 @@ void main() {
     //Fragment shader will use that just one time that way. => precalc.
     vPG_offsets_and_size.a = pi/vPG_offsets_and_size.a;
 
-    #ifdef DO_ADPT_STROBE
+    #ifdef DO_ADPT_STROBE_PLUGIN
         float iFrameMod = 0.0;
         //+1 should take care of oscillator invertion to avoid voltage accumuation in IPS panels (?)
         if (ADPT_LCD_RETENTION_FIX > 0.0)
@@ -417,7 +415,7 @@ layout(location = 16) flat in float vDo_pixelgrid_h;
 layout(location = 17) noperspective in float vFake_scanline_period;
 layout(location = 18) flat in float vPG_y_shift;
 layout(location = 19) noperspective in vec2 vUnrotated_Output_coords;
-#ifdef DO_ADPT_STROBE
+#ifdef DO_ADPT_STROBE_PLUGIN
     layout(location = 20) flat in float vAdaptive_strobe_oscillator;
 #endif
 
@@ -441,11 +439,11 @@ layout(set = 0, binding = 9)  uniform sampler2D bg_over;
 layout(set = 0, binding = 10) uniform sampler2D in_glow_pass_x;
 layout(set = 0, binding = 11) uniform sampler2D in_glow_pass;
 layout(set = 0, binding = 12) uniform sampler2D halo_pass;
+layout(set = 0, binding = 13) uniform sampler2D helper_pass;
+
 #ifndef D3D_WORKAROUND
-    layout(set = 0, binding = 13) uniform sampler2D final_passFeedback;
+    layout(set = 0, binding = 15) uniform sampler2D final_passFeedback;
 #endif
-    layout(set = 0, binding = 14) uniform sampler2D helper_pass;
-layout(set = 0, binding = 15) uniform sampler2D DEBUG_TEXTURE;
 
 
 
@@ -995,22 +993,24 @@ float create_ambi_colorize_shade(vec2 co) {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vec4 fn_pixel_fgbg_image(sampler2D smp) {
+vec4 fn_pixel_fgbg_image(sampler2D smp, out vec2 image_coords, out float image_aspect) {
     vec2 tex_size = textureSize(smp, 0); // * BG_ZOOM;
-    //if (BG_IMAGE_ROTATION > 0.0  || ( BG_IMAGE_ROTATION < 0.0 && bool(vIsRotated) )  ) tex_size.xy = tex_size.yx;
+    image_aspect = tex_size.x/tex_size.y; //FIXME image_aspect needs to be inverted for rotated contents.
+                                          //get_scaled_coords_aspect_fgbg() already does that, so we can take the inverted
+                                          //value from there.
 
     //FIXME isrotated deve essere true anche quando l'immagine di sfondo è ruotata.
     //vec2 fg_image_offset=vec2(BG_IMAGE_OFFX,BG_IMAGE_OFFY);
-    //back_coords = get_scaled_coords_aspect(vBg_img_coords + fg_image_offset, global.FinalViewportSize, tex_size.x/tex_size.y, bool(vIsRotated));
+    //image_coords = get_scaled_coords_aspect(vBg_img_coords + fg_image_offset, global.FinalViewportSize, image_aspect, bool(vIsRotated));
 
     //bool rotated = bool(vIsRotated) || BG_IMAGE_ROTATION > 4.5;
     bool rotated_bg = BG_IMAGE_ROTATION > 3.5;
 
-    vec2 back_coords = get_scaled_coords_aspect_fgbg(vBg_img_coords, global.FinalViewportSize, tex_size.x/tex_size.y, rotated_bg, vIsRotated, vIn_aspect);
+    image_coords = get_scaled_coords_aspect_fgbg(vBg_img_coords, global.FinalViewportSize, image_aspect, rotated_bg, vIsRotated, vIn_aspect);
 
 
     float bg_over_lod = log2(tex_size.y * global.FinalViewportSize.w);
-    vec4 pixel_bgover = textureLod_wrap(smp, back_coords, bg_over_lod, BG_IMAGE_WRAP_MODE);
+    vec4 pixel_bgover = textureLod_wrap(smp, image_coords, bg_over_lod, BG_IMAGE_WRAP_MODE);
     return pixel_bgover;
 }
 
@@ -1287,6 +1287,78 @@ vec3 antighost(vec3 c) {
 	return c;
 }
 
+float led_halo(vec2 co, float image_aspect, vec2 center, float smoothshade, float led_aspect, float led_shape) {
+    vec2  delta = (co - center) * vec2(image_aspect, 1.0/led_aspect);
+    float dist_circle = length(delta);
+    float dist_square   = max(abs(delta.x), abs(delta.y));
+    float d = mix(dist_circle, dist_square, led_shape);
+    float hv = 1.0 - smoothstep(0.0, smoothshade, d);
+    return hv * hv;
+}
+
+vec3 apply_power_led( vec4 bgimage, vec3 bgimage_nonight, vec2 image_coords, float image_aspect, vec2 led_pos, float led_hue, float halo_size, float led_aspect, float led_shape, float controller, float led_exposure, bool source_led_off ) {
+
+    halo_size*=0.1;
+
+    //vec4 led_area = vec4( led_pos - halo_size, led_pos + halo_size );  //maybe a bit slower?
+    vec2 extent = vec2( halo_size / image_aspect, halo_size * led_aspect );
+    vec4 led_area = vec4( led_pos - extent, led_pos + extent );
+    
+    if (is_first_outside_rect(image_coords, led_area)) return bgimage.rgb;
+
+    if (source_led_off) {
+        if (controller < 0.5) {
+            //no need to do anything.
+            return bgimage.rgb;
+        } else {
+            //put led on:
+
+             vec3 led_on = pow(bgimage_nonight, vec3(1.0));
+             led_on = saturation_set_gain(led_on, 15.0);
+             //led_on = clamp(led_on, vec3(0.0), vec3(1.0));
+
+            bgimage.rgb = mix(led_on,           //  on controller: _low_
+                            bgimage.rgb,       //then mix it with original image...
+                            bgimage.a   //...depending on the alpha value
+                            );
+        }
+    }
+
+    #define _LED_HALO_POWER 0.5          //how much the halo around the led is visible
+
+    //get led rgb color from Hue:
+    vec3  led_color = clamp(abs(mod(led_hue * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+
+    //when led_exposure is negative, modulate maximum exposure depending on the difference between
+    //the nightified image and the original one.
+    if (led_exposure < 0.0) {
+        // Exposure driven by full scene average lum
+        float scene_lum = texture(avglum_pass,FULL_SCENE_LUM_SAMPLING_POINT).a;
+        led_exposure = mix(0.0, abs(led_exposure) , 1-scene_lum);
+    }
+
+    //Bw halo shape
+    float halo_bw   = led_halo(image_coords, image_aspect, led_pos, halo_size, led_aspect, led_shape) * _LED_HALO_POWER *  (led_exposure/10.0+1);
+
+
+    // blend led halo with the underlying image less halo on bright background.
+    // This works well when coupled with the nightify and even ambientlight function applied,
+    bgimage.rgb = bgimage.rgb + led_color * halo_bw * (1-bgimage.rgb);
+
+
+    //overexpose led light?
+    bgimage_nonight = mix(bgimage_nonight.rgb, vec3(1.0), led_exposure);
+
+
+    bgimage.rgb = mix(bgimage.rgb, vec3(1.0), led_exposure*(1-bgimage.a));
+
+
+    float m = (1.0 - bgimage.a) * halo_bw; // where image is transparent and halo is high
+    bgimage.rgb = mix(bgimage.rgb, bgimage_nonight.rgb, m);      // apply no night light
+
+    return bgimage.rgb;
+}
+
 
 void main() {
 
@@ -1398,10 +1470,10 @@ void main() {
             pixel_out = mix(pixel_out+abs(perlin), pixel_out+vec3(content_mask), vec3(vignette_spot.y) );
         }
         
-            #ifdef DO_ADPT_STROBE
+            #ifdef DO_ADPT_STROBE_PLUGIN
                 pixel_out = adaptive_strobe(pixel_out, vAdaptive_strobe_oscillator, final_passFeedback, vOutputCoord);
             #else
-                #ifdef DO_LCD_ANTIGHOSTING
+                #ifdef DO_LCD_ANTIGHOSTING_PLUGIN
                     pixel_out = antighost(pixel_out);
                 #endif
             #endif
@@ -1489,10 +1561,12 @@ void main() {
 
     // Background image have no need to paint if not in the outer border:
     if ( (DO_BG_IMAGE == 1.0 && BG_IMAGE_OVER == 0.0) && (content_and_bezel_mask < 1.0) ) {
-        vec4 pixel_bg_image = fn_pixel_fgbg_image(bg_under);
+        vec2 image_coords; //it gets the value from fn_pixel_fgbg_image output parameter.
+        float image_size ; //(unused here, it gets the value from fn_pixel_fgbg_image output parameter.
+        vec4 pixel_bg_image = fn_pixel_fgbg_image(bg_under, image_coords, image_size);
 
         vec3 anti_nightify_ambi = (pixel_ambi * AMBI_BG_IMAGE_BLEND_MODE) *
-                                    max(AMBI_BG_IMAGE_FORCE, 1-pixel_bg_image.a) ;
+                                   max(AMBI_BG_IMAGE_FORCE, 1-pixel_bg_image.a);
 
         pixel_bg_image.rgb = fn_pixel_nightify(pixel_bg_image.rgb, BG_IMAGE_NIGHTIFY, anti_nightify_ambi );
         pixel_bg_image.rgb = ambi_blend_image(pixel_bg_image, pixel_ambi, AMBI_BG_IMAGE_BLEND_MODE);
@@ -1507,15 +1581,18 @@ void main() {
     //Foreground image
     float pixel_fg_image_alpha = 0.0;
     if (DO_BG_IMAGE + BG_IMAGE_OVER == 2.0) {
-        vec4 pixel_fg_image = fn_pixel_fgbg_image(bg_over);
-        // if geometry content is overridden, ambientlight may have not been sample yet due to some skip logic
-        /*if (DO_AMBILIGHT == 1.0 && (pixel_fg_image.a+AMBI_BG_IMAGE_FORCE) > 0.0  && content_and_bezel_mask < 0.01) {
-            pixel_ambi = texture(ambi_temporal_pass, vOutputCoord).rgb * (1- content_and_bezel_mask ); //ALREADY TRIED COMMON fma() optimization, failed.
-        }*/
+        vec2  image_coords; //it gets the value from fn_pixel_fgbg_image output parameter.
+        float image_aspect; //it gets the value from fn_pixel_fgbg_image output parameter.
+        vec4 pixel_fg_image = fn_pixel_fgbg_image(bg_over, image_coords, image_aspect);
         vec3 anti_nightify_ambi = (pixel_ambi * AMBI_BG_IMAGE_BLEND_MODE) *
-                                    max(AMBI_BG_IMAGE_FORCE, 1-pixel_fg_image.a) ;
+                                   max(AMBI_BG_IMAGE_FORCE, 1-pixel_fg_image.a);
+
+        #if defined(USE_LED1) || defined(USE_LED2) || defined(USE_LED3)
+            vec3 pixel_fg_image_no_night = pixel_fg_image.rgb;
+        #endif
 
         pixel_fg_image.rgb = fn_pixel_nightify(pixel_fg_image.rgb, BG_IMAGE_NIGHTIFY, anti_nightify_ambi );
+
 
         // tl:dr:
         //   dont "black" the transparent areas outside the game content when we use AMBI_BG_IMAGE_BLEND_MODE ADD blend mode.
@@ -1539,7 +1616,43 @@ void main() {
             pixel_out = mix(pixel_out, pixel_fg_image.rgb, pixel_fg_image.a);
         }
         pixel_fg_image_alpha = pixel_fg_image.a;
-        //FragColor = vec4(pixel_fg_image.a) ; return;
+
+        if (content_and_bezel_mask < 1) { // Who said big branches are bad? Spare 1fps per led @Haswell.
+            #ifdef USE_LED1
+                if (global.LED1_SIZE != 0.0)
+                    pixel_out.rgb = apply_power_led( vec4(pixel_out.rgb, pixel_fg_image_alpha),  pixel_fg_image_no_night, image_coords, image_aspect,
+                                                     vec2(global.LED1_X, global.LED1_Y), global.LED1_HUE, global.LED1_SIZE, global.LED1_ASPECT,
+                                                     global.LED1_SHAPE, 1.0, global.LED1_EXPOSURE, false );
+            #endif
+
+            #ifdef USE_LED2
+                if (global.LED2_SIZE != 0.0)
+                pixel_out.rgb = apply_power_led( vec4(pixel_out.rgb, pixel_fg_image_alpha),  pixel_fg_image_no_night, image_coords, image_aspect,
+                                                 vec2(global.LED2_X, global.LED2_Y), global.LED2_HUE, global.LED2_SIZE, global.LED2_ASPECT,
+                                                 global.LED2_SHAPE, 1.0, global.LED2_EXPOSURE, false );
+            #endif
+
+            #ifdef USE_LED3
+                if (global.LED3_SIZE != 0.0) {
+                    float led_controller = 1.0; // Init var since denise can "power on" leds on drive access
+                    bool source_led_is_off = false;    // and in that case the led on the source image is off.
+                    #ifdef _USE_DENISE_EMU
+                        led_controller = global.LedDriveState; //under Denise led3 blinks on drive access.
+                        source_led_is_off = true;
+                    #endif
+                    #ifdef _DEBUG_DENISE_EMU
+                        float t = 10000.0; //timespan
+                        float f = 5.0; //frequency
+                        led_controller = random_fast(vec2(   float(floor(mod(params.FrameCount,t)/t*(t/f))/t)     ));
+                        //float(mod(params.FrameCount,100)>75);
+                        source_led_is_off = true;
+                    #endif
+                    pixel_out.rgb = apply_power_led( vec4(pixel_out.rgb, pixel_fg_image_alpha),  pixel_fg_image_no_night, image_coords, image_aspect,
+                                                     vec2(global.LED3_X, global.LED3_Y), global.LED3_HUE, global.LED3_SIZE, global.LED3_ASPECT,
+                                                     global.LED3_SHAPE, led_controller, global.LED3_EXPOSURE, source_led_is_off );
+                }
+            #endif
+        }
     }
 
     

@@ -1,0 +1,17 @@
+// Emulate a power led with an halo.
+// See led1.txt for documentation
+
+
+#ifndef USE_LED2
+#define USE_LED2
+#endif
+
+#pragma parameter LED2_LABEL_PRE        "      [Plugin] Power led 2"	0.0 0.0 0.0 1.0
+#pragma parameter LED2_SIZE	            "         halo size (0 to disable) (Image over only)"	0.0    0.0  3.0    0.01
+#pragma parameter LED2_SHAPE            "         halo shape (circle to square)"                0.0    0.0  0.5    0.1
+#pragma parameter LED2_ASPECT           "         halo aspect"                                  1.0    0.2  5.0    0.05
+#pragma parameter LED2_EXPOSURE         "         Overexposure (<0.0=auto)"                    -1.0   -2.0  2.0    0.1
+#pragma parameter LED2_HUE	            "         Hue"    0.33  0.0  1.0    0.01
+#pragma parameter LED2_X	            "         Pos X"	  0.1  -1.0  2.0   0.0005
+#pragma parameter LED2_Y	            "         Pos Y"	  0.2  -1.0  2.0   0.0005
+
