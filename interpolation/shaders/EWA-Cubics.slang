@@ -20,12 +20,29 @@ This program is free software; you can redistribute it and/or
   EWA / radial / cylindrical cubic family shader.
 
   Cubic Family:
-    0 = Robidoux        (B = 0.3782, C = 0.3109)
-    1 = Mitchell        (B = 0.3333, C = 0.3333)
-    2 = Robidoux Sharp  (B = 0.2620, C = 0.3690)
+    0 = Robidoux
+        Intended full-precision source values:
+          B = 0.37821575509399867
+          C = 0.31089212245300067
 
-  Notes:
-    - Default is Robidoux.
+    1 = Mitchell
+        Intended exact values:
+          B = 1/3
+          C = 1/3
+
+    2 = RobidouxSharp
+        Intended full-precision source values:
+          B = 0.2620145123990142
+          C = 0.3689927438004929
+
+  Implementation note:
+    - For each mode, B is specified directly.
+    - C is then derived as:
+          C = 0.5 * (1.0 - B)
+      so that the shader stays on the Keys cubic line B + 2C = 1,
+      as closely as float arithmetic permits.
+
+  Other notes:
     - Uses the cubic Keys-family kernel radially (EWA/cylindrical style),
       rather than separably.
     - Support radius is 2.0.
@@ -69,21 +86,31 @@ void select_bc(float mode, out float B, out float C)
     if (mode < 0.5)
     {
         // Robidoux
-        B = 0.3782;
-        C = 0.3109;
+        // Intended full-precision pair:
+        //   B = 0.37821575509399867
+        //   C = 0.31089212245300067
+        B = 0.37821575509399867;
     }
     else if (mode < 1.5)
     {
-        // Mitchell: B = 1/3, C = 1/3, expressed to 4 decimal places.
-        B = 0.3333;
-        C = 0.3333;
+        // Mitchell
+        // Intended exact pair:
+        //   B = 1/3
+        //   C = 1/3
+        B = 1.0 / 3.0;
     }
     else
     {
-        // Robidoux Sharp
-        B = 0.2620;
-        C = 0.3690;
+        // RobidouxSharp
+        // Intended full-precision pair:
+        //   B = 0.2620145123990142
+        //   C = 0.3689927438004929
+        B = 0.2620145123990142;
     }
+
+    // Keep the shader on the Keys cubic line B + 2C = 1,
+    // using the actual float value of B.
+    C = 0.5 * (1.0 - B);
 }
 
 float cubic_bc_weight(float x, float B, float C)
