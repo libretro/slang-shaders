@@ -6,7 +6,7 @@
 //  / / __/ /| | / /|_/ / __/    / __  / / / /\  /                       //
 // / /_/ / ___ |/ /  / / /___   / /_/ / /_/ / / /                        //
 // \____/_/  |_/_/  /_/_____/  /_____/\____/ /_/                         //
-//  ==================== DOT MATRIX SHADER v1.3                          //
+//  ==================== DOT MATRIX SHADER v1.4                          //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
 // Copyright (C) 2024-2026 Matt Akins                                    //
@@ -36,6 +36,7 @@ layout(push_constant) uniform Push
 	vec4 SourceSize;
 	vec4 OriginalSize;
 	float video_scale;
+	float integer_mode;
 	float border_texture_scale;
 	float border_brightness;
 	float gb_x_offset, gb_y_offset;
@@ -43,15 +44,11 @@ layout(push_constant) uniform Push
 
 #include "gb-params.inc"
 
-#pragma parameter CONSOLE_BORDER "== Console border ==" 0.0 0.0 1.0 1.0
-#pragma parameter border_texture_scale "     ↳ Border scale" 4.0 1.0 20.0 0.005
-#pragma parameter border_brightness "     ↳ Border brightness" 1.0 0.0 1.0 0.01
-#pragma parameter gb_x_offset "     ↳ Border offset horizontal" 0.0 -10000.0 10000.0 1.0
-#pragma parameter gb_y_offset "     ↳ Border offset vertical" 0.0 -10000.0 10000.0 1.0
-
-vec2 middle	= vec2(0.5, 0.5);
-vec2 border_scale = vec2(3200, 1600) * registers.video_scale / registers.border_texture_scale;
-vec2 offset_xy = vec2(registers.gb_x_offset, -registers.gb_y_offset) * registers.SourceSize.zw * 5.0;
+#pragma parameter BORDER 				"== BORDER ==" 0.0 0.0 1.0 1.0
+#pragma parameter border_texture_scale 	"      ↳ Scale" 4.0 1.0 20.0 0.005
+#pragma parameter border_brightness 	"      ↳ Brightness" 1.0 0.0 1.0 0.01
+#pragma parameter gb_x_offset 			"      ↳ X offset" 0.0 -10000.0 10000.0 1.0
+#pragma parameter gb_y_offset 			"      ↳ Y offset" 0.0 -10000.0 10000.0 1.0
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
@@ -64,9 +61,22 @@ layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec2 tex_border;
 
+vec2 get_current_gb_scale() {
+    if (registers.integer_mode > 1.5) {
+        return vec2(registers.video_scale);
+    } else if (registers.integer_mode > 0.5) {
+        return vec2(floor(registers.OutputSize.y * registers.OriginalSize.w));
+    }
+    return registers.OutputSize.xy * registers.OriginalSize.zw;
+}
+
 void main()
 {
 	gl_Position	=	global.MVP * Position;
+
+	vec2 middle	=	vec2(0.5, 0.5);
+	vec2 border_scale = vec2(3200, 1600) * get_current_gb_scale() / registers.border_texture_scale;
+	vec2 offset_xy = vec2(registers.gb_x_offset, -registers.gb_y_offset) * registers.SourceSize.zw * 5.0;
 
 	vTexCoord	=	TexCoord.xy + offset_xy;
 

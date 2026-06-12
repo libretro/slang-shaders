@@ -6,7 +6,7 @@
 //  / / __/ /| | / /|_/ / __/    / __  / / / /\  /                       //
 // / /_/ / ___ |/ /  / / /___   / /_/ / /_/ / / /                        //
 // \____/_/  |_/_/  /_/_____/  /_____/\____/ /_/                         //
-//  ==================== DOT MATRIX SHADER v1.3                          //
+//  ==================== DOT MATRIX SHADER v1.4                          //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
 // Copyright (C) 2024-2026 Matt Akins                                    //
@@ -37,7 +37,6 @@ layout(push_constant) uniform Push
 	vec4 OutputSize;
 	vec4 OriginalSize;
 	vec4 SourceSize;
-	vec4 GameBoyDotMatrixAlphaBlendSize;
 	float contrast;
 	float screen_light;
 	float pixel_opacity;
@@ -50,6 +49,7 @@ layout(push_constant) uniform Push
 	float shadow_enable;
 	float palette;
 	float integer_mode;
+	float video_scale;
 	float shadow_motion;
 	float shadow_max_offset;
 } registers;
@@ -62,19 +62,28 @@ layout(std140, set = 0, binding = 0) uniform UBO
     vec3 Accelerometer;
     vec3 AccelerometerRest;
     #endif
+    vec4 GameBoyDotMatrixAlphaBlendSize;
 } global;
 
   /////////////////////////////////////////////////////////////////////////
  // Vertex shader                                                       //
 /////////////////////////////////////////////////////////////////////////
 
+vec2 get_current_gb_scale() {
+    if (registers.integer_mode > 1.5) {
+        return vec2(registers.video_scale);
+    } else if (registers.integer_mode > 0.5) {
+        return vec2(floor(registers.OutputSize.y * registers.OriginalSize.w));
+    }
+    return registers.OutputSize.xy * registers.OriginalSize.zw;
+}
+
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec2 texel;
-layout(location = 2) out float resolution_scale;
-layout(location = 3) out vec2 shadow_offset;
+layout(location = 2) out vec2 shadow_offset;
 
 vec2 getOrientedTilt(vec3 accel) {
     float magnitude = length(accel);
@@ -88,12 +97,6 @@ void main()
     gl_Position = global.MVP * Position;
     vTexCoord = TexCoord * 1.0001;
 
-    // Calculate resolution scale for shadow compensation
-    // Reference resolution: 640×480 (shadow offsets tuned for this resolution)
-    float scale_x = registers.OutputSize.x / 640.0;
-    float scale_y = registers.OutputSize.y / 480.0;
-    resolution_scale = sqrt(scale_x * scale_y);
-
     vec2 gravity = vec2(0.0);
 
     #ifdef _HAS_SENSOR_UNIFORMS
@@ -106,12 +109,13 @@ void main()
     }
     #endif
 
+    vec2 shadow_offset_px = vec2(registers.shadow_offset_x, registers.shadow_offset_y);
     if (registers.shadow_motion > 0.5) {
-        vec2 base = vec2(registers.shadow_offset_x, registers.shadow_offset_y);
-        shadow_offset = (base + gravity * registers.shadow_max_offset) * resolution_scale * registers.SourceSize.zw;
-    } else {
-        shadow_offset = vec2(registers.shadow_offset_x, registers.shadow_offset_y) * resolution_scale * registers.SourceSize.zw;
+        shadow_offset_px += gravity * registers.shadow_max_offset;
     }
+
+    vec2 shadow_step = registers.SourceSize.zw * (get_current_gb_scale() / shadow_reference_scale);
+    shadow_offset = shadow_offset_px * shadow_step;
 
     texel = registers.SourceSize.zw;
 }
@@ -123,8 +127,7 @@ void main()
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec2 texel;
-layout(location = 2) in float resolution_scale;
-layout(location = 3) in vec2 shadow_offset;
+layout(location = 2) in vec2 shadow_offset;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 1) uniform sampler2D Source;
 layout(set = 0, binding = 2) uniform sampler2D GameBoyDotMatrixAlphaBlend;
@@ -145,21 +148,16 @@ vec4 get_bg_color() {
         return vec4(0.627, 0.667, 0.024, 1.0); // 4: #A0AA06
     } else if (registers.palette < 5.5) {
         return vec4(0.027, 0.729, 0.369, 1.0); // 5: #07BA5E
-    } else {
+    } else if (registers.palette < 6.5) {
         return vec4(0.027, 0.729, 0.608, 1.0); // 6: #07BA9B
+    } else {
+        return vec4(vec3(217.0, 196.0, 37.0) / 255.0, 1.0); // 7: #D9C425
     }
 }
 
 #define bg_color get_bg_color()
 
-// Sample the background color from the palette
 #define shadow_alpha (registers.contrast * registers.shadow_opacity * registers.shadow_enable)
-
-// Offset for the entire screen
-#define screen_offset vec2( \
-    registers.screen_offset_x * texel.x, \
-    registers.screen_offset_y * texel.y \
-)
 
   /////////////////////////////////////////////////////////////////////////
  // Fragment shader                                                     //
@@ -167,22 +165,26 @@ vec4 get_bg_color() {
 
 void main()
 {
-    vec2 tex = floor(registers.GameBoyDotMatrixAlphaBlendSize.xy * vTexCoord);
-    tex = (tex + 0.5) * registers.GameBoyDotMatrixAlphaBlendSize.zw;
+    vec2 tex = floor(global.GameBoyDotMatrixAlphaBlendSize.xy * vTexCoord);
+    tex = (tex + 0.5) * global.GameBoyDotMatrixAlphaBlendSize.zw;
 
     // Cache background color to avoid multiple function calls
     vec4 bg_color_cached = get_bg_color();
 
-    vec2 shadow_sample = vTexCoord - (shadow_offset + screen_offset);
-    shadow_sample = clamp(shadow_sample, vec2(0.0), vec2(1.0) - texel);
+    vec2 screen_offset = vec2(
+        registers.screen_offset_x * texel.x,
+        registers.screen_offset_y * texel.y
+    );
 
     // Sample all the relevant textures
     vec4 foreground = texture(GameBoyDotMatrixAlphaBlend, tex - screen_offset);
     vec4 background = texture(BACKGROUND, vTexCoord);
-    vec4 shadows    = texture(Source, shadow_sample);
+	vec2 shadow_sample = vTexCoord - (shadow_offset + screen_offset);
+	vec2 shadow_coord = clamp(shadow_sample, vec2(0.0), vec2(1.0) - texel);
+	vec4 shadows = texture(Source, shadow_coord);
 
-    // Foreground and background are blended with the background color
-    foreground *= bg_color_cached;
+	// Foreground and background are blended with the background color
+	foreground *= bg_color_cached;
 
     float bg_test = 0.0;
     if ( foreground.a > 0.0 )
@@ -201,8 +203,9 @@ void main()
         0.0, 1.0
     );
 
-    // Shadows are alpha blended with the background
-    vec4 out_color = (shadows * shadows.a * shadow_alpha) + (background * (1 - shadows.a * shadow_alpha));
+    // Shadows are alpha blended with the background.
+    vec4 out_color = (shadows * shadows.a * shadow_alpha) +
+                     (background * (1.0 - shadows.a * shadow_alpha));
 
     // Foreground is alpha blended with the shadowed background
     out_color = (foreground * foreground.a * registers.contrast) + (out_color * (registers.screen_light - foreground.a * registers.contrast * registers.pixel_opacity));

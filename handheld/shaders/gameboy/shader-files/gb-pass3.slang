@@ -6,7 +6,7 @@
 //  / / __/ /| | / /|_/ / __/    / __  / / / /\  /                       //
 // / /_/ / ___ |/ /  / / /___   / /_/ / /_/ / / /                        //
 // \____/_/  |_/_/  /_/_____/  /_____/\____/ /_/                         //
-//  ==================== DOT MATRIX SHADER v1.3                          //
+//  ==================== DOT MATRIX SHADER v1.4                          //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
 // Copyright (C) 2024-2026 Matt Akins                                    //
@@ -27,14 +27,19 @@
 /////////////////////////////////////////////////////////////////////////
 
   /////////////////////////////////////////////////////////////////////////
- // gb-pass3 - Vertical Gaussian blur                                   //
+ // gb-pass3 - Vertical shadow alpha blur                               //
 /////////////////////////////////////////////////////////////////////////
+
+#include "gb-params.inc"
 
 layout(push_constant) uniform Push
 {
 	vec4 OutputSize;
 	vec4 OriginalSize;
 	vec4 SourceSize;
+	float integer_mode;
+	float video_scale;
+	float shadow_blur_amount;
 } registers;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -53,6 +58,16 @@ layout(location = 0) out vec2 vTexCoord;
 layout(location = 1) out vec2 texel;
 layout(location = 2) out vec2 lower_bound;
 layout(location = 3) out vec2 upper_bound;
+layout(location = 4) out vec2 blur_step;
+
+vec2 get_current_gb_scale() {
+    if (registers.integer_mode > 1.5) {
+        return vec2(registers.video_scale);
+    } else if (registers.integer_mode > 0.5) {
+        return vec2(floor(registers.OutputSize.y * registers.OriginalSize.w));
+    }
+    return registers.OutputSize.xy * registers.OriginalSize.zw;
+}
 
 void main()
 {
@@ -60,6 +75,7 @@ void main()
     vTexCoord = TexCoord * 1.0001;
 
     texel = registers.SourceSize.zw;
+    blur_step = texel * (get_current_gb_scale() / shadow_reference_scale) * registers.shadow_blur_amount;
     lower_bound = vec2(0.0);
     upper_bound = vec2(texel * (registers.OutputSize.xy - 1.0));
 }
@@ -73,6 +89,7 @@ layout(location = 0) in vec2 vTexCoord;
 layout(location = 1) in vec2 texel;
 layout(location = 2) in vec2 lower_bound;
 layout(location = 3) in vec2 upper_bound;
+layout(location = 4) in vec2 blur_step;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -100,6 +117,14 @@ Normalized Gaussian weights:                     Normalized Gaussian weights:
 0.07270923003781316665844409497651 @position4    0.08167444001912718529866079800870 @position4
 0.05488381664578583445722654373702 @position5
 */
+vec2 shadow_sample_coord(vec2 coord) {
+    // Continue the edge dot through the fullscreen boundary instead of
+    // extending its low-alpha gap across the blur kernel.
+    if (registers.integer_mode < 0.5)
+        coord.y = 1.0 - abs(1.0 - abs(coord.y));
+    return clamp(coord, lower_bound, upper_bound);
+}
+
 void main()
 {
     // Define offsets and weights - change this for both the X and Y passes if you change the sigma value or number of texels sampled
@@ -120,14 +145,14 @@ void main()
                                 0.08167444001912718529866079800870 );
 
     // Sample the current fragment and apply its weight
-    vec4 out_color = texture(Source, clamp(vTexCoord, lower_bound, upper_bound)) * weights[0];
+    vec4 out_color = texture(Source, shadow_sample_coord(vTexCoord)) * weights[0];
 
     // Iterate across the offsets in both directions sampling texels
     // and adding their weighted alpha values to the total
     for (int i = 1; i < 5; i++)
     {
-        out_color.a += texture(Source, clamp(vTexCoord + vec2(0.0, offsets[i] * texel.y), lower_bound, upper_bound)).a * weights[i];
-        out_color.a += texture(Source, clamp(vTexCoord - vec2(0.0, offsets[i] * texel.y), lower_bound, upper_bound)).a * weights[i];
+        out_color.a += texture(Source, shadow_sample_coord(vTexCoord + vec2(0.0, offsets[i] * blur_step.y))).a * weights[i];
+        out_color.a += texture(Source, shadow_sample_coord(vTexCoord - vec2(0.0, offsets[i] * blur_step.y))).a * weights[i];
     }
 
     FragColor = out_color;
