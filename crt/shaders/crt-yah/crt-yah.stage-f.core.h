@@ -264,18 +264,18 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size)
     }
 
     // orientation-aware offset
-    vec2 tex_coord = floor(pix_coord) + vec2o(tex_offset);
+    pix_coord = floor(pix_coord) + vec2o(tex_offset);
 
     // pixel to texture coordinates
-    return tex_coord / tex_size;
+    return pix_coord / tex_size;
 }
 
-vec3 apply_interlace(vec2 pix_coord_o, vec3 even_color, vec3 uneven_color)
+vec3 apply_interlace(vec2 pix_coord, vec3 even_color, vec3 uneven_color)
 {
     float interlace_frame = INPUT_FRAME_COUNTS.x;
 
     // determine even or uneven row, orientation-aware
-    bool even = (int(floor(pix_coord_o.y)) % 2) != 0;
+    bool even = (int(floor(vec2o(pix_coord).y)) % 2) != 0;
 
     vec3 progressive = even_color + uneven_color;
     vec3 interlace = mix(
@@ -291,13 +291,13 @@ vec3 apply_interlace(vec2 pix_coord_o, vec3 even_color, vec3 uneven_color)
 
 vec3 get_raw_color(sampler2D source, vec2 tex_coord, vec2 tex_size)
 {
-    // texture to pixel coordinates, orientation-aware
-    vec2 pix_coord_o = vec2o(tex_coord * tex_size);
+    // texture to pixel coordinates
+    vec2 pix_coord = tex_coord * tex_size;
 
     vec3 color0 = vec3(0.0);
     vec3 color1 = INPUT(texture(source, tex_coord).rgb);
 
-    return apply_interlace(pix_coord_o, color0, color1);
+    return apply_interlace(pix_coord, color0, color1);
 }
 
 vec3 get_scanlines_color(sampler2D source, vec2 tex_coord, vec2 tex_size)
@@ -310,9 +310,8 @@ vec3 get_scanlines_color(sampler2D source, vec2 tex_coord, vec2 tex_size)
     vec2 tex_offset_x = vec2ox(tex_offset, 0.0);
     vec2 tex_offset_y = vec2oy(tex_offset, 0.0);
 
-    // orientation-aware pixel coordinates
-    vec2 pix_coord_o = vec2o(pix_coord);
-    vec2 pix_fract = fract(pix_coord_o);
+    // orientation-aware pixel fraction
+    vec2 pix_fract = fract(vec2o(pix_coord));
 
     // apply filtering
     vec4 beam_filter = vec4(
@@ -328,7 +327,7 @@ vec3 get_scanlines_color(sampler2D source, vec2 tex_coord, vec2 tex_size)
     vec3 factor0 = get_half_scanlines_factor(color0, pix_fract.y);
     vec3 factor1 = get_half_scanlines_factor(color1, 1.0 - pix_fract.y);
 
-    return apply_interlace(pix_coord_o, color0 * factor0, color1 * factor1);
+    return apply_interlace(pix_coord, color0 * factor0, color1 * factor1);
 }
 
 vec3 apply_details(vec3 scanlines_color, sampler2D base_samler, vec2 base_coord, sampler2D blur_sampler, vec2 blur_coord)
