@@ -477,7 +477,7 @@ vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord, vec3 
     vec3 scanlines_halation = halation - color;
 
     // halation "above" mask
-    vec3 mask_halation = max(halation * scanlines_factor * mask_factor, color)
+    vec3 mask_halation = halation * scanlines_factor * mask_factor
         * PARAM_MASK_INTENSITY;
 
     vec3 affective_halation = PARAM_HALATION_INFLUENCE < 0.0
