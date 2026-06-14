@@ -28,6 +28,7 @@ void main()
     gl_Position = global.MVP * Position;
     TexCoord = Coord;
 
+    float multiple_auto = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, 0.0);
     float multiple = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -(PARAM_SCREEN_SCALE + PARAM_NTSC_SCALE));
     float screen_scale = 1.0 / multiple;
 
@@ -47,12 +48,12 @@ void main()
 
     if (Phase == 2)
     {
-        // auto depending of screen scale
+        // auto depending on screen scale
         if (PARAM_NTSC_QUALITY == 0)
         {
             Tabs =
-                multiple >= 3.0 ? 8 :
-                multiple >= 1.5 ? 16 : 32;
+                multiple_auto >= 3.0 ? 8 :
+                multiple_auto >= 1.5 ? 16 : 32;
         }
         else
         {
@@ -63,12 +64,12 @@ void main()
     }
     else
     {
-        // auto depending of screen scale
+        // auto depending on screen scale
         if (PARAM_NTSC_QUALITY == 0)
         {
             Tabs =
-                multiple >= 3.0 ? 6 :
-                multiple >= 1.5 ? 12 : 24;
+                multiple_auto >= 3.0 ? 6 :
+                multiple_auto >= 1.5 ? 12 : 24;
         }
         else
         {

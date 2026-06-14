@@ -33,6 +33,7 @@ void main()
 {
     gl_Position = global.MVP * Position;
 
+    float multiple_auto = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, 0.0);
     float multiple = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -(PARAM_SCREEN_SCALE + PARAM_NTSC_SCALE));
     float screen_scale = 1.0 / multiple;
 
@@ -63,13 +64,13 @@ void main()
 
     if (Phase == 2)
     {
-        // auto depending of screen scale
+        // auto depending on screen scale
         if (PARAM_NTSC_QUALITY == 0)
         {
             // compensate decreased saturation caused by lower quality
             Saturation =
-                multiple >= 3.0 ? 1.675 :
-                multiple >= 1.5 ? 1.125 : 1.0;
+                multiple_auto >= 3.0 ? 1.675 :
+                multiple_auto >= 1.5 ? 1.125 : 1.0;
         }
         else
         {
