@@ -307,6 +307,10 @@ vec3 get_raw_color(sampler2D source, vec2 tex_coord, vec2 tex_size)
 
 vec3 get_scanlines_color(sampler2D source, vec2 tex_coord, vec2 tex_size, out vec3 scanlines_factor)
 {
+    // avoid scanlines artefact
+    //   can happen when output resolution smaller than screen resolution
+    tex_coord += EPSILON;
+
     vec2 pix_coord = vec2(0.0);
     pix_coord = get_scanlines_pixel_coordinate(tex_coord, tex_size);
     tex_coord = get_scanlines_texel_coordinate(pix_coord, tex_size);
