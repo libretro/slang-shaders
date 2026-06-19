@@ -6,9 +6,10 @@ layout(location = 1) out vec2 PixCoord;
 layout(location = 2) out float Fringing;
 layout(location = 3) out float Artifacting;
 layout(location = 4) out float Saturation;
-layout(location = 5) flat out int Phase;
-layout(location = 6) out vec3 ChromaProfile;
-layout(location = 7) flat out uint FrameCount;
+layout(location = 5) out float Brightness;
+layout(location = 6) flat out int Phase;
+layout(location = 7) out vec3 ChromaProfile;
+layout(location = 8) flat out uint FrameCount;
 
 // used in common/screen-helper.h
 #define MIN_PIXEL_SIZE 0.0 // allow any pixel size
@@ -53,36 +54,46 @@ void main()
     Artifacting = (PARAM_NTSC_PROFILE - 1.0) * 0.5 * (max(screen_scale, 1.0) + 1.0);
 
     // Phase:
-    // 1 - Auto
-    // 2 - Two Phase
-    // 3 - Three Phase
-    Phase = PARAM_NTSC_PHASE == 1
+    // 0 - Auto
+    // 1 - Two
+    // 2 - Three
+    Phase = PARAM_NTSC_PHASE == 0
         // auto
         ? (vec2o(global.OriginalSize.xy).x * screen_scale) > 300.0 ? 2 : 3
         // manual
-        : PARAM_NTSC_PHASE;
+        : PARAM_NTSC_PHASE + 1;
 
+    Brightness = 1.0;
+
+    // change range [0.25, 1.0] to [0, 3]
+    int samples = int(PARAM_NTSC_SAMPLES * 4.0 - 1.0);
     if (Phase == 2)
     {
-        // auto depending on screen scale
-        if (PARAM_NTSC_QUALITY == 0)
-        {
-            // compensate decreased saturation caused by lower quality
-            Saturation =
-                multiple_auto >= 3.0 ? 1.675 :
-                multiple_auto >= 1.5 ? 1.125 : 1.0;
-        }
-        else
-        {
-            // compensate decreased saturation caused by lower quality
-            Saturation =
-                PARAM_NTSC_QUALITY == 1 ? 1.675 :
-                PARAM_NTSC_QUALITY == 2 ? 1.125 : 1.0;
-        }
+        // compensate decreased saturation caused by lower samples
+        Saturation =
+            samples == 0 ? 1.925 :
+            samples == 1 ? 1.225 :
+            samples == 2 ? 1.05 : 1.0;
+
+        // compensate increased brightness caused by lower samples
+        Brightness =
+            samples == 0 ? 0.975 :
+            samples == 1 ? 1.0 :
+            samples == 2 ? 1.0 : 1.0;
     }
     else
     {
-        Saturation = 1.0;
+        // compensate decreased saturation caused by lower samples
+        Saturation =
+            samples == 0 ? 1.175 :
+            samples == 1 ? 0.95 :
+            samples == 2 ? 0.985 : 1.0;
+
+        // compensate increased brightness caused by lower samples
+        Brightness =
+            samples == 0 ? 0.975 :
+            samples == 1 ? 1.0 :
+            samples == 2 ? 1.0 : 1.0;
     }
 
     float chromaFrequency = Phase == 2

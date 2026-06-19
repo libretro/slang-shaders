@@ -14,7 +14,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 layout (push_constant) uniform Push
 {
     float NTSC_PROFILE;
-    float NTSC_QUALITY;
+    float NTSC_SAMPLES;
     float NTSC_PHASE;
     float NTSC_SCALE;
 } param;

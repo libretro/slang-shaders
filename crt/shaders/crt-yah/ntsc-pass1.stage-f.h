@@ -4,13 +4,12 @@ layout(location = 1) in vec2 PixCoord;
 layout(location = 2) in float Fringing;
 layout(location = 3) in float Artifacting;
 layout(location = 4) in float Saturation;
-layout(location = 5) flat in int Phase;
-layout(location = 6) in vec3 ChromaProfile;
-layout(location = 7) flat in uint FrameCount;
+layout(location = 5) in float Brightness;
+layout(location = 6) flat in int Phase;
+layout(location = 7) in vec3 ChromaProfile;
+layout(location = 8) flat in uint FrameCount;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
-
-const float Brightness = 1.0;
 
 #define MIX mat3(                       \
     Brightness, Fringing, Fringing,     \

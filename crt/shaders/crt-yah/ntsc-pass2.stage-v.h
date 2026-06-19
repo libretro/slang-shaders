@@ -37,45 +37,29 @@ void main()
         : vec2(0.0, global.SourceSize.w * multiple);
 
     // Phase:
-    // 1 - Auto
-    // 2 - Two Phase
-    // 3 - Three Phase
-    Phase = PARAM_NTSC_PHASE == 1
+    // 0 - Auto
+    // 1 - Two
+    // 2 - Three
+    Phase = PARAM_NTSC_PHASE == 0
         // auto
         ? (vec2o(global.OriginalSize.xy).x * screen_scale) > 300.0 ? 2 : 3
         // manual
-        : PARAM_NTSC_PHASE;
+        : PARAM_NTSC_PHASE + 1;
 
+    // change range [0.25, 1.0] to [0, 3]
+    int samples = int(PARAM_NTSC_SAMPLES * 4.0 - 1.0);
     if (Phase == 2)
     {
-        // auto depending on screen scale
-        if (PARAM_NTSC_QUALITY == 0)
-        {
-            Tabs =
-                multiple_auto >= 3.0 ? 8 :
-                multiple_auto >= 1.5 ? 16 : 32;
-        }
-        else
-        {
-            Tabs =
-                PARAM_NTSC_QUALITY == 1 ? 8 :
-                PARAM_NTSC_QUALITY == 2 ? 16 : 32;
-        }
+        Tabs =
+            samples == 0 ? 8 :
+            samples == 1 ? 16 :
+            samples == 2 ? 24 : 32;
     }
     else
     {
-        // auto depending on screen scale
-        if (PARAM_NTSC_QUALITY == 0)
-        {
-            Tabs =
-                multiple_auto >= 3.0 ? 6 :
-                multiple_auto >= 1.5 ? 12 : 24;
-        }
-        else
-        {
-            Tabs =
-                PARAM_NTSC_QUALITY == 1 ? 6 :
-                PARAM_NTSC_QUALITY == 2 ? 12 : 24;
-        }
+        Tabs =
+            samples == 0 ? 6 :
+            samples == 1 ? 12 :
+            samples == 2 ? 18 : 24;
     }
 }
