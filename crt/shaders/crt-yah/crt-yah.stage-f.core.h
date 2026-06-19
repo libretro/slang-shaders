@@ -40,6 +40,13 @@ float get_brightness_compensation(float color_luma)
         : 0.0;
 }
 
+vec3 RAWINPUT(vec3 color)
+{
+    color = decode_gamma(color);
+
+    return color;
+}
+
 vec3 INPUT(vec3 color)
 {
     float color_floor = INPUT_FLOOR_PROFILE.x;
@@ -469,7 +476,8 @@ vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord, vec3 
         return color;
     }
 
-    vec3 halation = INPUT(texture(halation_source, tex_coord).rgb);
+    // use raw input without applying back lighting
+    vec3 halation = RAWINPUT(texture(halation_source, tex_coord).rgb);
 
     // weight halation by its luminance based on diffusion amount
     halation *= mix(
