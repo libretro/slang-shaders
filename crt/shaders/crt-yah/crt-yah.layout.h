@@ -14,6 +14,9 @@ layout(std140, set = 0, binding = 0) uniform UBO
     float SCREEN_FREQUENCY;
     float SCREEN_INTERLACED;
     float SHARP_AMOUNT;
+    float HALATION_INTENSITY;
+    float HALATION_DIFFUSION;
+    float HALATION_INFLUENCE;
 } global;
 
 layout (push_constant) uniform Push
@@ -40,11 +43,9 @@ layout (push_constant) uniform Push
     float MASK_SCALE;
     float MASK_TYPE;
     float MASK_SUBPIXEL;
+    float MASK_SUBPIXEL_ORDER;
     float MASK_SUBPIXEL_SHAPE;
     float MASK_COLOR_BLEED;
-    float HALATION_INTENSITY;
-    float HALATION_DIFFUSION;
-    float HALATION_INFLUENCE;
     float CRT_CURVATURE_AMOUNT;
     float CRT_VIGNETTE_AMOUNT;
     float CRT_NOISE_AMOUNT;

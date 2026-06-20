@@ -79,14 +79,9 @@ vec4 get_mask_profile()
         PARAM_MASK_TYPE == 3 ? clamp((subpixel_size - 2.0) * 0.25, 0.0, 1.0) : 0.0;
     subpixel_smoothness *= PARAM_MASK_SUBPIXEL_SHAPE;
 
-    int subpixel_type =
-        // black, white to magenta, green
-        PARAM_MASK_SUBPIXEL == 1 ? PARAM_MASK_SUBPIXEL + 1 :
-        PARAM_MASK_SUBPIXEL;
+    int subpixel_type = PARAM_MASK_SUBPIXEL;
 
-    bool subpixel_color_swap =
-        // magenta, green to blue, yellow
-        PARAM_MASK_SUBPIXEL == 1;
+    bool subpixel_color_swap = PARAM_MASK_SUBPIXEL_ORDER > 1;
 
     return vec4(subpixel_type, subpixel_size, subpixel_smoothness, subpixel_color_swap);
 }
