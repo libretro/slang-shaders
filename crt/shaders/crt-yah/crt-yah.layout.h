@@ -44,6 +44,7 @@ layout (push_constant) uniform Push
     float MASK_COLOR_BLEED;
     float HALATION_INTENSITY;
     float HALATION_DIFFUSION;
+    float HALATION_INFLUENCE;
     float CRT_CURVATURE_AMOUNT;
     float CRT_VIGNETTE_AMOUNT;
     float CRT_NOISE_AMOUNT;

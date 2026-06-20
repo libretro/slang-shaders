@@ -41,12 +41,12 @@ vec2 vec2o(float x, float y)
 
 vec4 get_mask_profile()
 {
-    float pixel_size = global.SourceSize.x < global.SourceSize.y
-        ? global.FinalViewportSize.x / global.SourceSize.x
-        : global.FinalViewportSize.y / global.SourceSize.y;
+    float pixel_size = global.OriginalSize.x < global.OriginalSize.y
+        ? global.FinalViewportSize.x / global.OriginalSize.x
+        : global.FinalViewportSize.y / global.OriginalSize.y;
 
     // smaller sub-pixel count for low resolution
-    float subpixel_count = min(global.SourceSize.x, global.SourceSize.y) < 180.0
+    float subpixel_count = min(global.OriginalSize.x, global.OriginalSize.y) < 180.0
         ? 3.0
         : 4.0;
 

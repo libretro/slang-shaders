@@ -40,6 +40,13 @@ float get_brightness_compensation(float color_luma)
         : 0.0;
 }
 
+vec3 RAWINPUT(vec3 color)
+{
+    color = decode_gamma(color);
+
+    return color;
+}
+
 vec3 INPUT(vec3 color)
 {
     float color_floor = INPUT_FLOOR_PROFILE.x;
@@ -264,18 +271,23 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size)
     }
 
     // orientation-aware offset
-    vec2 tex_coord = floor(pix_coord) + vec2o(tex_offset);
+    pix_coord = floor(pix_coord) + vec2o(tex_offset);
 
     // pixel to texture coordinates
-    return tex_coord / tex_size;
+    return pix_coord / tex_size;
 }
 
-vec3 apply_interlace(vec2 pix_coord_o, vec3 even_color, vec3 uneven_color)
+vec3 apply_interlace(vec2 pix_coord, vec3 even_color, vec3 uneven_color)
 {
+    if (PARAM_SCREEN_INTERLACED == 0.0)
+    {
+        return even_color + uneven_color;
+    }
+
     float interlace_frame = INPUT_FRAME_COUNTS.x;
 
     // determine even or uneven row, orientation-aware
-    bool even = (int(floor(pix_coord_o.y)) % 2) != 0;
+    bool even = (int(floor(vec2o(pix_coord).y)) % 2) != 0;
 
     vec3 progressive = even_color + uneven_color;
     vec3 interlace = mix(
@@ -291,17 +303,21 @@ vec3 apply_interlace(vec2 pix_coord_o, vec3 even_color, vec3 uneven_color)
 
 vec3 get_raw_color(sampler2D source, vec2 tex_coord, vec2 tex_size)
 {
-    // texture to pixel coordinates, orientation-aware
-    vec2 pix_coord_o = vec2o(tex_coord * tex_size);
+    // texture to pixel coordinates
+    vec2 pix_coord = tex_coord * tex_size;
 
     vec3 color0 = vec3(0.0);
     vec3 color1 = INPUT(texture(source, tex_coord).rgb);
 
-    return apply_interlace(pix_coord_o, color0, color1);
+    return apply_interlace(pix_coord, color0, color1);
 }
 
-vec3 get_scanlines_color(sampler2D source, vec2 tex_coord, vec2 tex_size)
+vec3 get_scanlines_color(sampler2D source, vec2 tex_coord, vec2 tex_size, out vec3 scanlines_factor)
 {
+    // avoid scanlines artefact
+    //   can happen when output resolution smaller than screen resolution
+    tex_coord += EPSILON;
+
     vec2 pix_coord = vec2(0.0);
     pix_coord = get_scanlines_pixel_coordinate(tex_coord, tex_size);
     tex_coord = get_scanlines_texel_coordinate(pix_coord, tex_size);
@@ -310,9 +326,8 @@ vec3 get_scanlines_color(sampler2D source, vec2 tex_coord, vec2 tex_size)
     vec2 tex_offset_x = vec2ox(tex_offset, 0.0);
     vec2 tex_offset_y = vec2oy(tex_offset, 0.0);
 
-    // orientation-aware pixel coordinates
-    vec2 pix_coord_o = vec2o(pix_coord);
-    vec2 pix_fract = fract(pix_coord_o);
+    // orientation-aware pixel fraction
+    vec2 pix_fract = fract(vec2o(pix_coord));
 
     // apply filtering
     vec4 beam_filter = vec4(
@@ -328,7 +343,9 @@ vec3 get_scanlines_color(sampler2D source, vec2 tex_coord, vec2 tex_size)
     vec3 factor0 = get_half_scanlines_factor(color0, pix_fract.y);
     vec3 factor1 = get_half_scanlines_factor(color1, 1.0 - pix_fract.y);
 
-    return apply_interlace(pix_coord_o, color0 * factor0, color1 * factor1);
+    scanlines_factor = apply_interlace(pix_coord, factor0, factor1);
+
+    return apply_interlace(pix_coord, color0 * factor0, color1 * factor1);
 }
 
 vec3 apply_details(vec3 scanlines_color, sampler2D base_samler, vec2 base_coord, sampler2D blur_sampler, vec2 blur_coord)
@@ -405,7 +422,7 @@ vec3 get_mask(vec2 tex_coord)
     return mask;
 }
 
-vec3 apply_mask(vec3 color, float color_luma, vec2 tex_coord)
+vec3 apply_mask(vec3 color, float color_luma, vec2 tex_coord, out vec3 mask_factor)
 {
     if (PARAM_MASK_TYPE == 0)
     {
@@ -442,6 +459,8 @@ vec3 apply_mask(vec3 color, float color_luma, vec2 tex_coord)
         color * mask,
         PARAM_MASK_INTENSITY);
 
+    mask_factor = mask;
+
     return color;
 }
 
@@ -450,14 +469,15 @@ vec3 apply_color_overflow(vec3 color)
     return apply_color_overflow(color, PARAM_COLOR_OVERFLOW);
 }
 
-vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord)
+vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord, vec3 scanlines_factor, vec3 mask_factor)
 {
     if (PARAM_HALATION_INTENSITY == 0.0)
     {
         return color;
     }
 
-    vec3 halation = INPUT(texture(halation_source, tex_coord).rgb);
+    // use raw input without applying back lighting
+    vec3 halation = RAWINPUT(texture(halation_source, tex_coord).rgb);
 
     // weight halation by its luminance based on diffusion amount
     halation *= mix(
@@ -465,8 +485,25 @@ vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord)
         get_luminance(halation),
         PARAM_HALATION_DIFFUSION * 0.75);
 
-    // add the difference between color and halation
-    return color + (halation - color) * (PARAM_HALATION_INTENSITY * 0.25);
+    // halation "between" scanlines
+    vec3 scanlines_halation = halation - color;
+
+    // halation "above" mask
+    vec3 mask_halation = halation * scanlines_factor * mask_factor
+        * PARAM_MASK_INTENSITY;
+
+    vec3 affective_halation = PARAM_HALATION_INFLUENCE < 0.0
+        ? mask_halation * 4.0
+        : scanlines_halation;
+
+    halation = mix(
+        // both scanlines and mask
+        scanlines_halation + mask_halation,
+        // either scanlines or mask
+        affective_halation,
+        abs(PARAM_HALATION_INFLUENCE));
+
+    return color + halation * (PARAM_HALATION_INTENSITY * 0.25);
 }
 
 vec3 apply_noise(vec3 color, float color_luma, vec2 tex_coord)

@@ -57,7 +57,8 @@ void main()
     vec2 scan_coord_curved_sharpened = apply_sharp_bilinear_filtering(scan_coord_curved, tex_size);
 
     vec3 raw_color = get_raw_color(TextureSource, tex_coord_curved_sharpened, tex_size);
-    vec3 scanlines_color = get_scanlines_color(TextureSource, scan_coord_curved, tex_size);
+    vec3 scanlines_factor = vec3(0.0);
+    vec3 scanlines_color = get_scanlines_color(TextureSource, scan_coord_curved, tex_size, scanlines_factor);
 
 #ifndef IS_SINGLE_PASS
     scanlines_color = apply_details(scanlines_color, TextureSource, scan_coord_curved, BlurSource, tex_coord_curved);
@@ -66,12 +67,13 @@ void main()
     vec3 color = blend_colors(raw_color, scanlines_color);
     float color_luma = get_luminance(color);
 
+    vec3 mask_factor = vec3(0.0);
+    color = apply_mask(color, color_luma, tex_coord, mask_factor);  // use un-curved coordinates to avoid Moire-artifacts
     color = apply_noise(color, color_luma, tex_coord); // use un-curved coordinates to avoid Moire-artifacts
-    color = apply_mask(color, color_luma, tex_coord);  // use un-curved coordinates to avoid Moire-artifacts
     color = apply_color_overflow(color);
 
 #ifndef IS_SINGLE_PASS
-    color = apply_halation(color, HalationSource, tex_coord_curved);
+    color = apply_halation(color, HalationSource, tex_coord_curved, scanlines_factor, mask_factor);
 #endif
 
     color *= get_vignette_factor(tex_coord_curved);

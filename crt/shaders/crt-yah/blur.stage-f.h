@@ -1,19 +1,18 @@
 #pragma stage fragment
 layout(location = 0) in vec2 TexCoord;
-layout(location = 1) in float Diffusion;
-layout(location = 2) in float Tabs;
-layout(location = 3) in float Multiple;
+layout(location = 1) flat in float TabSize;
+layout(location = 2) flat in float TabWeight;
+layout(location = 3) flat in int HalfTabCount;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
 #include "common/colorspace-srgb.h"
 
-// required by blur.stage-f.core.h
 #define INPUT(color) decode_gamma(color)
 #define OUTPUT(color) encode_gamma(color)
 
-#include "blur.stage-f.core.h"
-
+// Requires:
+//   #define OFFSET(vec2, float) vec2 - To transform the texture coordinate by the given offset.
 void main()
 {
     // return if effect is disabled
@@ -24,13 +23,36 @@ void main()
         return;
     }
 
-    // scale diffusion
-    float diffusion = Diffusion / (Multiple * Multiple);
+    float sum = 1.0;
 
-    // scale tabs
-    float tabs = Tabs * Multiple * 2.0;
+    // sample center
+    vec3 color = INPUT(texture(Source, TexCoord).rgb);
 
-    vec3 color = get_blur_color(Source, TexCoord, diffusion, tabs);
+    float weight = TabWeight;
+    float weight_factor = weight * weight;
+    float weight_step = weight * weight_factor;
+
+    for (int i = 1; i <= HalfTabCount; i++)
+    {
+        float base_offset = float(i) * TabSize;
+
+        // sample positive side
+        vec2 pos_coord = OFFSET(TexCoord, base_offset);
+        color += INPUT(texture(Source, pos_coord).rgb) * weight;
+
+        // sample negative side
+        vec2 neg_coord = OFFSET(TexCoord, -base_offset);
+        color += INPUT(texture(Source, neg_coord).rgb) * weight;
+
+        // weight both samples
+        sum += 2.0 * weight;
+
+        // prepare next weight
+        weight *= weight_step;
+        weight_step *= weight_factor;
+    }
+
+    color = OUTPUT(color / sum);
 
     FragColor = vec4(color, 1.0);
 }

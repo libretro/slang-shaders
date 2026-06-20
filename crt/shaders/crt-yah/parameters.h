@@ -49,10 +49,12 @@
 // Halation parameters
 #pragma parameter HALATION_INTENSITY "·  Halation > Intensity¹  (0-None .. 1-Full)" 0.25 0.0 1.0 0.05
 #pragma parameter HALATION_DIFFUSION "   Halation > Diffusion  (0-Low .. 1-High)" 0.5 0.0 1.0 0.05
+#pragma parameter HALATION_INFLUENCE "   Halation > Influence  (-Mask / 0-Both / +Scanlines)" 0.5 -1.0 1.0 0.05
 
 // NTSC parameters
 #pragma parameter NTSC_PROFILE "·  NTSC > Profile  (0-Off, 1-Separate Y/C, 2-Composite, 3-RF)" 0.0 0.0 3.0 0.1
-#pragma parameter NTSC_QUALITY "   NTSC > Chroma Phase  (1-Auto, 2-Two, 3-Three)" 2.0 1.0 3.0 1.0
+#pragma parameter NTSC_PHASE "   NTSC > Chroma Phase  (0-Auto, 1-Two, 2-Three)" 1.0 0.0 2.0 1.0
+#pragma parameter NTSC_SAMPLES "   NTSC > Chroma Samples  (¼-Min .. 1-Max)" 1.0 0.25 1.0 0.25
 #pragma parameter NTSC_SHIFT "   NTSC > Chroma Shift  (-left .. +right)" 0.0 -1.0 1.0 0.1
 #pragma parameter NTSC_SCALE "   NTSC > Scale⁵  (-Down / 0-Auto / +Up)" 0.0 -0.5 0.5 0.05
 #pragma parameter NTSC_JITTER "   NTSC > Offset⁴  (-Merge / 0-Static / +Jitter)" 1.0 -1.0 1.0 0.1
