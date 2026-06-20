@@ -57,8 +57,8 @@ vec4 get_mask_profile()
 
     float subpixel_size = pixel_size / subpixel_count;
 
-    // auto scale (consider applied screen-multiple)
-    subpixel_size = floor(subpixel_size * INPUT_SCREEN_MULTIPLE);
+    // auto scale by native multiple
+    subpixel_size = floor(subpixel_size * INPUT_SCREEN_MULTIPLE_NATIVE);
     // limit after auto scale
     subpixel_size = max(1.0, subpixel_size);
 
