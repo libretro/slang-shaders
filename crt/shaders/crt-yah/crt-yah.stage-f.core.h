@@ -408,14 +408,14 @@ vec3 get_mask(vec2 tex_coord)
     int subpixel_type = int(INPUT_MASK_PROFILE.x);
     int subpixel_size = int(INPUT_MASK_PROFILE.y);
     float subpixel_smoothness = INPUT_MASK_PROFILE.z;
-    bool subpixel_color_swap = bool(INPUT_MASK_PROFILE.w);
+    int subpixel_color_order = int(INPUT_MASK_PROFILE.w);
 
     vec3 mask = get_subpixel_color(
         pix_coord,
         subpixel_size,
         subpixel_mask,
         subpixel_type,
-        subpixel_color_swap,
+        subpixel_color_order,
         1.0,
         subpixel_smoothness);
 

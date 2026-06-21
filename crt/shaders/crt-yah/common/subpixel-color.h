@@ -5,6 +5,7 @@
 #include "constants.h"
 #include "geometry-helper.h"
 
+// colors
 const vec3 White = vec3(1.0, 1.0, 1.0);
 const vec3 Black = vec3(0.0, 0.0, 0.0);
 const vec3 Red = vec3(1.0, 0.0, 0.0);
@@ -13,6 +14,15 @@ const vec3 Green = vec3(0.0, 1.0, 0.0);
 const vec3 Magenta = vec3(1.0, 0.0, 1.0);
 const vec3 Yellow = vec3(1.0, 1.0, 0.0);
 const vec3 Cyan = vec3(0.0, 1.0, 1.0);
+
+// color combinations of three
+const vec3 ThreeC1[4] = vec3[4](Red,   Blue,  Red,   Green);
+const vec3 ThreeC2[4] = vec3[4](Green, Green, Blue,  Blue);
+const vec3 ThreeC3[4] = vec3[4](Blue,  Red,   Green, Red);
+
+// color combinations of two
+const vec3 TwoC1[4] = vec3[4](Green,   Magenta, Blue,   Yellow);
+const vec3 TwoC2[4] = vec3[4](Magenta, Green,   Yellow, Blue);
 
 // Returns an offset to shift the given pixel coordinate by x-amount for every second y-block.
 // @pixCoord - the pixel coordinate
@@ -85,10 +95,12 @@ vec3 get_subpixel_color(vec2 pixCoord, vec3 c1, vec3 c2, vec3 c3, vec3 c4)
 //   3: green, magenta, black
 //   4: red, green, blue
 //   5: red, green, blue, black
-// @color_swap - whether the sub-pixel colors shall be swapped
+// @color_order - determines the order of sub-pixel colors
 //   0: red/green/blue, green/magenta
-//   1: blue/green/red, blue/yellow
-vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_type, bool color_swap)
+//   1: blue/green/red, magenta/green
+//   2: red/blue/Green, blue/yellow
+//   3: green/blue/red, yellow/blue
+vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_type, int color_order)
 {
     vec3 color = White;
 
@@ -99,9 +111,9 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
 
     pixCoord /= size;
 
-    vec3 c1 = color_swap ? Blue : Red;
-    vec3 c2 = Green;
-    vec3 c3 = color_swap ? Red : Blue;
+    vec3 c1 = ThreeC1[color_order];
+    vec3 c2 = ThreeC2[color_order];
+    vec3 c3 = ThreeC3[color_order];
     vec3 c4 = Black;
 
     if (subpixel_type == 1)
@@ -111,13 +123,13 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
     }
     else if (subpixel_type == 2)
     {
-        c1 = color_swap ? Yellow : Magenta;
-        c2 = color_swap ? Blue : Green;
+        c1 = TwoC1[color_order];
+        c2 = TwoC2[color_order];
     }
     else if (subpixel_type == 3)
     {
-        c1 = color_swap ? Yellow : Magenta;
-        c2 = color_swap ? Blue : Green;
+        c1 = TwoC1[color_order];
+        c2 = TwoC2[color_order];
         c3 = Black;
     }
 
@@ -248,12 +260,14 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
 //   3: green, magenta, black
 //   4: red, green, blue
 //   5: red, green, blue, black
-// @color_swap - whether the sub-pixel colors shall be swapped
+// @color_order - determines the order of sub-pixel colors
 //   0: red/green/blue, green/magenta
-//   1: blue/green/red, blue/yellow
+//   1: blue/green/red, magenta/green
+//   2: red/blue/Green, blue/yellow
+//   3: green/blue/red, yellow/blue
 // @radius - the corner radius of the sub-pixel
 // @smoothness - the smoothness of the sub-pixel
-vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_type, bool color_swap, float radius, float smoothness)
+vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_type, int color_order, float radius, float smoothness)
 {
     vec3 color = White;
 
@@ -267,9 +281,9 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
     vec2 bounds = vec2(1.0, 1.0);
     vec2 scale = vec2(1.0, 1.0);
 
-    vec3 c1 = color_swap ? Blue : Red;
-    vec3 c2 = Green;
-    vec3 c3 = color_swap ? Red : Blue;
+    vec3 c1 = ThreeC1[color_order];
+    vec3 c2 = ThreeC2[color_order];
+    vec3 c3 = ThreeC3[color_order];
     vec3 c4 = Black;
 
     if (subpixel_type == 1)
@@ -279,13 +293,13 @@ vec3 get_subpixel_color(vec2 pixCoord, int size, int mask_type, int subpixel_typ
     }
     else if (subpixel_type == 2)
     {
-        c1 = color_swap ? Yellow : Magenta;
-        c2 = color_swap ? Blue : Green;
+        c1 = TwoC1[color_order];
+        c2 = TwoC2[color_order];
     }
     else if (subpixel_type == 3)
     {
-        c1 = color_swap ? Yellow : Magenta;
-        c2 = color_swap ? Blue : Green;
+        c1 = TwoC1[color_order];
+        c2 = TwoC2[color_order];
         c3 = Black;
     }
 
