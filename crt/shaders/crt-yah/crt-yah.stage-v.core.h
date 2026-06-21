@@ -81,7 +81,7 @@ vec4 get_mask_profile()
 
     int subpixel_type = PARAM_MASK_SUBPIXEL;
 
-    int subpixel_color_order = PARAM_MASK_SUBPIXEL_ORDER - 1;
+    int subpixel_color_order = PARAM_MASK_SUBPIXEL_ORDER;
 
     return vec4(subpixel_type, subpixel_size, subpixel_smoothness, subpixel_color_order);
 }
