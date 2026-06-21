@@ -3,8 +3,7 @@
 
 // Screen parameters
 #pragma parameter SCREEN_ORIENTATION "·  Screen > Orientation  (0-Auto, 1-Horizontal, 2-Vertical)" 0.0 0.0 2.0 1.0
-#pragma parameter SCREEN_RESOLUTION_SCALE "  ⁵Screen > Resolution  (1-Native, 2,3-Low/+, 4,5-High/+)" 2.0 1.0 5.0 1.0
-#pragma parameter SCREEN_SCALE "   Screen > Scale⁵  (-Down / 0-Auto / +Up)" 0.0 -2.0 2.0 0.05
+#pragma parameter SCREEN_RESOLUTION_SCALE "  ⁵Screen > Resolution  (1-Native, 2/3-Low/+, 4/5-High/+)" 2.0 1.0 5.0 1.0
 #pragma parameter SCREEN_FREQUENCY "  ⁴Screen > Frequency  (30Hz .. 60Hz)" 60.0 30.0 60.0 10.0
 #pragma parameter SCREEN_INTERLACED "   Screen > Interlaced²⁴  (0-None .. 1-Full)" 0.0 0.0 1.0 0.05
 
@@ -25,15 +24,17 @@
 #pragma parameter BEAM_FILTER "   Scanlines > Beam Filter  (-Blocky .. +Blurry)" -0.25 -1.0 1.0 0.05
 #pragma parameter ANTI_RINGING "   Scanlines > Anti-Ringing  (0-None .. 1-Full)" 1.0 0.0 1.0 0.1
 #pragma parameter SCANLINES_COLOR_BURN "   Scanlines > Color Burn¹  (0-None .. 1-Full)" 1.0 0.0 1.0 0.25
+#pragma parameter SCREEN_SCALE "   Scanlines > Scale⁵  (-Down / 0-Auto / +Up)" 0.0 -4.0 2.0 0.05
 
 // Mask parameters
 #pragma parameter MASK_INTENSITY "·  Mask > Intensity¹²³  (0-None .. 1-Full)" 0.5 0.0 1.0 0.05
 #pragma parameter MASK_BLEND "   Mask > Blend²  (0-Multiplicative .. 1-Additive)" 0.25 0.0 1.0 0.05
 #pragma parameter MASK_TYPE "   Mask > Type²  (1-Aperture, 2-Slot, 3-Shadow)" 1.0 1.0 3.0 1.0
-#pragma parameter MASK_SUBPIXEL "   Mask > Sub-Pixel²  (1-BY, 2,3-MG/x, 4,5-RGB/x)" 4.0 1.0 5.0 1.0
+#pragma parameter MASK_SUBPIXEL "   Mask > Sub-Pixel²  (1-Mono, 2-MG, 3-MGx, 4-RGB, 5-RGBx)" 4.0 1.0 5.0 1.0
+#pragma parameter MASK_SUBPIXEL_ORDER "   Mask > Sub-Pixel Order  (1-RGB, 2-BGR, 3-RBG, 4-GBR)" 1.0 1.0 4.0 1.0
 #pragma parameter MASK_SUBPIXEL_SHAPE "   Mask > Sub-Pixel Shape²  (0-Sharp .. 1-Smooth)  [4K]" 1.0 0.0 1.0 0.25
 #pragma parameter MASK_COLOR_BLEED "   Mask > Color Bleed¹²  (0-None .. 1-Full)" 0.25 0.0 1.0 0.25
-#pragma parameter MASK_SCALE "   Mask > Scale⁵  (-1 Down / 0-Auto / +½ Up)" 0.0 -2.0 2.0 0.5
+#pragma parameter MASK_SCALE "   Mask > Scale⁵  (-1 Down / 0-Auto / +½ Up)" 0.0 -2.0 4.0 0.5
 
 // CRT parameters
 #pragma parameter CRT_CURVATURE_AMOUNT "·  CRT > Curvature¹  (0-None .. 1-Full)" 0.0 0.0 1.0 0.05

@@ -57,8 +57,8 @@ vec4 get_mask_profile()
 
     float subpixel_size = pixel_size / subpixel_count;
 
-    // auto scale (consider applied screen-multiple)
-    subpixel_size = floor(subpixel_size * INPUT_SCREEN_MULTIPLE);
+    // auto scale by native multiple
+    subpixel_size = floor(subpixel_size * INPUT_SCREEN_MULTIPLE_NATIVE);
     // limit after auto scale
     subpixel_size = max(1.0, subpixel_size);
 
@@ -79,16 +79,11 @@ vec4 get_mask_profile()
         PARAM_MASK_TYPE == 3 ? clamp((subpixel_size - 2.0) * 0.25, 0.0, 1.0) : 0.0;
     subpixel_smoothness *= PARAM_MASK_SUBPIXEL_SHAPE;
 
-    int subpixel_type =
-        // black, white to magenta, green
-        PARAM_MASK_SUBPIXEL == 1 ? PARAM_MASK_SUBPIXEL + 1 :
-        PARAM_MASK_SUBPIXEL;
+    int subpixel_type = PARAM_MASK_SUBPIXEL;
 
-    bool subpixel_color_swap =
-        // magenta, green to blue, yellow
-        PARAM_MASK_SUBPIXEL == 1;
+    int subpixel_color_order = PARAM_MASK_SUBPIXEL_ORDER;
 
-    return vec4(subpixel_type, subpixel_size, subpixel_smoothness, subpixel_color_swap);
+    return vec4(subpixel_type, subpixel_size, subpixel_smoothness, subpixel_color_order);
 }
 
 float get_brightness_compensation()

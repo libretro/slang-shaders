@@ -34,7 +34,6 @@ void main()
 {
     gl_Position = global.MVP * Position;
 
-    float multiple_auto = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, 0.0);
     float multiple = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -(PARAM_SCREEN_SCALE + PARAM_NTSC_SCALE));
     float screen_scale = 1.0 / multiple;
 

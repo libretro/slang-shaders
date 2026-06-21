@@ -3,15 +3,14 @@ layout(location = 0) in vec2 TexCoord;
 layout(location = 1) in vec2 ScanTexCoord;
 layout(location = 2) in vec2 TexSize;
 layout(location = 3) flat in int ScreenOrientation;
-layout(location = 4) in float ScreenMultiple;
-layout(location = 5) in float ScreenMultipleAuto;
-layout(location = 6) in float BrightnessCompensation;
-layout(location = 7) in vec4 MaskProfile;
-layout(location = 8) in vec4 BeamProfile;
-layout(location = 9) in float AntiRining;
-layout(location = 10) in vec2 FloorProfile;
-layout(location = 11) flat in uvec2 FrameCounts;
-layout(location = 12) in mat4x4 BeamFilter;
+layout(location = 4) in vec3 ScreenMultipleProfile;
+layout(location = 5) in float BrightnessCompensation;
+layout(location = 6) in vec4 MaskProfile;
+layout(location = 7) in vec4 BeamProfile;
+layout(location = 8) in float AntiRining;
+layout(location = 9) in vec2 FloorProfile;
+layout(location = 10) flat in uvec2 FrameCounts;
+layout(location = 11) in mat4x4 BeamFilter;
 layout(location = 0) out vec4 FragColor;
 
 #ifdef IS_SINGLE_PASS
@@ -34,8 +33,9 @@ layout(location = 0) out vec4 FragColor;
 
 // required by crt-yah.stage-f.core.h
 #define INPUT_SCREEN_ORIENTATION ScreenOrientation
-#define INPUT_SCREEN_MULTIPLE ScreenMultiple
-#define INPUT_SCREEN_MULTIPLE_AUTO ScreenMultipleAuto
+#define INPUT_SCREEN_MULTIPLE (ScreenMultipleProfile.x)
+#define INPUT_SCREEN_MULTIPLE_AUTO (ScreenMultipleProfile.y)
+#define INPUT_SCREEN_MULTIPLE_NATIVE (ScreenMultipleProfile.z)
 #define INPUT_BRIGHTNESS_COMPENSATION BrightnessCompensation
 #define INPUT_MASK_PROFILE MaskProfile
 #define INPUT_BEAM_PROFILE BeamProfile

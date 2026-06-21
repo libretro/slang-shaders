@@ -5,20 +5,20 @@ layout(location = 0) out vec2 TexCoord;
 layout(location = 1) out vec2 ScanTexCoord;
 layout(location = 2) out vec2 TexSize;
 layout(location = 3) flat out int ScreenOrientation;
-layout(location = 4) out float ScreenMultiple;
-layout(location = 5) out float ScreenMultipleAuto;
-layout(location = 6) out float BrightnessCompensation;
-layout(location = 7) out vec4 MaskProfile;
-layout(location = 8) out vec4 BeamProfile;
-layout(location = 9) out float AntiRining;
-layout(location = 10) out vec2 FloorProfile;
-layout(location = 11) flat out uvec2 FrameCounts;
-layout(location = 12) out mat4x4 BeamFilter;
+layout(location = 4) out vec3 ScreenMultipleProfile;
+layout(location = 5) out float BrightnessCompensation;
+layout(location = 6) out vec4 MaskProfile;
+layout(location = 7) out vec4 BeamProfile;
+layout(location = 8) out float AntiRining;
+layout(location = 9) out vec2 FloorProfile;
+layout(location = 10) flat out uvec2 FrameCounts;
+layout(location = 11) out mat4x4 BeamFilter;
 
 // required by crt-yah.stage-v.core.h
 #define INPUT_SCREEN_ORIENTATION ScreenOrientation
-#define INPUT_SCREEN_MULTIPLE ScreenMultiple
-#define INPUT_SCREEN_MULTIPLE_AUTO ScreenMultipleAuto
+#define INPUT_SCREEN_MULTIPLE (ScreenMultipleProfile.x)
+#define INPUT_SCREEN_MULTIPLE_AUTO (ScreenMultipleProfile.y)
+#define INPUT_SCREEN_MULTIPLE_NATIVE (ScreenMultipleProfile.z)
 #define INPUT_MASK_PROFILE MaskProfile
 
 #include "crt-yah.stage-v.core.h"
@@ -31,8 +31,9 @@ void main()
     ScanTexCoord = Coord;
 
     ScreenOrientation = get_orientation(global.OutputSize.xy, PARAM_SCREEN_ORIENTATION);
-    ScreenMultiple = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -PARAM_SCREEN_SCALE);
-    ScreenMultipleAuto = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, 0.0);
+    ScreenMultipleProfile.x = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, -PARAM_SCREEN_SCALE);
+    ScreenMultipleProfile.y = get_screen_multiple(global.OriginalSize.xy, ScreenOrientation, 0.0);
+    ScreenMultipleProfile.z = get_auto_multiple(global.OriginalSize.xy, ScreenOrientation, 0.0);
     MaskProfile = get_mask_profile();
     BeamProfile = get_beam_profile();
     BeamFilter = get_beam_filter();

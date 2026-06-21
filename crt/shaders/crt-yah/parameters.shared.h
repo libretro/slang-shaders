@@ -29,6 +29,7 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 #define PARAM_MASK_SCALE param.MASK_SCALE
 #define PARAM_MASK_TYPE int(param.MASK_TYPE)
 #define PARAM_MASK_SUBPIXEL int(param.MASK_SUBPIXEL)
+#define PARAM_MASK_SUBPIXEL_ORDER int(param.MASK_SUBPIXEL_ORDER)
 #define PARAM_MASK_SUBPIXEL_SHAPE param.MASK_SUBPIXEL_SHAPE
 #define PARAM_MASK_COLOR_BLEED mix_master(param.MASK_COLOR_BLEED, 0.0, 0.0, 1.0)
 
@@ -60,6 +61,6 @@ float mix_master(float value, float off_value, float min_value, float max_value)
 #define PARAM_PHOSPHOR_AMOUNT mix_master(param.PHOSPHOR_AMOUNT, 0.0, 0.0, 1.0)
 #define PARAM_PHOSPHOR_DECAY param.PHOSPHOR_DECAY
 
-#define PARAM_HALATION_INTENSITY mix_master(param.HALATION_INTENSITY, 0.0, 0.0, 1.0)
-#define PARAM_HALATION_DIFFUSION param.HALATION_DIFFUSION
-#define PARAM_HALATION_INFLUENCE param.HALATION_INFLUENCE
+#define PARAM_HALATION_INTENSITY mix_master(global.HALATION_INTENSITY, 0.0, 0.0, 1.0)
+#define PARAM_HALATION_DIFFUSION global.HALATION_DIFFUSION
+#define PARAM_HALATION_INFLUENCE global.HALATION_INFLUENCE
