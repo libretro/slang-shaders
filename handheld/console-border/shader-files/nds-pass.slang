@@ -10,6 +10,7 @@ layout(push_constant) uniform Push
     float border_brightness;
     float top_x, top_y;
     float bot_x, bot_y;
+    float flip_border_y;
 } params;
 
 // Global scale parameters
@@ -22,6 +23,7 @@ layout(push_constant) uniform Push
 #pragma parameter top_y "Top Screen Y Offset" 0.0 -2.0 2.0 0.001
 #pragma parameter bot_x "Bottom Screen X Offset" 0.0 -2.0 2.0 0.001
 #pragma parameter bot_y "Bottom Screen Y Offset" 0.0 -2.0 2.0 0.001
+#pragma parameter flip_border_y "Flip Border Vertically" 0.0 0.0 1.0 1.0
 
 vec2 middle = vec2(0.5, 0.5);
 
@@ -79,9 +81,13 @@ void main()
     else if (bot_sample.x >= 0.0 && bot_sample.x <= 1.0 && bot_sample.y > 0.5 && bot_sample.y <= 1.0) {
         frame = texture(Source, bot_sample).rgba;
     }
-    
-    vec4 border = texture(BORDER, tex_border).rgba;
-    
+
+    vec2 final_tex_border = tex_border;
+    if (params.flip_border_y > 0.5) {
+        final_tex_border.y = 1.0 - final_tex_border.y;
+    }
+    vec4 border = texture(BORDER, final_tex_border).rgba;
+
     // Alpha 通道混合
     FragColor = vec4(mix(frame, border * params.border_brightness, border.a));
 }
