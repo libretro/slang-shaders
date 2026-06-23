@@ -12,12 +12,12 @@ layout(push_constant) uniform Push
     float bot_x, bot_y;
 } params;
 
-// 全局缩放参数
+// Global scale parameters
 #pragma parameter video_scale "Video Scale" 3.0 2.0 20.0 1.0
 #pragma parameter border_texture_scale "Border Scale" 4.0 1.0 20.0 0.01
 #pragma parameter border_brightness "Border Brightness" 1.0 0.0 1.0 0.01
 
-// 锚点偏移量设定 (绝对坐标域)
+// Anchor offset settings (absolute coordinate domain)
 #pragma parameter top_x "Top Screen X Offset" 0.0 -2.0 2.0 0.001
 #pragma parameter top_y "Top Screen Y Offset" 0.0 -2.0 2.0 0.001
 #pragma parameter bot_x "Bottom Screen X Offset" 0.0 -2.0 2.0 0.001
@@ -40,10 +40,10 @@ void main()
 {
     gl_Position = global.MVP * Position;
     
-    // 向片段着色器传递原生 0-1 坐标
+    // Pass native 0-1 coordinates to the fragment shader
     vTexCoord = TexCoord.xy;
     
-    // 计算边框的物理拉伸矩阵
+    // Compute the physical stretch matrix for the border
     vec2 border_scale = vec2(3840.0, 2800.0) * params.video_scale / params.border_texture_scale;
     vec2 diff = vTexCoord.xy - middle;
     tex_border = middle + diff * params.OutputSize.xy / border_scale;
@@ -58,11 +58,11 @@ layout(set = 0, binding = 3) uniform sampler2D BORDER;
 
 void main()
 {
-    // 【核心数学修正】：提取当前边框与窗口的物理缩放比
+    // Core math fix: derive the physical scaling ratio between the current border and the window
     vec2 border_scale = vec2(3840.0, 2800.0) * params.video_scale / params.border_texture_scale;
     vec2 ratio = border_scale / params.OutputSize.xy;
     
-    // 将用户的绝对偏移量除以(即乘以ratio)缩放比例，自动抵消几何漂移
+    // Scale the user's absolute offset by this ratio to automatically compensate geometric drift
     vec2 top_offset = vec2(params.top_x, params.top_y) * ratio;
     vec2 bot_offset = vec2(params.bot_x, params.bot_y) * ratio;
     
@@ -71,11 +71,11 @@ void main()
     
     vec4 frame = vec4(0.0);
     
-    // 渲染判定域 1：强行剥离上半部分画面
+    // Render decision region 1: forcibly extract the upper half of the scene
     if (top_sample.x >= 0.0 && top_sample.x <= 1.0 && top_sample.y >= 0.0 && top_sample.y <= 0.5) {
         frame = texture(Source, top_sample).rgba;
     }
-    // 渲染判定域 2：强行剥离下半部分画面
+    // Render decision region 2: forcibly extract the lower half of the scene
     else if (bot_sample.x >= 0.0 && bot_sample.x <= 1.0 && bot_sample.y > 0.5 && bot_sample.y <= 1.0) {
         frame = texture(Source, bot_sample).rgba;
     }
