@@ -1,10 +1,16 @@
-shaders = 1
+shaders = 2
 
-shader0 = shaders/nis-scaler.slang
-filter_linear0 = true
-scale_type0 = viewport
+shader0 = shaders/nis-luma.slang
+filter_linear0 = false
+scale_type0 = source
 scale0 = 1.0
 wrap_mode0 = clamp_to_edge
+
+shader1 = shaders/nis-scaler.slang
+filter_linear1 = false
+scale_type1 = viewport
+scale1 = 1.0
+wrap_mode1 = clamp_to_edge
 
 parameters = "NIS_SHARPNESS"
 NIS_SHARPNESS = 0.5
