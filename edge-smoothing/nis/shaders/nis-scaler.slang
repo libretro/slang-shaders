@@ -24,19 +24,16 @@
 // fragment shader. Spatial upscaler + adaptive sharpening; needs no motion
 // vectors/depth/jitter, so it runs on any core output including software-FB cores.
 //
-// Per-output-pixel math is verbatim from the reference (3x3 Sobel edge classifier,
-// 64-phase 6-tap directional poly banks, LTI ring-suppression, luma-ramped USM).
-// The reference compute shader shares the source-luma tile and the coef banks
-// across a threadgroup via LDS. A fragment port cannot, and naively embedding the
-// banks as const arrays makes glslang copy a 384-float constant into Function/local
-// memory on every dynamic index (many times per pixel) - the dominant cost. Instead
-// the banks are baked once into a LUT texture (NIS_COEF) and sampled here, and luma
-// is precomputed (NIS_LUMA, R16F). This pass reads single-channel luma + LUT coefs
-// and takes one bilinear RGB tap from Original for chroma. SDR; NIS_SHARPNESS slider.
+// Per-output-pixel math is verbatim from the reference. The reference compute
+// shader shares the source-luma tile and coef banks via LDS; a fragment port has
+// none, and dynamically indexing a 384-element const coef array makes glslang copy
+// the whole constant into Function/local memory on every access (the dominant cost).
+// So the banks are baked once into a LUT texture (NIS_COEF) and luma is precomputed
+// (NIS_LUMA, R16F); both are addressed here by alias, with chroma taken from a
+// bilinear tap of Original. All size math uses OriginalSize (the core framebuffer),
+// since this pass's own Source is the immediately-preceding LUT. SDR; NIS_SHARPNESS.
 #pragma name NIS_SCALER
-
 #pragma parameter NIS_SHARPNESS "NIS Sharpness" 0.5 0.0 1.0 0.05
-
 layout(push_constant) uniform Push {
     vec4 SourceSize;
     vec4 OriginalSize;
@@ -44,32 +41,20 @@ layout(push_constant) uniform Push {
     uint FrameCount;
     float NIS_SHARPNESS;
 } params;
-
-layout(std140, set = 0, binding = 0) uniform UBO {
-    mat4 MVP;
-} global;
-
+layout(std140, set = 0, binding = 0) uniform UBO { mat4 MVP; } global;
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
-
-void main() {
-    gl_Position = global.MVP * Position;
-    vTexCoord = TexCoord;
-}
-
+void main() { gl_Position = global.MVP * Position; vTexCoord = TexCoord; }
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Source;    // NIS_LUMA prepass (R16F luma in .r)
+layout(set = 0, binding = 2) uniform sampler2D NISLuma;   // luma prepass (R16F luma in .r), source-res
 layout(set = 0, binding = 3) uniform sampler2D Original;  // core framebuffer RGB (for chroma)
-layout(set = 0, binding = 4) uniform sampler2D NISCoef;   // NIS_COEF LUT (6x128 R16F)
-
+layout(set = 0, binding = 4) uniform sampler2D NISCoef;   // coef LUT (6x128 R16F)
 #define kPhaseCount 64
 #define kSupportSize 6
-
-// Coefficient access via the baked LUT (cache-backed; no constant-array spill).
 float cScaler(int phase, int tap) { return texelFetch(NISCoef, ivec2(tap, phase), 0).r; }
 float cUSM(int phase, int tap)    { return texelFetch(NISCoef, ivec2(tap, phase + 64), 0).r; }
 
@@ -272,8 +257,8 @@ void main() {
 
     // Output pixel (viewport-res pass) -> source coordinate.
     ivec2 dst = ivec2(vTexCoord * params.OutputSize.xy);
-    float kScaleX = params.SourceSize.x * params.OutputSize.z; // src/out
-    float kScaleY = params.SourceSize.y * params.OutputSize.w;
+    float kScaleX = params.OriginalSize.x * params.OutputSize.z; // src/out
+    float kScaleY = params.OriginalSize.y * params.OutputSize.w;
 
     float srcX = (0.5 + float(dst.x)) * kScaleX - 0.5;
     float srcY = (0.5 + float(dst.y)) * kScaleY - 0.5;
@@ -285,11 +270,11 @@ void main() {
     int fy_int = int(fy * float(kPhaseCount));
 
     // 6x6 luma support, read straight from the single-channel prepass.
-    ivec2 maxc = ivec2(params.SourceSize.xy) - 1;
+    ivec2 maxc = ivec2(params.OriginalSize.xy) - 1;
     for (int i = 0; i < 6; ++i) {
         for (int j = 0; j < 6; ++j) {
             ivec2 sp = clamp(ivec2(ix0 + (j - 2), iy0 + (i - 2)), ivec2(0), maxc);
-            PIX(i, j) = texelFetch(Source, sp, 0).r;
+            PIX(i, j) = texelFetch(NISLuma, sp, 0).r;
         }
     }
 

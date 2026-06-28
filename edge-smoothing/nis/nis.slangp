@@ -1,22 +1,23 @@
 shaders = 3
 
-shader0 = shaders/nis-coef.slang
+shader0 = shaders/nis-luma.slang
 filter_linear0 = false
-scale_type_x0 = absolute
-scale_x0 = 6
-scale_type_y0 = absolute
-scale_y0 = 128
-alias0 = NISCoef
+scale_type0 = source
+scale0 = 1.0
+alias0 = NISLuma
 wrap_mode0 = clamp_to_edge
 
-shader1 = shaders/nis-luma.slang
+shader1 = shaders/nis-coef.slang
 filter_linear1 = false
-scale_type1 = source
-scale1 = 1.0
+scale_type_x1 = absolute
+scale_x1 = 6
+scale_type_y1 = absolute
+scale_y1 = 128
+alias1 = NISCoef
 wrap_mode1 = clamp_to_edge
 
 shader2 = shaders/nis-scaler.slang
-filter_linear2 = false
+filter_linear2 = true
 scale_type2 = viewport
 scale2 = 1.0
 wrap_mode2 = clamp_to_edge

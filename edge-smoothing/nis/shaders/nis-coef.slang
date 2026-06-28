@@ -23,28 +23,21 @@
 // NVIDIA Image Scaling (NIS) - coefficient LUT generator.
 // Bakes the 64-phase x 6-tap coef_scale / coef_usm banks into a 6x128 R16F
 // texture (rows 0-63 = scaler, 64-127 = usm). Runs at a fixed 6x128 = 768
-// invocations, so the only place that dynamically indexes the embedded constant
-// banks is here - NOT the per-output-pixel scaler. The scaler samples this LUT
-// (cache-backed) instead of forcing glslang to copy a 384-float constant into
-// Function/local memory on every fragment, which was the dominant per-pixel cost.
+// invocations - the only place that dynamically indexes the embedded constant
+// banks. The scaler samples this LUT instead of forcing glslang to copy a
+// 384-float constant into Function/local memory on every fragment.
 #pragma name NIS_COEF
 #pragma format R16_SFLOAT
-
-layout(push_constant) uniform Push {
-    vec4 SourceSize; vec4 OriginalSize; vec4 OutputSize; uint FrameCount;
-} params;
+layout(push_constant) uniform Push { vec4 SourceSize; vec4 OriginalSize; vec4 OutputSize; uint FrameCount; } params;
 layout(std140, set = 0, binding = 0) uniform UBO { mat4 MVP; } global;
-
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 void main() { gl_Position = global.MVP * Position; vTexCoord = TexCoord; }
-
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
-
 const float coefScaler[384] = float[384](
     0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000,
     0.002900, -0.012700, 1.000000, 0.013200, -0.003400, 0.000000,
@@ -178,7 +171,6 @@ const float coefUSM[384] = float[384](
     0.000500, -0.006800, -0.579100, 1.195800, -0.614700, 0.004900,
     0.000000, -0.002900, -0.590300, 1.198700, -0.608400, 0.002900
 );
-
 void main() {
     ivec2 xy = ivec2(vTexCoord * params.OutputSize.xy);
     int tap = clamp(xy.x, 0, 5);
