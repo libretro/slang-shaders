@@ -43,7 +43,7 @@ filter_linear4 = false
 scale_type4 = source
 scale4 = 1.0
 
-shader5 = "../../../../../crt/shaders/phosphor-persistence/phosphor-update.slang"
+shader5 = "../../../../../crt/crt-effects/shaders/phosphor-persistence/phosphor-update.slang"
 alias5 = phosphor
 filter_linear5 = false
 scale_type5 = source  

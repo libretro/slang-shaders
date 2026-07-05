@@ -6,7 +6,7 @@ filter_linear0 = false
 scale_type0 = source
 scale0 = 1.0
 
-shader1 = "../../../../../crt/shaders/phosphor-persistence/phosphor-update.slang"
+shader1 = "../../../../../crt/crt-effects/shaders/phosphor-persistence/phosphor-update.slang"
 alias1 = phosphor
 filter_linear1 = false
 scale_type1 = source  
