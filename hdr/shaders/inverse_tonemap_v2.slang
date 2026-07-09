@@ -12,7 +12,7 @@ Originally part of the crt\crt-sony-pvm-4k-hdr.slangp but can be used for any sh
 
 #pragma format R16G16B16A16_SFLOAT
 
-#include "include\inverse_tonemap.h"
+#include "include/inverse_tonemap.h"
 
 layout(std140, set = 0, binding = 0) uniform UBO
 {
