@@ -37,8 +37,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter ExpandGamut       "Colour Boost: Accurate | Expanded | Wide | Super"          0.0      0.0 3.0     1.0
 #pragma parameter DisplayGamma      "Display Gamma"                                             2.2      0.0 5.0     0.1
 
-#include "include\inverse_tonemap.h"
-#include "include\hdr10.h"
+#include "include/inverse_tonemap.h"
+#include "include/hdr10.h"
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;

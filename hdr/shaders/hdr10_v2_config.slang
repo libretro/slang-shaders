@@ -12,7 +12,7 @@ Originally part of the crt\crt-sony-pvm-4k-hdr.slangp but can be used for any sh
 
 #pragma format A2B10G10R10_UNORM_PACK32
 
-#include "include\hdr10.h"
+#include "include/hdr10.h"
 
 layout(push_constant) uniform Push
 {
