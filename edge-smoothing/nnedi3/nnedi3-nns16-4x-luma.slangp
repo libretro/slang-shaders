@@ -1,7 +1,7 @@
 parameters = "NNEDI_CSHIFT_PIXELS"
 NNEDI_CSHIFT_PIXELS = "1.5"
 
-shaders = 9
+shaders = 13
 
 shader0 = shaders/rgb-to-yuv.slang
 filter_linear0 = false
@@ -11,57 +11,88 @@ scale_y0 = 1.0
 wrap_mode0 = "clamp_to_edge"
 alias0 = nnediPass0
 
-shader1 = shaders/nnedi3-nns16-win8x4-pass1-luma.slang
+shader1 = shaders/nnedi3-nns16-win8x4-predict-v-luma.slang
 filter_linear1 = false
 scale_type1 = source
 scale_x1 = 1.0
-scale_y1 = 2.0
+scale_y1 = 1.0
 wrap_mode1 = "clamp_to_edge"
 
-shader2 = shaders/nnedi3-nns16-win8x4-pass2-luma.slang
+shader2 = shaders/nnedi3-combine-v-pass0.slang
 filter_linear2 = false
 scale_type2 = source
-scale_x2 = 2.0
-scale_y2 = 1.0
+scale_x2 = 1.0
+scale_y2 = 2.0
 wrap_mode2 = "clamp_to_edge"
+alias2 = nnedi3Prev1
 
-shader3 = shaders/nnedi3-nns16-win8x4-pass1-luma.slang
+shader3 = shaders/nnedi3-nns16-win8x4-predict-h-luma.slang
 filter_linear3 = false
 scale_type3 = source
 scale_x3 = 1.0
-scale_y3 = 2.0
+scale_y3 = 1.0
 wrap_mode3 = "clamp_to_edge"
 
-shader4 = shaders/nnedi3-nns16-win8x4-pass2-luma.slang
+shader4 = shaders/nnedi3-combine-h-prev1.slang
 filter_linear4 = false
 scale_type4 = source
 scale_x4 = 2.0
 scale_y4 = 1.0
 wrap_mode4 = "clamp_to_edge"
+alias4 = nnedi3Prev2
 
-shader5 = shaders/jinc2-cshift-luma.slang
+shader5 = shaders/nnedi3-nns16-win8x4-predict-v-luma.slang
 filter_linear5 = false
 scale_type5 = source
 scale_x5 = 1.0
 scale_y5 = 1.0
 wrap_mode5 = "clamp_to_edge"
-alias5 = nnediPass6
 
-shader6 = shaders/jinc2-on-passoutput0.slang
+shader6 = shaders/nnedi3-combine-v-prev2.slang
 filter_linear6 = false
 scale_type6 = source
 scale_x6 = 1.0
-scale_y6 = 1.0
+scale_y6 = 2.0
 wrap_mode6 = "clamp_to_edge"
+alias6 = nnedi3Prev3
 
-shader7 = shaders/yuv-to-rgb-4x.slang
+shader7 = shaders/nnedi3-nns16-win8x4-predict-h-luma.slang
 filter_linear7 = false
 scale_type7 = source
 scale_x7 = 1.0
 scale_y7 = 1.0
 wrap_mode7 = "clamp_to_edge"
 
-shader8 = ../../interpolation/shaders/jinc2.slang
+shader8 = shaders/nnedi3-combine-h-prev3.slang
 filter_linear8 = false
-scale_type8 = viewport
+scale_type8 = source
+scale_x8 = 2.0
+scale_y8 = 1.0
 wrap_mode8 = "clamp_to_edge"
+
+shader9 = shaders/jinc2-cshift-luma.slang
+filter_linear9 = false
+scale_type9 = source
+scale_x9 = 1.0
+scale_y9 = 1.0
+wrap_mode9 = "clamp_to_edge"
+alias9 = nnediPass6
+
+shader10 = shaders/jinc2-on-passoutput0.slang
+filter_linear10 = false
+scale_type10 = source
+scale_x10 = 1.0
+scale_y10 = 1.0
+wrap_mode10 = "clamp_to_edge"
+
+shader11 = shaders/yuv-to-rgb-4x.slang
+filter_linear11 = false
+scale_type11 = source
+scale_x11 = 1.0
+scale_y11 = 1.0
+wrap_mode11 = "clamp_to_edge"
+
+shader12 = ../../interpolation/shaders/jinc2.slang
+filter_linear12 = false
+scale_type12 = viewport
+wrap_mode12 = "clamp_to_edge"
