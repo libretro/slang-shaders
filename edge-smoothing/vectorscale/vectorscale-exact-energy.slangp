@@ -1,0 +1,149 @@
+# Vibeboy vectorize: same optimizer topology as
+# vibeboy-vectorize-exact-energy-single-aa.slangp, with the multi-AA
+# rasterizer chained after the single-AA rasterizer for better edge
+# anti-aliasing.
+
+shaders = 18
+
+shader0 = shaders/similarity-graph.slang
+alias0 = SimilarityGraph
+filter_linear0 = false
+scale_type0 = source
+scale0 = 2.0
+wrap_mode0 = clamp_to_border
+
+shader1 = shaders/resolve-crossings.slang
+alias1 = ResolvedGraph
+filter_linear1 = false
+scale_type1 = source
+scale1 = 1.0
+wrap_mode1 = clamp_to_border
+
+shader2 = shaders/cell-graph.slang
+alias2 = CellGraphRaw
+filter_linear2 = false
+scale_type_x2 = source
+scale_x2 = 0.55
+scale_type_y2 = source
+scale_y2 = 1.05
+wrap_mode2 = clamp_to_border
+
+
+shader3 = shaders/bake-neighbor-endpoints.slang
+alias3 = CellGraph
+filter_linear3 = false
+scale_type3 = source
+scale3 = 1.0
+wrap_mode3 = clamp_to_border
+shader4 = shaders/init-positions.slang
+alias4 = InitPos
+filter_linear4 = false
+scale_type_x4 = source
+scale_x4 = 1.0
+scale_type_y4 = source
+scale_y4 = 1.0
+wrap_mode4 = clamp_to_border
+
+# Outer iter 0
+shader5 = shaders/optimize-energy.slang
+alias5 = Picard0
+filter_linear5 = false
+scale_type5 = source
+scale5 = 1.0
+wrap_mode5 = clamp_to_border
+
+shader6 = shaders/gradient-correction.slang
+alias6 = Grad0
+filter_linear6 = false
+scale_type6 = source
+scale6 = 1.0
+wrap_mode6 = clamp_to_border
+
+# Outer iter 1
+shader7 = shaders/optimize-energy.slang
+alias7 = Picard1
+filter_linear7 = false
+scale_type7 = source
+scale7 = 1.0
+wrap_mode7 = clamp_to_border
+
+shader8 = shaders/gradient-correction.slang
+alias8 = Grad1
+filter_linear8 = false
+scale_type8 = source
+scale8 = 1.0
+wrap_mode8 = clamp_to_border
+
+# Outer iter 2
+shader9 = shaders/optimize-energy.slang
+alias9 = Picard2
+filter_linear9 = false
+scale_type9 = source
+scale9 = 1.0
+wrap_mode9 = clamp_to_border
+
+shader10 = shaders/gradient-correction.slang
+alias10 = Grad2
+filter_linear10 = false
+scale_type10 = source
+scale10 = 1.0
+wrap_mode10 = clamp_to_border
+
+# T-junction stem CP snap.
+shader11 = shaders/update-tjunction.slang
+alias11 = TJunc1
+filter_linear11 = false
+scale_type11 = source
+scale11 = 1.0
+wrap_mode11 = clamp_to_border
+
+shader12 = shaders/update-tjunction.slang
+alias12 = TJunc2
+filter_linear12 = false
+scale_type12 = source
+scale12 = 1.0
+wrap_mode12 = clamp_to_border
+
+shader13 = shaders/update-tjunction.slang
+alias13 = FinalPositions
+filter_linear13 = false
+scale_type13 = source
+scale13 = 1.0
+wrap_mode13 = clamp_to_border
+
+shader14 = shaders/pack-positions.slang
+alias14 = PackedPositions
+filter_linear14 = false
+scale_type_x14 = source
+scale_x14 = 2.0
+scale_type_y14 = source
+scale_y14 = 1.0
+wrap_mode14 = clamp_to_border
+
+# Active-cell info: per source cell, output (RGB = fallback color,
+# A = 8-bit mask of which CPs at the 4 corners x 2 slots render a span).
+# The rasterizer reads this once per pixel to gate find_hits (skip when
+# mask == 0) and to iterate set bits only.
+shader15 = shaders/active-cell-mask.slang
+alias15 = CellInfo
+filter_linear15 = false
+scale_type_x15 = source
+scale_x15 = 0.5
+scale_type_y15 = source
+scale_y15 = 0.5
+wrap_mode15 = clamp_to_border
+
+
+shader16 = shaders/cell-rasterizer-single-aa.slang
+alias16 = SingleAA
+filter_linear16 = false
+scale_type16 = viewport
+scale16 = 1.0
+wrap_mode16 = clamp_to_border
+
+shader17 = shaders/cell-rasterizer-multi-aa.slang
+alias17 = FinalOutput
+filter_linear17 = true
+scale_type17 = viewport
+scale17 = 1.0
+wrap_mode17 = clamp_to_border
