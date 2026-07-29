@@ -1,3 +1,7 @@
+# Preset by Syboxez using crt-guest-advanced-hd
+# Based on Philips 27PS55 27" consumer CRT TV
+# 4K resolution with a high peak brightness (1000+ nits) recommended
+
 shaders = 12
 
 textures = "SamplerLUT1;SamplerLUT2;SamplerLUT3;SamplerLUT4"
@@ -97,6 +101,7 @@ scale_type11 = viewport
 scale_x11 = 1.0
 scale_y11 = 1.0
 
+AS = "0.000000"
 CP = "-1.000000"
 WP = "-70.000000"
 TNTC = "4.000000"
