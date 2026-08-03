@@ -69,7 +69,7 @@ void main()
     vec2 pixel_coord = floor(fract(vTexCoord * params.SourceSize.xy) * vScale);
 
     // Compute dynamic border thickness (0.2 scale factor, clamped to 1px min)
-    vec2 border_w = max(floor(vScale * 0.2), vec2(1.0));
+    vec2 border_w = max(round(vScale * 0.2), vec2(1.0));
 
     // Calculate discrete Manhattan distances to cell boundaries
     float dist_left   = pixel_coord.x;
