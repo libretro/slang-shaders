@@ -1,0 +1,9 @@
+shaders = 1
+shader0 = ../../shaders/4-shades-gray-recolor.slang
+
+scale_type0 = source
+filter_linear0 = false
+
+textures = COLOR_PALETTE
+COLOR_PALETTE = resources/palette-sgb-2h.png
+COLOR_PALETTE_linear = false

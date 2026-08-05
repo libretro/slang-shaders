@@ -1,0 +1,4 @@
+These palettes are based on lospec.com:
+
+- palette-secam.png,  by vee, https://lospec.com/palette-list/secam
+

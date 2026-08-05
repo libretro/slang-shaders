@@ -1,0 +1,37 @@
+These palettes are maden by TheWolfBunny64 (some renamed):
+
+- palette-bmo.png
+- palette-gamate.png
+- palette-game-boy-dmg-3DS-virtual-console-ver.png
+- palette-game-boy-dmg-realistic.png
+- palette-game-boy-dmg-switch-ver.png
+- palette-game-boy-light-realistic.png
+- palette-game-boy-pocket-3DS-virtual-console-ver.png
+- palette-game-boy-pocket-realistic.png
+- palette-game-boy-pocket-switch-ver.png
+- palette-gamebuino-classic.png
+- palette-game-com.png
+- palette-gameking.png
+- palette-game-master.png
+- palette-lcd-classic.png
+- palette-lcd-clock-green.png
+- palette-microvision.png
+- palette-neo-geo-pocket.png
+- palette-nokia-3310.png
+- palette-pkmn-mini.png
+- palette-pk-tech.png
+- palette-pocketstation.png
+- palette-supervision.png
+- palette-ti-83.png
+- palette-vmu.png
+
+	Original website: https://thewolfbunny64.itch.io/game-boy-custom-palettes
+
+These palettes are based on Core Beetle WonderSwan:
+- palette-wonderswan.png
+- palette-wonderswan-color-monochrome.png
+- palette-wonderswan-crystal-monochrome.png
+
+
+These palettes are based on Core Beetle VB:
+- palette-virtual-boy.png

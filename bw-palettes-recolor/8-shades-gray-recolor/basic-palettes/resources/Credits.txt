@@ -1,0 +1,8 @@
+These palettes are based on Core Beetle VB:
+
+- palette-black&blue.png
+- palette-black&cyan.png
+- palette-black&electriccyan.png
+- palette-black&green.png
+- palette-black&magenta.png
+- palette-black&yellow.png
