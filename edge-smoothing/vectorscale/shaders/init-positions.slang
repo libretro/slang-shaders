@@ -34,9 +34,8 @@ layout(set = 0, binding = 3) uniform sampler2D CellGraph; // Pass 3
 
 void main() {
     ivec2 opos = ivec2(vTexCoord * params.OutputSize.xy);
-    // Position texture at (cx, cy_slot) maps to CellGraph row cy_slot * 3 + 0
-    int base_row = opos.y * 3;
-    vec4 val = texelFetch(CellGraph, ivec2(opos.x, base_row), 0);
-    // Original position is in RG channels
+    // CellGraph: 1 texel per (cx, cy_slot). RG = original position; the
+    // BA channels hold packed flags/dirs/neighbors which we don't need.
+    vec4 val = texelFetch(CellGraph, opos, 0);
     FragColor = vec4(val.r, val.g, 0.0, 0.0);
 }

@@ -1,21 +1,20 @@
 #version 450
 #pragma format R32G32B32A32_SFLOAT
 
-// Pass 0: Build similarity graph from pixel art input.
+// Pass 0: build similarity graph from pixel-art input. Output is a
+// 2x-scaled texture:
+//   Odd,Odd   (2x+1, 2y+1) = pixel color in .rgb + 8-bit valence mask in .a
+//                            (NW=1, W=2, SW=4, S=8, SE=16, E=32, NE=64, N=128).
+//   Even,Odd  (2x,   2y+1) = horizontal edge: 1.0 if connected, else 0.0.
+//   Odd,Even  (2x+1, 2y)   = vertical edge: 1.0 if connected, else 0.0.
+//   Even,Even (2x,   2y)   = diagonal corner flags as float(0-3):
+//     bit 0 = backslash (x-1,y-1)-(x,y), bit 1 = slash (x,y-1)-(x-1,y).
 //
-// Output is a 2x-scaled texture encoding the similarity graph:
-//   Odd,Odd   (2x+1, 2y+1) = pixel color as normalized RGB in .rgb (0-1 range)
-//   Even,Odd  (2x,   2y+1) = horizontal edge: 1.0 if connected, else 0.0
-//   Odd,Even  (2x+1, 2y)   = vertical edge: 1.0 if connected, else 0.0
-//   Even,Even (2x,   2y)   = diagonal corner flags as float(0-3), read with uint(val+0.5)
-//     bit 0 = backslash diagonal (x-1,y-1)-(x,y) connected
-//     bit 1 = slash diagonal (x,y-1)-(x-1,y) connected
+// The graph is conceptually (2W+1)×(2H+1) but we output to 2W×2H — the
+// missing rightmost column / bottom row are border edges defaulting to 0.
 //
-// All values are small: colors are normalized 0-1, flags are small integers.
-//
-// The graph is conceptually (2W+1)x(2H+1) but we output to a 2Wx2H texture.
-// The missing rightmost column and bottom row are border edges that default
-// to 0 (not connected), so no data is lost.
+// The valence mask is consumed by resolve-crossings; resolve-crossings
+// only modifies even-even diagonal flags so the mask stays valid.
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -55,33 +54,39 @@ void main() {
         return;
     }
 
-    // Graph coordinate mapping:
-    // Output (0,0) maps to graph (0,0) which is the top-left corner.
-    // We need to map output pixels to the (2W+1)x(2H+1) graph.
-    // Since output is 2W x 2H, output pixel (ox,oy) maps to graph (ox,oy).
-    // Graph position (0,0) is a corner, (1,1) is the first pixel color, etc.
-    //
-    // But wait: the graph conceptually starts at (0,0) as corner, with pixel
-    // colors at odd positions (1,3,5...) and edges at even positions (0,2,4...).
-    // With a 2W output, graph columns 0..2W-1 are covered (missing column 2W).
-    // With a 2H output, graph rows 0..2H-1 are covered (missing row 2H).
-    //
-    // Column 2W and row 2H are the rightmost/bottom border edges = 0, so
-    // losing them is fine.
-
     int gx = opos.x;
     int gy = opos.y;
     bool gx_even = (gx % 2 == 0);
     bool gy_even = (gy % 2 == 0);
 
     if (!gx_even && !gy_even) {
-        // Odd, Odd: pixel color position
-        // Pixel (px, py) = ((gx-1)/2, (gy-1)/2)
+        // Odd, Odd: pixel color + 8-bit valence mask. Each bit set iff
+        // the cardinal/diagonal neighbor has the same color.
         int px = (gx - 1) / 2;
         int py = (gy - 1) / 2;
-        // Store as normalized RGB (0-1).
-        vec4 c = texelFetch(Source, ivec2(px, py), 0);
-        FragColor = vec4(c.rgb, 1.0);
+        vec4 self = texelFetch(Source, ivec2(px, py), 0);
+
+        uint valence = 0u;
+        // Cardinals
+        if (px > 0
+            && all(equal(self.rgb, texelFetch(Source, ivec2(px - 1, py), 0).rgb))) valence |= 2u;   // W
+        if (px + 1 < imgSize.x
+            && all(equal(self.rgb, texelFetch(Source, ivec2(px + 1, py), 0).rgb))) valence |= 32u;  // E
+        if (py > 0
+            && all(equal(self.rgb, texelFetch(Source, ivec2(px, py - 1), 0).rgb))) valence |= 128u; // N
+        if (py + 1 < imgSize.y
+            && all(equal(self.rgb, texelFetch(Source, ivec2(px, py + 1), 0).rgb))) valence |= 8u;   // S
+        // Diagonals
+        if (px > 0 && py > 0
+            && all(equal(self.rgb, texelFetch(Source, ivec2(px - 1, py - 1), 0).rgb))) valence |= 1u;  // NW
+        if (px + 1 < imgSize.x && py > 0
+            && all(equal(self.rgb, texelFetch(Source, ivec2(px + 1, py - 1), 0).rgb))) valence |= 64u; // NE
+        if (px > 0 && py + 1 < imgSize.y
+            && all(equal(self.rgb, texelFetch(Source, ivec2(px - 1, py + 1), 0).rgb))) valence |= 4u;  // SW
+        if (px + 1 < imgSize.x && py + 1 < imgSize.y
+            && all(equal(self.rgb, texelFetch(Source, ivec2(px + 1, py + 1), 0).rgb))) valence |= 16u; // SE
+
+        FragColor = vec4(self.rgb, float(valence));
 
     } else if (gx_even && !gy_even) {
         // Even, Odd: horizontal edge between pixel (gx/2 - 1, (gy-1)/2) and (gx/2, (gy-1)/2)

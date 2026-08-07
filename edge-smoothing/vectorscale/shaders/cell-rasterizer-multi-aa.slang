@@ -1,18 +1,15 @@
 #version 450
 
-// Cell rasterizer (multi-curve AA refinement) — second pass after the
-// single-curve AA rasterizer.
+// Cell rasterizer (multi-curve AA refinement). Second pass after the
+// single-AA rasterizer.
 //
-// Reads SingleAA's RGBA output. If A < 0.5 (no multi-curve AA needed),
-// passes RGB through unchanged. Otherwise redoes find_hits (top-3 with
-// full Hit data) and runs wedge AA + dual-curve AA gates. If neither
-// fires, falls back to SingleAA's already-applied single-curve AA color.
+// If SingleAA's alpha sentinel is clear, passes RGB through. Otherwise
+// redoes find_hits (top-3) and runs the wedge / dual-curve AA gates.
+// Falls back to the single-AA color when neither fires.
 //
-// Input textures:
-//   SingleAA: pass 1 output (RGB = single-curve AA color, A = sentinel).
-//   PackedPositions, CellGraph, Original: same as the single-AA pass.
-//
-// Output: viewport-sized final image (alpha forced to 1.0).
+// Inputs:
+//   SingleAA: pass 1 output (RGB color, A sentinel).
+//   PackedPositions, CellGraph, Original, CellInfo: see single-AA pass.
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -40,168 +37,134 @@ void main() {
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 
-layout(set = 0, binding = 2) uniform sampler2D PackedPositions; // pack-positions output: (pp, cp, np, t_branch, prev_ci, next_ci, validity, is_line) per CP across 3 horizontal texels
-layout(set = 0, binding = 3) uniform sampler2D CellGraph;       // flags + directions (and neighbor indices, now redundant for test_one_cp)
-layout(set = 0, binding = 4) uniform sampler2D Original;        // input pixel art image
-layout(set = 0, binding = 5) uniform sampler2D SingleAA;        // single-AA pass output: RGB = single-curve AA color, A = multi-AA sentinel
+layout(set = 0, binding = 2) uniform sampler2D PackedPositions;
+layout(set = 0, binding = 3) uniform sampler2D CellGraph;
+layout(set = 0, binding = 4) uniform sampler2D Original;
+layout(set = 0, binding = 5) uniform sampler2D CellInfo;
+layout(set = 0, binding = 6) uniform sampler2D SingleAA;        // RGB = single-AA color, A = multi-AA sentinel
 
 int IMG_W()    { return int(params.OriginalSize.x); }
 int IMG_H()    { return int(params.OriginalSize.y); }
 int CORNERS_W() { return IMG_W() + 1; }
 int CORNERS_H() { return IMG_H() + 1; }
-int NUM_CPS()  { return CORNERS_W() * CORNERS_H() * 2; }
+int NUM_CPS()  { return CORNERS_H() << 12;  /* bit-packed encoding: cy < CH means cp_idx < CH<<12 */ }
 
 // Chain endpoint flag — see cell-graph.slang.
 const uint IS_ENDPOINT = 128u;
 const uint IS_TJUNCTION = 32u;
 const uint IS_CROSSING = 64u;
 
-// ---- Texture reading helpers ----
-
-void decode_cp(int cp_idx, out int cx, out int cy_slot) {
-    int cp_half = cp_idx / 2;
-    int cp_slot = cp_idx & 1;
-    int cx_ = cp_half % CORNERS_W();
-    int cy_ = cp_half / CORNERS_W();
-    cx = cx_;
-    cy_slot = cy_ * 2 + cp_slot;
+// Bit-packed CP encoding — see cell-rasterizer-single-aa.slang.
+ivec2 decode_cp(int cp_idx) {
+    int slot = cp_idx & 1;
+    int cx   = (cp_idx >> 1) & 0x7FF;
+    int cy   = cp_idx >> 12;
+    return ivec2(cx, (cy << 1) | slot);
 }
 
-// Read original position from cell graph texture (row 0, RG channels).
+// Compact CellGraph: 1 texel per CP. See cell-graph.slang for layout.
+vec4 read_cg(int cp_idx) {
+    return texelFetch(CellGraph, decode_cp(cp_idx), 0);
+}
+
+int unpack_idx(uint v) {
+    return (v == 0xFFFFFFu) ? -1 : int(v);
+}
+
+// Read original position from cell graph (RG channels).
 vec2 read_orig(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return vec2(-1e10);
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    vec4 val = texelFetch(CellGraph, ivec2(cx, base_row), 0);
-    return vec2(val.r, val.g);
+    return read_cg(cp_idx).rg;
 }
 
-// Per-CP packed render geometry from pack-positions. 3 horizontal texels:
-//   col 0 = (pp.x, pp.y, prev_ci_or_-1, _)
-//   col 1 = (cp.x, cp.y, t_branch, validity 0=skip 1=normal 2=2cp-chain)
-//   col 2 = (np.x, np.y, next_ci_or_-1, _)
+// Per-CP packed render geometry. See cell-rasterizer-single-aa.slang.
 struct PackedCp {
     vec2 pp;
     vec2 cp;
     vec2 np;
     float t_branch;
-    int prev_ci;
-    int next_ci;
-    bool is_line;
     bool valid;
 };
 
 PackedCp read_packed_cp(int cp_idx) {
     PackedCp r;
     r.valid = false;
-    r.is_line = false;
     r.t_branch = 0.5;
-    r.prev_ci = -1; r.next_ci = -1;
     r.pp = vec2(0.0); r.cp = vec2(0.0); r.np = vec2(0.0);
 
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return r;
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
+    ivec2 xy = decode_cp(cp_idx);
 
-    vec4 t1 = texelFetch(PackedPositions, ivec2(cx*3 + 1, cy_slot), 0);
-    if (t1.a < 0.5) return r;  // pack-positions wrote skip/inactive
+    vec4 t0 = texelFetch(PackedPositions, ivec2(xy.x*2,     xy.y), 0);
+    if (t0.a < 0.5) return r;
+    vec4 t1 = texelFetch(PackedPositions, ivec2(xy.x*2 + 1, xy.y), 0);
 
-    vec4 t0 = texelFetch(PackedPositions, ivec2(cx*3,     cy_slot), 0);
-    vec4 t2 = texelFetch(PackedPositions, ivec2(cx*3 + 2, cy_slot), 0);
-
-    r.pp = t0.rg;
-    r.cp = t1.rg;
-    r.np = t2.rg;
-    r.t_branch = t1.b;
-    r.is_line = t1.a > 1.5;
-    r.prev_ci = (t0.b < -0.5) ? -1 : int(t0.b + 0.5);
-    r.next_ci = (t2.b < -0.5) ? -1 : int(t2.b + 0.5);
+    r.cp = t0.rg;
+    r.t_branch = t0.b;
+    r.pp = t1.rg;
+    r.np = t1.ba;
     r.valid = true;
     return r;
 }
 
-// Decode a neighbor CP index from component encoding.
-int decode_neighbor(vec4 val) {
-    if (val.r < -0.5) return -1;
-    int ncx = int(val.r + 0.5);
-    int ncy = int(val.g + 0.5);
-    int nslot = int(val.b + 0.5);
-    return (ncy * CORNERS_W() + ncx) * 2 + nslot;
-}
-
-// Read neighbors from cell graph texture (row offsets 1 and 2).
+// Read neighbors from cell graph (BA channels, low 24 bits each).
 ivec2 read_neighbors(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return ivec2(-1, -1);
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    vec4 prev_val = texelFetch(CellGraph, ivec2(cx, base_row + 1), 0);
-    vec4 next_val = texelFetch(CellGraph, ivec2(cx, base_row + 2), 0);
-    return ivec2(decode_neighbor(prev_val), decode_neighbor(next_val));
+    vec4 val = read_cg(cp_idx);
+    uint pv = floatBitsToUint(val.b) & 0xFFFFFFu;
+    uint nv = floatBitsToUint(val.a) & 0xFFFFFFu;
+    return ivec2(unpack_idx(pv), unpack_idx(nv));
 }
 
-// Read flags from cell graph texture (row 0, B channel).
+// Read flags from cell graph (B channel, top 8 bits).
 uint read_flags(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return 0u;
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    vec4 val = texelFetch(CellGraph, ivec2(cx, base_row), 0);
-    return uint(val.b + 0.5);
+    return (floatBitsToUint(read_cg(cp_idx).b) >> 24) & 0xFFu;
 }
 
-// Read packed boundary directions from cell graph (row 0, A channel).
+// Read packed boundary directions from cell graph (A channel, top 8 bits).
 // Returns (prev_dir, next_dir) where -1 = none, 0=N, 1=E, 2=S, 3=W.
 ivec2 read_dirs(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return ivec2(-1, -1);
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    vec4 val = texelFetch(CellGraph, ivec2(cx, base_row), 0);
-    int dir_pack = int(val.a + 0.5);
-    int prev_dir = (dir_pack % 8) - 1;
-    int next_dir = (dir_pack / 8) - 1;
-    return ivec2(prev_dir, next_dir);
+    uint dp = (floatBitsToUint(read_cg(cp_idx).a) >> 24) & 0xFFu;
+    return ivec2(int(dp & 0x7u) - 1, int((dp >> 3) & 0x7u) - 1);
 }
 
-// Get the grid corner (icx, icy) for a CP index.
+// Get the grid corner (icx, icy) — see cell-rasterizer-single-aa.slang.
 ivec2 cp_grid_corner(int cp_idx) {
-    int cp_half = cp_idx / 2;
-    return ivec2(cp_half % CORNERS_W(), cp_half / CORNERS_W());
+    ivec2 xy = decode_cp(cp_idx);
+    return ivec2(xy.x, xy.y >> 1);
 }
 
-// Read pixel color from original image as normalized RGB.
-vec3 read_pixel(int px, int py) {
-    px = clamp(px, 0, IMG_W() - 1);
-    py = clamp(py, 0, IMG_H() - 1);
-    vec4 c = texelFetch(Original, ivec2(px, py), 0);
-    return c.rgb;
+// 2×2 source pixels around grid corner (icx, icy) — see single-aa.
+struct CornerPixels { vec3 nw, ne, se, sw; };
+
+CornerPixels read_corner_pixels(int icx, int icy) {
+    vec2 uv = vec2(float(icx), float(icy)) / vec2(float(IMG_W()), float(IMG_H()));
+    vec4 r = textureGather(Original, uv, 0);
+    vec4 g = textureGather(Original, uv, 1);
+    vec4 b = textureGather(Original, uv, 2);
+    // textureGather order, with base texel at (icx-1, icy-1):
+    //   .w = (icx-1, icy-1) = NW   .z = (icx,   icy-1) = NE
+    //   .x = (icx-1, icy)   = SW   .y = (icx,   icy)   = SE
+    CornerPixels cp;
+    cp.nw = vec3(r.w, g.w, b.w);
+    cp.ne = vec3(r.z, g.z, b.z);
+    cp.se = vec3(r.y, g.y, b.y);
+    cp.sw = vec3(r.x, g.x, b.x);
+    return cp;
 }
 
-// Compute edge colors for a boundary direction at grid corner (icx, icy).
-void get_edge_colors(int icx, int icy, int dir, out vec3 color_left, out vec3 color_right) {
-    switch (dir) {
-        case 0: // N
-            color_left  = read_pixel(icx - 1, icy - 1);
-            color_right = read_pixel(icx,     icy - 1);
-            break;
-        case 1: // E
-            color_left  = read_pixel(icx,     icy - 1);
-            color_right = read_pixel(icx,     icy);
-            break;
-        case 2: // S
-            color_left  = read_pixel(icx,     icy);
-            color_right = read_pixel(icx - 1, icy);
-            break;
-        case 3: // W
-            color_left  = read_pixel(icx - 1, icy);
-            color_right = read_pixel(icx - 1, icy - 1);
-            break;
-        default:
-            color_left = vec3(0.0); color_right = vec3(0.0);
-            break;
-    }
+struct EdgeColors { vec3 left; vec3 right; };
+
+EdgeColors edge_from(CornerPixels cp, int dir) {
+    EdgeColors r;
+    if      (dir == 0) { r.left = cp.nw; r.right = cp.ne; }
+    else if (dir == 1) { r.left = cp.ne; r.right = cp.se; }
+    else if (dir == 2) { r.left = cp.se; r.right = cp.sw; }
+    else if (dir == 3) { r.left = cp.sw; r.right = cp.nw; }
+    else               { r.left = vec3(0.0); r.right = vec3(0.0); }
+    return r;
 }
 
 // ---- B-spline evaluation ----
@@ -215,46 +178,22 @@ vec2 beval_deriv(vec2 p0, vec2 p1, vec2 p2, float t) {
     return (t - 1.0) * p0 + (1.0 - 2.0 * t) * p1 + t * p2;
 }
 
-// ---- Per-hit data carried from scan into resolve / wedge AA ----
-//
-// prev_pos / next_pos may be *ghost* positions (2*real - cp) when the
-// corresponding neighbor carries IS_ENDPOINT — the ghost makes B(t=0|1) of
-// the same polynomial form land exactly on the real endpoint position,
-// giving a clamped Bezier without changing the eval API.
+// Minimal hit record. Other per-CP data is re-derived via
+// read_packed_cp at consumer sites; storing it forces register spill.
 struct Hit {
     float d2;
     float t;
     int cp_idx;
-    int prev_ci;
-    int next_ci;
-    vec2 cp_pos;
-    vec2 prev_pos;
-    vec2 next_pos;
-    float t_branch;
-    bool is_line;  // 2-CP chain (degenerate stem, both ends endpoint markers)
 };
 
-// ---- Linear approximation of a curve at a hit's closest_t ----
-//
-// Tangent line used by the wedge AA partition (cpt = junction J), and
-// by the dual-curve AA path (cpt = closest point on the curve).
+// Tangent line at a hit's closest_t — see single-aa.
 struct AaLine {
     vec2 cpt;
     vec2 normal;       // Unit normal. Side test: dot(p - cpt, normal).
     bool valid;
 };
 
-// ---- Closest point on a line segment (closed-form) ----
-//
-// Used for 2-CP-chain spans (degenerate stems with both ends being endpoint
-// markers — geometrically a straight line). Calling closest_on_span with the
-// straight-line construction p0=(3·a0-a1)/2, p1=midpoint, p2=(3·a1-a0)/2
-// would leave ~1e-6 of float noise in the t² coefficient, making c3 ≈ 4e-12
-// and pushing the cubic solver into its numerically-unstable regime. The
-// closed form below sidesteps the cubic entirely.
-// One Newton step on a cubic D'(t) = c3·t³+c2·t²+c1·t+c0. Polishes a
-// closed-form root (Cardano/trig) to ~1 ULP. Skips when D''(t) is small
-// or the step would diverge. Safe for the quadratic case (c3 ≈ 0).
+// One Newton step on a cubic — see cell-rasterizer-single-aa.slang.
 float polish_root_c(float t, float c3, float c2, float c1, float c0) {
     float dp = fma(fma(fma(c3, t, c2), t, c1), t, c0);
     float ddp = fma(fma(3.0 * c3, t, 2.0 * c2), t, c1);
@@ -274,11 +213,7 @@ vec2 closest_on_segment(vec2 a0, vec2 a1, vec2 pt) {
     return vec2(t, dot(d, d));
 }
 
-// ---- Closest point on B-spline span (exact cubic solver) ----
-//
-// D(t) = |B(t)-pt|² is degree 4, D'(t) is cubic → closed-form roots.
-// Evaluates D at all real roots in [0,1] + endpoints, returns global min.
-
+// Closest point on a B-spline span — see cell-rasterizer-single-aa.slang.
 vec2 closest_on_span(vec2 p0, vec2 p1, vec2 p2, vec2 pt) {
     // Polynomial form: B(t) = a*t² + b*t + c
     vec2 a = 0.5 * (p0 - 2.0 * p1 + p2);
@@ -299,14 +234,10 @@ vec2 closest_on_span(vec2 p0, vec2 p1, vec2 p2, vec2 pt) {
     float best_d2 = d0; float best_t = 0.0;
     if (d1 < best_d2) { best_d2 = d1; best_t = 1.0; }
 
-    if (abs(c3) < 1e-12) {
+    // MUST stay in lock-step with the other span_closest_t copies.
+    if (abs(c3) < 1e-10) {
         // Degenerate: quadratic or linear
         if (abs(c2) > 1e-12) {
-            // FMA on `b²−4ac`: single-rounding sum recovers ~1 extra bit
-            // and avoids disc rounding to the wrong sign at near-double-
-            // root configurations. Numerical Recipes form for the roots
-            // themselves to also avoid catastrophic cancellation when
-            // (-c1 ± sqrt(disc)) subtracts near-equal numbers.
             float disc = fma(c1, c1, -4.0 * c2 * c0);
             if (disc >= 0.0) {
                 float sq = sqrt(disc);
@@ -326,8 +257,6 @@ vec2 closest_on_span(vec2 p0, vec2 p1, vec2 p2, vec2 pt) {
         float shift = -c2 * inv3a;
         float p = (3.0*c3*c1 - c2*c2) / (3.0*c3*c3);
         float q = (2.0*c2*c2*c2 - 9.0*c3*c2*c1 + 27.0*c3*c3*c0) / (27.0*c3*c3*c3);
-        // FMA on q²/4 + p³/27: one extra bit at the disc≈0 (near triple
-        // root) boundary between Cardano and trig branches.
         float disc = fma(q * 0.5, q * 0.5, p*p*p/27.0);
 
         if (disc > 1e-12) {
@@ -339,13 +268,10 @@ vec2 closest_on_span(vec2 p0, vec2 p1, vec2 p2, vec2 pt) {
             float t1 = polish_root_c(u1 + u2 + shift, c3, c2, c1, c0);
             if (t1 > 0.0 && t1 < 1.0) { float dd = EVAL_D2(t1); if (dd < best_d2) { best_d2 = dd; best_t = t1; } }
         } else {
-            // Three real roots (trigonometric). 2·sqrt(-p/3) equals
-            // 2·cbrt(sqrt(-p³/27)) but reaches the value via one sqrt
-            // instead of (p*p*p, sqrt, pow(_, 1/3)) — faster *and* avoids
-            // pow(_, 1/6)'s precision loss.
-            float r = sqrt(max(-p / 3.0, 0.0));
-            float cos_arg = (r > 1e-20) ? (-q * 0.5) / (r * r * r) : 0.0;
-            float phi = acos(clamp(cos_arg, -1.0, 1.0));
+            // Three real roots (trigonometric).
+            float r = sqrt(-p / 3.0);
+            float cos_arg = clamp((-q * 0.5) / (r * r * r), -1.0, 1.0);
+            float phi = acos(cos_arg);
             const float TAU = 6.283185307;
             for (int k = 0; k < 3; k++) {
                 float angle = (phi + TAU * float(k)) / 3.0;
@@ -363,14 +289,7 @@ vec2 closest_on_span(vec2 p0, vec2 p1, vec2 p2, vec2 pt) {
 vec3 srgb_to_linear(vec3 c) { return pow(c, vec3(2.2)); }
 vec3 linear_to_srgb(vec3 c) { return pow(c, vec3(1.0 / 2.2)); }
 
-// ---- Single-line pixel coverage (closed-form) ----
-//
-// Exact coverage of a pixel by a tangent line. d_p is the line's signed
-// perpendicular distance from pixel center in pixel-side units. Returns
-// the area on the line's positive side, in [0, 1].
-//   |d_p| <= (a-b)/2     → linear regime (line crosses parallel edges)
-//   (a-b)/2 < |d_p| < (a+b)/2 → corner-cut quadratic
-//   |d_p| >= (a+b)/2     → saturated
+// Exact pixel coverage by a tangent line — see single-aa.
 float line_coverage_pos(vec2 normal, float d_p) {
     float nx = abs(normal.x);
     float ny = abs(normal.y);
@@ -389,15 +308,7 @@ float line_coverage_pos(vec2 normal, float d_p) {
     return 0.5 * t * t / (a * b);
 }
 
-// ---- Structural junction detection ----
-//
-// Returns the t value on sc_b's curve (in {0.0, 1.0}) at which it
-// passes through the junction at sc_a's corner, or -1.0 if sc_b isn't
-// the stem-side curve. Caller pre-filters on (flags(ci_a) & IS_TJUNCTION).
-//   case (a): sc_b IS slot 1 of sc_a's corner — 2-CP chain stem, t=1.0.
-//   case (b): sc_b is slot 1's neighbor — t=0.0 if its prev_ci is
-//             IS_ENDPOINT, t=1.0 if its next_ci is.
-//   else: -1 (no match).
+// Structural junction detection — see single-aa.
 float slot1_t_case(int ci_a, int ci_b) {
     int slot1_ci_a = (ci_a / 2) * 2 + 1;
     if (ci_b == slot1_ci_a) return 1.0;  // case (a)
@@ -409,13 +320,7 @@ float slot1_t_case(int ci_a, int ci_b) {
     return -1.0;
 }
 
-// ---- Junction-anchored AA-line builder ----
-//
-// Builds a tangent-line classifier with cpt = J (junction position), and
-// tangent evaluated at `t_eval` on the curve. Used by wedge AA so both
-// line_a and line_b literally pass through J. Returns the unit tangent
-// alongside the line so caller can align line_b's normal to line_a's
-// tangent direction (so sb > 0 = post-junction along line_a).
+// Junction-anchored AA-line builder — see single-aa.
 AaLine build_junction_aa_line(Hit hit, vec2 J, float t_eval, out vec2 out_tang_unit) {
     AaLine result;
     result.cpt = J;
@@ -423,24 +328,25 @@ AaLine build_junction_aa_line(Hit hit, vec2 J, float t_eval, out vec2 out_tang_u
     result.valid = false;
     out_tang_unit = vec2(0.0);
 
-    vec2 tang = beval_deriv(hit.prev_pos, hit.cp_pos, hit.next_pos, t_eval);
-    float tl = length(tang);
-    if (tl < 1e-4) return result;
-    vec2 tu = tang / tl;
+    PackedCp pcp = read_packed_cp(hit.cp_idx);
+    vec2 tang = beval_deriv(pcp.pp, pcp.cp, pcp.np, t_eval);
+    float tl2 = dot(tang, tang);
+    if (tl2 < 1e-8) return result;
+    vec2 tu = tang * inversesqrt(tl2);
     out_tang_unit = tu;
 
     ivec2 grid = cp_grid_corner(hit.cp_idx);
     ivec2 dirs = read_dirs(hit.cp_idx);
+    if (dirs.x < 0 && dirs.y < 0) return result;
+    CornerPixels cps = read_corner_pixels(grid.x, grid.y);
     bool prev_split = false, next_split = false;
     if (dirs.x >= 0) {
-        vec3 pl, pr;
-        get_edge_colors(grid.x, grid.y, dirs.x, pl, pr);
-        prev_split = any(notEqual(pl, pr));
+        EdgeColors p = edge_from(cps, dirs.x);
+        prev_split = any(notEqual(p.left, p.right));
     }
     if (dirs.y >= 0) {
-        vec3 nl, nr;
-        get_edge_colors(grid.x, grid.y, dirs.y, nl, nr);
-        next_split = any(notEqual(nl, nr));
+        EdgeColors n = edge_from(cps, dirs.y);
+        next_split = any(notEqual(n.left, n.right));
     }
     if (!prev_split && !next_split) return result;
 
@@ -459,60 +365,75 @@ struct ResolveResult {
     bool resolved;
 };
 
-// Test one CP and (if it passes) insert into the top-3 hits array.
-// Returns the tested CP's flag bits (0u for inactive), so the caller
-// can gate follow-up work like the T-junction stem fan-out without
-// re-fetching CellGraph row 0.
-uint test_one_cp(int ci, vec2 query, inout Hit hits[3], inout int num_hits) {
-    if (ci < 0 || ci >= NUM_CPS()) return 0u;
+// Top-2 ranking by cp-pos — see single-aa.
+struct Top2 {
+    int ci0;   float d0;
+    int ci1;   float d1;
+};
 
-    uint flag = read_flags(ci);
-    if (flag == 0u) return 0u;
-
-    // Per-CP geometry — denormalized by pack-positions. Replaces the
-    // read_neighbors + 3 read_pos chain + ghost-extension dance with 3
-    // texel reads. valid=false means pack-positions wrote skip
-    // (inactive, isolated, or non-owner of a 2-CP chain).
-    PackedCp pcp = read_packed_cp(ci);
-    if (!pcp.valid) return flag;
-
-    vec2 pp = pcp.pp;
-    vec2 cp = pcp.cp;
-    vec2 np = pcp.np;
-
-    // Quick screen: 3-sample distance² reject. Evaluating beval at
-    // t=0, 1/2, 1 with the ghost-extended pp/cp/np gives the real
-    // curve start, midpoint-ish, end. > 2.0 means the curve can't
-    // possibly come within 1 source unit of the fragment.
-    vec2 b0 = 0.5 * (pp + cp);
-    vec2 bm = 0.125 * pp + 0.75 * cp + 0.125 * np;
-    vec2 b1 = 0.5 * (cp + np);
-    vec2 dq0 = query - b0;
-    vec2 dqm = query - bm;
-    vec2 dq1 = query - b1;
-    float quick_d2 = min(min(dot(dq0, dq0), dot(dqm, dqm)), dot(dq1, dq1));
-    if (quick_d2 > 2.0) return flag;
-
-    vec2 result;
-    if (pcp.is_line) {
-        vec2 a0 = 0.5 * (pp + cp);
-        vec2 a1 = 0.5 * (cp + np);
-        result = closest_on_segment(a0, a1, query);
-    } else {
-        result = closest_on_span(pp, cp, np, query);
+void scan_one(int ci, vec2 query, inout Top2 t) {
+    if (ci < 0 || ci >= NUM_CPS()) return;
+    ivec2 xy = decode_cp(ci);
+    vec4 t0 = texelFetch(PackedPositions, ivec2(xy.x*2, xy.y), 0);
+    if (t0.a < 0.5) return;
+    vec2 d = query - t0.rg;
+    float d2 = dot(d, d);
+    if (d2 < t.d0) {
+        t.d1 = t.d0; t.ci1 = t.ci0;
+        t.d0 = d2;   t.ci0 = ci;
+    } else if (d2 < t.d1) {
+        t.d1 = d2;   t.ci1 = ci;
     }
-    float span_t = result.x;
-    float span_d2 = result.y;
-    if (span_d2 >= 1.0) return flag;
+}
 
-    // Build candidate Hit and insert via explicit if/else over constant
-    // indices — keeps hits[] register-allocated.
+// Combined slot-0 + slot-1 scan — see single-aa.
+void scan_corner_slots(int base, uint pair, vec2 query, inout Top2 t) {
+    int cx = (base >> 1) & 0x7FF;
+    int cy = base >> 12;
+    int x_col = cx * 2;
+    int y_s0  = cy << 1;
+    int y_s1  = y_s0 | 1;
+
+    vec4 t0_s0 = texelFetch(PackedPositions, ivec2(x_col, y_s0), 0);
+    vec4 t0_s1 = texelFetch(PackedPositions, ivec2(x_col, y_s1), 0);
+
+    if ((pair & 1u) != 0u && t0_s0.a >= 0.5) {
+        vec2 d = query - t0_s0.rg;
+        float d2 = dot(d, d);
+        if (d2 < t.d0) {
+            t.d1 = t.d0; t.ci1 = t.ci0;
+            t.d0 = d2;   t.ci0 = base;
+        } else if (d2 < t.d1) {
+            t.d1 = d2;   t.ci1 = base;
+        }
+    }
+    if ((pair & 2u) != 0u && t0_s1.a >= 0.5) {
+        int ci = base + 1;
+        vec2 d = query - t0_s1.rg;
+        float d2 = dot(d, d);
+        if (d2 < t.d0) {
+            t.d1 = t.d0; t.ci1 = t.ci0;
+            t.d0 = d2;   t.ci0 = ci;
+        } else if (d2 < t.d1) {
+            t.d1 = d2;   t.ci1 = ci;
+        }
+    }
+}
+
+// Phase D: full PackedCp fetch + cubic refine, insertion-sort into
+// hits[3]. Called ≤4× per fragment.
+void refine_to_hits(int ci, vec2 query, inout Hit hits[3], inout int num_hits) {
+    if (ci < 0) return;
+    PackedCp pcp = read_packed_cp(ci);
+    if (!pcp.valid) return;
+
+    vec2 result = closest_on_span(pcp.pp, pcp.cp, pcp.np, query);
+    float span_t  = result.x;
+    float span_d2 = result.y;
+    if (span_d2 >= 1.0) return;
+
     Hit cand;
     cand.d2 = span_d2; cand.t = span_t; cand.cp_idx = ci;
-    cand.prev_ci = pcp.prev_ci; cand.next_ci = pcp.next_ci;
-    cand.cp_pos = cp; cand.prev_pos = pp; cand.next_pos = np;
-    cand.t_branch = pcp.t_branch; cand.is_line = pcp.is_line;
-
     if (span_d2 < hits[0].d2) {
         hits[2] = hits[1];
         hits[1] = hits[0];
@@ -526,37 +447,18 @@ uint test_one_cp(int ci, vec2 query, inout Hit hits[3], inout int num_hits) {
         hits[2] = cand;
         if (num_hits < 3) num_hits++;
     }
-    return flag;
 }
 
-int find_hits(vec2 query, out Hit hits[3]) {
+// Top-2-by-cp-pos prune + T-junction stem fan-in. Populates hits[3]
+// for the multi-curve AA path. See single-aa for rationale.
+int find_hits(uint mask, int cell_cx, int cell_cy, vec2 query, out Hit hits[3]) {
     int num_hits = 0;
-    // Init via constant indices — keeps hits[] in registers vs spilling
-    // to local memory (dynamic-indexed loop would force the latter on
-    // most GPU compilers).
     hits[0].d2 = 1e10; hits[0].t = 0.0; hits[0].cp_idx = -1;
-    hits[0].prev_ci = -1; hits[0].next_ci = -1;
-    hits[0].cp_pos = vec2(0.0); hits[0].prev_pos = vec2(0.0); hits[0].next_pos = vec2(0.0);
-    hits[0].t_branch = 0.5; hits[0].is_line = false;
     hits[1].d2 = 1e10; hits[1].t = 0.0; hits[1].cp_idx = -1;
-    hits[1].prev_ci = -1; hits[1].next_ci = -1;
-    hits[1].cp_pos = vec2(0.0); hits[1].prev_pos = vec2(0.0); hits[1].next_pos = vec2(0.0);
-    hits[1].t_branch = 0.5; hits[1].is_line = false;
     hits[2].d2 = 1e10; hits[2].t = 0.0; hits[2].cp_idx = -1;
-    hits[2].prev_ci = -1; hits[2].next_ci = -1;
-    hits[2].cp_pos = vec2(0.0); hits[2].prev_pos = vec2(0.0); hits[2].next_pos = vec2(0.0);
-    hits[2].t_branch = 0.5; hits[2].is_line = false;
 
-    int cell_cx = int(floor(query.x));
-    int cell_cy = int(floor(query.y));
-    if (cell_cx < 0 || cell_cy < 0 || cell_cx >= IMG_W() || cell_cy >= IMG_H()) {
-        return num_hits;
-    }
+    if (mask == 0u) return num_hits;
 
-    // Walk the cell's 4 corners, both slots each. A quadratic B-spline
-    // bows ≤0.5 units from chord, so a span centered at a corner extends
-    // at most 0.5 units beyond — only spans centered at the cell's own
-    // 4 corners can geometrically overlap the cell's interior.
     const ivec2 corner_offsets[4] = ivec2[4](
         ivec2(0, 0),  // SW
         ivec2(1, 0),  // SE
@@ -564,44 +466,74 @@ int find_hits(vec2 query, out Hit hits[3]) {
         ivec2(1, 1)   // NE
     );
 
+    Top2 t;
+    t.ci0 = -1; t.d0 = 1e10;
+    t.ci1 = -1; t.d1 = 1e10;
+
+    int tj_bases[4] = int[4](-1, -1, -1, -1);
+    int tj_count = 0;
+
     for (int oi = 0; oi < 4; oi++) {
+        uint pair = (mask >> (oi * 2)) & 0x3u;
+        if (pair == 0u) continue;
         int cx = cell_cx + corner_offsets[oi].x;
         int cy = cell_cy + corner_offsets[oi].y;
-        if (cx < 0 || cy < 0 || cx >= CORNERS_W() || cy >= CORNERS_H()) continue;
-        int base = (cy * CORNERS_W() + cx) * 2;
+        int base = (cy << 12) | (cx << 1);  // slot=0; base|1 = slot=1
 
-        // Test slot 0 and slot 1 at this corner.
-        uint slot0_flag = test_one_cp(base,     query, hits, num_hits);
-        test_one_cp(base + 1, query, hits, num_hits);
+        scan_corner_slots(base, pair, query, t);
 
-        // T-junction stem fan-out: when slot 0 carries IS_TJUNCTION, the
-        // stem-bottom CP can sit at offset (+2, +1) etc. — outside the
-        // 4-cell-corner walk — so look it up via slot 1's chain neighbor
-        // and test its span. Slot 1 itself is a stem CP filtered out by
-        // test_one_cp's endpoint dedup; its chain link still points to
-        // the renderable stem-bottom. Skipped when stem-bottom is already
-        // one of the 4 cell corners we walk anyway.
-        if ((slot0_flag & IS_TJUNCTION) != 0u) {
-            ivec2 slot1_n = read_neighbors(base + 1);
-            int sci = slot1_n.x >= 0 ? slot1_n.x : slot1_n.y;
-            if (sci >= 0) {
-                int s_cx = (sci / 2) % CORNERS_W();
-                int s_cy = (sci / 2) / CORNERS_W();
-                bool already_walked =
-                    s_cx >= cell_cx && s_cx <= cell_cx + 1
-                 && s_cy >= cell_cy && s_cy <= cell_cy + 1;
-                if (!already_walked) test_one_cp(sci, query, hits, num_hits);
+        if ((pair & 1u) != 0u) {
+            uint slot0_flag = (floatBitsToUint(
+                texelFetch(CellGraph, decode_cp(base), 0).b) >> 24) & 0xFFu;
+            if ((slot0_flag & IS_TJUNCTION) != 0u) {
+                tj_bases[tj_count++] = base;
+                ivec2 slot1_n = read_neighbors(base + 1);
+                int sci = slot1_n.x >= 0 ? slot1_n.x : slot1_n.y;
+                if (sci >= 0) {
+                    ivec2 s_grid = cp_grid_corner(sci);
+                    bool already_walked =
+                        s_grid.x >= cell_cx && s_grid.x <= cell_cx + 1
+                     && s_grid.y >= cell_cy && s_grid.y <= cell_cy + 1;
+                    if (!already_walked) scan_one(sci, query, t);
+                }
             }
         }
     }
+    if (t.ci0 < 0) return num_hits;
+
+    // Phase C: T-junction stem fan-in.
+    uint flag0 = (t.ci0 >= 0) ? ((floatBitsToUint(
+        texelFetch(CellGraph, decode_cp(t.ci0), 0).b) >> 24) & 0xFFu) : 0u;
+    uint flag1 = (t.ci1 >= 0) ? ((floatBitsToUint(
+        texelFetch(CellGraph, decode_cp(t.ci1), 0).b) >> 24) & 0xFFu) : 0u;
+
+    int stem0 = -1, stem1 = -1;
+    if ((flag0 & IS_TJUNCTION) != 0u) {
+        ivec2 nbrs = read_neighbors(t.ci0 + 1);
+        stem0 = nbrs.x >= 0 ? nbrs.x : nbrs.y;
+    }
+    if (t.ci1 >= 0 && (flag1 & IS_TJUNCTION) != 0u) {
+        ivec2 nbrs = read_neighbors(t.ci1 + 1);
+        stem1 = nbrs.x >= 0 ? nbrs.x : nbrs.y;
+    }
+
+    // Phase D: refine selected CPs.
+    refine_to_hits(t.ci0, query, hits, num_hits);
+    refine_to_hits(t.ci1, query, hits, num_hits);
+    for (int i = 0; i < tj_count; i++) {
+        int tj = tj_bases[i];
+        if (tj != t.ci0 && tj != t.ci1) refine_to_hits(tj, query, hits, num_hits);
+        refine_to_hits(tj + 1, query, hits, num_hits);
+    }
+    if (stem0 != t.ci0 && stem0 != t.ci1)
+        refine_to_hits(stem0, query, hits, num_hits);
+    if (stem1 != t.ci0 && stem1 != t.ci1 && stem1 != stem0)
+        refine_to_hits(stem1, query, hits, num_hits);
+
     return num_hits;
 }
 
-// ---- Resolve solid color + AA components from one hit ----
-//
-// Returns resolved=false when this hit defers (endpoint at hit_t lands on
-// co-located other CP, or no edge has a color discontinuity, or tangents
-// degenerate). Out fields populated when resolved=true.
+// Resolve solid color + AA components from one hit — see single-aa.
 ResolveResult resolve_hit(Hit hit, vec2 query) {
     ResolveResult r;
     r.solid_color = vec3(0.0);
@@ -610,171 +542,97 @@ ResolveResult resolve_hit(Hit hit, vec2 query) {
     r.resolved = false;
 
     int ci = hit.cp_idx;
-    int prev_ci = hit.prev_ci;
-    int next_ci = hit.next_ci;
     float hit_t = hit.t;
-    vec2 cp = hit.cp_pos;
-    vec2 pp = hit.prev_pos;
-    vec2 np = hit.next_pos;
+    ivec2 xy = decode_cp(ci);
+    int slot = ci & 1;
+    int cx = xy.x;
+    int cy = xy.y >> 1;  // xy.y = cy*2 + slot; drop slot bit
 
-    // Read row 0 of the cell graph for ci, prev, and next exactly once
-    // each — it packs orig_pos (rg), flags (b), and dir_pack (a). The
-    // helpers (read_orig / read_flags / read_dirs) all hit the same
-    // texel; calling each separately costs 3 redundant texelFetches per
-    // resolve. Inline the unpack here.
-    int cx_ci, cy_slot_ci;       decode_cp(ci, cx_ci, cy_slot_ci);
-    int row0_ci_y = cy_slot_ci * 3;
-    vec4 row0_ci = texelFetch(CellGraph, ivec2(cx_ci, row0_ci_y), 0);
+    vec4 t0 = texelFetch(PackedPositions, ivec2(xy.x*2,     xy.y), 0);
+    if (t0.a < 0.5) return r;
+    vec4 t1 = texelFetch(PackedPositions, ivec2(xy.x*2 + 1, xy.y), 0);
 
-    vec4 row0_prev = vec4(0.0);
-    if (prev_ci >= 0 && prev_ci < NUM_CPS()) {
-        int cx_p, cy_slot_p; decode_cp(prev_ci, cx_p, cy_slot_p);
-        row0_prev = texelFetch(CellGraph, ivec2(cx_p, cy_slot_p * 3), 0);
-    }
-    vec4 row0_next = vec4(0.0);
-    if (next_ci >= 0 && next_ci < NUM_CPS()) {
-        int cx_n, cy_slot_n; decode_cp(next_ci, cx_n, cy_slot_n);
-        row0_next = texelFetch(CellGraph, ivec2(cx_n, cy_slot_n * 3), 0);
-    }
+    vec2 cp = t0.rg;
+    float t_branch_pcp = t0.b;
+    vec2 pp = t1.rg;
+    vec2 np = t1.ba;
 
-    // Endpoint defer: hit at exact t=0|1 of an endpoint-extended curve
-    // — defer to the next-closest hit. Use already-fetched row0 data
-    // instead of separate read_flags calls.
-    bool prev_is_endpoint = (prev_ci < 0)
-        || (uint(row0_prev.b + 0.5) & IS_ENDPOINT) != 0u;
-    bool next_is_endpoint = (next_ci < 0)
-        || (uint(row0_next.b + 0.5) & IS_ENDPOINT) != 0u;
+    vec4 cg_ci = texelFetch(CellGraph, xy, 0);
+    int prev_ci = unpack_idx(floatBitsToUint(cg_ci.b) & 0xFFFFFFu);
+    int next_ci = unpack_idx(floatBitsToUint(cg_ci.a) & 0xFFFFFFu);
+
+    // dp_ci top byte: prev_dir (0-2), next_dir (3-5), prev/next
+    // IS_ENDPOINT (6, 7) from bake-neighbor-endpoints.
+    uint dp_ci = (floatBitsToUint(cg_ci.a) >> 24) & 0xFFu;
+    int prev_dir = int(dp_ci & 0x7u) - 1;
+    int next_dir = int((dp_ci >> 3) & 0x7u) - 1;
+
+    bool prev_is_endpoint = (prev_ci < 0) || ((dp_ci & 0x40u) != 0u);
+    bool next_is_endpoint = (next_ci < 0) || ((dp_ci & 0x80u) != 0u);
     if ((prev_is_endpoint && hit_t == 0.0) || (next_is_endpoint && hit_t == 1.0)) {
         return r;
     }
+    ivec2 grid = ivec2(cx, cy);
 
-    int dir_pack_ci = int(row0_ci.a + 0.5);
-    int prev_dir = (dir_pack_ci % 8) - 1;
-    int next_dir = (dir_pack_ci / 8) - 1;
-    ivec2 grid = ivec2((ci / 2) % CORNERS_W(), (ci / 2) / CORNERS_W());
-
+    CornerPixels cps = read_corner_pixels(grid.x, grid.y);
     vec3 pl = vec3(0.0), pr = vec3(0.0), nl = vec3(0.0), nr = vec3(0.0);
-    if (prev_dir >= 0) get_edge_colors(grid.x, grid.y, prev_dir, pl, pr);
-    if (next_dir >= 0) get_edge_colors(grid.x, grid.y, next_dir, nl, nr);
+    if (prev_dir >= 0) { EdgeColors p = edge_from(cps, prev_dir); pl = p.left; pr = p.right; }
+    if (next_dir >= 0) { EdgeColors n = edge_from(cps, next_dir); nl = n.left; nr = n.right; }
 
-    vec3 c_left, c_right;
-    float ref_t;
     bool prev_valid = any(notEqual(pl, pr));
     bool next_valid = any(notEqual(nl, nr));
-
-    if (prev_ci < 0) {
-        if (!next_valid) return r;
-        c_left = nr; c_right = nl; ref_t = 1.0;
-    } else if (next_ci < 0) {
-        if (!prev_valid) return r;
-        c_left = pl; c_right = pr; ref_t = 0.0;
-    } else if (hit_t < hit.t_branch) {
-        if (prev_valid) { c_left = pl; c_right = pr; ref_t = 0.0; }
-        else if (next_valid) { c_left = nr; c_right = nl; ref_t = 1.0; }
-        else return r;
-    } else {
-        if (next_valid) { c_left = nr; c_right = nl; ref_t = 1.0; }
-        else if (prev_valid) { c_left = pl; c_right = pr; ref_t = 0.0; }
-        else return r;
-    }
-
-    vec2 orig_ci   = row0_ci.rg;
-    vec2 orig_prev = (prev_ci >= 0) ? row0_prev.rg : orig_ci;
-    vec2 orig_next = (next_ci >= 0) ? row0_next.rg : orig_ci;
-    vec2 orig_cp, orig_pp, orig_np;
-    if (hit.is_line) {
-        // 2-CP chain: a0 is the prev-side endpoint, a1 is the next-side.
-        // Whichever side is < 0, we use the CP's own orig as the marker.
-        vec2 a0_orig = (prev_ci < 0) ? orig_ci : orig_prev;
-        vec2 a1_orig = (next_ci < 0) ? orig_ci : orig_next;
-        orig_pp = 1.5 * a0_orig - 0.5 * a1_orig;
-        orig_cp = 0.5 * (a0_orig + a1_orig);
-        orig_np = 1.5 * a1_orig - 0.5 * a0_orig;
-    } else {
-        orig_cp = orig_ci;
-        orig_pp = orig_prev;
-        orig_np = orig_next;
-    }
-
-    vec2 orig_tang = beval_deriv(orig_pp, orig_cp, orig_np, ref_t);
-    float otl = length(orig_tang);
-    if (otl < 1e-4) return r;
-    vec2 orig_normal = vec2(-orig_tang.y, orig_tang.x) / otl;
+    if (!prev_valid && !next_valid) return r;
+    bool use_prev = prev_valid && (!next_valid || hit_t < t_branch_pcp);
+    vec3 c_left  = use_prev ? pl : nr;
+    vec3 c_right = use_prev ? pr : nl;
 
     vec2 opt_tang = beval_deriv(pp, cp, np, hit_t);
-    float opt_tl = length(opt_tang);
-    if (opt_tl < 1e-4) return r;
-    vec2 opt_normal = vec2(-opt_tang.y, opt_tang.x) / opt_tl;
+    float opt_tl2 = dot(opt_tang, opt_tang);
+    if (opt_tl2 < 1e-8) return r;
+    vec2 opt_normal = vec2(-opt_tang.y, opt_tang.x) * inversesqrt(opt_tl2);
 
     vec2 curve_pt = beval(pp, cp, np, hit_t);
     float d = dot(query - curve_pt, opt_normal);
 
-    bool flip = dot(opt_normal, orig_normal) < 0.0;
-    vec3 pos_side = flip ? c_right : c_left;
-    vec3 neg_side = flip ? c_left : c_right;
-
-    r.pos_side = pos_side;
-    r.neg_side = neg_side;
+    r.pos_side = c_left;
+    r.neg_side = c_right;
     r.opt_normal = opt_normal;
     r.d = d;
-    r.solid_color = (d > 0.0) ? pos_side : neg_side;
+    r.solid_color = (d > 0.0) ? c_left : c_right;
     r.resolved = true;
     return r;
 }
 
-// classify_at — solid color (no AA) for a wedge centroid query. Does its
-// own scan + resolve at the query point.
-vec3 classify_at(vec2 query, vec3 fallback) {
-    Hit hits[3];
-    int num_hits = find_hits(query, hits);
-    if (num_hits >= 1) {
-        ResolveResult r = resolve_hit(hits[0], query);
-        if (r.resolved) return r.solid_color;
-    }
-    if (num_hits >= 2) {
-        ResolveResult r = resolve_hit(hits[1], query);
-        if (r.resolved) return r.solid_color;
-    }
-    if (num_hits >= 3) {
-        ResolveResult r = resolve_hit(hits[2], query);
-        if (r.resolved) return r.solid_color;
-    }
-    return fallback;
-}
-
-// ---- Main rasterizer ----
-
 void main() {
-    // Read SingleAA pass: RGB = single-curve AA color, A = multi-AA sentinel.
     vec4 prev = textureLod(SingleAA, vTexCoord, 0.0);
 
-    // Sentinel cleared → no multi-curve AA possible. Pass through.
+    // Sentinel clear → pass through SingleAA color.
     if (prev.a < 0.5) {
         FragColor = vec4(prev.rgb, 1.0);
         return;
     }
 
-    // Multi-curve AA possible — redo find_hits (top-3) and run wedge AA
-    // + dual-curve AA gates. Falls back to prev.rgb if neither fires.
     float scale_x = params.OutputSize.x / float(IMG_W());
     float scale_y = params.OutputSize.y / float(IMG_H());
     float scale = min(scale_x, scale_y);
     float inv_scale = 1.0 / scale;
 
     vec2 center = vTexCoord * vec2(float(IMG_W()), float(IMG_H()));
+    int cell_cx = clamp(int(floor(center.x)), 0, IMG_W() - 1);
+    int cell_cy = clamp(int(floor(center.y)), 0, IMG_H() - 1);
 
-    // Fallback: SingleAA pass's already-applied single-curve AA color.
+    // CellInfo mask drives find_hits; fallback color = SingleAA's RGB
+    // (already AA-smoothed for the no-multi-AA case).
+    uint cell_mask = uint(texelFetch(CellInfo, ivec2(cell_cx, cell_cy), 0).a * 255.0 + 0.5);
     vec3 fallback = prev.rgb;
 
-    // Scan + collect nearest 3 hits.
     Hit hits[3];
-    int num_hits = find_hits(center, hits);
+    int num_hits = find_hits(cell_mask, cell_cx, cell_cy, center, hits);
 
-    // Resolve AA state from the first hit that resolves (the single-AA
-    // pass already computed center_color via single-curve AA; we only
-    // need `res` for the wedge / dual-curve AA paths). center_color
-    // stays at prev.rgb unless wedge / dual override it.
-    vec3 center_color = fallback;  // = prev.rgb
+    // Resolve AA state from the first hit that resolves. The single-AA
+    // pass already wrote the single-curve color; we only need `res` for
+    // the wedge / dual-curve paths.
+    vec3 center_color = fallback;
     int resolved_h = -1;
     ResolveResult res;
     res.solid_color = fallback;
@@ -796,56 +654,24 @@ void main() {
         if (rr.resolved) { res = rr; resolved_h = 2; }
     }
 
-    // AA threshold: a pixel's half-diagonal² in source units is
-    // 0.5/scale². Beyond that, the curve passes outside the pixel and
-    // the analytical pixel-coverage formula saturates to a solid color
-    // anyway, so AA work would be wasted. The same tight bound applies
-    // to single-curve AA and the wedge AA gate so each fires only on
-    // pixels the curve(s) pass through.
+    // Pixel half-diagonal² in source units.
     float aa_threshold = 0.5 / (scale * scale);
 
-    // Multi-curve wedge AA fires only when the structural junction
-    // relationship holds AND the geometric junction lies inside the pixel.
+    // Wedge AA: fires when (a) two hits share a structural junction
+    // (T-junction through+stem, or two IS_CROSSING hits at the same
+    // corner) AND (b) the junction point J lies inside the pixel.
     //
-    // At a T-junction corner, slot 0 holds the through curve and slot 1
-    // holds the original stem CP. Slot 1's render span — when present — is
-    // owned either by an adjacent chain CP (regular case: slot 1 filtered,
-    // its surviving non-(-1) neighbor IS the stem render CP) or by slot 1
-    // itself (2-CP-chain case: both stem endpoints are markers, slot 1
-    // survives and renders as a straight-line span). Candidate A is the
-    // through-curve at the junction iff
-    //   (a) A is IS_TJUNCTION-flagged, AND
-    //   (b) slot 1 at A's corner either equals B's ci (2-CP-chain) or
-    //       has B's ci as one of its neighbors (regular).
-    // Crossings (valence-4): both hits IS_CROSSING at the same corner.
+    // T-junction structural cases:
+    //   (a) sc_b IS slot 1 of sc_a's corner (2-CP-chain stem) → t = 1.
+    //   (b) sc_b is slot 1's surviving non-(-1) neighbor — chain CP that
+    //       ghost-extends through slot 1's position. t = 0 if its prev is
+    //       endpoint, t = 1 if its next is.
     //
-    // Junction-in-pixel: the through CP's pos (= junction location post-
-    // correction) must lie inside the pixel square. When two curves graze
-    // a pixel without their junction being in it (e.g. consecutive chain
-    // CPs along a smooth diagonal), the local geometry is 2-color and
-    // wedge AA's LUT mixes a third color that isn't actually present.
-    // Multi-curve wedge AA fires only at a structural junction whose
-    // geometric location lies inside the pixel.
-    //
-    // Structural cases (each pinned by how the cell graph constructs the
-    // relevant CPs — no closest_t computation needed for line_b):
-    //   (a) sc_b IS slot 1 of sc_a's corner — 2-CP-chain stem. Cell graph
-    //       creates slot 1 with next_ci = -1, so the rasterizer's 2-CP
-    //       construction puts a1 = slot1.pos = junction-side endpoint at
-    //       t = 1.
-    //   (b) sc_b is slot 1's surviving non-(-1) neighbor — slot 1 was
-    //       filtered, sc_b is the chain CP at the dropped-boundary corner
-    //       and ghost-extends through slot 1.pos at whichever of its
-    //       prev/next neighbors is IS_ENDPOINT-flagged (t = 0 for prev,
-    //       t = 1 for next).
-    //   Crossings (valence-4): both hits IS_CROSSING at same corner; sc_b's
-    //   curve passes through J at sc_b.t_branch.
-    //
-    // Junction-in-pixel: J = beval(sc_a, t_branch) — point on the rendered
-    // curve at the junction parameter (NOT cp_pos, the polynomial control
-    // point, which can differ for non-ghost-extended CPs). For multi-curve
-    // pixels where curves graze without an in-pixel junction, fall back to
-    // single-curve AA.
+    // J = beval(sc_a, t_branch) — point on the rendered curve at the
+    // junction parameter. NOT cp_pos: those differ for ghost-extended CPs.
+    // Without the in-pixel check, two curves that graze the same pixel
+    // without their junction being in it would mix a third color via the
+    // LUT that isn't actually present.
     bool wedge_handled = false;
     int through_h = -1;
     int stem_h = -1;
@@ -869,14 +695,15 @@ void main() {
             through_h = 1; stem_h = 0; t_b_eval = cp1_t;
         } else if (both_x_same) {
             through_h = 0; stem_h = 1;
-            t_b_eval = hits[1].t_branch;
+            t_b_eval = read_packed_cp(ci1).t_branch;
         }
 
         // Junction-in-pixel.
         if (through_h >= 0) {
-            // through_h ∈ {0, 1}; explicit selection avoids dynamic indexing.
+            // Explicit selection on through_h ∈ {0,1} keeps hits[] in regs.
             Hit th = (through_h == 0) ? hits[0] : hits[1];
-            vec2 J = beval(th.prev_pos, th.cp_pos, th.next_pos, th.t_branch);
+            PackedCp th_pcp = read_packed_cp(th.cp_idx);
+            vec2 J = beval(th_pcp.pp, th_pcp.cp, th_pcp.np, th_pcp.t_branch);
             float pix_half = inv_scale * 0.5;
             if (abs(J.x - center.x) > pix_half || abs(J.y - center.y) > pix_half) {
                 through_h = -1;
@@ -884,28 +711,27 @@ void main() {
             }
         }
     }
-    // resolved_h ∈ {0, 1, 2}; pick d2 by explicit selection to keep
-    // hits[] register-allocated (dynamic-indexed read would force spill).
+    // Explicit selection avoids dynamic-indexed read into hits[].
     float resolved_d2 = (resolved_h == 0) ? hits[0].d2
                       : (resolved_h == 1) ? hits[1].d2
                       : (resolved_h == 2) ? hits[2].d2 : 1e10;
     bool need_wedge_aa = resolved_h >= 0 && resolved_d2 < aa_threshold
                         && through_h >= 0;
     if (need_wedge_aa) {
-        // through_h, stem_h ∈ {0, 1}; explicit selection.
         Hit through_hit = (through_h == 0) ? hits[0] : hits[1];
         Hit stem_hit    = (stem_h    == 0) ? hits[0] : hits[1];
 
-        // J = beval(through, t_branch). Both lines anchored at J.
-        vec2 J = beval(through_hit.prev_pos, through_hit.cp_pos, through_hit.next_pos,
-                        through_hit.t_branch);
+        PackedCp through_pcp = read_packed_cp(through_hit.cp_idx);
+
+        vec2 J = beval(through_pcp.pp, through_pcp.cp, through_pcp.np,
+                        through_pcp.t_branch);
 
         // line_a: through tangent at t_branch.
         vec2 tang_a_unit;
-        AaLine line_a = build_junction_aa_line(through_hit, J, through_hit.t_branch, tang_a_unit);
+        AaLine line_a = build_junction_aa_line(through_hit, J, through_pcp.t_branch, tang_a_unit);
 
-        // line_b: stem tangent at the junction. t_b_eval was determined
-        // structurally by the gate above (no closest_t needed).
+        // line_b: stem tangent at the junction. t_b_eval comes from the
+        // structural gate above.
         vec2 tang_b_unit;
         AaLine line_b = build_junction_aa_line(stem_hit, J, t_b_eval, tang_b_unit);
 
@@ -915,78 +741,62 @@ void main() {
         }
 
         if (line_a.valid && line_b.valid) {
-            // Through-curve color LUT: at a T-junction the through curve
-            // (= through_hit) carries all three colors via its two edge
-            // segments split at t_branch — pre-junction edge gives the
-            // (pos, neg) for t < t_branch, post-junction edge gives them
-            // for t > t_branch.
-            //
-            // line_b's normal is aligned to line_a's tangent direction,
-            // so sb > 0 = post-junction (seg 1) and sb < 0 = pre-junction
-            // (seg 0). Maps (sa-sign, sb-sign) directly to LUT entries.
+            // The through curve carries all three colors via its two edge
+            // segments split at t_branch. line_b's normal is aligned with
+            // line_a's tangent so (sa-sign, sb-sign) maps directly to
+            // (pos|neg) × (pre|post-junction) buckets.
 
-            // Resolve the through hit at center to get its pos/neg/normal.
-            // If through_hit IS the already-resolved hit, reuse `res` to
-            // skip a redundant resolve_hit call (~3 fewer CellGraph reads).
+            // Reuse `res` if the through hit is already the resolved one.
             ResolveResult through_res = (through_h == resolved_h)
                 ? res
                 : resolve_hit(through_hit, center);
 
-            // Build pos/neg colors for each segment, aligned to line_a.normal
-            // (so a single sidedness test against line_a applies to both
-            // segments). One segment is covered by through_res at the
-            // pixel center; resolve the other at the OTHER segment's mid.
-            // For 2-CP chains both halves are identical so we skip the
-            // second resolve.
-            vec3 pos0 = fallback, neg0 = fallback;
-            vec3 pos1 = fallback, neg1 = fallback;
+            // Pack the 4 corner colors with packUnorm4x8 so they stay
+            // cold during the boundary-sweep loop. Inputs are 8-bit sRGB
+            // from Original so the pack round-trips losslessly.
+            uint fb_p   = packUnorm4x8(vec4(fallback, 0.0));
+            uint pos0_p = fb_p, neg0_p = fb_p;
+            uint pos1_p = fb_p, neg1_p = fb_p;
 
-            bool flip_res = dot(through_res.opt_normal, line_a.normal) < 0.0;
-            vec3 res_pos = flip_res ? through_res.neg_side : through_res.pos_side;
-            vec3 res_neg = flip_res ? through_res.pos_side : through_res.neg_side;
-            bool res_in_seg1 = through_hit.t >= through_hit.t_branch;
+            // pos_side / neg_side from resolve_hit are topologically tied
+            // to the cells flanking the span — invariant along the span,
+            // so no normal-swap is needed even though line_a.normal differs
+            // from opt_normal where the curve bends.
+            bool res_in_seg1 = through_hit.t >= through_pcp.t_branch;
             if (through_res.resolved) {
-                if (res_in_seg1) { pos1 = res_pos; neg1 = res_neg; }
-                else             { pos0 = res_pos; neg0 = res_neg; }
+                uint rp = packUnorm4x8(vec4(through_res.pos_side, 0.0));
+                uint rn = packUnorm4x8(vec4(through_res.neg_side, 0.0));
+                if (res_in_seg1) { pos1_p = rp; neg1_p = rn; }
+                else             { pos0_p = rp; neg0_p = rn; }
             }
 
-            if (!through_hit.is_line) {
+            // Sample the OTHER segment of the through curve at its
+            // midpoint to fill in colors for both sides of t_branch.
+            {
                 Hit other_seg = through_hit;
                 other_seg.t = res_in_seg1
-                    ? (through_hit.t_branch * 0.5)
-                    : (0.5 * (through_hit.t_branch + 1.0));
+                    ? (through_pcp.t_branch * 0.5)
+                    : (0.5 * (through_pcp.t_branch + 1.0));
                 ResolveResult res_other = resolve_hit(other_seg, J);
                 if (res_other.resolved) {
-                    bool flip_o = dot(res_other.opt_normal, line_a.normal) < 0.0;
-                    vec3 op = flip_o ? res_other.neg_side : res_other.pos_side;
-                    vec3 on = flip_o ? res_other.pos_side : res_other.neg_side;
-                    if (res_in_seg1) { pos0 = op; neg0 = on; }
-                    else             { pos1 = op; neg1 = on; }
+                    uint opp = packUnorm4x8(vec4(res_other.pos_side, 0.0));
+                    uint onp = packUnorm4x8(vec4(res_other.neg_side, 0.0));
+                    if (res_in_seg1) { pos0_p = opp; neg0_p = onp; }
+                    else             { pos1_p = opp; neg1_p = onp; }
                 } else if (through_res.resolved) {
-                    if (res_in_seg1) { pos0 = res_pos; neg0 = res_neg; }
-                    else             { pos1 = res_pos; neg1 = res_neg; }
+                    uint rp = packUnorm4x8(vec4(through_res.pos_side, 0.0));
+                    uint rn = packUnorm4x8(vec4(through_res.neg_side, 0.0));
+                    if (res_in_seg1) { pos0_p = rp; neg0_p = rn; }
+                    else             { pos1_p = rp; neg1_p = rn; }
                 }
-            } else if (through_res.resolved) {
-                // Straight 2-CP chain: same colors throughout.
-                pos0 = res_pos; neg0 = res_neg;
-                pos1 = res_pos; neg1 = res_neg;
             }
 
-            // LUT decoded once. Indexed by (sa>0) | ((sb>0) << 1):
-            //   0 = neg0, 1 = pos0, 2 = neg1, 3 = pos1.
-            vec3 lut_lin[4];
-            lut_lin[0] = srgb_to_linear(neg0);
-            lut_lin[1] = srgb_to_linear(pos0);
-            lut_lin[2] = srgb_to_linear(neg1);
-            lut_lin[3] = srgb_to_linear(pos1);
-
-            // Boundary-sweep area accumulation. Walk the pixel boundary
-            // CCW; on each edge find up to 2 line crossings (line_a and
-            // line_b), split the edge into <=3 sub-segments, classify
-            // each by (sa, sb)-sign at its midpoint, and add a signed-
-            // triangle area (J as origin) to the matching wedge bucket.
-            // J interior + consistent walk direction => |cross| gives the
-            // wedge area directly. No polygon storage, no centroid pass.
+            // Boundary-sweep area accumulation. Walk the pixel CCW; on
+            // each edge find up to 2 line crossings, split into ≤3 sub-
+            // segments, classify each by (sa, sb)-sign at its midpoint,
+            // and add the triangle (u, v, J) area to the matching wedge
+            // bucket. J inside the pixel + consistent walk direction
+            // makes |cross| the wedge area directly.
             float pix_h = inv_scale * 0.5;
             vec2 corners[4];
             corners[0] = vec2(center.x - pix_h, center.y - pix_h);
@@ -994,7 +804,12 @@ void main() {
             corners[2] = vec2(center.x + pix_h, center.y + pix_h);
             corners[3] = vec2(center.x - pix_h, center.y + pix_h);
 
-            vec3 sum_lin = vec3(0.0);
+            // Wedge area buckets keyed by (sa_sign, sb_sign):
+            //   _np: sa<0, sb<0 (neg side, pre-junction)  → neg0
+            //   _pp: sa>0, sb<0 (pos side, pre-junction)  → pos0
+            //   _nn: sa<0, sb>0 (neg side, post-junction) → neg1
+            //   _pn: sa>0, sb>0 (pos side, post-junction) → pos1
+            float a_neg0 = 0.0, a_pos0 = 0.0, a_neg1 = 0.0, a_pos1 = 0.0;
             float total_area = 0.0;
 
             for (int ei = 0; ei < 4; ei++) {
@@ -1035,8 +850,13 @@ void main() {
                         vec2 vj = v - J;
                         float area = abs(uj.x * vj.y - uj.y * vj.x) * 0.5;
                         if (area >= 1e-9) {
-                            int idx = (sa_m > 0.0 ? 1 : 0) | (sb_m > 0.0 ? 2 : 0);
-                            sum_lin += lut_lin[idx] * area;
+                            bool sa_pos = sa_m > 0.0;
+                            bool sb_pos = sb_m > 0.0;
+                            if (sa_pos) {
+                                if (sb_pos) a_pos1 += area; else a_pos0 += area;
+                            } else {
+                                if (sb_pos) a_neg1 += area; else a_neg0 += area;
+                            }
                             total_area += area;
                         }
                         u = v;
@@ -1051,14 +871,25 @@ void main() {
                     vec2 vj = q - J;
                     float area = abs(uj.x * vj.y - uj.y * vj.x) * 0.5;
                     if (area >= 1e-9) {
-                        int idx = (sa_m > 0.0 ? 1 : 0) | (sb_m > 0.0 ? 2 : 0);
-                        sum_lin += lut_lin[idx] * area;
+                        bool sa_pos = sa_m > 0.0;
+                        bool sb_pos = sb_m > 0.0;
+                        if (sa_pos) {
+                            if (sb_pos) a_pos1 += area; else a_pos0 += area;
+                        } else {
+                            if (sb_pos) a_neg1 += area; else a_neg0 += area;
+                        }
                         total_area += area;
                     }
                 }
             }
 
             if (total_area > 0.0) {
+                // Unpack + linearize one color at a time so only one
+                // vec3 is live at the reduction.
+                vec3 sum_lin = a_neg0 * srgb_to_linear(unpackUnorm4x8(neg0_p).rgb)
+                             + a_pos0 * srgb_to_linear(unpackUnorm4x8(pos0_p).rgb)
+                             + a_neg1 * srgb_to_linear(unpackUnorm4x8(neg1_p).rgb)
+                             + a_pos1 * srgb_to_linear(unpackUnorm4x8(pos1_p).rgb);
                 center_color = linear_to_srgb(sum_lin / total_area);
                 wedge_handled = true;
             }
@@ -1066,31 +897,28 @@ void main() {
     }
 
     // Dual-curve AA: two distinct-chain curves passing through the pixel
-    // without an actual junction inside it (typical of thin strokes where
-    // two boundary curves graze the same pixel). Partitions the pixel
-    // into 3 stripes via two single-line coverages — closed-form, no
-    // boundary sweep. Skips when wedge AA fired, or when no second non-
-    // chain hit is within threshold, or when the LUT model breaks down
-    // (inner-color mismatch / lines cross inside pixel).
+    // without a junction inside it (typical of thin strokes). Partitions
+    // the pixel into 3 stripes via two single-line coverages.
     bool dual_handled = false;
     if (!wedge_handled && resolved_h >= 0 && resolved_d2 < aa_threshold) {
-        // resolved_h ∈ {0, 1, 2}; explicit selection.
         Hit hit_a = (resolved_h == 0) ? hits[0]
                   : (resolved_h == 1) ? hits[1]
                                       : hits[2];
         // Find sc_b: first cached hit not on hit_a's chain (1-step
-        // neighbor test) and within aa_threshold. Unrolled across
-        // s ∈ {0, 1, 2} on constant indices to keep hits[] in registers.
+        // neighbor test) and within aa_threshold. Macro keeps the loop
+        // unrolled on constant indices so hits[] stays in registers.
+        ivec2 hit_a_nbrs = read_neighbors(hit_a.cp_idx);
         int sec_h = -1;
         Hit hit_b;
         #define TRY_SEC(s, hs) \
             if (sec_h < 0 && (s) < num_hits && (s) != resolved_h \
                 && (hs).d2 < aa_threshold && (hs).cp_idx >= 0) { \
+                ivec2 hs_nbrs = read_neighbors((hs).cp_idx); \
                 bool same_chain = (hit_a.cp_idx == (hs).cp_idx) \
-                    || (hit_a.cp_idx == (hs).prev_ci) \
-                    || (hit_a.cp_idx == (hs).next_ci) \
-                    || ((hs).cp_idx == hit_a.prev_ci) \
-                    || ((hs).cp_idx == hit_a.next_ci); \
+                    || (hit_a.cp_idx == hs_nbrs.x) \
+                    || (hit_a.cp_idx == hs_nbrs.y) \
+                    || ((hs).cp_idx == hit_a_nbrs.x) \
+                    || ((hs).cp_idx == hit_a_nbrs.y); \
                 if (!same_chain) { sec_h = (s); hit_b = (hs); } \
             }
         TRY_SEC(0, hits[0])
@@ -1101,8 +929,10 @@ void main() {
             && any(notEqual(res.pos_side, res.neg_side))) {
             ResolveResult res_b = resolve_hit(hit_b, center);
             if (res_b.resolved && any(notEqual(res_b.pos_side, res_b.neg_side))) {
-                vec2 cpt_a = beval(hit_a.prev_pos, hit_a.cp_pos, hit_a.next_pos, hit_a.t);
-                vec2 cpt_b = beval(hit_b.prev_pos, hit_b.cp_pos, hit_b.next_pos, hit_b.t);
+                PackedCp pcp_a = read_packed_cp(hit_a.cp_idx);
+                PackedCp pcp_b = read_packed_cp(hit_b.cp_idx);
+                vec2 cpt_a = beval(pcp_a.pp, pcp_a.cp, pcp_a.np, hit_a.t);
+                vec2 cpt_b = beval(pcp_b.pp, pcp_b.cp, pcp_b.np, hit_b.t);
                 vec2 na = res.opt_normal;
                 vec2 nb = res_b.opt_normal;
 
@@ -1113,9 +943,8 @@ void main() {
                 vec3 a_inner = inner_a_pos ? res.pos_side  : res.neg_side;
                 vec3 b_inner = inner_b_pos ? res_b.pos_side: res_b.neg_side;
 
-                // Dual-curve assumes a shared middle region. If inner
-                // colors disagree, geometry has 3 distinct colors (a
-                // junction missed by structural detection). Defer.
+                // Dual-curve assumes a shared middle region. Inner-color
+                // mismatch means there's a missed junction; defer.
                 if (all(equal(a_inner, b_inner))) {
                     float d_a = dot(center - cpt_a, na) / inv_scale;
                     float d_b = dot(center - cpt_b, nb) / inv_scale;
@@ -1123,8 +952,7 @@ void main() {
                     float fb_pos = line_coverage_pos(nb, d_b);
                     float fa_outer = inner_a_pos ? (1.0 - fa_pos) : fa_pos;
                     float fb_outer = inner_b_pos ? (1.0 - fb_pos) : fb_pos;
-                    // Lines crossing inside pixel → A_outer ∩ B_outer
-                    // overlaps → fractions sum > 1. Defer.
+                    // Lines crossing inside pixel ⇒ outer fractions sum > 1.
                     if (fa_outer + fb_outer <= 1.0 + 1e-4) {
                         float fm = max(0.0, 1.0 - fa_outer - fb_outer);
                         vec3 a_outer = inner_a_pos ? res.neg_side  : res.pos_side;
@@ -1140,7 +968,7 @@ void main() {
         }
     }
 
-    // Single-curve AA fallback is handled by the prior pass — center_color
-    // stays at prev.rgb if neither wedge nor dual-curve AA fired above.
+    // Falls back to single-AA's center_color (= prev.rgb) when neither
+    // wedge nor dual-curve AA fired.
     FragColor = vec4(center_color, 1.0);
 }
