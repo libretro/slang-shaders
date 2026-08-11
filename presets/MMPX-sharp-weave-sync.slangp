@@ -1,0 +1,16 @@
+shaders = 3
+
+shader0 = ../edge-smoothing/scalenx/shaders/mmpx-ADV.slang
+filter_linear0 = false
+scale_type0 = source
+scale0 = 2.0
+
+shader1 = ../pixel-art-scaling/shaders/sharp-bilinear-simple.slang
+filter_linear1 = true
+wrap_mode1 = clamp_to_edge
+scale_type1 = viewport
+
+shader2 = ../misc/shaders/pixel-weave-sync.slang
+filter_linear2 = false
+scale_type2 = source
+scale2 = 1.0
