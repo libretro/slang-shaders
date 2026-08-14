@@ -35,10 +35,6 @@ layout(push_constant) uniform Push
 #pragma parameter startRow "Flicker detection start row (%)" 0.00 0.0 1.0 0.01
 #pragma parameter endRow   "Flicker detection end row (%)" 1.00 0.0 1.0 0.01
 
-#define thresh params.thresh
-#define startRow params.startRow
-#define endRow params.endRow
-
 layout(std140, set = 0, binding = 0) uniform UBO
 {
     mat4 MVP;
@@ -67,6 +63,10 @@ layout(set = 0, binding = 7) uniform sampler2D OriginalHistory5;
 
 void main()
 {
+    // Local variable mappings
+    float thresh   = params.thresh;
+    float startRow = params.startRow;
+    float endRow   = params.endRow;
 
     vec3 curr0 = texture(Original, vTexCoord).rgb;
     vec3 prev1 = texture(OriginalHistory1, vTexCoord).rgb;
@@ -79,7 +79,7 @@ void main()
     float isInRegion = step(startRow, vTexCoord.y) * step(vTexCoord.y, endRow);
     
     // BT.601 luma weights
-    vec3 luma_weight = vec3(0.299, 0.587, 0.114);
+    const vec3 luma_weight = vec3(0.299, 0.587, 0.114);
     float curr0Luma = dot(curr0, luma_weight);
     float prev1Luma = dot(prev1, luma_weight);
     float prev2Luma = dot(prev2, luma_weight);
