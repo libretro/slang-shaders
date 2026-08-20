@@ -14,18 +14,25 @@ layout(push_constant) uniform Push {
     vec4 OriginalSize;
     vec4 OutputSize;
     uint FrameCount;
+	float profile;
 	float darken_screen;
-	float HWmode;
 } params;
 
-#pragma parameter HWmode "Color Profile (1=sRGB, 2=DCI, 3=Rec2020)" 1.0 1.0 3.0 1.0
-#pragma parameter darken_screen "Darken Screen" 0.8 0.0 3.0 0.1
+#pragma parameter profile "Color Profile (1=sRGB, 2=DCI, 3=Rec2020)" 1.0 1.0 3.0 1.0
+#pragma parameter darken_screen "Screen Darkness" 0.8 0.0 2.2 0.1
 
 layout(std140, set = 0, binding = 0) uniform UBO { mat4 MVP; } global;
 
 const float GAMMA = 2.2;
 const float INV_GAMMA = 1.0 / GAMMA;
 const float INV_GAMMA_SQ = 1.0 / (GAMMA * GAMMA);
+
+/*  define color weights in pattern:
+      r2R   r2G   r2B  -
+      g2R   g2G   g2B  -
+      b2R   b2G   b2B  -
+       -     -     -   -   //global lum=1.0
+*/
 
 const mat3 GBA_sRGB = mat3(
     0.865, 0.0575, 0.0575,
@@ -44,6 +51,7 @@ const mat3 GBA_Rec2020 = mat3(
     0.3825, 0.8625, 0.195,
     0.0475, 0.0225, 0.7325
 );
+
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -66,7 +74,7 @@ void main() {
 
     vec3 screen = pow(texel, vec3(GAMMA));
 
-    int color_mode = int(round(params.HWmode));
+    int color_mode = int(round(params.profile));
 
     if (color_mode == 1) screen = GBA_sRGB * screen;
     else if (color_mode == 2) screen = GBA_DCI * screen;
