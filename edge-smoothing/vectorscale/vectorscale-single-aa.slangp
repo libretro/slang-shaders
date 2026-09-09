@@ -1,4 +1,4 @@
-# Vibeboy vectorize shader preset (simple optimizer + single-curve AA).
+# VectorScale shader preset (simple optimizer + single-curve AA).
 # Uses |p_{i-1} - 2 p_i + p_{i+1}|² curvature energy and the single-AA
 # rasterizer (no wedge AA / dual-curve AA).
 # Works with any input resolution (not just Game Boy 160x144).

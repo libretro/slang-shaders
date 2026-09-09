@@ -1,5 +1,5 @@
-# Vibeboy vectorize: same optimizer topology as
-# vibeboy-vectorize-exact-energy-single-aa.slangp, with the multi-AA
+# VectorScale: same optimizer topology as
+# vectorscale-exact-energy-single-aa.slangp, with the multi-AA
 # rasterizer chained after the single-AA rasterizer for better edge
 # anti-aliasing.
 

@@ -1,11 +1,15 @@
-# Vibeboy vectorize shader preset (simple-curvature optimizer).
+# VectorScale shader preset (simple-curvature optimizer).
 # Uses |p_{i-1} - 2 p_i + p_{i+1}|² as the curvature energy. For the
-# paper's exact ∫|κ|ds energy, use vibeboy-vectorize-exact-energy.slangp.
+# paper's exact ∫|κ|ds energy, use vectorscale-exact-energy.slangp.
 # Works with any input resolution (not just Game Boy 160x144).
-# Intermediate textures are over-allocated using source-relative scales:
-#   Cell graph:   2W x 7H   (needs (W+1) x 6(H+1), works for H >= 6)
-#   Positions:    2W x 3.5H (needs (W+1) x 2(H+1), works for H >= 2)
-#   PackedPositions: 6W x 3.5H (3 horizontally-adjacent texels per CP slot)
+# Intermediate textures are over-allocated using source-relative scales.
+# Cell-graph collapses the 2W-wide similarity-graph back to ~W+1 columns
+# (it's indexed per grid corner, not per grid edge) and the whole
+# downstream per-CP chain inherits that width:
+#   Cell graph:      1.1W x 2.1H  (needs (W+1) x 2(H+1), works for W,H >= 10)
+#   Positions chain: 1.1W x 2.1H  (init-positions, optimize, tjunc — same dims)
+#   PackedPositions: 2.2W x 2.1H  (2 horizontally-adjacent texels per CP slot)
+#   CellInfo:        1.1W x 1.05H (per-source-pixel, IMG_W x IMG_H valid region)
 #
 # Framebuffer formats are set per-shader via `#pragma format` (FP32 for
 # position-storing passes). DO NOT add `float_framebuffer<N> = true` here

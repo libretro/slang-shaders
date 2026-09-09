@@ -1,4 +1,4 @@
-# Vibeboy vectorize: clamped-Newton Picard + global gradient correction.
+# VectorScale: clamped-Newton Picard + global gradient correction.
 # Each outer iter:
 #   optimize-energy.slang      per-CP Newton step, |δ| ≤ 0.10 px
 #   gradient-correction.slang  −η · clip(∇E_i) with |step| ≤ 0.25 px
