@@ -1,0 +1,80 @@
+#version 450
+
+#define ADAMANT
+
+#pragma format R16G16B16A16_SFLOAT
+
+layout(push_constant) uniform Push
+{
+   float hcrt_hdr;
+   float hcrt_colour_space;
+   float hcrt_max_nits;
+   float hcrt_paper_white_nits;
+   float hcrt_lcd_resolution;
+   float hcrt_lcd_subpixel;
+   float hcrt_colour_system;
+   float hcrt_phosphor_set;
+   float hcrt_content_gamut;
+   float hcrt_white_temperature_D65;
+   float hcrt_white_temperature_D93;
+   float hcrt_brightness;
+   float hcrt_contrast;
+   float hcrt_saturation;
+   float hcrt_gamma_in;
+   float hcrt_gamma_cutoff;
+   float hcrt_colour_accurate;
+} params;
+
+layout(std140, set = 0, binding = 0) uniform UBO
+{
+	mat4 MVP;
+	vec4 SourceSize;
+	vec4 OriginalSize;
+	vec4 OutputSize;
+	uint FrameCount;
+	float EnableHDR;
+} global;
+
+#include "include/parameters.h"
+
+#define HCRT_HDR                            params.hcrt_hdr
+#define HCRT_OUTPUT_COLOUR_SPACE            params.hcrt_colour_space
+#define HCRT_CRT_COLOUR_SYSTEM              params.hcrt_colour_system
+#define HCRT_CRT_PHOSPHOR_SET               params.hcrt_phosphor_set
+#define HCRT_WHITE_TEMPERATURE_D65          params.hcrt_white_temperature_D65
+#define HCRT_WHITE_TEMPERATURE_D93          params.hcrt_white_temperature_D93
+#define HCRT_BRIGHTNESS                     params.hcrt_brightness
+#define HCRT_CONTRAST                       params.hcrt_contrast
+#define HCRT_SATURATION                     params.hcrt_saturation
+#define HCRT_GAMMA_IN                       params.hcrt_gamma_in
+#define HCRT_GAMMA_CUTOFF                   params.hcrt_gamma_cutoff
+#define HCRT_COLOUR_ACCURATE                params.hcrt_colour_accurate
+
+#define COMPAT_TEXTURE(c, d) texture(c, d)
+
+#pragma stage vertex
+layout(location = 0) in vec4 Position;
+layout(location = 1) in vec2 TexCoord;
+layout(location = 0) out vec2 vTexCoord;
+
+void main()
+{
+   gl_Position = global.MVP * Position;
+   vTexCoord = TexCoord * vec2(1.00001);  // To resolve rounding issues when sampling
+}
+
+#pragma stage fragment
+layout(location = 0) in vec2 vTexCoord;
+layout(location = 0) out vec4 FragColor;
+layout(set = 0, binding = 2) uniform sampler2D Source;
+
+#include "include/colour_grade.h"
+
+void main()
+{
+   vec3 source = COMPAT_TEXTURE(Source, vTexCoord).rgb;
+
+   const vec3 colour   = ColourGrade(source);
+
+   FragColor = vec4(colour, 1.0);
+}
