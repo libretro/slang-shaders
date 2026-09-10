@@ -4,7 +4,7 @@ Changes in Megatron v2.6.5+ have radically reduced color accuracy on at least WO
 
 Unless otherwise labeled, all included presets were made on made on my LG C1, targeting ~800 nit WOLEDs.
 My personal philosophy for preset creation is what i consider a "best of all worlds" approach.
-I've never been a fan of things like CRT curvature, or RF noise, but bringing together the color gamut and pixel blending of the original target display, the perfectly tuned geometry of flat panels, and perfect OLED black isn't historically accurate, but the results can be quite magnificent in my opinion. 
+While i've never been a fan of things like CRT curvature or RF noise, bringing together the color gamut and pixel blending of a CRT, the perfectly tuned geometry of flat panels, and perfect OLED black, can give results that are quite magnificent in my opinion.
 
 Presets in the adamant_presets_WOLED folder should be used *only on OLEDs*.
 Please use the presets in the adamant_presets_LCD_SAFE folder if you are using an LCD display.
