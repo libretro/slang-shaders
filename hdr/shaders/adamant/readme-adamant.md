@@ -39,7 +39,7 @@ Options are as follows:
 
 * 9:1980s Receiver Phosphors (Receiver phosphors used starting somewhere in the 80s.)
 
-* 10:AppleRGB/Trinitron (This is the approximate gamut of Trinitron TVs and Monitors made starting from no later than 1987, possibly 1984, and maybe even as early as 1968. The standard it inspired is named Apple RGB, derived from the AppleColor High-Resolution RGB Monitor, which was a Trinitron.)
+* 10:AppleRGB/Trinitron (This is the approximate gamut of Trinitron TVs and Monitors made starting from no later than 1987. Possibly even from the very begining in 1968. The standard it inspired is named Apple RGB, derived from the AppleColor High-Resolution RGB Monitor, which was a Trinitron.)
 
 * 11:guest's Philips PC (Gamut used by a number of extremely popular monitors that used Philips tubes, including Philips CM8533, Philips VS-0080, and Commodore 1084)
 
