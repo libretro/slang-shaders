@@ -2,7 +2,7 @@ Adamant is the next iteration of my AzMods project, centered on CRT Adamant, a f
 
 Changes in Megatron v2.6.5+ have radically reduced color accuracy on at least WOLED displays, while also making the simulated phosphor patterns less similar to those seen on real CRTs, with no actual benefit that i can see. As a result, i have continued using and modifying v2.6.1, and i have decided it is time to officially fork.
 
-Unless otherwise labeled, all included presets were made on made on my LG C1, targeting ~800 nit WOLEDs.
+Unless otherwise labeled, all included presets were made on my LG C1, targeting ~800 nit WOLEDs.
 My personal philosophy for preset creation is what i consider a "best of all worlds" approach.
 While i've never been a fan of things like CRT curvature or RF noise, bringing together the color gamut and pixel blending of a CRT, the perfectly tuned geometry of flat panels, and perfect OLED black, can give results that are quite magnificent in my opinion.
 
@@ -23,11 +23,11 @@ Options are as follows:
 
 * 1:NTSC 1953 Paper Standard (The NTSC 1953 paper standard. According to "TV Display Phosphors/Primaries — Some History", the blue phosphor it standardized is incorrect, perhaps as the result of a typo or a contaminated sample, and it was never actually contemporaneously used for real displays. See 1953RP for the true 1953 NTSC Receiver phosphors.)
 
-* 2:1953 Receiver Phosphors (The actual OG consumer color system... that was still only really used for 5-8ish years back when basically no one owned a color TV anyway. If you are Brazilian or from a SECAM region, it may also match some old CRT TVs you’ve used with really weirdly intense greens? Hard to say. This sort of thing is kind of underdocumented. Sometimes called XXA)
+* 2:1953 Receiver Phosphors (The actual OG consumer color system... that was still only really used for 5-8ish years back when basically no one owned a color TV anyway. If you are Brazilian or from a SECAM region, it may also match some old CRT TVs you’ve used with really weirdly intense greens? Hard to say. This sort of thing is kind of underdocumented. Sometimes called XXA.)
 
-* 3:1961 Receiver Phosphors (Receiver phosphors used starting somewhen around 1958-1961, as documented by TV Display Phosphors/Primaries — Some History. Sometimes called XXB. Millennial’s grandparent’s old TV with weird colors #1.)
+* 3:1961 Receiver Phosphors (Receiver phosphors used starting somewhen around 1958-1961, as documented by TV Display Phosphors/Primaries — Some History. Sometimes called XXB. Millennials' grandparents' old TV with weird colors #1.)
 
-* 4:1964 Receiver Phosphors (~1964 receiver phosphors, sometimes called XXC, as documented by Phosphor Handbook, CRC Press, 2006. Millennials' grandparents' old TV with weird colors #2.)
+* 4:1964 Receiver Phosphors (Receiver phosphors in use starting around 1964, as documented by Phosphor Handbook, CRC Press, 2006. Sometimes called XXC. Millennials' grandparents' old TV with weird colors #2.)
 
 * 5:PAL/EBU (The Baseline standard gamut for Analog PAL finalised in 1967.)
 
