@@ -1,6 +1,6 @@
-// GAME BOY DOT MATRIX SHADER v1.2 - Shared Parameters
+// GAME BOY DOT MATRIX SHADER v1.3 - Shared Parameters
 
-#pragma parameter GAMEBOY_SHADER 				"=== GAME BOY DOT MATRIX SHADER v1.2 ===" 0.0 0.0 1.0 1.0
+#pragma parameter GAMEBOY_SHADER 				"=== GAME BOY DOT MATRIX SHADER v1.3 ===" 0.0 0.0 1.0 1.0
 #pragma parameter NOTE1 						" *  Turn OFF Integer Scale in Settings > Video > Scaling" 0.0 0.0 1.0 1.0
 #pragma parameter NOTE2 						" *  GBC: Turn OFF Core > Color Correction & Interframe Blending" 0.0 0.0 1.0 1.0
 #pragma parameter NOTE3 						" *  GBA: Turn ON Core > Color Correction & Interframe Blending" 0.0 0.0 1.0 1.0
