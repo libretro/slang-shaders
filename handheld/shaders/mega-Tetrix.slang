@@ -37,8 +37,8 @@ void main()
 {
     vec4 clip = global.MVP * Position;
 
-    vec2 int_scale = max(floor(params.OutputSize.xy * params.SourceSize.zw), vec2(1.0));
-    vec2 render_ratio = params.SourceSize.xy * (int_scale * params.OutputSize.zw);
+    vec2 int_scale = max(floor(params.OutputSize.xy * params.OriginalSize.zw), vec2(1.0));
+    vec2 render_ratio = params.OriginalSize.xy * (int_scale * params.OutputSize.zw);
 
     clip.xy *= render_ratio;
 
@@ -66,7 +66,7 @@ bool color_equal(vec3 c1, vec3 c2)
 void main()
 {
     // Convert normalized UV to discrete integer pixel coordinates inside the cell
-    vec2 pixel_coord = floor(fract(vTexCoord * params.SourceSize.xy) * vScale);
+    vec2 pixel_coord = floor(fract(vTexCoord * params.OriginalSize.xy) * vScale);
 
     // Compute dynamic border thickness (0.2 scale factor, clamped to 1px min)
     vec2 border_w = max(round(vScale * 0.2), vec2(1.0));
@@ -91,10 +91,10 @@ void main()
     }
 
     // [Lazy Sampling Stage 2]: Fetch 1st-order von Neumann neighborhood
-    vec3 color_left  = texture(Source, vTexCoord + vec2(-params.SourceSize.z, 0.0)).rgb;
-    vec3 color_right = texture(Source, vTexCoord + vec2( params.SourceSize.z, 0.0)).rgb;
-    vec3 color_top   = texture(Source, vTexCoord + vec2(0.0, -params.SourceSize.w)).rgb;
-    vec3 color_bottom= texture(Source, vTexCoord + vec2(0.0,  params.SourceSize.w)).rgb;
+    vec3 color_left  = texture(Source, vTexCoord + vec2(-params.OriginalSize.z, 0.0)).rgb;
+    vec3 color_right = texture(Source, vTexCoord + vec2( params.OriginalSize.z, 0.0)).rgb;
+    vec3 color_top   = texture(Source, vTexCoord + vec2(0.0, -params.OriginalSize.w)).rgb;
+    vec3 color_bottom= texture(Source, vTexCoord + vec2(0.0,  params.OriginalSize.w)).rgb;
 
     // Evaluate connectivity states
     bool same_left   = color_equal(color, color_left);
@@ -138,7 +138,7 @@ void main()
         if (same_left && same_top && is_in_box_tl)
         {
             // Deferred conditional fetch for the specific 2nd-order diagonal neighbor
-            vec3 color_top_left = texture(Source, vTexCoord + vec2(-params.SourceSize.z, -params.SourceSize.w)).rgb;
+            vec3 color_top_left = texture(Source, vTexCoord + vec2(-params.OriginalSize.z, -params.OriginalSize.w)).rgb;
             if (!color_equal(color, color_top_left)) 
             {
                 if (!is_main_diag && dist_left < dist_top)       mod_weight = 1.0;  // Adjacent to Left wall
@@ -149,7 +149,7 @@ void main()
         // └ Bottom-Left Inside Corner
         else if (same_left && same_bottom && is_in_box_bl)
         {
-            vec3 color_bottom_left = texture(Source, vTexCoord + vec2(-params.SourceSize.z, params.SourceSize.w)).rgb;
+            vec3 color_bottom_left = texture(Source, vTexCoord + vec2(-params.OriginalSize.z, params.OriginalSize.w)).rgb;
             if (!color_equal(color, color_bottom_left))
             {
                 if (!is_anti_diag && dist_left < dist_bottom)    mod_weight = -1.0; 
@@ -160,7 +160,7 @@ void main()
         // ┐ Top-Right Inside Corner
         else if (same_right && same_top && is_in_box_tr)
         {
-            vec3 color_top_right = texture(Source, vTexCoord + vec2(params.SourceSize.z, -params.SourceSize.w)).rgb;
+            vec3 color_top_right = texture(Source, vTexCoord + vec2(params.OriginalSize.z, -params.OriginalSize.w)).rgb;
             if (!color_equal(color, color_top_right))
             {
                 if (!is_anti_diag && dist_right < dist_top)     mod_weight = 1.0;  
@@ -171,7 +171,7 @@ void main()
         // ┘ Bottom-Right Inside Corner
         else if (same_right && same_bottom && is_in_box_br)
         {
-            vec3 color_bottom_right = texture(Source, vTexCoord + vec2(params.SourceSize.z, params.SourceSize.w)).rgb;
+            vec3 color_bottom_right = texture(Source, vTexCoord + vec2(params.OriginalSize.z, params.OriginalSize.w)).rgb;
             if (!color_equal(color, color_bottom_right))
             {
                 if (!is_main_diag && dist_right < dist_bottom)   mod_weight = -1.0; 
@@ -199,7 +199,7 @@ void main()
     if (mod_weight < 0.0)
     {
         vec2  screen_d  = min(vTexCoord, 1.0 - vTexCoord);
-        float src_pixel = min(params.SourceSize.z, params.SourceSize.w);
+        float src_pixel = min(params.OriginalSize.z, params.OriginalSize.w);
         mod_weight *= smoothstep(0.0, src_pixel, min(screen_d.x, screen_d.y));
     }
 

@@ -73,10 +73,10 @@ void main()
 {
     gl_Position = global.MVP * Position;
 
-    vec2 box_scale = floor(param.OutputSize.xy / param.SourceSize.xy) + OVERSCAN;
+    vec2 box_scale = floor(param.OutputSize.xy / param.OriginalSize.xy) + OVERSCAN;
     box_scale = vec2(min(box_scale.x, box_scale.y));
 
-    vec2 scale = (param.OutputSize.xy / param.SourceSize.xy) / box_scale;
+    vec2 scale = (param.OutputSize.xy / param.OriginalSize.xy) / box_scale;
     vec2 middle = vec2(0.5);
     vec2 diff = TexCoord * 1.0001 - middle;
     vTexCoord = middle + diff * scale;
@@ -101,11 +101,11 @@ float fade(float size)
 
 void main()
 {
-    vec2 pos = fract(vTexCoord*param.SourceSize.xy)-vec2(0.5, 0.5); // pos = pixel position
+    vec2 pos = fract(vTexCoord*param.OriginalSize.xy)-vec2(0.5, 0.5); // pos = pixel position
     vec2 dir = sign(pos); // dir = pixel direction
 
-    vec2 g1 = dir*vec2( param.SourceSize.z,  0);
-    vec2 g2 = dir*vec2(  0, param.SourceSize.w);
+    vec2 g1 = dir*vec2( param.OriginalSize.z,  0);
+    vec2 g2 = dir*vec2(  0, param.OriginalSize.w);
 
     vec3 A = GAMMA_IN(texture(Source, vTexCoord       ).xyz);
     vec3 B = GAMMA_IN(texture(Source, vTexCoord +g1   ).xyz);

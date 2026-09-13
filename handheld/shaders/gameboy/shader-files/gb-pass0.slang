@@ -201,17 +201,17 @@ void main()
         if (registers.integer_mode > 1.5) {
             video_scale_factor = registers.video_scale;
         } else {
-            video_scale_factor = floor(registers.OutputSize.y * registers.SourceSize.w);
+            video_scale_factor = floor(registers.OutputSize.y * registers.OriginalSize.w);
         }
-        vec2 scaled_video_out = (registers.SourceSize.xy * vec2(video_scale_factor));
+        vec2 scaled_video_out = (registers.OriginalSize.xy * vec2(video_scale_factor));
         scale_bounds = scaled_video_out / registers.OutputSize.xy;
 
         // Standard setup for integer mode
         gl_Position = global.MVP * Position;
         vTexCoord = TexCoord * 1.0001;
         original_coord = TexCoord;
-        dot_size = registers.SourceSize.zw;
-        one_texel = 1.0 / (registers.SourceSize.xy * video_scale_factor);
+        dot_size = registers.OriginalSize.zw;
+        one_texel = 1.0 / (registers.OriginalSize.xy * video_scale_factor);
         screen_bounds = scale_bounds;
 
         // Set unused outputs for non-integer mode
@@ -228,8 +228,8 @@ void main()
         original_coord = TexCoord;
 
         // Calculate scaling parameters for geometric dot rendering
-        tx_coord = TexCoord * registers.SourceSize.xy;
-        tx_to_px = registers.OutputSize.xy / registers.SourceSize.xy;
+        tx_coord = TexCoord * registers.OriginalSize.xy;
+        tx_to_px = registers.OutputSize.xy / registers.OriginalSize.xy;
 
         // Game Boy dot size in output pixels
         dot_size_in_px = tx_to_px * registers.pixel_size;
@@ -243,7 +243,7 @@ void main()
     // Compute scale-aware softness for uneven fullscreen scales
     effective_softness = registers.pixel_softness;
     if (registers.auto_soften > 0.5 && registers.integer_mode < 0.5) {
-        vec2 scale = registers.OutputSize.xy / registers.SourceSize.xy;
+        vec2 scale = registers.OutputSize.xy / registers.OriginalSize.xy;
         vec2 fract_scale = fract(scale);
         // 0 at integer scales, 0.5 at worst fractional (x.5)
         float fract_factor = max(

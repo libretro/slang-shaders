@@ -50,10 +50,10 @@ float intsmear(float x, float dx)
 
 void main()
 {
-  vec2 texelSize = global.SourceSize.zw;
+  vec2 texelSize = global.OriginalSize.zw;
   vec2 subtexelSize = texelSize / vec2(3.0,1.0);
   vec2 range;
-  range = global.SourceSize.xy / (global.OutputSize.xy * global.SourceSize.xy);
+  range = global.OriginalSize.xy / (global.OutputSize.xy * global.OriginalSize.xy);
   
   float left   = vTexCoord.x - texelSize.x*0.5;
   float top    = vTexCoord.y + range.y;

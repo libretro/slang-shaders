@@ -49,8 +49,8 @@ layout(std140, set = 0, binding = 0) uniform UBO
 //vertex definitions                                                                                                                      //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define video_scale 		floor(params.OutputSize.y * params.SourceSize.w)		//largest integer scale of input video that will fit in the current output (y axis would typically be limiting on widescreens)
-#define scaled_video_out	(params.SourceSize.xy * video_scale)				//size of the scaled video
+#define video_scale 		floor(params.OutputSize.y * params.OriginalSize.w)		//largest integer scale of input video that will fit in the current output (y axis would typically be limiting on widescreens)
+#define scaled_video_out	(params.OriginalSize.xy * video_scale)				//size of the scaled video
 #define half_pixel		(0.5 * params.OutputSize.zw)					//it's... half a pixel
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -67,8 +67,8 @@ void main()
 {
    gl_Position = global.MVP * Position;
    vTexCoord = TexCoord;
-   cell_height = params.SourceSize.w;
-   texel_height = 1.0 / (params.SourceSize.y * video_scale);
+   cell_height = params.OriginalSize.w;
+   texel_height = 1.0 / (params.OriginalSize.y * video_scale);
 }
 
 #pragma stage fragment

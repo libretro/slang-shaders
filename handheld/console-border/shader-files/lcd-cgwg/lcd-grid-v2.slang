@@ -46,11 +46,11 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #define outgamma 2.2
 
-#define fetch_offset(coord, offset) (pow(vec3(params.gain) * texelFetchOffset(Source, (coord), 0, (offset)).rgb + vec3(params.blacklevel), vec3(params.gamma)) + vec3(params.ambient))
+#define fetch_offset(coord, offset) (pow(vec3(params.gain) * texture(Source, (vec2((coord) + (offset)) + 0.5) * global.OriginalSize.zw).rgb + vec3(params.blacklevel), vec3(params.gamma)) + vec3(params.ambient))
 
 vec2 middle	= vec2(0.5, 0.5);
 vec2 screen_scale = params.video_scale * vec2(params.PAR, 1.0);
-vec2 screen_ratio = global.OutputSize.xy * global.SourceSize.zw / screen_scale;
+vec2 screen_ratio = global.OutputSize.xy * global.OriginalSize.zw / screen_scale;
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -97,9 +97,9 @@ void main()
 {
     if(abs(vTexCoord.x - 0.5) < 0.5 && abs(vTexCoord.y - 0.5) < 0.5)
     {
-        vec2 texelSize = global.SourceSize.zw;
+        vec2 texelSize = global.OriginalSize.zw;
         /* float2 range = IN.video_size / (IN.output_size * IN.texture_size); */
-        vec2 range = global.SourceSize.zw / screen_scale;
+        vec2 range = global.OriginalSize.zw / screen_scale;
 
         vec3 cred   = pow(vec3(params.RSUBPIX_R, params.RSUBPIX_G, params.RSUBPIX_B), vec3(outgamma));
         vec3 cgreen = pow(vec3(params.GSUBPIX_R, params.GSUBPIX_G, params.GSUBPIX_B), vec3(outgamma));

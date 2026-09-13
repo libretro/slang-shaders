@@ -44,10 +44,10 @@ void main()
     vec4 clip = global.MVP * Position;
 
     // Floor scaling factors independently per axis (clamped to 1.0 minimum)
-    vec2 int_scale = max(floor(params.OutputSize.xy * params.SourceSize.zw), vec2(1.0));
+    vec2 int_scale = max(floor(params.OutputSize.xy * params.OriginalSize.zw), vec2(1.0));
 
     // Calculate the ratio of the integer-scaled frame relative to the target viewport
-    vec2 render_ratio = params.SourceSize.xy * (int_scale * params.OutputSize.zw);
+    vec2 render_ratio = params.OriginalSize.xy * (int_scale * params.OutputSize.zw);
 
     clip.xy *= render_ratio;
 
@@ -73,7 +73,7 @@ void main()
     vec2 inv_scale = 1.0 / vScale;
 
     // Normalized continuous coordinates within the current source pixel quad [0, 1)
-    vec2 cell_uv = fract(vTexCoord * params.SourceSize.xy);
+    vec2 cell_uv = fract(vTexCoord * params.OriginalSize.xy);
 
     vec3 color = texture(Source, vTexCoord).rgb;
 
@@ -93,7 +93,7 @@ void main()
     // --- Screen-Space Edge Bleed Protection ---
     // Smoothly attenuate shadows within the outermost source pixels to prevent harsh clipping boundaries
     vec2  screen_d  = min(vTexCoord, 1.0 - vTexCoord);
-    float src_pixel = min(params.SourceSize.z, params.SourceSize.w);
+    float src_pixel = min(params.OriginalSize.z, params.OriginalSize.w);
     shadow *= smoothstep(0.0, src_pixel, min(screen_d.x, screen_d.y));
 
     // --- Final Compositing ---

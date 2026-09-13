@@ -145,11 +145,13 @@ const float INV_DISPLAY_GAMMA = 1.0 / 2.2;
 void main()
 {
 	// Get current texture coordinate
-	vec2 imgPixelCoord = vTexCoord.xy * registers.SourceSize.xy;
+	vec2 imgPixelCoord = vTexCoord.xy * registers.OriginalSize.xy;
 	vec2 imgCenterCoord = floor(imgPixelCoord.xy) + vec2(0.5, 0.5);
+	vec2 sourcePixelCoord = vTexCoord.xy * registers.SourceSize.xy;
+	vec2 sourceCenterCoord = floor(sourcePixelCoord.xy) + vec2(0.5, 0.5);
 	
 	// Get colour of current pixel
-	vec3 colour = texture(Source, registers.SourceSize.zw * imgCenterCoord.xy).rgb;
+	vec3 colour = texture(Source, registers.SourceSize.zw * sourceCenterCoord.xy).rgb;
 	
 	// Darken colours (if required...) and apply colour correction
 	colour.rgb = pow(colour.rgb, vec3(TARGET_GAMMA + 1.0 + registers.DARKEN_COLOUR));
