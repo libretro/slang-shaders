@@ -37,7 +37,7 @@ layout(push_constant) uniform Push
 	vec4 OutputSize;
 	vec4 OriginalSize;
 	vec4 SourceSize;
-	vec4 PassOutputSize1;
+	vec4 GameBoyDotMatrixAlphaBlendSize;
 	float contrast;
 	float screen_light;
 	float pixel_opacity;
@@ -127,7 +127,7 @@ layout(location = 2) in float resolution_scale;
 layout(location = 3) in vec2 shadow_offset;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 1) uniform sampler2D Source;
-layout(set = 0, binding = 2) uniform sampler2D PassOutput1;
+layout(set = 0, binding = 2) uniform sampler2D GameBoyDotMatrixAlphaBlend;
 layout(set = 0, binding = 3) uniform sampler2D BACKGROUND;
 layout(set = 0, binding = 4) uniform sampler2D COLOR_PALETTE;
 
@@ -167,8 +167,8 @@ vec4 get_bg_color() {
 
 void main()
 {
-    vec2 tex = floor(registers.PassOutputSize1.xy * vTexCoord);
-    tex = (tex + 0.5) * registers.PassOutputSize1.zw;
+    vec2 tex = floor(registers.GameBoyDotMatrixAlphaBlendSize.xy * vTexCoord);
+    tex = (tex + 0.5) * registers.GameBoyDotMatrixAlphaBlendSize.zw;
 
     // Cache background color to avoid multiple function calls
     vec4 bg_color_cached = get_bg_color();
@@ -177,7 +177,7 @@ void main()
     shadow_sample = clamp(shadow_sample, vec2(0.0), vec2(1.0) - texel);
 
     // Sample all the relevant textures
-    vec4 foreground = texture(PassOutput1, tex - screen_offset);
+    vec4 foreground = texture(GameBoyDotMatrixAlphaBlend, tex - screen_offset);
     vec4 background = texture(BACKGROUND, vTexCoord);
     vec4 shadows    = texture(Source, shadow_sample);
 
