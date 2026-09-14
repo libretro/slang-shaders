@@ -72,8 +72,8 @@ void main()
     // Reading the texel
     vec3 E = pow(texture(Source, vTexCoord).xyz, vec3(param.RETRO_GAMMA_IN));
 
-    vec2 fp = fract(vTexCoord*global.SourceSize.xy);
-    vec2 ps = global.SourceSize.xy * global.OutputSize.zw;
+    vec2 fp = fract(vTexCoord*global.OriginalSize.xy);
+    vec2 ps = global.OriginalSize.xy * global.OutputSize.zw;
 
     vec2 f = clamp(clamp(fp + 0.5*ps, 0.0, 1.0) - param.RETRO_PIXEL_SIZE, vec2(0.0), ps)/ps;
 

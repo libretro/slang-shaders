@@ -7,10 +7,10 @@ scale0 = 1.0
 alias0 = "PASS0"
 
 shader1 = shader-files/gb-pass1.slang
+alias1 = "ConsoleBorderGameBoyDotMatrixAlphaBlend"
 filter_linear1 = false
 scale_type1 = source
 scale1 = 1.0
-alias1 = "PASS1"
 
 shader2 = shader-files/gb-pass2.slang
 filter_linear2 = false

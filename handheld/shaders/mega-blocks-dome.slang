@@ -44,10 +44,10 @@ void main()
     vec4 clip = global.MVP * Position;
 
     // Floor scaling factors independently per axis (clamped to 1.0 minimum)
-    vec2 int_scale = max(floor(params.OutputSize.xy * params.SourceSize.zw), vec2(1.0));
+    vec2 int_scale = max(floor(params.OutputSize.xy * params.OriginalSize.zw), vec2(1.0));
 
     // Calculate the ratio of the integer-scaled frame relative to the target viewport
-    vec2 render_ratio = params.SourceSize.xy * (int_scale * params.OutputSize.zw);
+    vec2 render_ratio = params.OriginalSize.xy * (int_scale * params.OutputSize.zw);
 
     clip.xy *= render_ratio;
 
@@ -71,7 +71,7 @@ const float ARC_ZERO = 0.70710678;
 void main()
 {
     // Normalized continuous coordinates within the current source pixel quad [0, 1)
-    vec2 cell_uv = fract(vTexCoord * params.SourceSize.xy);
+    vec2 cell_uv = fract(vTexCoord * params.OriginalSize.xy);
 
     // Floating-point precision jitter protection at integer boundaries
     cell_uv = mix(cell_uv, vec2(0.0), step(vec2(0.9999), cell_uv));

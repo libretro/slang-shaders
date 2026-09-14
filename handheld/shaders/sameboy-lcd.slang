@@ -67,25 +67,25 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {   
-    vec2 pos = fract(vTexCoord * global.SourceSize.xy);
-    vec2 sub_pos = fract(vTexCoord * global.SourceSize.xy * 6);
+    vec2 pos = fract(vTexCoord * global.OriginalSize.xy);
+    vec2 sub_pos = fract(vTexCoord * global.OriginalSize.xy * 6);
     
     vec4 center = texture(Source, vTexCoord);
-    vec4 left = texture(Source, vTexCoord - vec2(1.0 / global.SourceSize.x, 0));
-    vec4 right = texture(Source, vTexCoord + vec2(1.0 / global.SourceSize.x, 0));
+    vec4 left = texture(Source, vTexCoord - vec2(1.0 / global.OriginalSize.x, 0));
+    vec4 right = texture(Source, vTexCoord + vec2(1.0 / global.OriginalSize.x, 0));
     
     if (pos.y < 1.0 / 6.0) {
-        center = mix(center, texture(Source, vTexCoord + vec2(0, -1.0 / global.SourceSize.y)), 0.5 - sub_pos.y / 2.0);
-        left =   mix(left,   texture(Source, vTexCoord + vec2(-1.0 / global.SourceSize.x, -1.0 / global.SourceSize.y)), 0.5 - sub_pos.y / 2.0);
-        right =  mix(right,  texture(Source, vTexCoord + vec2( 1.0 / global.SourceSize.x, -1.0 / global.SourceSize.y)), 0.5 - sub_pos.y / 2.0);
+        center = mix(center, texture(Source, vTexCoord + vec2(0, -1.0 / global.OriginalSize.y)), 0.5 - sub_pos.y / 2.0);
+        left =   mix(left,   texture(Source, vTexCoord + vec2(-1.0 / global.OriginalSize.x, -1.0 / global.OriginalSize.y)), 0.5 - sub_pos.y / 2.0);
+        right =  mix(right,  texture(Source, vTexCoord + vec2( 1.0 / global.OriginalSize.x, -1.0 / global.OriginalSize.y)), 0.5 - sub_pos.y / 2.0);
         center *= sub_pos.y * SCANLINE_DEPTH + (1 - SCANLINE_DEPTH);
         left *= sub_pos.y * SCANLINE_DEPTH + (1 - SCANLINE_DEPTH);
         right *= sub_pos.y * SCANLINE_DEPTH + (1 - SCANLINE_DEPTH);
     }
     else if (pos.y > 5.0 / 6.0) {
-        center = mix(center, texture(Source, vTexCoord + vec2(0, 1.0 / global.SourceSize.y)), sub_pos.y / 2.0);
-        left =   mix(left,   texture(Source, vTexCoord + vec2(-1.0 / global.SourceSize.x, 1.0 / global.SourceSize.y)), sub_pos.y / 2.0);
-        right =  mix(right,  texture(Source, vTexCoord + vec2( 1.0 / global.SourceSize.x, 1.0 / global.SourceSize.y)), sub_pos.y / 2.0);
+        center = mix(center, texture(Source, vTexCoord + vec2(0, 1.0 / global.OriginalSize.y)), sub_pos.y / 2.0);
+        left =   mix(left,   texture(Source, vTexCoord + vec2(-1.0 / global.OriginalSize.x, 1.0 / global.OriginalSize.y)), sub_pos.y / 2.0);
+        right =  mix(right,  texture(Source, vTexCoord + vec2( 1.0 / global.OriginalSize.x, 1.0 / global.OriginalSize.y)), sub_pos.y / 2.0);
         center *= (1.0 - sub_pos.y) * SCANLINE_DEPTH + (1 - SCANLINE_DEPTH);
         left *= (1.0 - sub_pos.y) * SCANLINE_DEPTH + (1 - SCANLINE_DEPTH);
         right *= (1.0 - sub_pos.y) * SCANLINE_DEPTH + (1 - SCANLINE_DEPTH);

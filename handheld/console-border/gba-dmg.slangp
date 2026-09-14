@@ -1,6 +1,7 @@
 shaders = 7
 shader0 = ../shaders/gameboy/shader-files/gb-pass0.slang
 shader1 = ../shaders/gameboy/shader-files/gb-pass1.slang
+alias1 = "GameBoyDotMatrixAlphaBlend"
 shader2 = ../shaders/gameboy/shader-files/gb-pass2.slang
 shader3 = ../shaders/gameboy/shader-files/gb-pass3.slang
 shader4 = ../shaders/gameboy/shader-files/gb-pass4.slang
