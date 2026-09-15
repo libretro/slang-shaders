@@ -11,10 +11,10 @@
     through a single bilinear tap. The interpolation coordinate is transformed
     by a configurable power curve.
 
-    Each output pixel is treated as a box in source-texel space. The two source
-    rows that can intersect this box are sampled separately, and their sharp
-    beam coverage is calculated analytically. This gives exact vertical area
-    coverage for arbitrary source colors when vertically upscaling.
+    Each output pixel is treated as a box in source-texel space. The two rows
+    surrounding its center are sampled separately. Each row's color and beam
+    pattern are extended periodically through the half-space on its side of
+    their shared boundary, then integrated analytically over the box.
 */
 
 // clang-format off
@@ -60,19 +60,17 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 1) uniform sampler2D Source;
 layout(set = 0, binding = 2) uniform sampler2D Original;
 
-vec3 get_beam_radius(vec3 signal) {
+vec3 get_beam_width(vec3 signal) {
     const vec3 thickness =
         mix(param.MIN_THICK.xxx, param.MAX_THICK.xxx, clamp(signal, 0.0, 1.0));
-    return 0.5 * pow(thickness, param.THICK_FALLOFF.xxx);
+    return min(pow(thickness, param.THICK_FALLOFF.xxx), vec3(1.0));
 }
 
-vec3 get_beam_coverage(float pixel_lb, float pixel_ub, float row_center, vec3 radius,
-                       float inv_pixel_height) {
-    const vec3 beam_lb = vec3(row_center) - radius;
-    const vec3 beam_ub = vec3(row_center) + radius;
-    const vec3 overlap =
-        max(min(vec3(pixel_ub), beam_ub) - max(vec3(pixel_lb), beam_lb), vec3(0.0));
-    return overlap * inv_pixel_height;
+vec3 get_beam_prefix(float y, vec3 width) {
+    const float cell = floor(y);
+    const float phase = y - cell;
+    return cell * width +
+           clamp(vec3(phase - 0.5) + 0.5 * width, vec3(0.0), width);
 }
 
 void main() {
@@ -94,9 +92,9 @@ void main() {
     const float row0_center = row0 + 0.5;
     const float row1_center = row1 + 0.5;
 
-    const vec3 signal0 =
+    vec3 signal0 =
         texture(Source, vec2(sample_x, row0_center * param.SourceSize.w)).rgb;
-    const vec3 signal1 =
+    vec3 signal1 =
         texture(Source, vec2(sample_x, row1_center * param.SourceSize.w)).rgb;
 
     const float filter_height =
@@ -106,16 +104,18 @@ void main() {
     const float pixel_lb = src_y - 0.5 * filter_height;
     const float pixel_ub = src_y + 0.5 * filter_height;
 
-    vec3 coverage0 =
-        get_beam_coverage(pixel_lb, pixel_ub, row0_center, get_beam_radius(signal0),
-                          inv_filter_height);
-    vec3 coverage1 =
-        get_beam_coverage(pixel_lb, pixel_ub, row1_center, get_beam_radius(signal1),
-                          inv_filter_height);
-
     // Rows outside the source image represent black rather than clamped edge texels.
-    coverage0 *= step(0.0, row0) * step(row0, param.SourceSize.y - 1.0);
-    coverage1 *= step(0.0, row1) * step(row1, param.SourceSize.y - 1.0);
+    signal0 *= step(0.0, row0) * step(row0, param.SourceSize.y - 1.0);
+    signal1 *= step(0.0, row1) * step(row1, param.SourceSize.y - 1.0);
 
-    FragColor.rgb = max(signal0 * coverage0, signal1 * coverage1);
+    const vec3 width0 = get_beam_width(signal0);
+    const vec3 width1 = get_beam_width(signal1);
+    const float boundary = row0_center + 0.5;
+    const float split = clamp(boundary, pixel_lb, pixel_ub);
+    const vec3 area0 =
+        get_beam_prefix(split, width0) - get_beam_prefix(pixel_lb, width0);
+    const vec3 area1 =
+        get_beam_prefix(pixel_ub, width1) - get_beam_prefix(split, width1);
+
+    FragColor.rgb = (signal0 * area0 + signal1 * area1) * inv_filter_height;
 }

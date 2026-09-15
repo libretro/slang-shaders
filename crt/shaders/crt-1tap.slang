@@ -1,7 +1,7 @@
 #version 450
 
 /*
-    crt-1tap v1.2 by fishku
+    crt-1tap v1.3 by fishku
     Copyright (C) 2023
     Public domain license (CC0)
 
@@ -21,13 +21,14 @@
     for even and odd integer scaling.
 
     Changelog:
+    v1.3: Fix horizontal sampling artifact at the left edge.
     v1.2: Better scanline sharpness; Minor cleanups.
     v1.1: Update license; Better defaults; Don't compute alpha.
     v1.0: Initial release.
 */
 
 // clang-format off
-#pragma parameter CRT1TAP_SETTINGS "=== CRT-1tap v1.2 settings ===" 0.0 0.0 1.0 1.0
+#pragma parameter CRT1TAP_SETTINGS "=== CRT-1tap v1.3 settings ===" 0.0 0.0 1.0 1.0
 #pragma parameter MIN_THICK "Scanline thickness of dark pixels" 0.3 0.0 1.4 0.05
 #pragma parameter MAX_THICK "Scanline thickness of bright pixels" 0.9 0.0 1.4 0.05
 #pragma parameter V_SHARP "Vertical sharpness of the scanline" 0.5 0.0 1.0 0.05
@@ -70,8 +71,9 @@ layout(set = 0, binding = 1) uniform sampler2D Source;
 layout(set = 0, binding = 2) uniform sampler2D Original;
 
 void main() {
-    float src_x_int;
-    const float src_x_fract = modf(vTexCoord.x * param.SourceSize.x - 0.5, src_x_int);
+    const float src_x_coord = vTexCoord.x * param.SourceSize.x - 0.5;
+    const float src_x_int = floor(src_x_coord);
+    const float src_x_fract = src_x_coord - src_x_int;
 
     float src_y_int;
     const float src_y_fract =
