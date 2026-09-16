@@ -51,8 +51,7 @@ layout(location = 0) out vec2 vSrcCoord;
 
 void main() {
     gl_Position = global.MVP * Position;
-    vSrcCoord =
-        TexCoord * param.OriginalSize.xy - vec2(0.5, param.SUBPX_POS);
+    vSrcCoord = TexCoord * param.OriginalSize.xy - vec2(0.5, param.SUBPX_POS);
 }
 
 #pragma stage fragment
@@ -62,16 +61,14 @@ layout(set = 0, binding = 1) uniform sampler2D Source;
 layout(set = 0, binding = 2) uniform sampler2D Original;
 
 vec3 get_beam_width(vec3 signal) {
-    const vec3 shaped_signal =
-        pow(clamp(signal, 0.0, 1.0), param.THICK_FALLOFF.xxx);
+    const vec3 shaped_signal = pow(clamp(signal, 0.0, 1.0), param.THICK_FALLOFF.xxx);
     return min(mix(param.MIN_THICK.xxx, param.MAX_THICK.xxx, shaped_signal), vec3(1.0));
 }
 
 vec3 get_beam_prefix(float y, vec3 width) {
     const float cell = floor(y);
     const float phase = y - cell;
-    return cell * width +
-           clamp(vec3(phase - 0.5) + 0.5 * width, vec3(0.0), width);
+    return cell * width + clamp(vec3(phase - 0.5) + 0.5 * width, vec3(0.0), width);
 }
 
 void main() {
@@ -83,8 +80,7 @@ void main() {
     const float h_slope = mix(6.0, 1.0, param.H_SMOOTH);
     const float x = 2.0 * src_x_fract - 1.0;
     const float src_x_offset =
-        0.5 + 0.5 * h_slope * x *
-                  inversesqrt(1.0 + (h_slope * h_slope - 1.0) * x * x);
+        0.5 + 0.5 * h_slope * x * inversesqrt(1.0 + (h_slope * h_slope - 1.0) * x * x);
     const float sample_x = (src_x_int + src_x_offset + 0.5) * param.OriginalSize.z;
 
     const float src_y = vSrcCoord.y;
@@ -94,13 +90,10 @@ void main() {
     const float sample_y0 = row0_center * param.OriginalSize.w;
     const float sample_y1 = sample_y0 + param.OriginalSize.w;
 
-    const vec3 signal0 =
-        texture(Source, vec2(sample_x, sample_y0)).rgb;
-    const vec3 signal1 =
-        texture(Source, vec2(sample_x, sample_y1)).rgb;
+    const vec3 signal0 = texture(Source, vec2(sample_x, sample_y0)).rgb;
+    const vec3 signal1 = texture(Source, vec2(sample_x, sample_y1)).rgb;
 
-    const float filter_height =
-        param.OriginalSize.y * param.OutputSize.w * param.V_SMOOTH;
+    const float filter_height = param.OriginalSize.y * param.OutputSize.w * param.V_SMOOTH;
     const float inv_filter_height = 1.0 / filter_height;
     const float pixel_lb = src_y - 0.5 * filter_height;
     const float pixel_ub = src_y + 0.5 * filter_height;
@@ -109,10 +102,8 @@ void main() {
     const vec3 width1 = get_beam_width(signal1);
     const float boundary = row0_center + 0.5;
     const float split = clamp(boundary, pixel_lb, pixel_ub);
-    const vec3 area0 =
-        get_beam_prefix(split, width0) - get_beam_prefix(pixel_lb, width0);
-    const vec3 area1 =
-        get_beam_prefix(pixel_ub, width1) - get_beam_prefix(split, width1);
+    const vec3 area0 = get_beam_prefix(split, width0) - get_beam_prefix(pixel_lb, width0);
+    const vec3 area1 = get_beam_prefix(pixel_ub, width1) - get_beam_prefix(split, width1);
 
     FragColor.rgb = (signal0 * area0 + signal1 * area1) * inv_filter_height;
 }
