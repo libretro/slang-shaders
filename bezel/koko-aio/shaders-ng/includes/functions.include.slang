@@ -35,6 +35,11 @@ float get_lod(vec2 smp_size, vec2 out_size) {
 	return log2(maxRatio);
 }
 
+
+bool low_fps_from_uniform() {
+	return (global.OriginalFPS < 40);
+}
+
 float get_fps(sampler2D estimatesampler) {
 	//No way to get core fps? return 60.0
 	#ifndef _HAS_FRAMETIME_UNIFORMS
@@ -50,19 +55,22 @@ float get_fps(sampler2D estimatesampler) {
 	#ifndef D3D_WORKAROUND
 		//To estimate we need to poll an alpha from a future
 		//pass feedback, so no D3D support.
-		return texture(estimatesampler, vec2(0.5)).a;
+		return texture(estimatesampler, vec2(FPS_ESTIMATION_SAMPLING_POINT)).a;
 	#else
 		return global.OriginalFPS;
 	#endif
 }
 
-
-
 bool low_fps(sampler2D estimatesampler) {
-	/* returns if core fps is inside [25..30] interval */
-	float fps = get_fps(estimatesampler);
-	return (fps < 40);
+    #ifndef _HAS_FRAMETIME_UNIFORMS
+        return false;
+    #endif
 
+    // Always trust CoreFPS for fps less than 35:
+    if (global.OriginalFPS < 35.0)
+        return true;
+
+    return get_fps(estimatesampler) < 40.0;
 }
 
 vec2 _unpack_21(float f){
@@ -1662,16 +1670,22 @@ vec3 strobe( vec3 c) {
 }
 
 
-vec3 adaptive_strobe(vec3 c, float osc, sampler2D feedback_smp, vec2 feedback_smp_co) {
+vec3 adaptive_strobe(vec3 c, float osc, sampler2D feedback_smp, vec2 feedback_smp_co, sampler2D EstimateFPSSampler) {
 
 	#ifndef DO_ADPT_STROBE_PLUGIN
         return c;
 	#endif
 
+	if (low_fps(EstimateFPSSampler) && (global.TotalSubFrames == 1.0))
+		return c;
+
     float str_adjusted = ADPT_STROBE_STR;
     
     if (ADPT_STROBE_SELECTIVE == 1.0) {
         vec3 f = texture(feedback_smp, feedback_smp_co).rgb;
+		//since feedback is not float framebuffer, we need to clamp current color (only)
+		c=clamp(c,vec3(0),vec3(1));
+		//f=clamp(f,vec3(0),vec3(1));
         float diff= dot( abs(f - c)  , vec3(1.0));
         str_adjusted *= diff;
         str_adjusted = clamp(str_adjusted, 0, 1);
@@ -2097,3 +2111,10 @@ vec4 pixel_overlay_image_stretch(sampler2D tex, vec2 co) {
 	return texture(tex, co);
 }
 
+vec3 adjust_feedback_mixer_by(vec3 x, float m) {
+    return 1 - pow(1-x, vec3(1.0/m));
+}
+
+float adjust_feedback_mixer_by(float x, float m) {
+    return 1 - pow(1-x, 1.0/m);
+}

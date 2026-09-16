@@ -7,6 +7,14 @@
 
 #define DEBUG_TEXTURE in_glow_pass
 
+#ifndef D3D_WORKAROUND
+   #define FPS_ESTIMATE_PASS avglum_pass
+#else
+   //this is just a STUB to make the shader compile, but fps are never estimated with D3D_WORKAROUND
+   #define FPS_ESTIMATE_PASS monitor_body_curved
+#endif
+
+
 // #define DEBUG_PRINT_VALUE
 // #define PRINTED_VALUE global.FinalViewportSize.x
 // #define PRINTED_VALUE texture(DEBUG_TEXTURE, vec2(0.5)).a
@@ -263,11 +271,7 @@ void main() {
         vInteger_fragment_x = PG_OutputCoord_tated.x * PG_OutputSize_tated.x; //will be floored in fragment shader.
 
         //the following unfloored coords are needed by sin/cos later to understand if we are on an even or odd mask
-            float rgbw_size;
-            if (PIXELGRID_OFFSET_CORE * PIXELGRID_OFFSET_CORE_W > 0.0)
-                rgbw_size = 1/PIXELGRID_OFFSET_CORE_W;
-            else
-                rgbw_size = 1/vPG_offsets_and_size.a;
+            float rgbw_size = 1/vPG_offsets_and_size.a;
     
             vPG_freq_base_screen = pi * vec2(rgbw_size, 0.5) * (PG_OutputCoord_tated * PG_OutputSize_tated);
 
@@ -500,6 +504,38 @@ vec3 fn_pixel_nightify(vec3 color_in, float strength, vec3 ambilight) {
     pixel_out = scale_to_range_vec3(pixel_out, -new_contrast, 1+new_contrast) + new_brightness;*/
 
     return pixel_out;
+}
+
+vec3 morph_shape_full_vec3_with_area(vec3 shape, vec3 l, float steep, float gamma, out vec3 area) {
+    vec3 l_pow = pow(l, vec3(gamma));
+    vec3 l2    = min(l_pow * 16.0, steep);      // min faster than clamp
+    vec3 p     = inversesqrt(l2);
+
+    vec3 s1 = pow(shape, p);                    // shape^p
+    vec3 s2 = fma(-l_pow, s1, l_pow);            // l_pow*(1-s1), ASM proof
+
+    // --- Compute the area under the curve, shape is a positive bell-shaped sine ---
+    vec3 A     = inversesqrt(fma(p, vec3(3.0), vec3(1.0)));
+    vec3 ratio = l_pow / steep;
+    area = fma(A, 1.0 - ratio, ratio);
+
+    return (s2 / steep) + s1;
+}
+
+
+vec3 morph_shape_full_no_steepness_vec3_with_area(vec3 shape, vec3 l, float gamma, out vec3 area) {
+    vec3 l_pow = pow(l, vec3(gamma));
+    vec3 l2    = clamp(l_pow * 16.0, 0.0, 1.0);  // clamp faster than min (qui, come da tuo commento)
+    vec3 p     = inversesqrt(l2);
+
+    vec3 s1 = pow(shape, p);
+    vec3 s2 = fma(-l_pow, s1, l_pow);             // l_pow*(1-s1), ASM proof
+
+    // --- Compute the area under the curve, shape is a positive bell-shaped sine ---
+    vec3 A = inversesqrt(fma(p, vec3(3.0), vec3(1.0)));
+    area   = fma(A, 1.0 - l_pow, l_pow);
+
+    return s2 + s1;
 }
 
 
@@ -1276,8 +1312,12 @@ vec3 antighost(vec3 c) {
 	#ifndef D3D_WORKAROUND
 		if (!bdelta_render_enabled()) {
 				if (frame_is_even() && (vInterlace_offset == 0.0)) {
-					vec3 feedback = texture(final_passFeedback, vOutputCoord).rgb;
-					vec3 diff=(feedback - c)*LCD_ANTIGHOSTING;
+					vec3 f = texture(final_passFeedback, vOutputCoord).rgb;
+                    //since feedback is not float framebuffer, we need to clamp current color (only)
+                    c=clamp(c,vec3(0),vec3(1));
+                    //f=clamp(f,vec3(0),vec3(1));
+                    c = clamp(c, vec3(0), vec3(1));
+					vec3 diff=(f - c)*LCD_ANTIGHOSTING;
 					//diff = sign(diff) * min( abs(diff), vec3(LCD_ANTIGHOSTING_CEIL));
                     diff = clamp(diff, -LCD_ANTIGHOSTING_CEIL, LCD_ANTIGHOSTING_CEIL); //probably faster.
 					c = mix(c, c-diff, 0.5);
@@ -1471,7 +1511,7 @@ void main() {
         }
         
             #ifdef DO_ADPT_STROBE_PLUGIN
-                pixel_out = adaptive_strobe(pixel_out, vAdaptive_strobe_oscillator, final_passFeedback, vOutputCoord);
+                pixel_out = adaptive_strobe(pixel_out, vAdaptive_strobe_oscillator, final_passFeedback, vOutputCoord, FPS_ESTIMATE_PASS);
             #else
                 #ifdef DO_LCD_ANTIGHOSTING_PLUGIN
                     pixel_out = antighost(pixel_out);
@@ -1706,8 +1746,9 @@ void main() {
             #else
                 float fvalue = vfprintvalue;
             #endif
+            fvalue = get_fps(FPS_ESTIMATE_PASS);
             vec2 vFragCoord = vec2( floor(vOutputCoord.x * params.OutputSize.x),
-                                floor(vOutputCoord.y * params.OutputSize.y));
+                                    floor(vOutputCoord.y * params.OutputSize.y));
             pixel_out += PrintValueVec3( vTexCoord, vFragCoord, fvalue, maxdigits, decimalplaces );
         #endif
 

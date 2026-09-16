@@ -139,7 +139,9 @@
 
 	// Luminosity tied zoom sampling point
 #define DYN_ZOOM_SAMPLING_POINT vec2(0.75)
-	
+
+	// low_fps sampling point
+#define FPS_ESTIMATION_SAMPLING_POINT vec2(0.875)
 
 	
 	//Sampling points from test pass

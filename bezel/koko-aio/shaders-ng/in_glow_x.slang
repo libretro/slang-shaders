@@ -59,10 +59,17 @@ void main() {
     //Disable warpdglow x if user requested scanline modulation on particular conditions like:
     //fake integer scanlines and interlacing (leave it on on real interlacing)
     vWarpedglow_scale_tated *= warpedglow_x_allowed(IN_GLOW_WARPSHARP_X);
-    
-    if (need_tate(is_rotated()) == 1.0)
+
+    if (need_tate(is_rotated()) == 1.0) { //turn to vertical scanlines? Apply IN_GLOW_WARPSHARP_Y
         vWarpedglow_scale_tated = abs(IN_GLOW_WARPSHARP_Y);
-    
+        // adapt warpedglow height depending on the input Y-resoluition
+        vWarpedglow_scale_tated *= global.upscale_passSize.y/480.0;
+    } else {
+        // adapt warpedglow wideness depending on the input X-resoluition
+        vWarpedglow_scale_tated *= global.upscale_passSize.x/640.0;
+    }
+
+
     vWarpedglow_scale_tated = vWarpedglow_scale_tated * 0.6 / 1400.0 * 3.0;
 
     vWarpedglow_scale_tated /= get_in_aspect() ; //correct aspect

@@ -41,10 +41,10 @@
 //#define UNROLL_N
 
 #ifndef D3D_WORKAROUND
-   #define FPS_ESTIMATE_PASS halo_pre_gamma_passFeedback
+   #define FPS_ESTIMATE_PASS avglum_passFeedback
 #else
    //this is just a STUB to make the shader compile, but fps are never estimated with D3D_WORKAROUND
-   #define FPS_ESTIMATE_PASS Original
+   #define FPS_ESTIMATE_PASS colortools_and_ntsc_passFeedback
 #endif
 
 
@@ -226,7 +226,7 @@ layout(set = 0, binding = 3) uniform sampler2D colortools_and_ntsc_passFeedback;
 #ifndef D3D_WORKAROUND
 layout(set = 0, binding = 4) uniform sampler2D avglum_passFeedback;
 #endif
-layout(set = 0, binding = 5) uniform sampler2D FPS_ESTIMATE_PASS;
+
 
 
 vec3 colorwheel(vec2 uv){
@@ -647,8 +647,9 @@ vec3 persistence(vec3 feedback, vec3 pixel_now, vec3 start_decay, vec3 late_pers
    fade_speed=clamp(fade_speed, min_speed, 1.0);
    
 
+   //We need to scale the fade speed by the input fps and the total subframes. 60fps is the reference speed.
+   fade_speed = adjust_feedback_mixer_by(fade_speed, (fps/60)*global.TotalSubFrames);
    //Compute the persistent light by mixing pixel current and previous one
-   fade_speed *= 60/fps;
    vec3 pixel_persistent = mix(feedback, pixel_now, fade_speed);
    
    //blend only if we are fading out
@@ -759,8 +760,8 @@ void main() {
       }
       
       vec3 diff = abs(pixel_out - feedback);
-      
-      
+      //scale the fade speed by subframes (we assume every core with a dot matrix outputs 60fps)
+      m_blur_adapted = adjust_feedback_mixer_by(m_blur_adapted, global.TotalSubFrames);
       m_blur_adapted *= step(vec3(1/128.0), m_blur_adapted);
       pixel_out = mix(pixel_out, feedback, m_blur_adapted  );
    }
@@ -819,15 +820,6 @@ void main() {
       waterfall = get_waterfall();
    }
    
-
-   //if (low_fps(FPS_ESTIMATE_PASS) && vTexCoord.y < 0.05) { pixel_out = vec3(1,0,0); }
-
- /*  
-   pixel_out = RGB2YIQ*pixel_out;
-   pixel_out *= mix( vec3(1.0) ,     (vec3(4.2, 1.5, 0.5) / 4.2) , SERVICE1);
-   pixel_out = YIQ2RGB*pixel_out;
-   pixel_out = saturation_set_gain(pixel_out, mix(1.0, 3.0, SERVICE1));
-   */
 
    FragColor = vec4(pixel_out, waterfall);
 }

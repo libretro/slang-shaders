@@ -1,9 +1,10 @@
 #version 450
 
 #ifndef D3D_WORKAROUND
-   #define FPS_ESTIMATE_PASS halo_pre_gamma_passFeedback
+   #define FPS_ESTIMATE_PASS avglum_passFeedback
 #else
-   #define FPS_ESTIMATE_PASS Original
+   //this is just a STUB to make the shader compile, but fps are never estimated with D3D_WORKAROUND
+   #define FPS_ESTIMATE_PASS colortools_and_ntsc_passFeedback
 #endif
 
 #define AUTOCROP_TOLERANCE (1.0/255.0) 
@@ -97,7 +98,10 @@ layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 1) uniform sampler2D colortools_and_ntsc_passFeedback;
 layout(set = 0, binding = 2) uniform sampler2D colortools_and_ntsc_pass;
 layout(set = 0, binding = 3) uniform sampler2D avglum_passFeedback;
-layout(set = 0, binding = 4) uniform sampler2D FPS_ESTIMATE_PASS;
+
+#if FPS_ESTIMATE_PASS != avglum_passFeedback
+    layout(set = 0, binding = 4) uniform sampler2D FPS_ESTIMATE_PASS;
+#endif
 
 /* The following will allow to sample at reduced interval
    The scene change detection logic will take advantage of it
@@ -139,7 +143,7 @@ float get_avglum() {
             float prev_lum = texture(avglum_passFeedback,DYN_ZOOM_SAMPLING_POINT).a;
             float myframecount = params.FrameCount;
             float transition_speed_breathing = 0.2;
-            
+            transition_speed_breathing =  adjust_feedback_mixer_by(transition_speed_breathing, (get_fps(FPS_ESTIMATE_PASS)/60)*global.TotalSubFrames);
             //Tube warmup:
                 //Uncomment this to see the effect continuously
                 //myframecount = (mod(params.FrameCount, 60*4));
@@ -161,13 +165,13 @@ float get_avglum() {
         }
         bool smoothed_sampling_co_nocc = is_first_inside_rect(vTexCoord, vec4(TSMOOTH_NOCC_SAMPLING_POINT-0.1 , TSMOOTH_NOCC_SAMPLING_POINT+0.1)) ;
         if (smoothed_sampling_co_nocc) {
-            float transition_speed_adaptive_black = 0.1;
-            return mix(texture(avglum_passFeedback,TSMOOTH_NOCC_SAMPLING_POINT).a, get_avg_lum_from_mip_nocc(), transition_speed_adaptive_black);
+            float transition_speed_adaptive_black = 0.9;
+            transition_speed_adaptive_black =  adjust_feedback_mixer_by(transition_speed_adaptive_black, (get_fps(FPS_ESTIMATE_PASS)/60)*global.TotalSubFrames);
+            return mix(get_avg_lum_from_mip_nocc(), texture(avglum_passFeedback,TSMOOTH_NOCC_SAMPLING_POINT).a, transition_speed_adaptive_black);
         }
 
         bool instant_sampling_no_cc = is_first_inside_rect(vTexCoord, vec4(FULL_SCENE_LUM_SAMPLING_POINT-0.1 , FULL_SCENE_LUM_SAMPLING_POINT+0.1)) ;
         if (instant_sampling_no_cc) {
-            float transition_speed_adaptive_black = 0.1;
             return get_avg_lum_from_mip_nocc();
         }
 
@@ -365,6 +369,30 @@ float get_autocrop() {
 }
 
 
+float fps_estimation() {
+    #ifdef D3D_WORKAROUND
+        return 60.0;
+    #endif
+    #ifndef _HAS_FRAMETIME_UNIFORMS
+        return 60.0;
+    #endif
+
+    float fps_avg = texture(avglum_passFeedback, FPS_ESTIMATION_SAMPLING_POINT).a;
+    float fps_now = 1000.0/(global.FrameTimeDelta/1000.0);
+
+    //Ditch values outside this range:
+    float l = 10.0;
+    float h = 90.0;
+
+    if (clamp(fps_now, l, h) != fps_now)
+        fps_now = FPS_MEAN;
+    if (clamp(fps_avg, l, h) != fps_avg)
+        fps_avg = FPS_MEAN;
+
+    //Average values:
+    return mix(fps_avg, fps_now, 0.05);
+}
+
 void main() {
     /*Grab a mipmap from the colortools_and_ntsc_pass.
       Calculate the average luminance from the smallest mipmap and put into the alpha channel
@@ -387,8 +415,8 @@ void main() {
         } else {
             #ifndef D3D_WORKAROUND
                 vec2 early_late_cut = vec2(0.04,2.0); // decay rate before/after RESSWITCH_SYNC_SPEED threshold;
-                if (low_fps(FPS_ESTIMATE_PASS)) early_late_cut*= 2.0;
-
+                float fps = get_fps(FPS_ESTIMATE_PASS);
+                early_late_cut = early_late_cut * (fps/60.0) * global.TotalSubFrames;
                 float t = texture(avglum_passFeedback,vTexCoord).a;
                 if (t >= RESSWITCH_SYNC_SPEED) {
                     pixel_out.a = clamp( t - early_late_cut.x, 0,1);
@@ -402,9 +430,9 @@ void main() {
         }
 
     } else if (is_first_inside_rect(vTexCoord, vec4(AUTOCROP_SAMPLING_POINT-0.01, AUTOCROP_SAMPLING_POINT+0.01) ))  {
-        if (vDo_autocrop == 1.0)
-            pixel_out.a = get_autocrop();
-        
+        if (vDo_autocrop == 1.0) { pixel_out.a = get_autocrop(); }
+    } else if (is_first_inside_rect(vTexCoord, vec4(FPS_ESTIMATION_SAMPLING_POINT-0.01, FPS_ESTIMATION_SAMPLING_POINT+0.01) ))  {
+            pixel_out.a = fps_estimation();
     } else {
         pixel_out.a = get_avglum();
     }

@@ -25,7 +25,7 @@
 #endif
 
 #pragma parameter LABEL0062	                  "[Plugin] LCD Antighosting:"   0 0 0 1
-#pragma parameter LCD_ANTIGHOSTING            "    .    Strength"    0.5   0.0  2.0  0.01
+#pragma parameter LCD_ANTIGHOSTING            "    .    Strength"    0.8   0.0  2.0  0.01
 #pragma parameter LCD_ANTIGHOSTING_CEIL       "    .    Ceil"        1.0   0.0  1.0  0.01
 #pragma parameter LCD_ANTIGHOSTING_FLIP_MASK  "    .    Flip Mask"   0.0   0.0  1.0  1.0
 #pragma parameter LABEL0063 " " 0 0 0 1

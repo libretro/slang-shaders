@@ -17,9 +17,13 @@
 // Halo size:     The size of the halo
 // Halo shape:    Turns the halo shape between circle and rectangle
 // Halo Aspect:   Makes the halo wider
-// Overexposure:  Simulate a camera overxposure, good for dark images.
-//                A negative value will lower the overexposure when using the
-//                nightify function and the image has been lightened up by the ambient lights.
+// Overexposure:  Simulate camera overxposure, good for dark images.
+//                A negative value will make the overexposure dependant on the image brightness.
+//                The intended use for presets similar to the Monitor-Ambilight-immersive or FXAA-bloom-immersive:
+//                * Have a back/foreground image either dark or made dark by the shader nightify function
+//                * Have the ambientlight function enabled so that it brightens the back/foreground image
+//                * exposure will be low when content is bright, because ambientlight will brighten the whole image
+//                * exposure will be high when content is dark, because ambientlight will brighten the whole image
 //
 // Power led hue: The color of the led
 // Power led X,Y: The position of the led

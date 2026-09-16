@@ -223,7 +223,6 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 	float PIXELGRID_TVL_X;													
 	
 	float PIXELGRID_OFFSET_CORE;
-	float PIXELGRID_OFFSET_CORE_W;
 	float PIXELGRID_NO_INTERBLEED_W;
 	float PIXELGRID_NO_INTERBLEED_H;
 	float PIXELGRID_H_DEDOT;
@@ -496,7 +495,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter IN_GLOW_SPREAD_SHARPNESS  "        .  Glow light sharpness"	2.0 	0.01 2.0 0.01
 #pragma parameter IN_GLOW_W                 "        Sharp X (neg=use BOX unsharp)"		2.5	-2.0 7.0 0.05
 #pragma parameter IN_GLOW_H                 "        Sharp Y (neg=use BOX unsharp)"		2.5	-2.0 7.0 0.05
-#pragma parameter IN_GLOW_WARPSHARP_X       "        Warped glow X (neg = scanlined)"    -0.35  -2.0 2.0 0.05
+#pragma parameter IN_GLOW_WARPSHARP_X       "        Warped glow X (neg = scanlined)"  -0.25  -2.0 2.0 0.05
 #pragma parameter IN_GLOW_WARPSHARP_Y       "        Warped glow Y"                      0.4  0.0  2.0 0.05
 #pragma parameter IN_GLOW_WARPSHARP_GAMMA   "        Warped glow dynamics (1.0=linear)"  1.0  0.2 1.0 0.05
 #pragma parameter LABEL0011 " " 0 0 0 1
@@ -534,7 +533,6 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 #pragma parameter PIXELGRID_GAMMA_H         "         . Phosphors height min->max gamma:"	4.2 1.0 8.00 0.1
 #pragma parameter PIXELGRID_NO_INTERBLEED_H	  "         . Inter line extra steepness (1.0 to disable)"	1.0 1.0 11.0 0.1
 #pragma parameter PIXELGRID_OFFSET_CORE       "         . Slotmask(fake) offset" 0.0 0.0 1.0 0.01
-#pragma parameter PIXELGRID_OFFSET_CORE_W     "           . Slotmask(fake) width override (0=no override)"  0.0 0.0 4.0 1.0
 #pragma parameter PIXELGRID_H_DEDOT			"         . Dedot mask between scanlines (use only if needed!)"	0.0 0.0 2.0 0.1
 #pragma parameter LABEL0016 " " 0 0 0 1
 

@@ -276,7 +276,6 @@
 // #define PIXELGRID_GAMMA_H  5.2            //          . Phosphors height min->max gamma:
 // #define PIXELGRID_NO_INTERBLEED_H  1.0    //          . Inter line extra steepness (1.0 to disable)
 // #define PIXELGRID_OFFSET_CORE   0.0       //          . Slotmask(fake) offset
-// #define PIXELGRID_OFFSET_CORE_W 0.0       //            . Slotmask(fake) width override (0=no override)
 // #define PIXELGRID_H_DEDOT  0.0            //          . Dedot mask between scanlines (use only if needed!)
 
 // #define DO_PIXELGRID_W  1.0         //       ★ Horizontal mask (0 to disable)

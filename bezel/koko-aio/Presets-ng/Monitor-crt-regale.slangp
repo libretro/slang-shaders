@@ -2,7 +2,7 @@
 #reference "../refs/deconvergence-std.slangp"
 
 IN_GLOW_POWER = "3.000000"
-IN_GLOW_GAMMA = "2.200000"
+IN_GLOW_GAMMA = "2.000000"
 GAMMA_OUT = "0.370000"
 LUMINANCE = "0.000000"
 CONTRAST = "0.000000"
