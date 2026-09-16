@@ -341,5 +341,5 @@ float_framebuffer15 = true
         //This needs to be clamp_to_edge or displacing vignette would dark screen borders
         wrap_mode16 = "clamp_to_edge" 
 
-        
+
 

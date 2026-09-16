@@ -81,6 +81,11 @@ void main() {
       //Disable warpdglow x if user requested scanline modulation on particular conditions like:
       //fake integer scanlines and interlacing (leave it on on real interlacing)
       warpedglow_scale *= warpedglow_x_allowed(IN_GLOW_WARPSHARP_X);
+      // adapt warpedglow height depending on the input X-resoluition
+      warpedglow_scale *= global.upscale_passSize.x/640.0;
+   } else {
+      // adapt warpedglow height depending on the input Y-resoluition
+      warpedglow_scale *= global.upscale_passSize.y/480.0;
    }
    
    vWarpedglow = (IN_GLOW_WARPSHARP_TATED * warpedglow_scale) * 0.6 / 1400.0 * 3.0;   //*3.0 needed because we scale to 0->1 to use pow in the fragment.

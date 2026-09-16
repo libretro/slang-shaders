@@ -8,9 +8,10 @@
 #define AA_MODE_2xBRZ
 
 #ifndef D3D_WORKAROUND
-   #define FPS_ESTIMATE_PASS halo_pre_gamma_passFeedback
+   #define FPS_ESTIMATE_PASS avglum_passFeedback
 #else
-   #define FPS_ESTIMATE_PASS Original
+   //this is just a STUB to make the shader compile, but fps are never estimated with D3D_WORKAROUND
+   #define FPS_ESTIMATE_PASS colortools_and_ntsc_pass
 #endif
 
 

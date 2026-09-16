@@ -3,7 +3,7 @@
 ---------------------------
 
 **REQUIREMENTS** <br>
-    koko-aio needs at least retroarch 1.16 <br>
+    koko-aio needs at least retroarch 1.18 <br>
     Also it expects the following options set in Retroarch:
     
     Settings -> Core -> Allow Rotation: ON
@@ -11,8 +11,9 @@
     
 
 **RETROARCH OUTPUT DRIVERS** <br>
-    koko-aio does not work by default on d3d12 and d3d11.<br>
-    If you absolutely need it (Xbox?), you can edit the file <br>
+    koko-aio does not work by default on D3D12,<br>
+    while D3D11 should work on Retroarch versions post 2.22.2, thanks PiCiJi.<br>
+    If you absolutely need it, you can edit the file <br>
     config\config-user-optional.txt by writing in it:<br>
     #define D3D_WORKAROUND <br>
     <br>
@@ -361,10 +362,6 @@ However nice effects may be obtained (eg: with vector games). <br>
             scanline.
             While this does not exist at all in crt technology, it greatly mitigates the afromentioned
             artifacts, and produces a fairly convincing scanlined+slotmasked effect.
-        Slotmask(fake) width override (0=no override)
-            The previous effect staggers scanlines at "triad width interval", but here you can alter
-            that interval.
-            Setting an interval of 1.0 can be used to hide moire patterns.
         Dedot mask between scanlines
             When using Horizontal masks, you mai notice a disturbing dot pattern left between high
             scanlines, that's the residual of horizontal mask.

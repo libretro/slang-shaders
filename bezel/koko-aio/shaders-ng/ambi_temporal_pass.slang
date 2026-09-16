@@ -11,6 +11,8 @@
 #define leds_per_strip 8   //How many leds per border
 #define radius 0.001       //The base radius of the emitted light (tuned by user parameter later)
 
+#define FPS_ESTIMATE_PASS avglum_pass
+
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
@@ -235,9 +237,6 @@ vec3 ambi_pre_pass(vec2 coords) {
 }
 
 
-
-#define MAX_STEPS AMBI_STEPS
-
 float ambi_step(float start, float end, float mystep) {
     float diff = start-end;
     if (abs(diff) < mystep) return end;
@@ -270,6 +269,11 @@ vec4 pixel_sanitize(vec4 color_in) {
 
 
 bool scene_changed() {
+    //Prevent glitches when viewport size changes (instant update)
+    if (global.final_passFeedbackSize.xy != global.FinalViewportSize.xy)
+        return true;
+
+
     vec3 present_color = textureLod(colortools_and_ntsc_pass, vec2(0.5), 20.0).rgb;
     vec3 past_color    = textureLod(colortools_and_ntsc_passFeedback, vec2(0.5), 20.0).rgb;
     float past_lum = rgb_to_gray(past_color);
@@ -327,12 +331,12 @@ vec4 pixel_ambilight(vec2 local_pre_pass_coords) {
     // Are we changing scene?
     vec3 mystep;
     if (scene_change_remaining > 0.0) {
-        mystep = vec3(max(1.0/MAX_STEPS, AMBI_FAST_STEP)); // <- Never slow down fades due to fast step when changing scene
+        mystep = vec3(max(1.0/AMBI_STEPS, AMBI_FAST_STEP)); // <- Never slow down fades due to fast step when changing scene
         scene_change_remaining -=  AMBI_FAST_STEP;
     } else {
-        mystep = abs((past_pixel.rgb - present_pixel) / MAX_STEPS); //OK
+        mystep = abs((past_pixel.rgb - present_pixel) / AMBI_STEPS); //OK
     }
-        
+    mystep/= global.TotalSubFrames * ( get_fps(FPS_ESTIMATE_PASS)/60.0 );
     return vec4(ambi_step_rgb(past_pixel.rgb, present_pixel, mystep), scene_change_remaining);
 }
 
