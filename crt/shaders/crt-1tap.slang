@@ -2,7 +2,7 @@
 
 /*
     crt-1tap v1.3 by fishku
-    Copyright (C) 2023
+    Copyright (C) 2023-2026
     Public domain license (CC0)
 
     Extremely fast and lightweight dynamic scanline shader.
@@ -79,11 +79,13 @@ void main() {
     const float src_y_fract =
         modf(vTexCoord.y * param.SourceSize.y - param.SUBPX_POS, src_y_int) - 0.5;
 
-    // Function similar to smoothstep and sigmoid.
-    const float s = sign(src_x_fract - 0.5);
-    const float o = (1.0 + s) * 0.5;
-    const float src_x =
-        src_x_int + o - 0.5 * s * pow(2.0 * (o - s * src_x_fract), mix(1.0, 6.0, param.H_SHARP));
+    // Symmetric sigmoid with a configurable slope at the midpoint.
+    const float h_slope = mix(1.0, 6.0, param.H_SHARP);
+    const float x = 2.0 * src_x_fract - 1.0;
+    const float src_x_offset =
+        0.5 + 0.5 * h_slope * x *
+                  inversesqrt(1.0 + (h_slope * h_slope - 1.0) * x * x);
+    const float src_x = src_x_int + src_x_offset;
 
     const vec3 signal = texture(Source, vec2((src_x + 0.5) * param.SourceSize.z,
                                              (src_y_int + 0.5) * param.SourceSize.w))
