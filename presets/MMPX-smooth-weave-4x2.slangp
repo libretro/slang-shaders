@@ -1,0 +1,11 @@
+shaders = 2
+
+shader0 = ../edge-smoothing/scalenx/shaders/mmpx-ADV.slang
+filter_linear0 = false
+scale_type0 = source
+scale0 = 2.0
+
+shader1 = ../misc/shaders/pixel-weave-4x2.slang
+filter_linear1 = true
+wrap_mode1 = clamp_to_edge
+scale_type1 = viewport

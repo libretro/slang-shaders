@@ -19,7 +19,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 vec2 middle	= vec2(0.5, 0.5);
 vec2 screen_scale = global.video_scale * vec2(global.PAR, 1.0);
-vec2 screen_ratio = global.OutputSize.xy * global.SourceSize.zw / screen_scale;
+vec2 screen_ratio = global.OutputSize.xy * global.OriginalSize.zw / screen_scale;
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -59,10 +59,10 @@ void main()
 {
   if(abs(vTexCoord.x - 0.5) < 0.5 && abs(vTexCoord.y - 0.5) < 0.5)
   {
-    vec2 texelSize = global.SourceSize.zw;
+    vec2 texelSize = global.OriginalSize.zw;
     vec2 subtexelSize = texelSize / vec2(3.0,1.0);
     vec2 range;
-    range = global.SourceSize.zw / screen_scale;
+    range = global.OriginalSize.zw / screen_scale;
     
     float left   = vTexCoord.x - texelSize.x*0.5;
     float top    = vTexCoord.y + range.y;

@@ -19,18 +19,27 @@ void main()
     float multiple = get_multiple(global.OriginalSize.xy);
     multiple = max(1.0, round(multiple));
 
-    // square-root relative blur radius [0,1] and avoid 1
-    float diffusion = sqrt(BLUR_RADIUS) * (1.0 - INVERSE_MAX_TABS);
+    float blur_radius = min(BLUR_RADIUS, 1.0);
+
+    // "qube-root" relative blur radius [0,1]
+    float diffusion = normalized_sigmoid(blur_radius, -0.75);
+    // avoid 1
+    diffusion = diffusion * (1.0 - INVERSE_MAX_TABS);
     // invert parameter and avoid 0
     diffusion = max(INVERSE_MAX_TABS, 1.0 - diffusion);
-    // scale diffusion
+    // scale diffusion by screen multiple
     diffusion = diffusion / (multiple * multiple);
 
-    // square relative blur radius [0,1]
-    float tabs = BLUR_RADIUS * BLUR_RADIUS * MAX_TABS;
+    // increase diffusion beyond relative blur radius [1,2]
+    diffusion = BLUR_RADIUS > 1.0
+        ? normalized_sigmoid(diffusion, max(0.0, BLUR_RADIUS - 1.0) * 0.666)
+        : diffusion;
+
+    // "qube" relative blur radius [0,1]
+    float tabs = normalized_sigmoid(blur_radius, 0.75);
     // limit tabs
-    tabs = max(MIN_TABS, round(tabs));
-    // scale tabs
+    tabs = max(MIN_TABS, round(tabs * MAX_TABS));
+    // scale tabs by screen multiple
     tabs = tabs * multiple * 2.0;
 
     // half tab count for symetric gaussian curve

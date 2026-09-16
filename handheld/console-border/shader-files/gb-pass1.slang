@@ -1,5 +1,7 @@
 #version 450
 
+#pragma name ConsoleBorderGameBoyDotMatrixAlphaBlend
+
 layout(push_constant) uniform Push
 {
 	vec4 OutputSize;

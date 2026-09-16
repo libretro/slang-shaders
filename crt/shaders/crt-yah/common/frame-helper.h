@@ -4,7 +4,11 @@
 
 #ifndef BASE_FRAME_RATE
     // The base frame rate.
-    #define BASE_FRAME_RATE 60
+    #ifdef _HAS_FRAMETIME_UNIFORMS
+        #define BASE_FRAME_RATE global.OriginalFPS
+    #else
+        #define BASE_FRAME_RATE 60.0
+    #endif
 #endif
 
 #ifndef BASE_FRAME_TIME_DELTA
@@ -21,6 +25,11 @@
     #endif
 #endif
 
+#ifndef FRAME_TIME_EPSILON
+    // The minimum frame time delta (in microseconds) between two frames.
+    #define FRAME_TIME_EPSILON 8000 // 1 / 60Hz halfed
+#endif
+
 #ifndef FRAME_COUNT
     // The frame count.
     #define FRAME_COUNT global.FrameCount
@@ -34,7 +43,7 @@
 ///     240fps = 0.25
 float GetUniformFrameFactor()
 {
-    float factor = float(FRAME_TIME_DELTA) / float(BASE_FRAME_TIME_DELTA);
+    float factor = float(max(FRAME_TIME_DELTA, FRAME_TIME_EPSILON)) / float(BASE_FRAME_TIME_DELTA);
     return factor > 1.0
         ? round(factor)
         : round(factor * 4.0) / 4.0;
@@ -44,7 +53,7 @@ float GetUniformFrameFactor()
 /// @frame_rate - The desired frame rate. 60fps will return the original frame count.
 uint GetUniformFrameCount(float frame_rate)
 {
-    float frame_rate_factor = frame_rate / float(BASE_FRAME_RATE);
+    float frame_rate_factor = frame_rate / BASE_FRAME_RATE;
 
     return uint(round(GetUniformFrameFactor() * FRAME_COUNT * frame_rate_factor));
 }

@@ -1,0 +1,39 @@
+shaders = 6
+
+shader0 = shaders/CuNNy-rgb-input-copy.slang
+scale_type0 = source
+scale_x0 = 1.0
+scale_y0 = 1.0
+wrap_mode0 = "clamp_to_edge"
+alias0 = cunny_faster_nvl_input
+
+shader1 = shaders/CuNNy-faster-nvl-in.slang
+filter_linear1 = false
+scale_type1 = source
+scale_x1 = 2.0
+scale_y1 = 1.0
+alias1 = cunny_faster_nvl_in
+
+shader2 = shaders/CuNNy-faster-nvl-conv1.slang
+filter_linear2 = false
+scale_type2 = source
+scale_x2 = 1.0
+scale_y2 = 1.0
+alias2 = cunny_faster_nvl_conv1
+
+shader3 = shaders/CuNNy-faster-nvl-conv2.slang
+filter_linear3 = false
+scale_type3 = source
+scale_x3 = 1.0
+scale_y3 = 1.0
+alias3 = cunny_faster_nvl_conv2
+
+shader4 = shaders/CuNNy-faster-nvl-out-rgb.slang
+scale_type4 = source
+scale_x4 = 1.0
+scale_y4 = 2.0
+
+shader5 = ../../interpolation/shaders/jinc2.slang
+filter_linear5 = false
+scale_type5 = viewport
+wrap_mode5 = "clamp_to_edge"

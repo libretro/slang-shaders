@@ -43,7 +43,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #define outgamma 2.2
 
-#define fetch_offset(coord, offset) (pow(vec3(params.gain) * texelFetchOffset(Source, (coord), 0, (offset)).rgb + vec3(params.blacklevel), vec3(params.gamma)) + vec3(params.ambient))
+#define fetch_offset(coord, offset) (pow(vec3(params.gain) * texture(Source, (vec2((coord) + (offset)) + 0.5) * global.OriginalSize.zw).rgb + vec3(params.blacklevel), vec3(params.gamma)) + vec3(params.ambient))
 
 #pragma stage vertex
 layout(location = 0) in vec4 Position;
@@ -87,7 +87,7 @@ float intsmear(float x, float dx, float d, float coeffs[7])
 
 void main()
 {
-    vec2 texelSize = global.SourceSize.zw;
+    vec2 texelSize = global.OriginalSize.zw;
     /* float2 range = IN.video_size / (IN.output_size * IN.texture_size); */
     vec2 range = global.OutputSize.zw;
 

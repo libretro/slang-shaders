@@ -21,7 +21,16 @@ vec2 hrg_quadratic_solve(float a, float b_over_2, float c)
     //              can choose how to handle the "no intersection" case.  The
     //              Kahan or Citardauq formula is used for numerical robustness.
     float discriminant = b_over_2 * b_over_2 - a * c;
-    float solution0 = c / (-b_over_2 + sqrt(discriminant));
+    // Clamp before sqrt(): at steep tilt angles the view ray for corner pixels
+    // can miss the sphere entirely, making discriminant negative. sqrt() of a
+    // negative number is NaN, and while the caller already discards the final
+    // UV in that case, the raw intersection position computed from solution0
+    // is NOT discarded - it's used unconditionally to build the surface normal
+    // and tangent matrix, so a NaN here silently poisons the whole frame.
+    // Some Nvidia driver revisions propagate that NaN instead of flushing it,
+    // causing a black screen. Clamping to 0 keeps solution0 finite without
+    // changing behavior for any pixel that actually hits the sphere/cylinder.
+    float solution0 = c / (-b_over_2 + sqrt(max(discriminant, 0.0)));
     return vec2(solution0, discriminant);
 }
 
@@ -125,7 +134,18 @@ vec2 hrg_sphere_xyz_to_uv(vec3 intersection_pos_local, vec2 output_aspect, float
     float arc_len = angle_from_image_center * in_geom_radius;
     //  Get a uv-mapping where [-0.5, 0.5] maps to a "square" area, then divide
     //  by the aspect ratio to stretch the mapping appropriately:
-    vec2 square_uv_unit = normalize(vec2(intersection_pos_local.x, -intersection_pos_local.y));
+    //  Guard against normalize((0,0)): this happens exactly at the sphere's
+    //  front pole (dead center, x=0 and y=0), which the tilt-based eye
+    //  recentering logic reliably lands pixels on for ANY nonzero tilt.
+    //  normalize() of a zero vector is 0/0 = NaN with no built-in fallback,
+    //  and that NaN was previously getting multiplied straight into video_uv,
+    //  poisoning the whole frame once it fed into later averaging/blur passes.
+    //  At exactly that point arc_len is also 0, so the direction doesn't
+    //  matter - falling back to vec2(0) is the mathematically exact answer,
+    //  not just a safe placeholder.
+    vec2 square_uv_dir = vec2(intersection_pos_local.x, -intersection_pos_local.y);
+    float square_uv_dir_len_sq = dot(square_uv_dir, square_uv_dir);
+    vec2 square_uv_unit = square_uv_dir_len_sq > 0.0 ? square_uv_dir * inversesqrt(square_uv_dir_len_sq) : vec2(0.0);
     vec2 square_uv = arc_len * square_uv_unit;
     vec2 video_uv = square_uv / output_aspect;
     return video_uv;
@@ -139,15 +159,22 @@ vec3 hrg_sphere_uv_to_xyz(vec2 video_uv, vec2 output_aspect, float in_geom_radiu
     //  Expand video_uv by the aspect ratio to get proportionate x/y lengths,
     //  then calculate an xyz position for the spherical mapping above.
     vec2 square_uv = video_uv * output_aspect;
-    //  Using length or sqrt here butchers the framerate on my 8800GTS if
-    //  this function is called too many times, and so does taking the max
-    //  component of square_uv/square_uv_unit (program length threshold?).
-    //float arc_len = length(square_uv);
-    vec2 square_uv_unit = normalize(square_uv);
-    float arc_len = square_uv.y/square_uv_unit.y;
+    //  Guard against NaN: dividing by square_uv_unit.y (a decades-old
+    //  perf trick to avoid length(), per the comment above) is 0/0
+    //  whenever square_uv.y is exactly zero. That's exactly the case for
+    //  the screen's dead center and its left/right edge-center points -
+    //  all of which are unconditionally sampled by the once-per-frame
+    //  ideal-eye-position point cloud (see hrg_get_ideal_global_eye_pos).
+    //  That NaN used to get silently absorbed by min()/max() reductions
+    //  downstream; some Nvidia driver updates changed how min/max handle
+    //  a NaN operand, letting it propagate into eye_pos and poison every
+    //  pixel in the frame identically. length() is always safe and this
+    //  function only runs 9x/frame (not per pixel), so the old
+    //  performance concern no longer applies.
+    float arc_len = length(square_uv);
+    vec2 square_uv_unit = arc_len > 0.0 ? square_uv / arc_len : vec2(0.0, 1.0);
     float angle_from_image_center = arc_len / in_geom_radius;
     float xy_dist_from_sphere_center = sin(angle_from_image_center) * in_geom_radius;
-    //vec2 xy_pos = xy_dist_from_sphere_center * (square_uv/FIX_ZERO(arc_len));
     vec2 xy_pos = xy_dist_from_sphere_center * square_uv_unit;
     float z_pos = cos(angle_from_image_center) * in_geom_radius;
     vec3 intersection_pos_local = vec3(xy_pos.x, -xy_pos.y, z_pos);

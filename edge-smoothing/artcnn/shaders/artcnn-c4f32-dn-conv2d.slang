@@ -37,15 +37,16 @@ layout(set = 0, binding = 2) uniform sampler2D artcnn_yuv;
 
 #define V4 vec4
 #define M4 mat4
-#include "artcnn-common.inc"
+#include "artcnn-planar-common.inc"
 
 void main()
 {
     ivec2 output_pixel = artcnn_output_pixel(params.OutputSize.xy);
-    const ivec2 block_size = ivec2(4, 2);
-    ivec2 base = output_pixel / block_size;
-    ivec2 phase = output_pixel % block_size;
-    int phase_index = phase.y * 4 + phase.x;
+    const ivec2 macro_grid = ivec2(4, 2);
+    ivec2 logical_size = max(ivec2(params.OutputSize.xy) / macro_grid, ivec2(1));
+    ivec2 tile = min(output_pixel / logical_size, macro_grid - ivec2(1));
+    int phase_index = tile.y * 4 + tile.x;
+    ivec2 base = output_pixel - tile * logical_size;
     float inp_0_0_0 = artcnn_fetch_scalar(artcnn_yuv, params.artcnn_yuvSize, base + ivec2(-1, -1));
     float inp_0_1_0 = artcnn_fetch_scalar(artcnn_yuv, params.artcnn_yuvSize, base + ivec2(0, -1));
     float inp_0_2_0 = artcnn_fetch_scalar(artcnn_yuv, params.artcnn_yuvSize, base + ivec2(1, -1));

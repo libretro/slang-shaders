@@ -76,7 +76,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
-    vec2 position = fract(vTexCoord*params.SourceSize.xy);
+    vec2 position = fract(vTexCoord*params.OriginalSize.xy);
 
     vec3 color = GAMMA_IN(texture(Source, vTexCoord).rgb);
 

@@ -17,13 +17,26 @@ float random(vec2 seed)
 }
 
 // Applies a normalized sigmoid function to the given value.
-//   The input parameters have to be in the range of [-1.0, 1.0].
+//   The value and slope have to be in the range of [-1.0, 1.0].
 // @value: the value to transform
 // @slope: the slope to apply
 // See: https://dinodini.wordpress.com/2010/04/05/normalized-tunable-sigmoid-functions/
 float normalized_sigmoid(float value, float slope)
 {
-    return (value - value * slope) / (slope - abs(value) * 2.0 * slope + 1.0);
+    float numerator = (1.0f - slope) * value;
+    float denominator = (1.0f + slope) - (abs(value) * slope * 2.0f);
+
+    return numerator / denominator;
+}
+
+// Applies a normalized sigmoid function to the given value.
+//   The value has to be in the given range, the slope in range of [-1.0, 1.0].
+// @value: the value to transform
+// @value: the range to normalize
+// @slope: the slope to apply
+float normalized_sigmoid(float value, float range, float slope)
+{
+    return normalized_sigmoid(value / range, slope) * range;
 }
 
 #endif // MATH_HELPER_DEFINED

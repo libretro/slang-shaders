@@ -44,7 +44,8 @@ void main()
     TexSize = get_tex_size();
 
     // when automatic down-scaled
-    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
+    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0
+        || INPUT_SCREEN_MULTIPLE_NATIVE > 1.0)
     {
         // compensate half texel x-offset (to sample between two pixel along scanlines)
         //   see fragment stage

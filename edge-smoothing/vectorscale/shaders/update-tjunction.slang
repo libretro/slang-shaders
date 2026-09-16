@@ -1,26 +1,14 @@
 #version 450
 #pragma format R32G32B32A32_SFLOAT
 
-// Pass: T-junction stem CP snap.
+// T-junction stem snap.
 //
-// Through-CPs (IS_TJUNCTION) and crossings (IS_CROSSING) pass through
-// at their optimizer-final positions. Stem CPs (the slot-1 partner of
-// an IS_TJUNCTION through-CP) snap onto the rendered through-curve via
-// the ghost-aware algebraic B(0.5) formula. Coefficients depend on
-// whether the through-CP's prev/next is a chain endpoint.
+// Stem CPs (the slot-1 partner of an IS_TJUNCTION through-CP) snap onto
+// the rendered through-curve via the ghost-aware algebraic B(0.5)
+// formula. Through-CPs and crossings pass through unchanged.
 //
-// Crossing curve-curve intersection is computed in pack-positions; this
-// pass leaves the crossing CP positions alone.
-//
-// Multi-pass iteration: dispatched 3× so stem CPs whose chain
-// neighbors are themselves stems converge (Jacobi iteration on the
-// stem-position system, contraction ≈ 0.17/pass).
-//
-// Input textures:
-//   Source (previous pass): current positions (neighbors)
-//   CellGraph: neighbors + flags
-//
-// Output: (R=pos.x, G=pos.y, B=0, A=0)
+// Dispatched 3× by the host preset so stem CPs whose chain neighbors
+// are themselves stems converge (Jacobi iteration).
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -55,52 +43,45 @@ int IMG_W()    { return int(params.OriginalSize.x); }
 int IMG_H()    { return int(params.OriginalSize.y); }
 int CORNERS_W() { return IMG_W() + 1; }
 int CORNERS_H() { return IMG_H() + 1; }
-int NUM_CPS()  { return CORNERS_W() * CORNERS_H() * 2; }
+int NUM_CPS()  { return CORNERS_H() << 12;  /* bit-packed encoding: cy < CH means cp_idx < CH<<12 */ }
 
 const uint IS_TJUNCTION = 32u;
+const uint IS_CROSSING  = 64u;
 const uint IS_ENDPOINT  = 128u;
 
-void decode_cp(int cp_idx, out int cx, out int cy_slot) {
-    int cp_half = cp_idx / 2;
+// Bit-packed CP encoding. Row-interleaved slot — see cell-rasterizer-single-aa.slang.
+ivec2 decode_cp(int cp_idx) {
     int cp_slot = cp_idx & 1;
-    cx = cp_half % CORNERS_W();
-    int cy = cp_half / CORNERS_W();
-    cy_slot = cy * 2 + cp_slot;
+    int cx = (cp_idx >> 1) & 0x7FF;
+    int cy = cp_idx >> 12;
+    return ivec2(cx, (cy << 1) | cp_slot);
 }
 
 vec2 read_pos(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return vec2(0.0);
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    vec4 val = texelFetch(Source, ivec2(cx, cy_slot), 0);
-    return vec2(val.r, val.g);
+    return texelFetch(Source, decode_cp(cp_idx), 0).rg;
 }
 
-int decode_neighbor(vec4 val) {
-    if (val.r < -0.5) return -1;
-    int ncx = int(val.r + 0.5);
-    int ncy = int(val.g + 0.5);
-    int nslot = int(val.b + 0.5);
-    return (ncy * CORNERS_W() + ncx) * 2 + nslot;
+// Compact CellGraph: 1 texel per CP. See cell-graph.slang for layout.
+vec4 read_cg(int cp_idx) {
+    return texelFetch(CellGraph, decode_cp(cp_idx), 0);
+}
+
+int unpack_idx(uint v) {
+    return (v == 0xFFFFFFu) ? -1 : int(v);
 }
 
 ivec2 read_neighbors(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return ivec2(-1, -1);
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    vec4 prev_val = texelFetch(CellGraph, ivec2(cx, base_row + 1), 0);
-    vec4 next_val = texelFetch(CellGraph, ivec2(cx, base_row + 2), 0);
-    return ivec2(decode_neighbor(prev_val), decode_neighbor(next_val));
+    vec4 val = read_cg(cp_idx);
+    uint pv = floatBitsToUint(val.b) & 0xFFFFFFu;
+    uint nv = floatBitsToUint(val.a) & 0xFFFFFFu;
+    return ivec2(unpack_idx(pv), unpack_idx(nv));
 }
 
 uint read_flags(int cp_idx) {
     if (cp_idx < 0 || cp_idx >= NUM_CPS()) return 0u;
-    int cx, cy_slot;
-    decode_cp(cp_idx, cx, cy_slot);
-    int base_row = cy_slot * 3;
-    vec4 val = texelFetch(CellGraph, ivec2(cx, base_row), 0);
-    return uint(val.b + 0.5);
+    return (floatBitsToUint(read_cg(cp_idx).b) >> 24) & 0xFFu;
 }
 
 void main() {
@@ -113,9 +94,14 @@ void main() {
         return;
     }
 
-    int cy = cy_slot / 2;
-    int cp_slot = cy_slot % 2;
-    int i = (cy * CORNERS_W() + col) * 2 + cp_slot;
+    int cp_slot = cy_slot & 1;
+    int cy = cy_slot >> 1;
+    int i_self = (cy << 12) | (col << 1) | cp_slot;
+
+    // Crossing slot-1 redirect — see optimize-energy.slang.
+    uint flags_self = read_flags(i_self);
+    bool is_crossing = (flags_self & IS_CROSSING) != 0u;
+    int i = (is_crossing && cp_slot == 1) ? (i_self - 1) : i_self;
 
     uint flags = read_flags(i);
     vec2 curr_pos = read_pos(i);
@@ -125,8 +111,7 @@ void main() {
 
     if ((partner_flags & IS_TJUNCTION) != 0u && (flags & ~IS_ENDPOINT) == 1u) {
         // Stem CPs carry flags = IS_USED | IS_ENDPOINT (= 129); mask
-        // IS_ENDPOINT before testing that this slot is a plain stem.
-        // Snap onto the rendered through-curve via ghost-aware B(0.5).
+        // IS_ENDPOINT before testing for a plain stem.
         ivec2 partner_nbrs = read_neighbors(partner);
         int prev_idx = partner_nbrs.x;
         int next_idx = partner_nbrs.y;
@@ -148,9 +133,8 @@ void main() {
         }
     }
 
-    // Default: pass through position unchanged. Crossings and T-junction
-    // through-CPs both end up here — they keep the optimizer's position;
-    // the crossing's curve-curve intersection parameter is computed
+    // Through-CPs and crossings: keep the optimizer's position. The
+    // crossing's curve-curve intersection parameter is computed
     // downstream in pack-positions.
     FragColor = vec4(curr_pos.x, curr_pos.y, 0.0, 0.0);
 }

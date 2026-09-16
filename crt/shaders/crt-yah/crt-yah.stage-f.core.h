@@ -30,14 +30,18 @@
 
 float get_brightness_compensation(float color_luma)
 {
-    float mask_blend = 1.0 - (1.0 - PARAM_MASK_BLEND) * (1.0 - PARAM_MASK_BLEND);
+    if (PARAM_COLOR_COMPENSATION == 0)
+    {
+        return 0.0;
+    }
 
-    return PARAM_COLOR_COMPENSATION > 0
-        ? mix(
-            INPUT_BRIGHTNESS_COMPENSATION,
-            INPUT_BRIGHTNESS_COMPENSATION * (1.0 - color_luma),
-            mask_blend)
-        : 0.0;
+    // consider color luminance for additive mask blend [1.0]
+    float mask_blend = 1.0 - ((1.0 - PARAM_MASK_BLEND) * (1.0 - PARAM_MASK_BLEND));
+
+    return mix(
+        INPUT_BRIGHTNESS_COMPENSATION,
+        INPUT_BRIGHTNESS_COMPENSATION * (1.0 - color_luma),
+        mask_blend);
 }
 
 vec3 RAWINPUT(vec3 color)
@@ -144,18 +148,19 @@ float get_vignette_factor(vec2 tex_coord)
         return 1.0;
     }
 
-    float amount = PARAM_CRT_VIGNETTE_AMOUNT;
+    float amount = normalized_sigmoid(PARAM_CRT_VIGNETTE_AMOUNT, -0.5);
 
     // center coordinates
     tex_coord -= 0.5;
 
-    // compute vignetting
-    float vignette_radius = 1.0 - (amount * 0.25);
-    float vignette_length = length(tex_coord);
-    float vignette_blur = (amount * 0.125) + 0.375;
-    float vignette = smoothstep(vignette_radius, vignette_radius - vignette_blur, vignette_length);
+    float radius = 1.0 - (amount * 0.25);
+    float softness = (amount * 0.125) + 0.375;
+    float distance = length(tex_coord);
 
-    return clamp(vignette, 0.0, 1.0);
+    return smoothstep(
+        radius,
+        radius - softness,
+        distance);
 }
 
 float get_round_corner_factor(vec2 tex_coord)
@@ -255,7 +260,8 @@ vec2 get_scanlines_texel_coordinate(vec2 pix_coord, vec2 tex_size)
     }
 
     // when automatic down-scaled
-    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
+    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0
+        || INPUT_SCREEN_MULTIPLE_NATIVE > 1.0)
     {
         // apply half texel x-offset (to sample between two pixel along scanlines)
         //   see vertex stage
@@ -359,7 +365,8 @@ vec3 apply_details(vec3 scanlines_color, sampler2D base_samler, vec2 base_coord,
     vec3 blur_color = texture(blur_sampler, blur_coord).rgb;
 
     // when automatic down-scaled
-    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0)
+    if (INPUT_SCREEN_MULTIPLE_AUTO > 1.0
+        || INPUT_SCREEN_MULTIPLE_NATIVE > 1.0)
     {
         // apply full texel x-offset (to sample a neighbor pixel)
         //   orientation-aware
@@ -433,7 +440,9 @@ vec3 apply_mask(vec3 color, float color_luma, vec2 tex_coord, out vec3 mask_fact
     float mask_luma = get_luminance(mask);
 
     // apply color bleed to neighbor sub-pixel
-    mask += mask_luma * PARAM_MASK_COLOR_BLEED;
+    mask += max(
+        vec3(0.0),
+        vec3(mask_luma) - mask) * PARAM_MASK_COLOR_BLEED * PARAM_MASK_COLOR_BLEED;
 
     // apply half color luma for additive mask
     mask = mix(
@@ -448,7 +457,7 @@ vec3 apply_mask(vec3 color, float color_luma, vec2 tex_coord, out vec3 mask_fact
     mask_add += PARAM_MASK_INTENSITY * 0.5;
 
     // blend multiplicative and additive mask
-    mask = mix(
+    mask_factor = mix(
         mask,
         mask_add,
         PARAM_MASK_BLEND);
@@ -456,10 +465,8 @@ vec3 apply_mask(vec3 color, float color_luma, vec2 tex_coord, out vec3 mask_fact
     // apply mask based on intensity
     color = mix(
         color,
-        color * mask,
+        color * mask_factor,
         PARAM_MASK_INTENSITY);
-
-    mask_factor = mask;
 
     return color;
 }
@@ -467,6 +474,32 @@ vec3 apply_mask(vec3 color, float color_luma, vec2 tex_coord, out vec3 mask_fact
 vec3 apply_color_overflow(vec3 color)
 {
     return apply_color_overflow(color, PARAM_COLOR_OVERFLOW);
+}
+
+vec3 adjust_halation(vec3 color, vec3 halation, vec3 scanlines_factor, vec3 mask_factor)
+{
+    // halation "between" scanlines
+    vec3 scanlines_halation = halation - color;
+
+    // halation "above" mask
+    vec3 mask_halation = halation
+        * scanlines_factor
+        * mask_factor
+        * PARAM_MASK_INTENSITY;
+
+    scanlines_halation = max(vec3(0.0), scanlines_halation);
+    mask_halation = max(vec3(0.0), mask_halation);
+
+    vec3 affective_halation = PARAM_HALATION_INFLUENCE < 0.0
+        ? mask_halation * 4.0
+        : scanlines_halation;
+
+    return mix(
+        // both scanlines and mask
+        scanlines_halation + mask_halation,
+        // either scanlines or mask
+        affective_halation,
+        abs(PARAM_HALATION_INFLUENCE));
 }
 
 vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord, vec3 scanlines_factor, vec3 mask_factor)
@@ -479,31 +512,25 @@ vec3 apply_halation(vec3 color, sampler2D halation_source, vec2 tex_coord, vec3 
     // use raw input without applying back lighting
     vec3 halation = RAWINPUT(texture(halation_source, tex_coord).rgb);
 
-    // weight halation by its luminance based on diffusion amount
-    halation *= mix(
-        1.0,
-        get_luminance(halation),
-        PARAM_HALATION_DIFFUSION * 0.75);
+    float halation_luma = get_luminance(halation);
 
-    // halation "between" scanlines
-    vec3 scanlines_halation = halation - color;
+    // adjust based on scanlines and mask
+    halation = adjust_halation(color, halation, scanlines_factor, mask_factor);
 
-    // halation "above" mask
-    vec3 mask_halation = halation * scanlines_factor * mask_factor
-        * PARAM_MASK_INTENSITY;
+    vec3 halation_ambience = halation
+        // increased intensity at start of range
+        * normalized_sigmoid(PARAM_HALATION_INTENSITY, 2.0, -0.5)
+        // weighted from none to luma
+        * mix(1.0, halation_luma, PARAM_HALATION_WEIGHT);
+    vec3 halation_essence = halation
+        // increased intensity at end of range
+        * normalized_sigmoid(PARAM_HALATION_INTENSITY, 2.0, 0.5)
+        // weighted from luma to luma squared
+        * mix(halation_luma, halation_luma * halation_luma, PARAM_HALATION_WEIGHT);
 
-    vec3 affective_halation = PARAM_HALATION_INFLUENCE < 0.0
-        ? mask_halation * 4.0
-        : scanlines_halation;
-
-    halation = mix(
-        // both scanlines and mask
-        scanlines_halation + mask_halation,
-        // either scanlines or mask
-        affective_halation,
-        abs(PARAM_HALATION_INFLUENCE));
-
-    return color + halation * (PARAM_HALATION_INTENSITY * 0.25);
+    return color
+        + halation_ambience * 0.125
+        + halation_essence * 0.375;
 }
 
 vec3 apply_noise(vec3 color, float color_luma, vec2 tex_coord)

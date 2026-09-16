@@ -73,19 +73,19 @@ layout(location = 3) out vec2 one_texel;
 
 
 // Largest integer scale of input video that will fit in the current output (y axis would typically be limiting on widescreens)
-//#define video_scale         floor(registers.OutputSize.y * registers.SourceSize.w) <- moved to parameter
+//#define video_scale         floor(registers.OutputSize.y * registers.OriginalSize.w) <- moved to parameter
 
 // Size of the scaled video
-//#define scaled_video_out    (registers.SourceSize.xy * vec2(video_scale)) <- moved to parameter             
+//#define scaled_video_out    (registers.OriginalSize.xy * vec2(video_scale)) <- moved to parameter
 
 void main()
 {
-	vec2 scaled_video_out = (registers.SourceSize.xy * vec2(registers.video_scale));
+	vec2 scaled_video_out = (registers.OriginalSize.xy * vec2(registers.video_scale));
     // Remaps position to integer scaled output
     gl_Position = global.MVP * Position / vec4( vec2(registers.OutputSize.xy / scaled_video_out), 1.0, 1.0 );   
     vTexCoord = TexCoord;
-    dot_size = registers.SourceSize.zw;
-    one_texel = 1.0 / (registers.SourceSize.xy * registers.video_scale);
+    dot_size = registers.OriginalSize.zw;
+    one_texel = 1.0 / (registers.OriginalSize.xy * registers.video_scale);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

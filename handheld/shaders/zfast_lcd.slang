@@ -62,8 +62,10 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 
 void main()
 {
-	vec2 texcoordInPixels = vTexCoord.xy * params.SourceSize.xy;
+	vec2 texcoordInPixels = vTexCoord.xy * params.OriginalSize.xy;
 	vec2 centerCoord = floor(texcoordInPixels.xy)+vec2(0.5,0.5);
+	vec2 sourceCoordInPixels = vTexCoord.xy * params.SourceSize.xy;
+	vec2 sourceCenterCoord = floor(sourceCoordInPixels.xy)+vec2(0.5,0.5);
 	vec2 distFromCenter = abs(centerCoord - texcoordInPixels);
 
 	float Y = max(distFromCenter.x,(distFromCenter.y));
@@ -75,7 +77,7 @@ void main()
 	float LineWeight = YY - 2.7*YYY;
 	LineWeight = 1.0 - params.BORDERMULT*LineWeight;
 
-	vec3 colour = texture(Source, params.SourceSize.zw*centerCoord).rgb*LineWeight;
+	vec3 colour = texture(Source, params.SourceSize.zw*sourceCenterCoord).rgb*LineWeight;
 
 //#if defined(GBAGAMMA)
 //	//colour.rgb = pow(colour.rgb, vec3(1.35));

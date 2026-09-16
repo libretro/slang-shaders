@@ -63,14 +63,21 @@ vec3 apply_color_overflow(vec3 color, float overflow)
         return color;
     }
 
-    vec3 color_overflow = color * color * overflow;
+    vec3 color_overflow = color * color * (overflow * 0.5);
 
-    color.r += LumaR * LumaG * color_overflow.g;
-    color.r += LumaR * LumaB * color_overflow.b;
-    color.g += LumaG * LumaR * color_overflow.r;
-    color.g += LumaG * LumaB * color_overflow.b;
-    color.b += LumaB * LumaR * color_overflow.r;
-    color.b += LumaB * LumaG * color_overflow.g;
+    float lumaRG = (LumaR + LumaG) * 0.5;
+    float lumaRB = (LumaR + LumaB) * 0.5;
+    float lumaGB = (LumaG + LumaB) * 0.5;
+    lumaRG *= lumaRG;
+    lumaRB *= lumaRB;
+    lumaGB *= lumaGB;
+
+    color.r += lumaRG * color_overflow.g;
+    color.r += lumaRB * color_overflow.b;
+    color.g += lumaRG * color_overflow.r;
+    color.g += lumaGB * color_overflow.b;
+    color.b += lumaRB * color_overflow.r;
+    color.b += lumaGB * color_overflow.g;
 
     return color;
 }

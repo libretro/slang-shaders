@@ -69,19 +69,19 @@ void main()
 {
 	vec2 p = vTexCoord.xy;
 
-	p = p * global.SourceSize.xy + vec2(0.5, 0.5);
+	p = p * global.OriginalSize.xy + vec2(0.5, 0.5);
 
 	vec2 i = floor(p);
 	vec2 f = p - i;
 	f = f * f * f * (f * (f * 6.0 - vec2(15.0, 15.0)) + vec2(10.0, 10.0));
 	p = i + f;
 
-	p = (p - vec2(0.5, 0.5)) * global.SourceSize.zw;
+	p = (p - vec2(0.5, 0.5)) * global.OriginalSize.zw;
 
     vec3 E = pow(texture(Source, p).xyz, vec3(param.RETRO_GAMMA_IN));
 
-    vec2 fp = fract(p*global.SourceSize.xy);
-    vec2 ps = global.SourceSize.xy * global.OutputSize.zw;
+    vec2 fp = fract(p*global.OriginalSize.xy);
+    vec2 ps = global.OriginalSize.xy * global.OutputSize.zw;
 
     vec2 fr = clamp(clamp(fp + 0.5*ps, 0.0, 1.0) - param.RETRO_PIXEL_SIZE, vec2(0.0), ps)/ps;
 

@@ -1,6 +1,7 @@
 shaders = "2"
 shader0 = "../shaders/imgborder.slang"
 shader1 = "../../handheld/shaders/lcd-cgwg/lcd-grid-v2.slang"
+filter_linear1 = "false"
 
 scale_type_x0 = "absolute"
 scale_x0 = "248"

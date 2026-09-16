@@ -8,7 +8,7 @@
 
 const float MIN_TABS = 4.0;
 const float MAX_TABS = 16.0;
-const float TABS_LIMIT = 48.0;
+const float TABS_LIMIT = 64.0;
 
 #define Source PhosphorPass
 #define BLUR_AMOUNT PARAM_HALATION_INTENSITY

@@ -1,0 +1,53 @@
+shaders = 8
+
+shader0 = shaders/CuNNy-rgb-input-copy.slang
+scale_type0 = source
+scale_x0 = 1.0
+scale_y0 = 1.0
+wrap_mode0 = "clamp_to_edge"
+alias0 = cunny_4x32_nvl_input
+
+shader1 = shaders/CuNNy-4x32-nvl-in.slang
+filter_linear1 = false
+scale_type1 = source
+scale_x1 = 4.0
+scale_y1 = 2.0
+alias1 = cunny_4x32_nvl_in
+
+shader2 = shaders/CuNNy-4x32-nvl-conv1.slang
+filter_linear2 = false
+scale_type2 = source
+scale_x2 = 1.0
+scale_y2 = 1.0
+alias2 = cunny_4x32_nvl_conv1
+
+shader3 = shaders/CuNNy-4x32-nvl-conv2.slang
+filter_linear3 = false
+scale_type3 = source
+scale_x3 = 1.0
+scale_y3 = 1.0
+alias3 = cunny_4x32_nvl_conv2
+
+shader4 = shaders/CuNNy-4x32-nvl-conv3.slang
+filter_linear4 = false
+scale_type4 = source
+scale_x4 = 1.0
+scale_y4 = 1.0
+alias4 = cunny_4x32_nvl_conv3
+
+shader5 = shaders/CuNNy-4x32-nvl-conv4.slang
+filter_linear5 = false
+scale_type5 = source
+scale_x5 = 1.0
+scale_y5 = 1.0
+alias5 = cunny_4x32_nvl_conv4
+
+shader6 = shaders/CuNNy-4x32-nvl-out-rgb.slang
+scale_type6 = source
+scale_x6 = 0.5
+scale_y6 = 1.0
+
+shader7 = ../../interpolation/shaders/jinc2.slang
+filter_linear7 = false
+scale_type7 = viewport
+wrap_mode7 = "clamp_to_edge"

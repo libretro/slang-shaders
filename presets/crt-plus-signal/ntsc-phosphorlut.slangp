@@ -63,6 +63,6 @@ PHOSPHOR_SCALE_X = 4.0
 quality = 1.0
 
 textures = "shadow;aperture;slot"
-shadow = ../../crt/shaders/phosphorlut/luts/shadowmask.png
-aperture = ../../crt/shaders/phosphorlut/luts/aperture-grille.png
-slot = ../../crt/shaders/phosphorlut/luts/slotmask.png
+shadow = ../../crt/crt-effects/shaders/phosphorlut/luts/shadowmask.png
+aperture = ../../crt/crt-effects/shaders/phosphorlut/luts/aperture-grille.png
+slot = ../../crt/crt-effects/shaders/phosphorlut/luts/slotmask.png
