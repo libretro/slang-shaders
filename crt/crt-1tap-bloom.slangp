@@ -1,6 +1,6 @@
 shaders = "26"
 feedback_pass = "0"
-shader0 = "shaders/crt-1tap.slang"
+shader0 = "shaders/crt-Ntap/crt-1tap.slang"
 filter_linear0 = "true"
 wrap_mode0 = "clamp_to_border"
 mipmap_input0 = "false"
