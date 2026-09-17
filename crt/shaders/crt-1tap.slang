@@ -14,11 +14,13 @@
     horizontal interpolation. A normalized smooth-sign function controls its
     transition slope. The sampled color defines a sharp periodic beam whose
     coverage is integrated analytically over each output pixel's vertical
-    footprint. This provides stable scanline anti-aliasing at arbitrary scales.
+    footprint. Color is squared before coverage filtering and square-root
+    encoded afterwards to approximate linear-light blending. This provides
+    stable scanline anti-aliasing at arbitrary scales.
 
     Changelog:
-    v1.4: Add periodic box-filtered scanlines; Improve composability and
-          horizontal interpolation.
+    v1.4: Add periodic box-filtered scanlines and approximate linear-light
+          blending; Improve composability and horizontal interpolation.
     v1.3: Fix horizontal sampling artifact at the left edge.
     v1.2: Better scanline sharpness; Minor cleanups.
     v1.1: Update license; Better defaults; Don't compute alpha.
@@ -94,6 +96,7 @@ void main() {
     const float src_y = vSrcCoord.y;
     const float row_center = floor(src_y) + 0.5;
     const vec3 signal = texture(Source, vec2(sample_x, row_center * param.OriginalSize.w)).rgb;
+    const vec3 linear = signal * signal;
 
     const vec3 width = get_beam_width(signal);
     const float filter_height = param.OriginalSize.y * param.OutputSize.w * param.V_SMOOTH;
@@ -101,5 +104,5 @@ void main() {
     const vec3 area = get_beam_prefix(src_y + half_filter_height, width) -
                       get_beam_prefix(src_y - half_filter_height, width);
 
-    FragColor.rgb = signal * area * (1.0 / filter_height);
+    FragColor.rgb = sqrt(linear * area * (1.0 / filter_height));
 }

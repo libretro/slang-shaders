@@ -8,8 +8,10 @@
     Lightweight dynamic scanline shader with exact vertical box filtering.
 
     Horizontal interpolation uses two neighboring texels from each source row
-    through a single bilinear tap. The interpolation coordinate is transformed
-    by a configurable power curve.
+    through a single bilinear tap. A normalized smooth-sign function transforms
+    the interpolation coordinate. Sampled colors are squared before vertical
+    filtering and square-root encoded afterwards to approximate linear-light
+    blending without an extra pass.
 
     Each output pixel is treated as a box in source-texel space. The two rows
     surrounding its center are sampled separately. Each row's color and beam
@@ -92,6 +94,8 @@ void main() {
 
     const vec3 signal0 = texture(Source, vec2(sample_x, sample_y0)).rgb;
     const vec3 signal1 = texture(Source, vec2(sample_x, sample_y1)).rgb;
+    const vec3 linear0 = signal0 * signal0;
+    const vec3 linear1 = signal1 * signal1;
 
     const float filter_height = param.OriginalSize.y * param.OutputSize.w * param.V_SMOOTH;
     const float inv_filter_height = 1.0 / filter_height;
@@ -105,5 +109,5 @@ void main() {
     const vec3 area0 = get_beam_prefix(split, width0) - get_beam_prefix(pixel_lb, width0);
     const vec3 area1 = get_beam_prefix(pixel_ub, width1) - get_beam_prefix(split, width1);
 
-    FragColor.rgb = (signal0 * area0 + signal1 * area1) * inv_filter_height;
+    FragColor.rgb = sqrt((linear0 * area0 + linear1 * area1) * inv_filter_height);
 }
