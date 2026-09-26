@@ -59,21 +59,38 @@ layout(location = 6) in float half_px_size;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
-#include "../../../misc/shaders/coverage/coverage.inc"
-
-float subpx_coverage(vec4 px_square, vec2 subpx_orig) {
-    // To render the "notch" present in the original subpixels, compose two rectangles.
-    return intersect_rect_area(px_square, subpx_orig.xyxy + lcd_subpx_rect1) +
-           intersect_rect_area(px_square, subpx_orig.xyxy + lcd_subpx_rect2);
+// Rectangle coverage separates into horizontal and vertical overlap. Reuse each
+// axis for both neighboring rows/columns instead of intersecting 24 rectangles.
+vec3 overlap(vec3 lo, vec3 hi, vec3 origin, float start, float end) {
+    return max(min(hi, origin + end) - max(lo, origin + start), vec3(0.0));
 }
 
-vec3 pixel_color(vec2 tx_orig) {
-    return vec3(
-        subpx_coverage(vec4(-subpx_offset_in_px - half_px_size, -subpx_offset_in_px + half_px_size),
-                       tx_orig + vec2(tx_orig_offs.x - tx_to_px.x / 3.0, tx_orig_offs.y)),
-        subpx_coverage(vec4(vec2(-half_px_size), vec2(half_px_size)), tx_orig + tx_orig_offs),
-        subpx_coverage(vec4(subpx_offset_in_px - half_px_size, subpx_offset_in_px + half_px_size),
-                       tx_orig + vec2(tx_orig_offs.x + tx_to_px.x / 3.0, tx_orig_offs.y)));
+void horizontal_coverage(float origin, out vec3 first, out vec3 second) {
+    vec3 offset = vec3(-subpx_offset_in_px.x, 0.0, subpx_offset_in_px.x);
+    vec3 subpixel = vec3(origin) + vec3(tx_orig_offs.x - tx_to_px.x / 3.0,
+                                       tx_orig_offs.x,
+                                       tx_orig_offs.x + tx_to_px.x / 3.0);
+    first = overlap(offset - half_px_size, offset + half_px_size, subpixel,
+                    lcd_subpx_rect1.x, lcd_subpx_rect1.z);
+    second = overlap(offset - half_px_size, offset + half_px_size, subpixel,
+                     lcd_subpx_rect2.x, lcd_subpx_rect2.z);
+}
+
+void vertical_coverage(float origin, out vec3 first, out vec3 second) {
+    float subpixel = origin + tx_orig_offs.y;
+    if (subpx_offset_in_px.y == 0.0) {
+        // With horizontal or disabled display subpixels, all channels share Y.
+        first = vec3(max(min(half_px_size, subpixel + lcd_subpx_rect1.w) -
+                         max(-half_px_size, subpixel + lcd_subpx_rect1.y), 0.0));
+        second = vec3(max(min(half_px_size, subpixel + lcd_subpx_rect2.w) -
+                          max(-half_px_size, subpixel + lcd_subpx_rect2.y), 0.0));
+    } else {
+        vec3 offset = vec3(-subpx_offset_in_px.y, 0.0, subpx_offset_in_px.y);
+        first = overlap(offset - half_px_size, offset + half_px_size, vec3(subpixel),
+                        lcd_subpx_rect1.y, lcd_subpx_rect1.w);
+        second = overlap(offset - half_px_size, offset + half_px_size, vec3(subpixel),
+                         lcd_subpx_rect2.y, lcd_subpx_rect2.w);
+    }
 }
 
 void main() {
@@ -90,12 +107,17 @@ void main() {
         texture(Source, (tx_coord_i + tx_coord_offs[2] + 0.5) * param.OriginalSize.zw).rgb,
         texture(Source, (tx_coord_i + tx_coord_offs[3] + 0.5) * param.OriginalSize.zw).rgb};
 
-    // The four nearest texels define a set of vector graphics which are rasterized.
-    // The coordinate origin is shifted to px_coord = tx_coord * tx_to_px.
-    const vec3 res = (pixel_color((tx_coord_offs[0] - tx_coord_f) * tx_to_px) * samples[0] +
-                      pixel_color((tx_coord_offs[1] - tx_coord_f) * tx_to_px) * samples[1] +
-                      pixel_color((tx_coord_offs[2] - tx_coord_f) * tx_to_px) * samples[2] +
-                      pixel_color((tx_coord_offs[3] - tx_coord_f) * tx_to_px) * samples[3]) /
+    vec3 x0_first, x0_second, x1_first, x1_second;
+    vec3 y0_first, y0_second, y1_first, y1_second;
+    horizontal_coverage(-tx_coord_f.x * tx_to_px.x, x0_first, x0_second);
+    horizontal_coverage((tx_coord_off.x - tx_coord_f.x) * tx_to_px.x, x1_first, x1_second);
+    vertical_coverage(-tx_coord_f.y * tx_to_px.y, y0_first, y0_second);
+    vertical_coverage((tx_coord_off.y - tx_coord_f.y) * tx_to_px.y, y1_first, y1_second);
+
+    const vec3 res = ((x0_first * y0_first + x0_second * y0_second) * samples[0] +
+                      (x1_first * y0_first + x1_second * y0_second) * samples[1] +
+                      (x0_first * y1_first + x0_second * y1_second) * samples[2] +
+                      (x1_first * y1_first + x1_second * y1_second) * samples[3]) /
                      (4.0 * half_px_size * half_px_size);
 
     FragColor = vec4(sqrt(res), 1.0);
