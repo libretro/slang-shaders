@@ -1,5 +1,18 @@
-shaders = 1
+shaders = 3
 
-shader0 = shaders/pixel_transparency/sunlight_shimmer.slang
+shader0 = shaders/pixel_transparency/pixel_transparency.slang
 filter_linear0 = false
 scale_type0 = viewport
+float_framebuffer0 = true
+
+shader1 = shaders/pixel_transparency/film_noise_cache.slang
+filter_linear1 = false
+scale_type1 = absolute
+scale_x1 = 128
+scale_y1 = 128
+
+shader2 = shaders/pixel_transparency/sunlight_shimmer.slang
+filter_linear2 = false
+scale_type2 = viewport
+
+PT_DEFER_DITHER = "1.0"
