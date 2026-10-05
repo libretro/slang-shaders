@@ -1,13 +1,24 @@
-shaders = 2
+shaders = 4
 
 shader0 = ../../handheld/shaders/lcd-cgwg/lcd-grid-v2.slang
 filter_linear0 = false
 scale_type0 = viewport
 scale0 = 1.0
 
-shader1 = ../../handheld/shaders/pixel_transparency/sunlight_shimmer.slang
+shader1 = ../../handheld/shaders/pixel_transparency/pixel_transparency.slang
 filter_linear1 = false
 scale_type1 = viewport
+float_framebuffer1 = true
+
+shader2 = ../../handheld/shaders/pixel_transparency/film_noise_cache.slang
+filter_linear2 = false
+scale_type2 = absolute
+scale_x2 = 128
+scale_y2 = 128
+
+shader3 = ../../handheld/shaders/pixel_transparency/sunlight_shimmer.slang
+filter_linear3 = false
+scale_type3 = viewport
 
 RSUBPIX_R = "0.750000"
 RSUBPIX_G = "0.000000"
@@ -23,3 +34,5 @@ gamma = "2.200000"
 blacklevel = "0.000000"
 ambient = "0.000000"
 BGR = "0.000000"
+
+PT_DEFER_DITHER = "1.0"

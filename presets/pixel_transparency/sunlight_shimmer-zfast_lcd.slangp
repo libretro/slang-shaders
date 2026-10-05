@@ -1,9 +1,22 @@
-shaders = 2
+shaders = 4
 
 shader0 = ../../handheld/shaders/zfast_lcd.slang
 filter_linear0 = true
 scale_type0 = viewport
 
-shader1 = ../../handheld/shaders/pixel_transparency/sunlight_shimmer.slang
+shader1 = ../../handheld/shaders/pixel_transparency/pixel_transparency.slang
 filter_linear1 = false
 scale_type1 = viewport
+float_framebuffer1 = true
+
+shader2 = ../../handheld/shaders/pixel_transparency/film_noise_cache.slang
+filter_linear2 = false
+scale_type2 = absolute
+scale_x2 = 128
+scale_y2 = 128
+
+shader3 = ../../handheld/shaders/pixel_transparency/sunlight_shimmer.slang
+filter_linear3 = false
+scale_type3 = viewport
+
+PT_DEFER_DITHER = "1.0"
