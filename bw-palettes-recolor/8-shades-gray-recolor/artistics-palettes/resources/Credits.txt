@@ -1,0 +1,5 @@
+These palettes are based on lospec.com:
+
+- palette-fluffy8.png,  by vee, https://lospec.com/palette-list/fluffy8
+- palette-paper8.png,   by Frosty Rabbid, https://lospec.com/palette-list/paper-8
+
