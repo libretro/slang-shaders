@@ -12,6 +12,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
    vec4 SourceSize;
    float linearize;
    float ntsc_scale;
+   float ntsc_downsampling;
    float ntsc_phase;
    float auto_res;
    float chroma_scale;
@@ -19,6 +20,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 
 #pragma parameter chroma_scale "NTSC Chroma Scaling" 1.0 0.2 4.0 0.2 
 #pragma parameter ntsc_scale "NTSC Resolution Scaling" 1.0 0.20 3.0 0.05
+#pragma parameter ntsc_downsampling "NTSC Downsampling Width" 0.0 0.0 960.0 1.0
 #pragma parameter ntsc_phase "NTSC Phase: Auto | 2 phase | 3 phase" 1.0 1.0 3.0 1.0
 #pragma parameter linearize "NTSC Linearize Output Gamma" 0.0 0.0 1.0 1.0 
 
@@ -204,8 +206,8 @@ const float chroma_filter_3_phase[25] = float[25](
 
 void main()
 {
-   float res = global.ntsc_scale;
    float OriginalSize = global.OriginalSize.x;
+   float res = ((global.ntsc_downsampling > 1) ? (global.ntsc_downsampling / OriginalSize) : global.ntsc_scale);
    vec3 signal = vec3(0.0);
    float phase = (global.ntsc_phase < 1.5) ? ((OriginalSize > 300.0) ? 2.0 : 3.0) : ((global.ntsc_phase > 2.5) ? 3.0 : 2.0);
 
