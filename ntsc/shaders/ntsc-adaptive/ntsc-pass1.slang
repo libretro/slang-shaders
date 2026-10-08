@@ -11,13 +11,14 @@ layout(std140, set = 0, binding = 0) uniform UBO
    vec4 OriginalSize;
    vec4 SourceSize;
    uint FrameCount;
-   float quality, ntsc_sat, cust_fringing, cust_artifacting, ntsc_bright, ntsc_scale, ntsc_fields, ntsc_phase, ntsc_artifacting_rainbow;
+   float quality, ntsc_sat, cust_fringing, cust_artifacting, ntsc_bright, ntsc_scale, ntsc_downsampling, ntsc_fields, ntsc_phase, ntsc_artifacting_rainbow;
 } global;
 
 #pragma parameter quality "NTSC Preset (Svideo=0 Composite=1 RF=2 Custom=-1)" 1.0 -1.0 2.0 1.0
 #pragma parameter ntsc_fields "NTSC Merge Fields" 0.0 0.0 1.0 1.0
 #pragma parameter ntsc_phase "NTSC Phase: Auto | 2 phase | 3 phase" 1.0 1.0 3.0 1.0
 #pragma parameter ntsc_scale "NTSC Resolution Scaling" 1.0 0.20 3.0 0.05
+#pragma parameter ntsc_downsampling "NTSC Downsampling Width" 0.0 0.0 960.0 1.0
 #pragma parameter ntsc_sat "NTSC Color Saturation" 1.0 0.0 2.0 0.01
 #pragma parameter ntsc_bright "NTSC Brightness" 1.0 0.0 1.5 0.01
 #pragma parameter cust_fringing "NTSC Custom Fringing Value" 0.0 0.0 5.0 0.1
@@ -41,8 +42,8 @@ layout(location = 8) out float MERGE;
 
 void main()
 {
-	float res = global.ntsc_scale;
 	float OriginalSize = global.OriginalSize.x;
+   float res = ((global.ntsc_downsampling > 1) ? (global.ntsc_downsampling / OriginalSize) : global.ntsc_scale);
 	gl_Position = global.MVP * Position;
 	vTexCoord = TexCoord;
 	if (res < 1.0) pix_no = TexCoord * global.SourceSize.xy * (res * global.OutputSize.xy / global.SourceSize.xy); else
