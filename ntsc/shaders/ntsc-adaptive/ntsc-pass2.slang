@@ -207,7 +207,7 @@ const float chroma_filter_3_phase[25] = float[25](
 void main()
 {
    float OriginalSize = global.OriginalSize.x;
-   float res = ((global.ntsc_downsampling > 1) ? (global.ntsc_downsampling / OriginalSize) : global.ntsc_scale);
+   float res = ((global.ntsc_downsampling > 1 && OriginalSize > global.ntsc_downsampling) ? (global.ntsc_downsampling / OriginalSize) : global.ntsc_scale);
    vec3 signal = vec3(0.0);
    float phase = (global.ntsc_phase < 1.5) ? ((OriginalSize > 300.0) ? 2.0 : 3.0) : ((global.ntsc_phase > 2.5) ? 3.0 : 2.0);
 
