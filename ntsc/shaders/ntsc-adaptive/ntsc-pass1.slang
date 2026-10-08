@@ -43,7 +43,7 @@ layout(location = 8) out float MERGE;
 void main()
 {
 	float OriginalSize = global.OriginalSize.x;
-   float res = ((global.ntsc_downsampling > 1) ? (global.ntsc_downsampling / OriginalSize) : global.ntsc_scale);
+	float res = ((global.ntsc_downsampling > 1 && OriginalSize > global.ntsc_downsampling) ? (global.ntsc_downsampling / OriginalSize) : global.ntsc_scale);
 	gl_Position = global.MVP * Position;
 	vTexCoord = TexCoord;
 	if (res < 1.0) pix_no = TexCoord * global.SourceSize.xy * (res * global.OutputSize.xy / global.SourceSize.xy); else
