@@ -6,10 +6,18 @@
 //  / / __/ /| | / /|_/ / __/    / __  / / / /\  /                       //
 // / /_/ / ___ |/ /  / / /___   / /_/ / /_/ / / /                        //
 // \____/_/  |_/_/  /_/_____/  /_____/\____/ /_/                         //
-//  ==================== DOT MATRIX SHADER v1.4                          //
+//  ==================== DOT MATRIX SHADER v1.5                          //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
 // Copyright (C) 2024-2026 Matt Akins			                         //
+//                                                                       //
+// 10/30/26 - v1.5                                                       //
+//   • Seven passes; color, latency and matching run at native size      //
+//   • Brightness matching computed once per cell, not per pixel         //
+//   • Smooth shadow movement between pixels                             //
+//   • Grid shadow no longer leaves a gap at edges                       //
+//   • Faster shadow sampling with a single filtered read                //
+//   • Restores v1.3 performance with v1.4 improvements                  //
 //                                                                       //
 // 10/5/26 - v1.4				                                         //
 //   • Improved visual consistency across different output resolutions.  //
@@ -55,7 +63,7 @@
 /////////////////////////////////////////////////////////////////////////
 
   /////////////////////////////////////////////////////////////////////////
- // gb-pass0 - Core dot matrix generation & response time simulation    //
+ // Core dot matrix generation                                          //
 /////////////////////////////////////////////////////////////////////////
 
 #include "gb-params.inc"
@@ -65,7 +73,6 @@ layout(push_constant) uniform Push
 {
 	vec4 OutputSize;
 	vec4 OriginalSize;
-	vec4 SourceSize;
 	float color_toggle;
 	float pixel_size;
 	float fullscreen_match_pixel_size;
@@ -100,13 +107,13 @@ layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
 layout(location = 4) out vec2 tx_coord;
-layout(location = 5) out vec2 tx_to_px;
-layout(location = 6) out vec2 dot_size_in_px;
+layout(location = 5) flat out vec2 tx_to_px;
+layout(location = 6) flat out vec2 dot_size_in_px;
 // OPTIMIZATION: Frame-constant values calculated once in vertex shader
-layout(location = 8) out float video_scale_factor;
-layout(location = 9) out vec2 scale_bounds;
-layout(location = 10) out float aa_compensation_factor;  // Pixel alpha normalization factor
-layout(location = 11) out float effective_softness;      // Adaptive softness (moiré reduction)
+layout(location = 8) flat out float video_scale_factor;
+layout(location = 9) flat out vec2 scale_bounds;
+layout(location = 10) flat out float aa_compensation_factor;  // Pixel alpha normalization factor
+layout(location = 11) flat out float effective_softness;      // Adaptive softness (moiré reduction)
 
   /////////////////////////////////////////////////////////////////////////
  // Vertex definitions                                                  //
@@ -128,7 +135,7 @@ void main()
 
         // Standard setup for integer mode
         gl_Position = global.MVP * Position;
-        vTexCoord = TexCoord * 1.0001;
+        vTexCoord = biased_texcoord(TexCoord, registers.OutputSize.xy);
 
         // Set unused outputs for non-integer mode
         tx_coord = vec2(0.0);
@@ -218,22 +225,14 @@ void main()
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
 layout(location = 4) in vec2 tx_coord;
-layout(location = 5) in vec2 tx_to_px;
-layout(location = 6) in vec2 dot_size_in_px;
-layout(location = 8) in float video_scale_factor;
-layout(location = 9) in vec2 scale_bounds;
-layout(location = 10) in float aa_compensation_factor;
-layout(location = 11) in float effective_softness;
+layout(location = 5) flat in vec2 tx_to_px;
+layout(location = 6) flat in vec2 dot_size_in_px;
+layout(location = 8) flat in float video_scale_factor;
+layout(location = 9) flat in vec2 scale_bounds;
+layout(location = 10) flat in float aa_compensation_factor;
+layout(location = 11) flat in float effective_softness;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Source;
-layout(set = 0, binding = 3) uniform sampler2D OriginalHistory1;
-layout(set = 0, binding = 4) uniform sampler2D OriginalHistory2;
-layout(set = 0, binding = 5) uniform sampler2D OriginalHistory3;
-layout(set = 0, binding = 6) uniform sampler2D OriginalHistory4;
-layout(set = 0, binding = 7) uniform sampler2D OriginalHistory5;
-layout(set = 0, binding = 8) uniform sampler2D OriginalHistory6;
-layout(set = 0, binding = 9) uniform sampler2D OriginalHistory7;
-layout(set = 0, binding = 10) uniform sampler2D COLOR_PALETTE;
+layout(set = 0, binding = 2) uniform sampler2D GameBoyOpacity;
 
   /////////////////////////////////////////////////////////////////////////
  // Fragment definitions                                                //
@@ -257,9 +256,11 @@ void main()
         final_tex_coord = (vTexCoord - 0.5) / scale_bounds + 0.5;
     }
 
-    // Sample texture and only fetch frame history when response time is active.
-    vec3 foreground_source = texture(Source, final_tex_coord).rgb;
-    vec3 curr_rgb = abs(1.0 - foreground_source);
+    // Read prepared color, dot opacity, and grayscale word.
+    vec4 opacity_source = texture(GameBoyOpacity, final_tex_coord);
+    float packed_color = opacity_source.r;
+    vec3 foreground_source = vec3(floor(packed_color / 65536.0),
+        mod(floor(packed_color / 256.0), 256.0), mod(packed_color, 256.0)) / 255.0;
 
     float is_on_dot = 0.0;
 
@@ -329,62 +330,20 @@ void main()
         is_on_dot = mix(circ_coverage, rect_coverage, registers.pixel_shape);
     }
 
-    // Sample color from the current and previous frames, apply response time modifier
-    // Response time effect implemented through an exponential dropoff algorithm
-    vec3 input_rgb = curr_rgb;
-    if (registers.response_time > 0.0) {
-        vec3 prev0_rgb = abs(1.0 - texture(OriginalHistory1, final_tex_coord).rgb);
-        vec3 prev1_rgb = abs(1.0 - texture(OriginalHistory2, final_tex_coord).rgb);
-        vec3 prev2_rgb = abs(1.0 - texture(OriginalHistory3, final_tex_coord).rgb);
-        vec3 prev3_rgb = abs(1.0 - texture(OriginalHistory4, final_tex_coord).rgb);
-        vec3 prev4_rgb = abs(1.0 - texture(OriginalHistory5, final_tex_coord).rgb);
-        vec3 prev5_rgb = abs(1.0 - texture(OriginalHistory6, final_tex_coord).rgb);
-        vec3 prev6_rgb = abs(1.0 - texture(OriginalHistory7, final_tex_coord).rgb);
-
-        input_rgb += (prev0_rgb - input_rgb) * registers.response_time;
-        input_rgb += (prev1_rgb - input_rgb) * pow(registers.response_time, 2.0);
-        input_rgb += (prev2_rgb - input_rgb) * pow(registers.response_time, 3.0);
-        input_rgb += (prev3_rgb - input_rgb) * pow(registers.response_time, 4.0);
-        input_rgb += (prev4_rgb - input_rgb) * pow(registers.response_time, 5.0);
-        input_rgb += (prev5_rgb - input_rgb) * pow(registers.response_time, 6.0);
-        input_rgb += (prev6_rgb - input_rgb) * pow(registers.response_time, 7.0);
-    }
-
-    // Brightness calculation based on mode
-    float brightness;
-    if (registers.brightness_mode < 0.5) {
-        brightness = (input_rgb.r + input_rgb.g + input_rgb.b);
-    } else {
-        brightness = (0.2126 * input_rgb.r) + (0.7152 * input_rgb.g) + (0.0722 * input_rgb.b);
-    }
-
-    float grey_balance_adjusted = registers.grey_balance;
-
-    // Compensate for brightness range difference between modes
-    // Perceptual mode outputs 0-1, simple mode outputs 0-3
-    if (registers.brightness_mode >= 0.5) {
-        grey_balance_adjusted = grey_balance_adjusted / 3.0;
-    }
-
-    float rgb_to_alpha = brightness / grey_balance_adjusted +
-                         registers.baseline_alpha;
-    float base_alpha = rgb_to_alpha;
+    float base_alpha = opacity_source.g;
+    if (registers.color_toggle == 0.0)
+        base_alpha = opacity_source.r;
+    float rgb_to_alpha = base_alpha;
     rgb_to_alpha *= aa_compensation_factor;
 
-    vec3 foreground_color = gameboy_foreground_color(registers.palette, COLOR_PALETTE);
-    vec4 out_color;
-    if (registers.color_toggle == 0.0)
-        out_color = vec4(foreground_color, rgb_to_alpha);
-    else
-        out_color = vec4(foreground_source, rgb_to_alpha);
+    vec4 out_color = vec4(foreground_source, rgb_to_alpha);
 
     // Apply dot matrix mask - zeros out gaps in integer mode, applies antialiasing gradient in fullscreen mode
     out_color.a *= is_on_dot;
 
     if (registers.color_toggle == 0.0) {
         // Carry unnormalized opacity through the existing 8-bit RGB channels.
-        float range = 3.0 / registers.grey_balance + registers.baseline_alpha;
-        float word = round(clamp(base_alpha / range, 0.0, 1.0) * 65535.0);
+        float word = opacity_source.g;
         out_color.rgb = vec3(floor(word / 256.0), mod(word, 256.0), 0.0) / 255.0;
     }
     FragColor = out_color;

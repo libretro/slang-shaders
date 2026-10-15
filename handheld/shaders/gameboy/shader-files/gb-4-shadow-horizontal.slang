@@ -6,7 +6,7 @@
 //  / / __/ /| | / /|_/ / __/    / __  / / / /\  /                       //
 // / /_/ / ___ |/ /  / / /___   / /_/ / /_/ / / /                        //
 // \____/_/  |_/_/  /_/_____/  /_____/\____/ /_/                         //
-//  ==================== DOT MATRIX SHADER v1.4                          //
+//  ==================== DOT MATRIX SHADER v1.5                          //
 //                                                                       //
 // Copyright (C) 2013 Harlequin : unknown92835@gmail.com                 //
 // Copyright (C) 2024-2026 Matt Akins                                    //
@@ -27,10 +27,11 @@
 /////////////////////////////////////////////////////////////////////////
 
   /////////////////////////////////////////////////////////////////////////
- // gb-pass3 - Vertical shadow alpha blur                               //
+ // Horizontal shadow alpha blur                                        //
 /////////////////////////////////////////////////////////////////////////
 
 #include "gb-params.inc"
+#include "gb-shared.inc"
 
 layout(push_constant) uniform Push
 {
@@ -39,7 +40,18 @@ layout(push_constant) uniform Push
 	vec4 SourceSize;
 	float integer_mode;
 	float video_scale;
+	float baseline_alpha;
 	float shadow_blur_amount;
+	float alpha_reference_scale;
+	float pixel_size;
+	float fullscreen_match_pixel_size;
+	float pixel_softness;
+	float sharpening_amount;
+	float pixel_shape;
+	float sharp_mode;
+	float auto_soften;
+	float blending_mode;
+	float adjacent_texel_alpha_blending;
 } registers;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -55,10 +67,11 @@ layout(std140, set = 0, binding = 0) uniform UBO
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out vec2 texel;
-layout(location = 2) out vec2 lower_bound;
-layout(location = 3) out vec2 upper_bound;
-layout(location = 4) out vec2 blur_step;
+layout(location = 1) flat out vec2 texel;
+layout(location = 2) flat out vec2 lower_bound;
+layout(location = 3) flat out vec2 upper_bound;
+layout(location = 4) flat out vec2 blur_step;
+layout(location = 6) flat out float retained_baseline_alpha;
 
 vec2 get_current_gb_scale() {
     if (registers.integer_mode > 1.5) {
@@ -69,13 +82,62 @@ vec2 get_current_gb_scale() {
     return registers.OutputSize.xy * registers.OriginalSize.zw;
 }
 
+float get_alpha_normalization_factor() {
+    float reference_coverage = integer_post_blend_coverage(
+        registers.alpha_reference_scale,
+        registers.blending_mode,
+        registers.adjacent_texel_alpha_blending
+    );
+
+    if (registers.integer_mode > 0.5) {
+        float current_scale = get_current_gb_scale().y;
+        float current_coverage = integer_post_blend_coverage(
+            current_scale,
+            registers.blending_mode,
+            registers.adjacent_texel_alpha_blending
+        );
+        return alpha_normalization_factor(reference_coverage,
+                                          current_coverage);
+    }
+
+    if (registers.integer_mode < 0.5) {
+        vec2 tx_to_px = registers.OutputSize.xy * registers.OriginalSize.zw;
+        float effective_pixel_size = get_effective_pixel_size(
+            tx_to_px,
+            registers.pixel_size,
+            registers.fullscreen_match_pixel_size
+        );
+        float effective_softness = get_effective_pixel_softness(
+            tx_to_px,
+            registers.pixel_softness,
+            registers.auto_soften
+        );
+        float current_coverage = sample_scale_average_coverage(
+            tx_to_px,
+            registers.OutputSize.xy,
+            registers.OriginalSize.xy,
+            effective_pixel_size,
+            effective_softness,
+            registers.sharpening_amount,
+            registers.pixel_shape,
+            registers.sharp_mode
+        );
+        return alpha_normalization_factor(reference_coverage,
+                                          current_coverage);
+    }
+
+    return 1.0;
+}
+
 void main()
 {
     gl_Position = global.MVP * Position;
-    vTexCoord = TexCoord * 1.0001;
+    vTexCoord = biased_texcoord(TexCoord, registers.OutputSize.xy);
 
     texel = registers.SourceSize.zw;
     blur_step = texel * (get_current_gb_scale() / shadow_reference_scale) * registers.shadow_blur_amount;
+    float baseline = registers.baseline_alpha * get_alpha_normalization_factor();
+    retained_baseline_alpha = roundEven(clamp(baseline, 0.0, 1.0) * 255.0) / 255.0;
     lower_bound = vec2(0.0);
     upper_bound = vec2(texel * (registers.OutputSize.xy - 1.0));
 }
@@ -86,10 +148,11 @@ void main()
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in vec2 texel;
-layout(location = 2) in vec2 lower_bound;
-layout(location = 3) in vec2 upper_bound;
-layout(location = 4) in vec2 blur_step;
+layout(location = 1) flat in vec2 texel;
+layout(location = 2) flat in vec2 lower_bound;
+layout(location = 3) flat in vec2 upper_bound;
+layout(location = 4) flat in vec2 blur_step;
+layout(location = 6) flat in float retained_baseline_alpha;
 layout(location = 0) out vec4 FragColor;
 layout(set = 0, binding = 2) uniform sampler2D Source;
 
@@ -117,12 +180,9 @@ Normalized Gaussian weights:                     Normalized Gaussian weights:
 0.07270923003781316665844409497651 @position4    0.08167444001912718529866079800870 @position4
 0.05488381664578583445722654373702 @position5
 */
-vec2 shadow_sample_coord(vec2 coord) {
-    // Continue the edge dot through the fullscreen boundary instead of
-    // extending its low-alpha gap across the blur kernel.
-    if (registers.integer_mode < 0.5)
-        coord.y = 1.0 - abs(1.0 - abs(coord.y));
-    return clamp(coord, lower_bound, upper_bound);
+vec2 shadow_sample_alpha(vec2 coord, vec2 texel, vec2 lower_bound, vec2 upper_bound) {
+    float alpha = texture(Source, clamp(coord, lower_bound, upper_bound)).a;
+    return vec2(alpha, min(alpha, retained_baseline_alpha));
 }
 
 void main()
@@ -145,15 +205,27 @@ void main()
                                 0.08167444001912718529866079800870 );
 
     // Sample the current fragment and apply its weight
-    vec4 out_color = texture(Source, shadow_sample_coord(vTexCoord)) * weights[0];
+    vec4 center = texture(Source, clamp(vTexCoord, lower_bound, upper_bound));
+    vec4 out_color = center * weights[0];
+    // Keep baseline opacity separate so only that layer can continue at picture edges.
+    out_color.b = min(center.a, retained_baseline_alpha) * weights[0];
 
     // Iterate across the offsets in both directions sampling texels
     // and adding their weighted alpha values to the total
     for (int i = 1; i < 5; i++)
     {
-        out_color.a += texture(Source, shadow_sample_coord(vTexCoord + vec2(0.0, offsets[i] * blur_step.y))).a * weights[i];
-        out_color.a += texture(Source, shadow_sample_coord(vTexCoord - vec2(0.0, offsets[i] * blur_step.y))).a * weights[i];
+        vec2 right = vTexCoord + vec2(offsets[i] * blur_step.x, 0.0);
+        vec2 left = vTexCoord - vec2(offsets[i] * blur_step.x, 0.0);
+        vec2 right_alpha = shadow_sample_alpha(right, texel, lower_bound, upper_bound);
+        vec2 left_alpha = shadow_sample_alpha(left, texel, lower_bound, upper_bound);
+        out_color.a += right_alpha.x * weights[i];
+        out_color.a += left_alpha.x * weights[i];
+        out_color.b += right_alpha.y * weights[i];
+        out_color.b += left_alpha.y * weights[i];
     }
 
+    // R keeps the center-weighted tint's brightness so shadows filter in one read.
+    // B and A retain independently blurred baseline and total shadow opacity.
+    out_color.rg = vec2(dot(center.rgb, vec3(0.2126, 0.7152, 0.0722)) * (weights[0] * weights[0]), 0.0);
     FragColor = out_color;
 }
