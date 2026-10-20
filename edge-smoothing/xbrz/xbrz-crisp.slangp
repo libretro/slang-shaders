@@ -1,0 +1,19 @@
+shaders = 3
+
+shader0 = ../../stock.slang
+alias0 = xbrz_fs_refpass
+
+shader1 = shaders/xbrz-freescale-multipass/xbrz-freescale-pass0.slang
+filter_linear1 = false
+scale_type1 = source
+scale1 = 1.0
+
+shader2 = shaders/xbrz-freescale-multipass/xbrz-freescale-pass1.slang
+filter_linear2 = false
+scale_type2 = viewport
+scale2 = 1.0
+
+parameters = "XBRZ_TOL;XBRZ_STEEP;XBRZ_MINC"
+XBRZ_TOL = "15.000000"
+XBRZ_STEEP = "3.000000"
+XBRZ_MINC = "16.000000"

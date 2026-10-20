@@ -51,18 +51,21 @@ layout(push_constant) uniform Push
 	vec4 SourceSize;
 	vec4 OutputSize;
 	float blend_none, blend_normal, blend_dominant;
+	float XBRZ_TOL, XBRZ_STEEP;
 } params;
 
 #pragma parameter blend_none "Blend None" 0.0 0.0 2.0 1.0
 #pragma parameter blend_normal "Blend Normal" 1.0 0.0 2.0 1.0
 #pragma parameter blend_dominant "Blend Dominant" 2.0 0.0 2.0 1.0
+#pragma parameter XBRZ_TOL "xBRZ: equal color tolerance (x/255)" 30.0 1.0 80.0 1.0
+#pragma parameter XBRZ_STEEP "xBRZ: steep/shallow line threshold" 2.2 1.0 6.0 0.1
 
 #define BLEND_NONE int(params.blend_none)
 #define BLEND_NORMAL int(params.blend_normal)
 #define BLEND_DOMINANT int(params.blend_dominant)
 #define LUMINANCE_WEIGHT 1.0
-#define EQUAL_COLOR_TOLERANCE 30.0/255.0
-#define STEEP_DIRECTION_THRESHOLD 2.2
+#define EQUAL_COLOR_TOLERANCE (params.XBRZ_TOL / 255.0)
+#define STEEP_DIRECTION_THRESHOLD params.XBRZ_STEEP
 #define DOMINANT_DIRECTION_THRESHOLD 3.6
 
 float DistYCbCr(vec3 pixA, vec3 pixB)
