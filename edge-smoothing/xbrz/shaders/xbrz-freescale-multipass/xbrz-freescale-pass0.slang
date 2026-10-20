@@ -57,8 +57,8 @@ layout(push_constant) uniform Push
 #pragma parameter blend_none "Blend None" 0.0 0.0 2.0 1.0
 #pragma parameter blend_normal "Blend Normal" 1.0 0.0 2.0 1.0
 #pragma parameter blend_dominant "Blend Dominant" 2.0 0.0 2.0 1.0
-#pragma parameter XBRZ_TOL "xBRZ: equal color tolerance (x/255)" 30.0 1.0 80.0 1.0
-#pragma parameter XBRZ_STEEP "xBRZ: steep/shallow line threshold" 2.2 1.0 6.0 0.1
+#pragma parameter XBRZ_TOL "xBRZ: equal color tolerance (x/255)" 15.0 1.0 80.0 1.0
+#pragma parameter XBRZ_STEEP "xBRZ: steep/shallow line threshold" 3.0 1.0 6.0 0.1
 
 #define BLEND_NONE int(params.blend_none)
 #define BLEND_NORMAL int(params.blend_normal)
