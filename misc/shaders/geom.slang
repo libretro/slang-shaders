@@ -17,7 +17,6 @@ layout(push_constant) uniform Push
    float geom_curvature;
    float geom_lum;
    float geom_invert_aspect;
-   float geom_lod_bias;
 } reg;
 
 layout(std140, set = 0, binding = 0) uniform UBO
@@ -38,7 +37,6 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter geom_y_tilt "Geom Vertical Tilt" 0.0 -0.5 0.5 0.05
 #pragma parameter geom_overscan_x "Geom Horiz. Overscan %" 100.0 -125.0 125.0 0.5
 #pragma parameter geom_overscan_y "Geom Vert. Overscan %" 100.0 -125.0 125.0 0.5
-#pragma parameter geom_lod_bias "Geom Anti-Aliasing Boost" 0.0 0.0 1.0 0.05
 #pragma parameter geom_sharper "Geom Sharpness" 1.0 1.0 3.0 1.0
 #pragma parameter geom_lum "Geom Luminance" 1.0 0.5 2.0 0.01
 #pragma parameter geom_target_gamma "Geom Target Gamma" 2.4 0.1 5.0 0.1
@@ -78,7 +76,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 // gain speed).
 #define LINEAR_PROCESSING
 
-// Enable 3x oversampling of the beam profile; improves moire effect caused by scanlines+curvature
+// Geometry filtering integrates the transformed pixel footprint to reduce moire.
 #define OVERSAMPLE
 
 // Use the older, purely gaussian beam profile; uncomment for speed
@@ -89,7 +87,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #define PI 3.141592653589
 
 #ifdef LINEAR_PROCESSING
-#       define TEX2D(c) pow(trilinear(Source, (c), TextureSize), vec4(reg.geom_target_gamma))
+#       define TEX2D(c) trilinear(Source, (c), TextureSize)
 #else
 #       define TEX2D(c) texture(Source, (c))
 #endif
@@ -171,7 +169,7 @@ void main()
     cosangle    = cos(vec2(reg.geom_x_tilt, reg.geom_y_tilt));
     stretch     = maxscale();
     
-    TextureSize = vec2(reg.geom_sharper * global.SourceSize.x, global.SourceSize.y);
+    TextureSize = global.SourceSize.xy;
 }
 
 #pragma stage fragment
@@ -257,20 +255,81 @@ float corner(vec2 coord)
       return clamp((cdist.x - dist)*reg.geom_cornersmooth, 0.0, 1.0);
 }
 
-// Code provided by fishku.
+// Footprint-aware anisotropic filtering.
+//
+// Instead of adding a fixed LOD bias, estimate the source-texel footprint
+// of one output pixel. Integrate along its major axis with adaptive samples,
+// and use mip-level filtering across the minor axis. This helps when curvature
+// or tilt makes the CRT mask/scanline pattern highly anisotropic.
+vec4 sampleLinearGamma(sampler2D Src, vec2 uv, float lod)
+{
+    vec4 c = textureLod(Src, uv, lod);
+#ifdef LINEAR_PROCESSING
+    c = pow(max(c, vec4(0.0)), vec4(reg.geom_target_gamma));
+#endif
+    return c;
+}
+
 vec4 trilinear(sampler2D Src, vec2 uv, vec2 texsize)
 {
-    const vec2 d_uv_dx = dFdx(uv) * texsize.xy;
-    const vec2 d_uv_dy = dFdy(uv) * texsize.xy;
+    // Pixel-footprint integration in screen space. Sampling a small grid over
+    // the transformed pixel footprint approximates an elliptical/area filter,
+    // and follows both axes of the warp instead of guessing a fixed LOD bias.
+    vec2 dx = dFdx(uv);
+    vec2 dy = dFdy(uv);
+    float lx = length(dx * texsize);
+    float ly = length(dy * texsize);
+    float majorLen = max(lx, ly);
+    float minorLen = max(min(lx, ly), 1.0);
 
-    // Anisotropic trilinear filtering.
-    // Implement in software because current implementation is broken. See:
-    // https://github.com/libretro/RetroArch/issues/16567
-    const float lambda_base = max(0.0, 0.5 * log2(max(dot(d_uv_dx, d_uv_dx), dot(d_uv_dy, d_uv_dy)))) + reg.geom_lod_bias;
-    float lambda_i;
-    const float lambda_f = modf(lambda_base, lambda_i);
+    // Increase the grid only when the footprint is being minified. The minor
+    // axis is prefiltered with mipmaps; grid integration handles orientation.
+    int taps = int(clamp(ceil(majorLen), 1.0, 6.0));
+    float lod = max(0.0, log2(minorLen));
+    vec4 sum = vec4(0.0);
+    vec4 lo = vec4(1e20);
+    vec4 hi = vec4(-1e20);
+    float weightSum = 0.0;
 
-    return mix(textureLod(Src, uv, lambda_i), textureLod(Src, uv, lambda_i + 1.0), lambda_f);
+    // Gaussian-like separable weights, evaluated over a regular grid spanning
+    // the output pixel. Up to 36 samples for extreme curvature/tilt.
+    for (int y = 0; y < 6; ++y) {
+        if (y >= taps) break;
+        float oy = (float(y) + 0.5) / float(taps) - 0.5;
+        float wy = exp(-8.0 * oy * oy);
+        for (int x = 0; x < 6; ++x) {
+            if (x >= taps) break;
+            float ox = (float(x) + 0.5) / float(taps) - 0.5;
+            float wx = exp(-8.0 * ox * ox);
+            float w = wx * wy;
+            vec2 sampleUV = uv + dx * ox + dy * oy;
+            vec4 c = textureLod(Src, sampleUV, lod);
+#ifdef LINEAR_PROCESSING
+            c = pow(max(c, vec4(0.0)), vec4(reg.geom_target_gamma));
+#endif
+            sum += c * w;
+            weightSum += w;
+            lo = min(lo, c);
+            hi = max(hi, c);
+        }
+    }
+
+    vec4 filtered = sum / max(weightSum, 1e-6);
+
+    // Detail recovery: blend in a bounded high-frequency residual from the
+    // center sample. Clamping to the footprint's sample range prevents large
+    // overshoots and limits the sharpening from bringing back strong moire.
+    float sharp = clamp((reg.geom_sharper - 1.0) * 0.30, 0.0, 0.60);
+    if (sharp > 0.0) {
+        vec4 center = textureLod(Src, uv, 0.0);
+#ifdef LINEAR_PROCESSING
+        center = pow(max(center, vec4(0.0)), vec4(reg.geom_target_gamma));
+#endif
+        vec4 sharpened = filtered + (center - filtered) * sharp;
+        filtered = clamp(sharpened, lo, hi);
+    }
+
+    return filtered;
 }
 
 void main()
