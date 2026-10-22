@@ -14,6 +14,7 @@ layout(push_constant) uniform Push
    float geom_overscan_x;
    float geom_overscan_y;
    float geom_sharper;
+   float geom_lod_bias;
    float geom_curvature;
    float geom_lum;
    float geom_invert_aspect;
@@ -38,6 +39,7 @@ layout(std140, set = 0, binding = 0) uniform UBO
 #pragma parameter geom_overscan_x "Geom Horiz. Overscan %" 100.0 -125.0 125.0 0.5
 #pragma parameter geom_overscan_y "Geom Vert. Overscan %" 100.0 -125.0 125.0 0.5
 #pragma parameter geom_sharper "Geom Sharpness" 1.0 1.0 3.0 1.0
+#pragma parameter geom_lod_bias "Geom LOD Bias" 0.0 0.0 1.0 0.05
 #pragma parameter geom_lum "Geom Luminance" 1.0 0.5 2.0 0.01
 #pragma parameter geom_target_gamma "Geom Target Gamma" 2.4 0.1 5.0 0.1
 #pragma parameter geom_monitor_gamma "Geom Monitor Gamma" 2.2 0.1 5.0 0.1
@@ -285,7 +287,7 @@ vec4 trilinear(sampler2D Src, vec2 uv, vec2 texsize)
     // Increase the grid only when the footprint is being minified. The minor
     // axis is prefiltered with mipmaps; grid integration handles orientation.
     int taps = int(clamp(ceil(majorLen), 1.0, 6.0));
-    float lod = max(0.0, log2(minorLen));
+    float lod = max(0.0, log2(minorLen) + reg.geom_lod_bias);
     vec4 sum = vec4(0.0);
     vec4 lo = vec4(1e20);
     vec4 hi = vec4(-1e20);
