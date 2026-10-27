@@ -10,52 +10,20 @@
    | || '__/ _` | '_ \/ __| '_ \ / _` | '__/ _ \ '_ \ / __| | | |
    | || | | (_| | | | \__ \ |_) | (_| | | |  __/ | | | (__| |_| |
    |_||_|  \__,_|_| |_|___/ .__/ \__,_|_|  \___|_| |_|\___|\__, |
-                          |_|     SUNLIGHT SHIMMER EDITION  |___/
-    v2.3 by mattakins
+                          |_|                  LIGHT CACHE  |___/
+    v3.0 by mattakins
     Copyright (C) 2025-2026 Matt Akins.
 
-    Grid shaders look great on Game Boy Color games - except for one glaring issue.
-
-    With no backlight, the original devices didn't render white pixels. Light pixels
-    appeared as transparent areas where the backing material of the screen showed through.
-    Many games relied on this effect for transparent backgrounds that now render on modern
-    displays as eye-searing white pixels. No more! Pixel Transparency simulates this unique effect.
-
-    SUNLIGHT SHIMMER EDITION: Light and shadows move with your device!
-    Tilt your device and shadows shift with it. Glare sweeps across your screen. And just like the
-    Game Boy Color in sunlight, you see a brilliant rainbow shimmer in the background.
-
-    Just append the preset to your favorite LCD shader as the last pass to reduce eye strain and maximize nostalgia.
+    Generates the smooth sunlight rainbow and glare field.
+    Sunlight Shimmer only; the preset uses a 256 x 256 floating-point texture.
 
 */
 
-#pragma parameter PT_ENABLE 			"=== Pixel Transparency v2.3 === (OFF/ON)" 1.0 0.0 1.0 1.0
-#pragma parameter PT_HIDE_CONTENT 		" *  Append to any LCD shader as last pass. Try with GBC & GBA." 0.0 0.0 2.0 1.0
-#pragma parameter PT_BRIGHTNESS_MODE 	"      • Brightness mode (Simple / Natural)" 1.0 0.0 1.0 1.0
-#pragma parameter PT_ACCEL_ENABLE 		"== MOTION == (OFF/ON)" 1.0 0.0 1.0 1.0
-#pragma parameter PT_ACCEL_SENSITIVITY 	"      • Tilt sensitivity" 1.0 0.1 5.0 0.05
-
-#pragma parameter PT_RAINBOW_COLORS 	"      • Rainbow colors (3=Fast, 7=Full)" 7.0 3.0 7.0 2.0
-
-#pragma parameter PT_SUNLIGHT_ENABLE 	"== SUNLIGHT SHIMMER == (OFF/ON)" 1.0 0.0 1.0 1.0
-#pragma parameter PT_GLARE_ENABLE 		"      • Glare (OFF/ON)" 1.0 0.0 1.0 1.0
-#pragma parameter PT_GLARE_INTENSITY 	"         ↳ Strength" 0.15 0.0 1.0 0.05
-#pragma parameter PT_GLARE_SIZE			"         ↳ Spread" 0.25 0.05 1.0 0.05
-#pragma parameter PT_RAINBOW_ENABLE 	"      • Rainbow shimmer (OFF/ON)" 1.0 0.0 1.0 1.0
-#pragma parameter PT_RAINBOW_INTENSITY 	"         ↳ Intensity" 0.18 0.0 1.0 0.01
-#pragma parameter PT_FILM_TUNING 		"         ↳ Color shift" 1.0 0.5 2.0 0.05
-#pragma parameter PT_LIGHT_SPREAD 		"         ↳ Band density" 1.8 0.5 4.0 0.1
-#pragma parameter PT_FILM_NOISE 		"         ↳ Film splotchiness" 0.5 0.0 1.0 0.05
-#pragma parameter PT_FILM_SCALE 		"         ↳ Splotch size" 0.6 0.1 3.0 0.05
-#pragma parameter PT_REFLECT_ENABLE     "      • Reflection (OFF/ON)" 0.0 0.0 1.0 1.0
-#pragma parameter PT_REFLECT_INTENSITY  "         ↳ Strength" 0.08 0.0 0.5 0.01
-#pragma parameter PT_REFLECT_SPREAD     "         ↳ Spread (lower = sharper)" 0.6 0.1 1.0 0.05
-#pragma parameter PT_REFLECT_BIAS       "         ↳ Ambient floor" 0.02 0.0 0.2 0.005
-#pragma parameter PT_REFLECT_WARM       "         ↳ Warm tint" 0.3 0.0 1.0 0.05
-#pragma parameter PT_LIGHT_HEIGHT 		"      • Light source distance (0=Flat, 1=Far)" 0.0 0.0 1.0 0.05
-#pragma parameter PT_LIGHT_RANGE 		"         ↳ Tilt range" 0.6 0.0 2.0 0.05
-#pragma parameter PT_LIGHT_X 			"         ↳ X" 0.5 -1.0 2.0 0.01
-#pragma parameter PT_LIGHT_Y 			"         ↳ Y" 0.5 -1.0 2.0 0.01
+// Interpolate the optical field; game and LCD detail remain at output resolution.
+#include "pt-params.inc"
+#include "pt-params-sunlight.inc"
+#pragma name LightField
+#pragma format R16G16B16A16_SFLOAT
 
 layout(push_constant) uniform Push {
     vec4 SourceSize;
@@ -73,8 +41,12 @@ layout(push_constant) uniform Push {
     float PT_ACCEL_SENSITIVITY;
 } param;
 
+// The light field is sized to the LCD framebuffer, which matches the final viewport.
+#define PT_LIGHT_VIEWPORT LCDInputSize
+
 layout(std140, set = 0, binding = 0) uniform UBO {
     mat4 MVP;
+    vec4 PT_LIGHT_VIEWPORT;
     #ifdef _HAS_SENSOR_UNIFORMS
     vec3 Gyroscope;
     vec3 Accelerometer;
@@ -104,7 +76,7 @@ layout(std140, set = 0, binding = 0) uniform UBO {
 layout(location = 0) in vec4 Position;
 layout(location = 1) in vec2 TexCoord;
 layout(location = 0) out vec2 vTexCoord;
-layout(location = 1) out vec2 light_pos;
+layout(location = 1) flat out vec2 light_pos;
 
 void main() {
     gl_Position = global.MVP * Position;
@@ -127,10 +99,10 @@ void main() {
 
 #pragma stage fragment
 layout(location = 0) in vec2 vTexCoord;
-layout(location = 1) in vec2 light_pos;
+layout(location = 1) flat in vec2 light_pos;
 layout(location = 0) out vec4 FragColor;
-layout(set = 0, binding = 2) uniform sampler2D Pixel_Transparency;
-layout(set = 0, binding = 3) uniform sampler2D Original;
+
+
 layout(set = 0, binding = 4) uniform sampler2D FilmNoiseCache;
 
 float getPerceptualBrightness(vec3 color) {
@@ -245,31 +217,12 @@ vec3 qwpSpectralTint(float gamma_eff, float wavelengths) {
 }
 
 void main() {
-    vec4 output_color = texture(Pixel_Transparency, vTexCoord);
-    // Match the original master bypass: no lighting or dither when disabled.
-    if (param.PT_ENABLE < 0.5) {
-        FragColor = output_color;
-        return;
-    }
-    if (global.PT_SUNLIGHT_ENABLE < 0.5 ||
-        (param.PT_RAINBOW_ENABLE < 0.5 && param.PT_GLARE_ENABLE < 0.5 &&
-         global.PT_REFLECT_ENABLE < 0.5)) {
-        // Keep final dither when the light effects are bypassed.
-        output_color.rgb += (hash(gl_FragCoord.xy) - 0.5) / 255.0;
-        FragColor = output_color;
-        return;
-    }
-    vec3 original_pixel = global.PT_HIDE_CONTENT > 0.5
-        ? vec3(1.0) : texture(Original, vTexCoord).rgb;
-    {
-        float aspect_ratio = param.OutputSize.x / param.OutputSize.y;
-        vec2 to_light = (vTexCoord - light_pos) * vec2(aspect_ratio, 1.0);
-        float dist_sq = 0.0;
-        if (global.PT_REFLECT_ENABLE > 0.5 || param.PT_GLARE_ENABLE > 0.5) {
-            dist_sq = dot(to_light, to_light);
-        }
-
-        // Rainbow effect — QWP chromatic dispersion with 3D light source geometry.
+    vec2 field_uv=(vTexCoord*param.OutputSize.xy-vec2(0.5))/(param.OutputSize.xy-vec2(1.0));
+    vec3 tint=vec3(1.0);
+    float glare=0.0;
+    if (param.PT_ENABLE >= 0.5 && global.PT_SUNLIGHT_ENABLE >= 0.5) {
+        float aspect_ratio=global.PT_LIGHT_VIEWPORT.x/global.PT_LIGHT_VIEWPORT.y;
+        vec2 to_light=(field_uv-light_pos)*vec2(aspect_ratio,1.0);
         if (param.PT_RAINBOW_ENABLE > 0.5 && global.PT_RAINBOW_INTENSITY > 0.001) {
             float dist_xy = length(to_light);
             const float GAMMA_BASE = 275.0; // Double-pass through 137.5nm QWP film
@@ -294,57 +247,18 @@ void main() {
             // Film thickness noise — manufacturing variations in the QWP film
             // produce the splotchy, irregular color bands seen on real hardware.
             if (global.PT_FILM_NOISE > 0.001) {
-                vec2 noise_uv = vec2(vTexCoord.x * aspect_ratio, vTexCoord.y);
+                vec2 noise_uv = vec2(field_uv.x * aspect_ratio, field_uv.y);
                 float noise = filmNoise(noise_uv, global.PT_FILM_SCALE) - 0.4375;
                 gamma_eff *= (1.0 + noise * global.PT_FILM_NOISE);
             }
 
-            vec3 tint = qwpSpectralTint(gamma_eff, global.PT_RAINBOW_COLORS);
+            tint = qwpSpectralTint(gamma_eff, global.PT_RAINBOW_COLORS);
 
-            float tint_strength = global.PT_RAINBOW_INTENSITY;
-
-            // Brightness gating — rainbow light double-passes through the LC layer,
-            // so dark pixels attenuate the reflection. Linear with 0.03 floor from
-            // ~30:1 contrast ratio of reflective TFT.
-            float reflectivity = mix(0.03, 1.0, getBrightness(original_pixel));
-            tint_strength *= reflectivity;
-
-            // Color filter — rainbow light double-passes through RGB sub-pixel color filters
-            // (in and out), so pixel color is squared for physical two-pass attenuation
-            tint *= original_pixel * original_pixel;
-
-            // Luminance-preserving tint blend:
-            // Multiply by the spectral tint (shifts color), then restore original luminance.
-            vec3 tinted = output_color.rgb * mix(vec3(1.0), tint, tint_strength);
-            float orig_luma = getPerceptualBrightness(output_color.rgb);
-            float tinted_luma = getPerceptualBrightness(tinted);
-            if (tinted_luma > 0.001) {
-                tinted *= orig_luma / tinted_luma;
-            }
-            output_color.rgb = tinted;
         }
-
-        // Ambient front-surface reflection — broad sheen centered on the light source.
-        if (global.PT_REFLECT_ENABLE > 0.5) {
-            float spread_sq = global.PT_REFLECT_SPREAD * global.PT_REFLECT_SPREAD;
-            float reflect_strength = exp(-dist_sq / (2.0 * spread_sq));
-            reflect_strength = reflect_strength * global.PT_REFLECT_INTENSITY + global.PT_REFLECT_BIAS;
-
-            vec3 reflect_color = mix(vec3(1.0), vec3(1.0, 0.95, 0.85), global.PT_REFLECT_WARM);
-            output_color.rgb += reflect_color * reflect_strength;
-        }
-
-        // Specular glare — soft white hotspot centered on the light source.
         if (param.PT_GLARE_ENABLE > 0.5 && global.PT_GLARE_INTENSITY > 0.001) {
-            float size_sq = global.PT_GLARE_SIZE * global.PT_GLARE_SIZE;
-            float glare_strength = exp(-dist_sq / (2.0 * size_sq)) * global.PT_GLARE_INTENSITY;
-
-            output_color.rgb = mix(output_color.rgb, vec3(1.0), clamp(glare_strength, 0.0, 0.85));
+            float size_sq=global.PT_GLARE_SIZE*global.PT_GLARE_SIZE;
+            glare=exp(-dot(to_light,to_light)/(2.0*size_sq))*global.PT_GLARE_INTENSITY;
         }
     }
-
-    // Anti-banding dither runs after light optics, before quantization.
-    output_color.rgb += (hash(gl_FragCoord.xy) - 0.5) / 255.0;
-
-    FragColor = output_color;
+    FragColor=vec4(tint,glare);
 }

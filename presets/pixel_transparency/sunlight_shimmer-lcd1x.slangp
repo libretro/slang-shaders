@@ -1,26 +1,34 @@
-shaders = 4
+shaders = 5
 
-shader0 = ../../handheld/shaders/lcd1x.slang
+shader0 = ../../handheld/shaders/pixel_transparency/pt-0-shadow-cache.slang
 filter_linear0 = false
-wrap_mode0 = clamp_to_border
-mipmap_input0 = false
-float_framebuffer0 = false
-srgb_framebuffer0 = false
-scale_type0 = viewport
+scale_type0 = source
+scale_x0 = 3.1
+scale_y0 = 1.1
 
-shader1 = ../../handheld/shaders/pixel_transparency/pixel_transparency.slang
+shader1 = ../../handheld/shaders/pixel_transparency/grids/lcd1x/input.slang
 filter_linear1 = false
+wrap_mode1 = clamp_to_border
+mipmap_input1 = false
+float_framebuffer1 = false
+srgb_framebuffer1 = false
 scale_type1 = viewport
-float_framebuffer1 = true
+alias1 = LCDInput
 
-shader2 = ../../handheld/shaders/pixel_transparency/film_noise_cache.slang
+shader2 = ../../handheld/shaders/pixel_transparency/pt-2-film-noise-cache.slang
 filter_linear2 = false
 scale_type2 = absolute
 scale_x2 = 128
 scale_y2 = 128
 
-shader3 = ../../handheld/shaders/pixel_transparency/sunlight_shimmer.slang
+shader3 = ../../handheld/shaders/pixel_transparency/pt-3-light-cache.slang
 filter_linear3 = false
-scale_type3 = viewport
+scale_type3 = absolute
+scale_x3 = 256
+scale_y3 = 256
+
+shader4 = ../../handheld/shaders/pixel_transparency/grids/lcd1x/sunlight_shimmer.slang
+filter_linear4 = true
+wrap_mode4 = clamp_to_edge
 
 PT_DEFER_DITHER = "1.0"

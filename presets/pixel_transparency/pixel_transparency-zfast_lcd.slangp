@@ -1,12 +1,18 @@
-shaders = 2
+shaders = 3
 
-shader0 = ../../handheld/shaders/zfast_lcd.slang
-filter_linear0 = true
-scale_type0 = viewport
+shader0 = ../../handheld/shaders/pixel_transparency/pt-0-shadow-cache.slang
+filter_linear0 = false
+scale_type0 = source
+scale_x0 = 3.1
+scale_y0 = 1.1
 
-shader1 = ../../handheld/shaders/pixel_transparency/pixel_transparency.slang
-filter_linear1 = false
+shader1 = ../../handheld/shaders/pixel_transparency/grids/zfast_lcd/input.slang
+filter_linear1 = true
 scale_type1 = viewport
+alias1 = LCDInput
+
+shader2 = ../../handheld/shaders/pixel_transparency/grids/zfast_lcd/pixel_transparency.slang
+filter_linear2 = false
 
 PT_PALETTE = "1.0"
 PT_POLARIZER = "0.0"
