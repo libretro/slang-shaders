@@ -1,28 +1,31 @@
-shaders = 2
+shaders = 3
 
-shader0 = ../../handheld/shaders/simpletex_lcd/simpletex_lcd.slang
-filter_linear0 = true
-wrap_mode0 = clamp_to_border
-mipmap_input0 = false
-float_framebuffer0 = false
-srgb_framebuffer0 = false
-scale_type0 = viewport
+shader0 = ../../handheld/shaders/pixel_transparency/pt-0-shadow-cache.slang
+filter_linear0 = false
+scale_type0 = source
+scale_x0 = 3.1
+scale_y0 = 1.1
 
-shader1 = ../../handheld/shaders/pixel_transparency/pixel_transparency.slang
-filter_linear1 = false
+shader1 = ../../handheld/shaders/pixel_transparency/grids/simpletex_lcd/input.slang
+filter_linear1 = true
+wrap_mode1 = clamp_to_border
+mipmap_input1 = false
+float_framebuffer1 = false
+srgb_framebuffer1 = false
 scale_type1 = viewport
+alias1 = LCDInput
+
+shader2 = ../../handheld/shaders/pixel_transparency/grids/simpletex_lcd/pixel_transparency.slang
+filter_linear2 = false
 
 textures = "BACKGROUND"
 BACKGROUND = ../../handheld/shaders/simpletex_lcd/png/2k/textured_paper.png
 BACKGROUND_linear = false
-
 GRID_INTENSITY = "0.65"
 GRID_WIDTH = "0.65"
 GRID_BIAS = "0.6"
-DARKEN_GRID = "0.0"
 DARKEN_COLOUR = "0.05"
 BACKGROUND_INTENSITY = "0.0"
-
 PT_PALETTE = "1.0"
 PT_POLARIZER = "0.0"
 PT_HIGHLIGHTS = "0.0"

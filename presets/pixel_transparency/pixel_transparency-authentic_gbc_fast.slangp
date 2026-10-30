@@ -1,17 +1,38 @@
-shaders = 3
+shaders = 6
 
 shader0 = ../../handheld/shaders/authentic_gbc/to_lin_fast.slang
 filter_linear0 = false
 scale_type0 = source
 srgb_framebuffer0 = true
+alias0 = PTNativeColour
 
-shader1 = ../../handheld/shaders/authentic_gbc/authentic_gbc_fast.slang
+shader1 = ../../handheld/shaders/pixel_transparency/pt-0-shadow-cache.slang
 filter_linear1 = false
-scale_type1 = viewport
+scale_type1 = source
+scale_x1 = 3.1
+scale_y1 = 1.1
 
-shader2 = ../../handheld/shaders/pixel_transparency/pixel_transparency.slang
+shader2 = ../../handheld/shaders/pixel_transparency/grids/authentic_gbc_fast/cache_x.slang
 filter_linear2 = false
-scale_type2 = viewport
+scale_type_x2 = viewport
+scale_x2 = 1.0
+scale_type_y2 = absolute
+scale_y2 = 6
+
+shader3 = ../../handheld/shaders/pixel_transparency/grids/authentic_gbc_fast/cache_y.slang
+filter_linear3 = false
+scale_type_y3 = viewport
+scale_y3 = 1.0
+scale_type_x3 = absolute
+scale_x3 = 6
+
+shader4 = ../../handheld/shaders/pixel_transparency/grids/authentic_gbc_fast/input.slang
+filter_linear4 = false
+scale_type4 = viewport
+alias4 = LCDInput
+
+shader5 = ../../handheld/shaders/pixel_transparency/grids/authentic_gbc_fast/pixel_transparency.slang
+filter_linear5 = false
 
 PT_PALETTE = "1.0"
 PT_POLARIZER = "0.0"
