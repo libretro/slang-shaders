@@ -1,6 +1,6 @@
-// GAME BOY DOT MATRIX SHADER v1.4 - Shared Parameters
+// GAME BOY DOT MATRIX SHADER v1.5 - Shared Parameters
 
-#pragma parameter GAMEBOY_SHADER 				"=== GAME BOY DOT MATRIX SHADER v1.4 ===" 0.0 0.0 1.0 1.0
+#pragma parameter GAMEBOY_SHADER 				"=== GAME BOY DOT MATRIX SHADER v1.5 ===" 0.0 0.0 1.0 1.0
 #pragma parameter NOTE1 						" *  Turn OFF Settings > Video > Scaling > Integer Scale" 0.0 0.0 1.0 1.0
 #pragma parameter NOTE2 						" *  Turn OFF Core > Interframe Blending" 0.0 0.0 1.0 1.0
 #pragma parameter NOTE3 						" *  Turn ON Core > Color Correction" 0.0 0.0 1.0 1.0
@@ -37,16 +37,18 @@
 
 #pragma parameter shadow_enable 				"== SHADOWS == (OFF/ON)" 1.0 0.0 1.0 1.0
 #pragma parameter shadow_motion 				"      ↳ Motion (OFF/ON)" 1.0 0.0 1.0 1.0
-#pragma parameter shadow_max_offset 			"          ↳ Max offset" 2.50 0.0 30.0 0.5
+#pragma parameter shadow_max_offset 			"          ↳ Max offset" 2.0 0.0 30.0 0.5
 #pragma parameter shadow_opacity 				"      ↳ Opacity" 0.55 0.01 1.0 0.01
 #pragma parameter shadow_offset_x 				"      ↳ X offset" 2.0 -5.0 5.0 0.5
 #pragma parameter shadow_offset_y 				"      ↳ Y offset" 2.0 -5.0 5.0 0.5
-#pragma parameter shadow_blur_amount 			"      ↳ Blur" 1.0 0.0 3.0 0.05
+#pragma parameter shadow_blur_amount 			"      ↳ Blur" 1.65 0.0 3.0 0.05
 
 #pragma parameter SCREEN_POSITIONING 			"== SCREEN OFFSET ==" 0.0 0.0 1.0 1.0
 #pragma parameter screen_offset_x 				"      ↳ X offset" 0.0 -5.0 5.0 1.0
 #pragma parameter screen_offset_y 				"      ↳ Y offset" 0.0 -5.0 5.0 1.0
 
+#pragma parameter PERFORMANCE 					"== PERFORMANCE ==" 0.0 0.0 1.0 1.0
+#pragma parameter fullscreen_matching 			"      ↳ Fullscreen brightness matching (OFF/ON)" 1.0 0.0 1.0 1.0
 
 const float max_adjacent_alpha_blend = 0.25; 	// Shared cap: four neighbors can contribute at most 1.0 alpha.
 #define shadow_reference_scale 5.0

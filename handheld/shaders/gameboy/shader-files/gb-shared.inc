@@ -1,7 +1,7 @@
-// GAME BOY DOT MATRIX SHADER v1.4 - Shared Helpers
+// GAME BOY DOT MATRIX SHADER v1.5 - Shared Helpers
 
   /////////////////////////////////////////////////////////////////////////
- // Fullscreen pixel sizing and adaptive softness                      //
+ // Fullscreen pixel sizing and adaptive softness                       //
 /////////////////////////////////////////////////////////////////////////
 
 // Match fullscreen dots to the one-output-pixel gaps used by integer modes.
@@ -37,7 +37,7 @@ float get_effective_pixel_softness(vec2 tx_to_px, float pixel_softness,
 }
 
   /////////////////////////////////////////////////////////////////////////
- // Geometric coverage primitives                                      //
+ // Geometric coverage primitives                                       //
 /////////////////////////////////////////////////////////////////////////
 
 // Return the overlap length between two one-dimensional line segments.
@@ -102,7 +102,7 @@ float calculate_coverage_at_point(vec2 tx_coord_f, float pixel_size,
 }
 
   /////////////////////////////////////////////////////////////////////////
- // Fractional-scale phase sampling                                    //
+ // Fractional-scale phase sampling                                     //
 /////////////////////////////////////////////////////////////////////////
 
 // Support exact phase-cycle counts for rational source/output scales.
@@ -157,16 +157,10 @@ float sample_scale_average_coverage(vec2 tx_to_px, vec2 output_size,
 }
 
   /////////////////////////////////////////////////////////////////////////
- // Integer and post-blend coverage                                    //
+ // Integer and post-blend coverage                                     //
 /////////////////////////////////////////////////////////////////////////
 
 // Integer dots use an (N-1) x (N-1) lit area inside each N x N cell.
-float integer_dot_coverage(float scale) {
-    float safe_scale = max(scale, 1.0);
-    float lit_pixels = max(safe_scale - 1.0, 0.0);
-    return (lit_pixels * lit_pixels) / (safe_scale * safe_scale);
-}
-
 float integer_rect_post_blend_coverage(vec2 scale, float blending_mode,
                                        float blend_amount) {
     vec2 safe_scale = max(scale, vec2(1.0));
@@ -196,6 +190,10 @@ float alpha_normalization_factor(float reference_coverage,
                  0.0, 4.0);
 }
 
+  /////////////////////////////////////////////////////////////////////////
+ // Palettes						                                    //
+/////////////////////////////////////////////////////////////////////////
+
 // Foreground palette shared by dot generation and opacity-data restoration.
 vec3 gameboy_foreground_color(float palette, sampler2D color_palette) {
     if (palette < 0.5) {
@@ -215,4 +213,16 @@ vec3 gameboy_foreground_color(float palette, sampler2D color_palette) {
     } else {
         return vec3(29.0, 106.0, 107.0) / 255.0; // 7: #1D6A6B
     }
+}
+
+  /////////////////////////////////////////////////////////////////////////
+ // Texture sampling                                                    //
+/////////////////////////////////////////////////////////////////////////
+
+// Keep the existing nudge at ordinary sizes and stay below half a texel
+// when an output axis grows large enough to cross a sampling boundary.
+vec2 biased_texcoord(vec2 coord, vec2 output_size) {
+    vec2 scale = min(vec2(1.0001), vec2(1.0) +
+        vec2(0.4375) / max(output_size, vec2(1.0)));
+    return coord * scale;
 }
