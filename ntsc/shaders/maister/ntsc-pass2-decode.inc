@@ -1,4 +1,3 @@
-float one_x = 1.0 / global.SourceSize.x;
 vec3 signal = vec3(0.0);
 for (int i = 0; i < TAPS; i++)
 {
