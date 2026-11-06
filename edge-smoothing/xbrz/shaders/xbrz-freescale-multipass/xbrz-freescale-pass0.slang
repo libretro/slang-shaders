@@ -4,7 +4,8 @@
 // Rules 2 and 4 to 7 below keep xBRZ from cutting corners into shapes the artist did not draw
 // (fake diagonals at junctions of three colors, bent frames, rounded ends of stripes). They are
 // on by default; XBRZ_DIAG = 0 turns them off, for the reference xBRZ shapes. Rules 1, 3 and 8 to
-// 13 are the crisp look and run with XBRZ_MINC above 0; the xbrz-crisp preset sets it to 20, so
+// 13 are the crisp look: with XBRZ_MINC fixed at 0 they compile away in this file. The
+// xbrz-crisp preset uses xbrz-crisp-pass0, which has them, with XBRZ_MINC 20, so
 // low-contrast shading and textures keep their pixels.
 //
 // xBRZ decides, for each corner of each pixel, whether to cut it and how (a corner piece, a 45-degree
@@ -144,19 +145,17 @@ layout(std140, set = 0, binding = 0) uniform UBO
 	float XBRZ_TOL;
 	float XBRZ_DOM;
 	float XBRZ_STEEP;
-	float XBRZ_MINC;
 	float XBRZ_DIAG;
 } global;
 
 #pragma parameter XBRZ_TOL "xBRZ: equal color tolerance (x/255)" 15 1 80 1
 #pragma parameter XBRZ_DOM "xBRZ: dominant direction threshold" 3.8 1 8 0.05
 #pragma parameter XBRZ_STEEP "xBRZ: steep/shallow line threshold" 3.2 1 6 0.1
-#pragma parameter XBRZ_MINC "xBRZ: minimum contrast to round a corner (x/255, 0 = off)" 0 0 80 2
 #pragma parameter XBRZ_DIAG "xBRZ: max color distance on the diagonal (0 = off)" 100 0 160 4
 #define XBRZ_TOL global.XBRZ_TOL
 #define XBRZ_DOM global.XBRZ_DOM
 #define XBRZ_STEEP global.XBRZ_STEEP
-#define XBRZ_MINC global.XBRZ_MINC
+#define XBRZ_MINC 0.0
 #define XBRZ_DIAG global.XBRZ_DIAG
 
 #pragma stage vertex
@@ -206,7 +205,7 @@ layout(set = 0, binding = 2) uniform sampler2D Source;
 #define BLEND(r) mod(r, 4.0)
 #define FLAG(r, f) mod(floor((r) / (f)), 2.0)
 
-// ---- rule tunables (XBRZ_MINC and XBRZ_DIAG are in the menu) ----
+// ---- rule tunables (XBRZ_DIAG is in the menu, XBRZ_MINC is 0) ----
 // rules 3, 9, 10, 12 and 13 belong to the crisp look rather than fixing clear xBRZ errors, so they
 // run only when XBRZ_MINC is on too (plain xBRZ, with XBRZ_MINC 0, keeps rules 2 and 4 to 7)
 #define CRISP_RULES (XBRZ_MINC > 0.0 && XBRZ_DIAG > 0.0)

@@ -3,7 +3,7 @@ shaders = 4
 shader0 = ../../stock.slang
 alias0 = xbrz_fs_refpass
 
-shader1 = shaders/xbrz-freescale-multipass/xbrz-freescale-pass0.slang
+shader1 = shaders/xbrz-freescale-multipass/xbrz-crisp-pass0.slang
 filter_linear1 = false
 scale_type1 = source
 scale1 = 1.0
