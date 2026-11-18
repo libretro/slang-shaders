@@ -1,0 +1,16 @@
+These palettes are based on Core Beetle WonderSwan:
+
+- palette-game-boy-dmg.png
+- palette-game-boy-pocket.png
+- palette-game-boy-light.png
+- palette-game-com.png
+- palette-gameking.png
+- palette-game-master.png
+- palette-microvision.png
+- palette-ti-83.png
+- palette-wonderswan.png
+- palette-wonderswan-color-monochrome.png
+- palette-wonderswan-crystal-monochrome.png
+
+These palettes are based on Core Beetle VB:
+- palette-virtual-boy.png
