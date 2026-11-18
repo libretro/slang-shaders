@@ -1,0 +1,6 @@
+#reference "shaders_slang/crt/crt-royale.slangp"
+beam_horiz_filter = "2.000000"
+mask_triad_size_desired = "4.000000"
+aa_subpixel_r_offset_x_runtime = "0.000000"
+geom_mode_runtime = "2.000000"
+border_darkness = "0.060000"
